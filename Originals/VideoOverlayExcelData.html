@@ -1,0 +1,1256 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Video Overlay</title>
+	<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+	<style>
+		:root {
+			--bg-1: #f3efe4;
+			--bg-2: #f8d9ae;
+			--card: rgba(255, 255, 255, 0.85);
+			--ink: #1f2937;
+			--muted: #6b7280;
+			--accent: #d9480f;
+			--accent-soft: #fb923c;
+			--line: #0f766e;
+			--grid: rgba(31, 41, 55, 0.15);
+			--ok: #166534;
+			--warn: #b45309;
+		}
+
+		* {
+			box-sizing: border-box;
+		}
+
+		body {
+			margin: 0;
+			min-height: 100vh;
+			color: var(--ink);
+			font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+			background:
+				radial-gradient(circle at 8% 10%, rgba(219, 107, 48, 0.7), transparent 30%),
+				radial-gradient(circle at 88% 20%, rgba(187, 188, 188, 0.1), transparent 32%),
+				linear-gradient(145deg, var(--bg-1), var(--bg-2));
+			padding: 18px;
+		}
+
+		.shell {
+			max-width: 1150px;
+			margin: 0 auto;
+			background: var(--card);
+			border: 1px solid rgba(31, 41, 55, 0.1);
+			border-radius: 16px;
+			backdrop-filter: blur(6px);
+			box-shadow: 0 18px 35px rgba(15, 23, 42, 0.15);
+			overflow: hidden;
+		}
+
+		.topbar {
+			padding: 16px 18px;
+			border-bottom: 1px solid rgba(31, 41, 55, 0.1);
+			background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.65));
+			display: grid;
+			gap: 8px;
+		}
+
+		.title {
+			margin: 0;
+			font-size: 1.25rem;
+			letter-spacing: 0.01em;
+			font-weight: 700;
+		}
+
+		.subtitle {
+			margin: 0;
+			color: var(--muted);
+			font-size: 0.94rem;
+		}
+
+		.controls {
+			padding: 14px 18px;
+			display: grid;
+			grid-template-columns: repeat(4, minmax(180px, 1fr));
+			gap: 10px;
+			border-bottom: 1px solid rgba(31, 41, 55, 0.1);
+			background: rgba(255, 255, 255, 0.72);
+		}
+
+		.field {
+			display: grid;
+			gap: 6px;
+			align-content: start;
+		}
+
+		.field label {
+			font-size: 0.82rem;
+			color: var(--muted);
+			font-weight: 600;
+		}
+
+		.field input,
+		.field select {
+			width: 100%;
+			border: 1px solid rgba(31, 41, 55, 0.2);
+			border-radius: 9px;
+			background: #fff;
+			color: var(--ink);
+			padding: 8px;
+			font-size: 0.94rem;
+		}
+
+		.field select[multiple] {
+			min-height: 132px;
+			padding: 4px;
+		}
+
+		.stats {
+			padding: 8px 18px 14px;
+			display: flex;
+			gap: 10px;
+			flex-wrap: wrap;
+		}
+
+		.chip {
+			padding: 6px 10px;
+			border-radius: 999px;
+			border: 1px solid rgba(31, 41, 55, 0.16);
+			font-size: 0.82rem;
+			background: #fff;
+		}
+
+		.chip strong {
+			color: var(--ok);
+		}
+
+		.stage {
+			padding: 0 18px 18px;
+			display: grid;
+			gap: 12px;
+		}
+
+		.video-wrap {
+			border-radius: 12px;
+			overflow: hidden;
+			border: 1px solid rgba(31, 41, 55, 0.12);
+			background: #111;
+		}
+
+		video {
+			display: block;
+			width: 100%;
+			max-height: 62vh;
+			background: #000;
+		}
+
+		.plot-wrap {
+			border: 1px solid rgba(31, 41, 55, 0.16);
+			border-radius: 12px;
+			background: #fff;
+			overflow: hidden;
+		}
+
+		.plot-head {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			gap: 12px;
+			padding: 10px 12px;
+			border-bottom: 1px solid rgba(31, 41, 55, 0.12);
+			background: linear-gradient(180deg, #fff, #fafafa);
+		}
+
+		.legend {
+			color: var(--muted);
+			font-size: 0.82rem;
+			display: flex;
+			gap: 14px;
+			flex-wrap: wrap;
+		}
+
+		.legend-group {
+			display: inline-flex;
+			gap: 14px;
+			flex-wrap: wrap;
+		}
+
+		.swatch {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+		}
+
+		.swatch i {
+			width: 14px;
+			height: 3px;
+			display: inline-block;
+			border-radius: 10px;
+		}
+
+		.plot-canvas {
+			width: 100%;
+			height: 240px;
+			display: block;
+			cursor: crosshair;
+			touch-action: none;
+			user-select: none;
+		}
+
+		.status {
+			padding: 10px 12px;
+			border-top: 1px solid rgba(31, 41, 55, 0.12);
+			color: var(--warn);
+			font-size: 0.86rem;
+			min-height: 2.3em;
+			background: #fff7ed;
+		}
+
+		.record-panel {
+			border: 1px solid rgba(31, 41, 55, 0.16);
+			border-radius: 12px;
+			background: #fff;
+			overflow: hidden;
+		}
+
+		.record-explainer {
+			margin: 0;
+			padding: 10px 14px;
+			font-size: 0.85rem;
+			color: var(--muted);
+			border-bottom: 1px solid rgba(31, 41, 55, 0.1);
+			background: #fffbeb;
+		}
+
+		.record-bar {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			padding: 12px 14px;
+			border-bottom: 1px solid rgba(31, 41, 55, 0.1);
+			background: linear-gradient(180deg, #fff, #fafafa);
+		}
+
+		.btn {
+			padding: 8px 20px;
+			border-radius: 8px;
+			border: none;
+			font-size: 0.92rem;
+			font-weight: 600;
+			cursor: pointer;
+			transition: opacity 0.15s, box-shadow 0.15s;
+		}
+
+		.btn:disabled {
+			opacity: 0.35;
+			cursor: not-allowed;
+		}
+
+		.btn-record {
+			background: #dc2626;
+			color: #fff;
+		}
+
+		.btn-record.recording {
+			background: #7f1d1d;
+			box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.35);
+			animation: pulse 1.1s ease-in-out infinite;
+		}
+
+		@keyframes pulse {
+			0%, 100% { box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.35); }
+			50%       { box-shadow: 0 0 0 7px rgba(220, 38, 38, 0.12); }
+		}
+
+		.btn-calc {
+			background: #0f766e;
+			color: #fff;
+		}
+
+		.record-indicator {
+			font-size: 0.82rem;
+			color: var(--muted);
+		}
+
+		.record-indicator.active {
+			color: #dc2626;
+			font-weight: 600;
+		}
+
+		.summary-grid {
+			display: none;
+			grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+			gap: 8px;
+			padding: 14px;
+		}
+
+		.summary-grid.visible {
+			display: grid;
+		}
+
+		.summary-sheet {
+			border: 1px solid rgba(31, 41, 55, 0.14);
+			border-radius: 12px;
+			padding: 12px;
+			background: #f9fafb;
+			display: grid;
+			gap: 10px;
+		}
+
+		.summary-sheet-head {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 10px;
+		}
+
+		.summary-sheet-title {
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+			font-weight: 700;
+		}
+
+		.summary-sheet-title i {
+			width: 14px;
+			height: 14px;
+			border-radius: 999px;
+			display: inline-block;
+		}
+
+		.summary-sheet-metric {
+			font-size: 0.78rem;
+			color: var(--muted);
+		}
+
+		.summary-stats {
+			display: grid;
+			grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+			gap: 8px;
+		}
+
+		.stat-card {
+			border: 1px solid rgba(31, 41, 55, 0.14);
+			border-radius: 10px;
+			padding: 10px 12px;
+			background: #f9fafb;
+		}
+
+		.stat-card .label {
+			font-size: 0.78rem;
+			color: var(--muted);
+			margin-bottom: 4px;
+		}
+
+		.stat-card .value {
+			font-size: 1.05rem;
+			font-weight: 700;
+			color: var(--ink);
+		}
+
+		.stat-card.highlight .value {
+			color: #0f766e;
+		}
+
+		@media (max-width: 900px) {
+			.controls {
+				grid-template-columns: 1fr 1fr;
+			}
+
+			.plot-canvas {
+				height: 220px;
+			}
+		}
+
+		@media (max-width: 560px) {
+			body {
+				padding: 10px;
+			}
+
+			.controls {
+				grid-template-columns: 1fr;
+			}
+
+			.plot-head {
+				align-items: flex-start;
+				flex-direction: column;
+			}
+		}
+	</style>
+</head>
+<body>
+	<main class="shell">
+		<header class="topbar">
+			<h1 class="title">Video Overlay</h1>
+			<p class="subtitle">Choose a video file, an excel file and select one or more sheets plus a shared metric to start. Left click + drag to go to point of interest in video, right click + drag to sync datastream.</p>
+		</header>
+
+		<section class="controls">
+			<div class="field">
+				<label for="videoInput">Video file</label>
+				<input id="videoInput" type="file" accept="video/*" />
+			</div>
+
+			<div class="field">
+				<label for="xlsxInput">Excel file (.xlsx)</label>
+				<input id="xlsxInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+			</div>
+
+			<div class="field">
+				<label for="sheetSelect">Sheets (Ctrl/Shift for multiple)</label>
+				<select id="sheetSelect" multiple size="6" disabled>
+				</select>
+			</div>
+
+			<div class="field">
+				<label for="metricSelect">Metric (not Time)</label>
+				<select id="metricSelect" disabled>
+					<option value="">Select metric</option>
+				</select>
+			</div>
+		</section>
+
+		<section class="stats">
+			<span class="chip">Sampling frequency: <strong id="samplingHz">-</strong></span>
+			<span class="chip">Video frame rate: <strong id="videoFps">-</strong></span>
+			<span class="chip">Trace offset: <strong id="traceOffset">0.000s</strong></span>
+			<span class="chip">Video time: <strong id="videoTime">0.000s</strong></span>
+		</section>
+
+		<section class="stage">
+			<div class="video-wrap">
+				<video id="video" controls preload="metadata"></video>
+			</div>
+
+			<div class="plot-wrap">
+				<div class="plot-head">
+					<strong id="plotTitle">Metric trace</strong>
+					<div class="legend">
+						<span id="seriesLegend" class="legend-group"><span class="swatch"><i style="background:#0f766e"></i>metric</span></span>
+						<span class="swatch"><i style="background:#dc2626"></i>video-linked playhead</span>
+						<span id="currentValueDisplay" class="swatch">value @ playhead: -</span>
+					</div>
+				</div>
+				<canvas id="plot" class="plot-canvas"></canvas>
+				<div id="status" class="status">Load a video and an XLSX file to start.</div>
+			</div>
+
+			<div class="record-panel">
+				<p class="record-explainer">Hit Record to mark start of section. Move to section end and hit Stop. If you are looking at Power, you can also calculate work.</p>
+				<div class="record-bar">
+					<button id="btnRecord" class="btn btn-record">&#9679; Record</button>
+					<button id="btnCalculate" class="btn btn-calc" disabled>Calculate Work</button>
+					<span id="recordIndicator" class="record-indicator">Not recording</span>
+				</div>
+				<div id="summaryGrid" class="summary-grid"></div>
+			</div>
+		</section>
+	</main>
+
+	<script>
+		const SERIES_COLORS = ["#0f766e", "#1d4ed8", "#dc2626", "#d97706", "#7c3aed", "#0891b2", "#65a30d", "#be185d"];
+
+		const state = {
+			workbook: null,
+			selectedSheetNames: [],
+			selectedSheets: [],
+			metricColumnKey: "",
+			samplingDisplay: "-",
+			series: [],
+			times: [],
+			metricValues: [],
+			estimatedVideoFps: null,
+			traceOffsetTime: 0,
+			summaryCalculated: false,
+			dragLastX: 0,
+			dragSensitivity: 0.2,
+			pointerMode: "none",
+			fpsFrameSamples: [],
+			fpsEstimatorActive: false,
+			drawingData: null,
+			recordingState: "idle",
+			recordStartVideoTime: null,
+			recordEndVideoTime: null,
+			recordSummary: null
+		};
+
+		const els = {
+			videoInput: document.getElementById("videoInput"),
+			xlsxInput: document.getElementById("xlsxInput"),
+			sheetSelect: document.getElementById("sheetSelect"),
+			metricSelect: document.getElementById("metricSelect"),
+			seriesLegend: document.getElementById("seriesLegend"),
+			samplingHz: document.getElementById("samplingHz"),
+			videoFps: document.getElementById("videoFps"),
+			traceOffset: document.getElementById("traceOffset"),
+			videoTime: document.getElementById("videoTime"),
+			status: document.getElementById("status"),
+			plotTitle: document.getElementById("plotTitle"),
+			currentValueDisplay: document.getElementById("currentValueDisplay"),
+			video: document.getElementById("video"),
+			plot: document.getElementById("plot"),
+			btnRecord: document.getElementById("btnRecord"),
+			btnCalculate: document.getElementById("btnCalculate"),
+			recordIndicator: document.getElementById("recordIndicator"),
+			summaryGrid: document.getElementById("summaryGrid")
+		};
+
+		const ctx = els.plot.getContext("2d");
+
+		function setStatus(message, level = "warn") {
+			els.status.textContent = message;
+			if (level === "ok") {
+				els.status.style.color = "#166534";
+				els.status.style.background = "#f0fdf4";
+			} else {
+				els.status.style.color = "#b45309";
+				els.status.style.background = "#fff7ed";
+			}
+		}
+
+		function toNumber(val) {
+			const n = Number(val);
+			return Number.isFinite(n) ? n : null;
+		}
+
+		function formatNum(n, digits = 3) {
+			return Number.isFinite(n) ? n.toFixed(digits) : "-";
+		}
+
+		function findTimeColumn(columns) {
+			const exact = columns.find((name) => String(name).trim().toLowerCase() === "time");
+			if (exact) return exact;
+			return columns.find((name) => String(name).toLowerCase().includes("time")) || "";
+		}
+
+		function getSelectedValues(select) {
+			return Array.from(select.selectedOptions || [])
+				.map((option) => option.value)
+				.filter(Boolean);
+		}
+
+		function getSeriesColor(index) {
+			return SERIES_COLORS[index % SERIES_COLORS.length];
+		}
+
+		function intersectMetricColumns(sheetData) {
+			if (sheetData.length === 0) return [];
+			let common = [...sheetData[0].metricColumns];
+			for (let i = 1; i < sheetData.length; i += 1) {
+				const metricSet = new Set(sheetData[i].metricColumns);
+				common = common.filter((column) => metricSet.has(column));
+			}
+			return common;
+		}
+
+		function formatSamplingDisplay(sheetData) {
+			const values = sheetData
+				.map((sheet) => sheet.samplingHz)
+				.filter((value) => Number.isFinite(value));
+			if (values.length === 0) return "-";
+			const min = Math.min(...values);
+			const max = Math.max(...values);
+			if (Math.abs(max - min) < 1e-6) {
+				return `${formatNum(min, 3)} Hz`;
+			}
+			return `${formatNum(min, 3)}-${formatNum(max, 3)} Hz`;
+		}
+
+		function updateSeriesLegend() {
+			if (state.series.length === 0) {
+				els.seriesLegend.innerHTML = '<span class="swatch"><i style="background:#0f766e"></i>metric</span>';
+				return;
+			}
+
+			els.seriesLegend.innerHTML = state.series
+				.map((series) => `<span class="swatch"><i style="background:${series.color}"></i>${series.sheetName}</span>`)
+				.join("");
+		}
+
+		function getPrimarySeries() {
+			return state.series[0] || null;
+		}
+
+		function populateMetricSelect(metricColumns, selectedValue = "") {
+			els.metricSelect.innerHTML = "<option value=''>Select metric</option>";
+			for (const key of metricColumns) {
+				const option = document.createElement("option");
+				option.value = key;
+				option.textContent = key;
+				els.metricSelect.appendChild(option);
+			}
+			els.metricSelect.disabled = metricColumns.length === 0;
+			if (selectedValue && metricColumns.includes(selectedValue)) {
+				els.metricSelect.value = selectedValue;
+			}
+		}
+
+		function resetMetricAndPlot(options = {}) {
+			const { preserveMetricOptions = false } = options;
+			state.metricColumnKey = "";
+			state.series = [];
+			state.metricValues = [];
+			state.times = [];
+			state.samplingDisplay = state.selectedSheets.length ? formatSamplingDisplay(state.selectedSheets) : "-";
+			state.traceOffsetTime = 0;
+			if (!preserveMetricOptions) {
+				populateMetricSelect([]);
+			} else {
+				els.metricSelect.value = "";
+			}
+			els.currentValueDisplay.textContent = "value @ playhead: -";
+			updateSeriesLegend();
+			updateStats();
+			clearSummary();
+			drawPlot();
+		}
+
+		function loadWorkbookFromArrayBuffer(buffer) {
+			state.workbook = XLSX.read(buffer, { type: "array" });
+			state.selectedSheetNames = [];
+			state.selectedSheets = [];
+			resetMetricAndPlot();
+
+			const sheets = state.workbook.SheetNames || [];
+			els.sheetSelect.innerHTML = "";
+			for (const name of sheets) {
+				const option = document.createElement("option");
+				option.value = name;
+				option.textContent = name;
+				els.sheetSelect.appendChild(option);
+			}
+			els.sheetSelect.disabled = sheets.length === 0;
+
+			if (sheets.length > 0) {
+				setStatus("Workbook loaded. Choose one or more sheets.", "ok");
+			} else {
+				setStatus("Workbook has no readable sheets.");
+			}
+		}
+
+		function parseSelectedSheets() {
+			if (!state.workbook) return;
+
+			const selectedNames = getSelectedValues(els.sheetSelect);
+			state.selectedSheetNames = selectedNames;
+			state.selectedSheets = [];
+			state.samplingDisplay = "-";
+
+			if (selectedNames.length === 0) {
+				resetMetricAndPlot();
+				setStatus("Choose one or more sheets to continue.", "ok");
+				return;
+			}
+
+			const parsedSheets = [];
+			for (const sheetName of selectedNames) {
+				const ws = state.workbook.Sheets[sheetName];
+				const rows = XLSX.utils.sheet_to_json(ws, { defval: null, raw: true });
+				const columns = rows.length ? Object.keys(rows[0]) : [];
+				const timeColumnKey = findTimeColumn(columns);
+
+				if (!timeColumnKey) {
+					continue;
+				}
+
+				const timeValues = [];
+				for (const row of rows) {
+					const value = toNumber(row[timeColumnKey]);
+					if (value !== null) timeValues.push(value);
+				}
+
+				if (timeValues.length < 2) {
+					continue;
+				}
+
+				const dts = [];
+				for (let i = 1; i < timeValues.length; i += 1) {
+					const dt = timeValues[i] - timeValues[i - 1];
+					if (Number.isFinite(dt) && dt > 0) dts.push(dt);
+				}
+
+				if (dts.length === 0) {
+					continue;
+				}
+
+				const meanDt = dts.reduce((a, b) => a + b, 0) / dts.length;
+				parsedSheets.push({
+					sheetName,
+					rows,
+					timeColumnKey,
+					metricColumns: columns.filter((column) => column !== timeColumnKey),
+					samplingHz: meanDt > 0 ? 1 / meanDt : null
+				});
+			}
+
+			state.selectedSheets = parsedSheets;
+			state.samplingDisplay = formatSamplingDisplay(parsedSheets);
+
+			if (parsedSheets.length === 0) {
+				resetMetricAndPlot();
+				setStatus('The selected sheets need a readable "Time" column with increasing numeric values.');
+				return;
+			}
+
+			const commonMetricColumns = intersectMetricColumns(parsedSheets);
+			const previousMetric = state.metricColumnKey;
+			populateMetricSelect(commonMetricColumns, previousMetric);
+
+			updateStats();
+
+			if (commonMetricColumns.length === 0) {
+				resetMetricAndPlot();
+				setStatus("No common metric columns were found across the selected sheets.");
+				return;
+			}
+
+			if (previousMetric && commonMetricColumns.includes(previousMetric)) {
+				setMetric(previousMetric);
+				setStatus(`${parsedSheets.length} sheet(s) loaded. Overlaying ${previousMetric}.`, "ok");
+				return;
+			}
+
+			resetMetricAndPlot({ preserveMetricOptions: true });
+			setStatus(`${parsedSheets.length} sheet(s) ready. Choose a shared metric column.`, "ok");
+		}
+
+		function setMetric(metricKey) {
+			if (state.selectedSheets.length === 0 || !metricKey) {
+				state.metricColumnKey = "";
+				state.series = [];
+				state.metricValues = [];
+				state.times = [];
+				els.currentValueDisplay.textContent = "value @ playhead: -";
+				updateSeriesLegend();
+				drawPlot();
+				return;
+			}
+
+			const series = [];
+			for (let i = 0; i < state.selectedSheets.length; i += 1) {
+				const sheet = state.selectedSheets[i];
+				const points = [];
+				for (const row of sheet.rows) {
+					const t = toNumber(row[sheet.timeColumnKey]);
+					const y = toNumber(row[metricKey]);
+					if (t !== null && y !== null) points.push({ t, y });
+				}
+
+				points.sort((a, b) => a.t - b.t);
+				if (points.length < 2) {
+					continue;
+				}
+
+				series.push({
+					sheetName: sheet.sheetName,
+					color: getSeriesColor(i),
+					times: points.map((point) => point.t),
+					metricValues: points.map((point) => point.y)
+				});
+			}
+
+			state.series = series;
+			state.metricColumnKey = metricKey;
+
+			const primarySeries = getPrimarySeries();
+			state.times = primarySeries ? [...primarySeries.times] : [];
+			state.metricValues = primarySeries ? [...primarySeries.metricValues] : [];
+			updateSeriesLegend();
+
+			if (!primarySeries) {
+				setStatus("The selected metric has insufficient numeric data to plot across the chosen sheets.");
+			} else {
+				const streamLabel = series.length === 1 ? "stream" : "streams";
+				setStatus(`Loaded ${series.length} ${streamLabel}. Drag keeps playhead fixed: left moves video timeline, right shifts metric trace.`, "ok");
+			}
+
+			updateStats();
+			refreshSummaryForCurrentMetric();
+			drawPlot();
+		}
+
+		function getSeriesValueAtVideoTime(series, videoTime) {
+			if (!series || series.times.length === 0 || series.metricValues.length === 0) return null;
+			const metricT = videoTime - state.traceOffsetTime;
+
+			let lo = 0;
+			let hi = series.times.length - 1;
+			while (lo < hi) {
+				const mid = (lo + hi) >> 1;
+				if (series.times[mid] < metricT) lo = mid + 1;
+				else hi = mid;
+			}
+
+			if (lo > 0 && Math.abs(series.times[lo - 1] - metricT) <= Math.abs(series.times[lo] - metricT)) {
+				return series.metricValues[lo - 1];
+			}
+			return series.metricValues[lo];
+		}
+
+		function clamp(value, min, max) {
+			return Math.max(min, Math.min(max, value));
+		}
+
+		function findBounds(values) {
+			let min = Infinity;
+			let max = -Infinity;
+			for (const v of values) {
+				if (v < min) min = v;
+				if (v > max) max = v;
+			}
+			if (!Number.isFinite(min) || !Number.isFinite(max)) return [0, 1];
+			if (min === max) {
+				const pad = Math.abs(min) * 0.05 || 1;
+				return [min - pad, max + pad];
+			}
+			const pad = (max - min) * 0.08;
+			return [min - pad, max + pad];
+		}
+
+		function resizeCanvasToDisplaySize() {
+			const dpr = window.devicePixelRatio || 1;
+			const rect = els.plot.getBoundingClientRect();
+			const width = Math.max(200, Math.floor(rect.width));
+			const height = Math.max(180, Math.floor(rect.height));
+			const targetW = Math.floor(width * dpr);
+			const targetH = Math.floor(height * dpr);
+
+			if (els.plot.width !== targetW || els.plot.height !== targetH) {
+				els.plot.width = targetW;
+				els.plot.height = targetH;
+			}
+
+			ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+			return { width, height };
+		}
+
+		function drawPlot() {
+			const { width, height } = resizeCanvasToDisplaySize();
+			ctx.clearRect(0, 0, width, height);
+
+			const m = { l: 58, r: 16, t: 14, b: 26 };
+			const pw = width - m.l - m.r;
+			const ph = height - m.t - m.b;
+
+			ctx.fillStyle = "#ffffff";
+			ctx.fillRect(0, 0, width, height);
+
+			if (state.series.length === 0) {
+				ctx.fillStyle = "#6b7280";
+				ctx.font = "14px Segoe UI";
+				ctx.fillText("Select one or more sheets and a metric to draw traces.", 14, 28);
+				state.drawingData = null;
+				return;
+			}
+
+			const allValues = [];
+			let minDisplayTime = Infinity;
+			let maxDisplayTime = -Infinity;
+			for (const series of state.series) {
+				if (series.times.length < 2 || series.metricValues.length < 2) continue;
+				allValues.push(...series.metricValues);
+				minDisplayTime = Math.min(minDisplayTime, series.times[0] + state.traceOffsetTime);
+				maxDisplayTime = Math.max(maxDisplayTime, series.times[series.times.length - 1] + state.traceOffsetTime);
+			}
+
+			const visibleSpan = Math.max(0.01, maxDisplayTime - minDisplayTime);
+			const viewCenterT = Number.isFinite(els.video.currentTime) ? els.video.currentTime : 0;
+			const viewMinT = viewCenterT - visibleSpan / 2;
+			const viewMaxT = viewCenterT + visibleSpan / 2;
+			const [yMin, yMax] = findBounds(allValues);
+
+			const xFromT = (t) => m.l + ((t - viewMinT) / (viewMaxT - viewMinT || 1)) * pw;
+			const yFromV = (v) => m.t + (1 - (v - yMin) / (yMax - yMin || 1)) * ph;
+
+			state.drawingData = { xFromT, viewMinT, viewMaxT, visibleSpan, yMin, yMax, m, pw, ph };
+
+			ctx.strokeStyle = "rgba(31, 41, 55, 0.15)";
+			ctx.lineWidth = 1;
+			ctx.beginPath();
+			for (let i = 0; i <= 4; i += 1) {
+				const gy = m.t + (ph * i) / 4;
+				ctx.moveTo(m.l, gy);
+				ctx.lineTo(width - m.r, gy);
+			}
+			ctx.stroke();
+
+			for (const series of state.series) {
+				ctx.strokeStyle = series.color;
+				ctx.lineWidth = 1.7;
+				ctx.beginPath();
+				for (let i = 0; i < series.times.length; i += 1) {
+					const x = xFromT(series.times[i] + state.traceOffsetTime);
+					const y = yFromV(series.metricValues[i]);
+					if (i === 0) ctx.moveTo(x, y);
+					else ctx.lineTo(x, y);
+				}
+				ctx.stroke();
+			}
+
+			ctx.strokeStyle = "#111827";
+			ctx.lineWidth = 1;
+			ctx.beginPath();
+			ctx.moveTo(m.l, m.t);
+			ctx.lineTo(m.l, m.t + ph);
+			ctx.lineTo(m.l + pw, m.t + ph);
+			ctx.stroke();
+
+			ctx.fillStyle = "#374151";
+			ctx.font = "12px Segoe UI";
+			ctx.fillText(`${formatNum(yMax, 2)}`, 8, m.t + 4);
+			ctx.fillText(`${formatNum(yMin, 2)}`, 8, m.t + ph + 4);
+			ctx.fillText(`${formatNum(viewMinT, 2)} s`, m.l, height - 8);
+			ctx.fillText(`${formatNum(viewMaxT, 2)} s`, width - m.r - 64, height - 8);
+
+			const linkedX = m.l + pw * 0.5;
+			ctx.strokeStyle = "#dc2626";
+			ctx.lineWidth = 2;
+			ctx.beginPath();
+			ctx.moveTo(linkedX, m.t);
+			ctx.lineTo(linkedX, m.t + ph);
+			ctx.stroke();
+
+			const playheadValues = state.series
+				.map((series) => ({
+					sheetName: series.sheetName,
+					value: getSeriesValueAtVideoTime(series, viewCenterT)
+				}))
+				.filter((entry) => entry.value !== null);
+
+			if (playheadValues.length > 0) {
+				const valueLines = playheadValues.map((entry) => `${entry.sheetName}: ${formatNum(entry.value, 4)}`);
+				ctx.font = "12px Segoe UI";
+				const tw = valueLines.reduce((max, line) => Math.max(max, ctx.measureText(line).width), 0);
+				const pad = 6;
+				const boxW = tw + pad * 2;
+				const lineHeight = 16;
+				const boxH = valueLines.length * lineHeight + pad * 2;
+				const boxX = clamp(linkedX - boxW / 2, m.l, m.l + pw - boxW);
+				const boxY = m.t + 6;
+				ctx.fillStyle = "rgba(17, 24, 39, 0.86)";
+				ctx.fillRect(boxX, boxY, boxW, boxH);
+				ctx.fillStyle = "#ffffff";
+				for (let i = 0; i < valueLines.length; i += 1) {
+					ctx.fillText(valueLines[i], boxX + pad, boxY + 14 + i * lineHeight);
+				}
+				els.currentValueDisplay.textContent = `values @ playhead: ${valueLines.join(" | ")}`;
+			} else {
+				els.currentValueDisplay.textContent = "value @ playhead: -";
+			}
+
+			const streamCount = state.series.length;
+			const streamLabel = streamCount === 1 ? "sheet" : "sheets";
+			els.plotTitle.textContent = `Metric trace: ${state.metricColumnKey || "(none)"} across ${streamCount} ${streamLabel} (offset ${formatNum(state.traceOffsetTime, 3)} s)`;
+		}
+
+		function updateStats() {
+			els.samplingHz.textContent = state.samplingDisplay;
+			els.videoFps.textContent = state.estimatedVideoFps ? `${formatNum(state.estimatedVideoFps, 2)} fps` : "-";
+			els.traceOffset.textContent = `${formatNum(state.traceOffsetTime, 3)}s`;
+			els.videoTime.textContent = `${formatNum(els.video.currentTime || 0, 3)}s`;
+		}
+
+		function estimateVideoFps() {
+			if (!els.video.requestVideoFrameCallback || state.fpsEstimatorActive) return;
+
+			state.fpsEstimatorActive = true;
+			state.fpsFrameSamples = [];
+
+			let frameCount = 0;
+			const step = (_, meta) => {
+				if (!state.fpsEstimatorActive) return;
+				frameCount += 1;
+				const mt = meta.mediaTime;
+				state.fpsFrameSamples.push(mt);
+
+				if (state.fpsFrameSamples.length > 30) {
+					state.fpsFrameSamples.shift();
+				}
+
+				if (state.fpsFrameSamples.length >= 12) {
+					let dtSum = 0;
+					let n = 0;
+					for (let i = 1; i < state.fpsFrameSamples.length; i += 1) {
+						const dt = state.fpsFrameSamples[i] - state.fpsFrameSamples[i - 1];
+						if (dt > 0) {
+							dtSum += dt;
+							n += 1;
+						}
+					}
+					if (n > 0) {
+						state.estimatedVideoFps = 1 / (dtSum / n);
+						updateStats();
+					}
+				}
+
+				if (frameCount < 120) {
+					els.video.requestVideoFrameCallback(step);
+				} else {
+					state.fpsEstimatorActive = false;
+				}
+			};
+
+			els.video.requestVideoFrameCallback(step);
+		}
+
+		els.videoInput.addEventListener("change", async (event) => {
+			const file = event.target.files?.[0];
+			if (!file) return;
+
+			const url = URL.createObjectURL(file);
+			els.video.src = url;
+			els.video.load();
+			state.estimatedVideoFps = null;
+			updateStats();
+			setStatus("Video loaded. Play video to refine frame-rate estimate.", "ok");
+			drawPlot();
+		});
+
+		els.xlsxInput.addEventListener("change", async (event) => {
+			const file = event.target.files?.[0];
+			if (!file) return;
+
+			try {
+				const buffer = await file.arrayBuffer();
+				loadWorkbookFromArrayBuffer(buffer);
+			} catch (err) {
+				console.error(err);
+				setStatus("Failed to read XLSX file.");
+			}
+		});
+
+		els.sheetSelect.addEventListener("change", () => {
+			parseSelectedSheets();
+		});
+
+		els.metricSelect.addEventListener("change", (event) => {
+			setMetric(event.target.value);
+		});
+
+		els.video.addEventListener("loadedmetadata", () => {
+			estimateVideoFps();
+			updateStats();
+			drawPlot();
+		});
+
+		els.video.addEventListener("play", () => {
+			estimateVideoFps();
+		});
+
+		els.video.addEventListener("timeupdate", () => {
+			updateStats();
+			drawPlot();
+		});
+
+		els.plot.addEventListener("contextmenu", (evt) => {
+			evt.preventDefault();
+		});
+
+		els.plot.addEventListener("pointerdown", (evt) => {
+			if (!state.drawingData) return;
+			els.plot.setPointerCapture(evt.pointerId);
+			state.dragLastX = evt.clientX;
+
+			if (evt.button === 2) {
+				state.pointerMode = "right";
+				updateStats();
+				drawPlot();
+				return;
+			}
+
+			if (evt.button === 0) {
+				state.pointerMode = "left";
+				updateStats();
+				drawPlot();
+			}
+		});
+
+		els.plot.addEventListener("pointermove", (evt) => {
+			if (state.pointerMode === "none") return;
+			if (!state.drawingData) return;
+
+			const dx = evt.clientX - state.dragLastX;
+			state.dragLastX = evt.clientX;
+			const secondsPerPixel = state.drawingData.visibleSpan / (state.drawingData.pw || 1);
+			const deltaT = dx * secondsPerPixel * state.dragSensitivity;
+
+			if (state.pointerMode === "right") {
+				state.traceOffsetTime += deltaT;
+				updateStats();
+				drawPlot();
+			} else if (state.pointerMode === "left") {
+				const currentVideoT = Number.isFinite(els.video.currentTime) ? els.video.currentTime : 0;
+				const nextVideoT = currentVideoT - deltaT;
+				if (Number.isFinite(els.video.duration)) {
+					els.video.currentTime = clamp(nextVideoT, 0, els.video.duration);
+				} else {
+					els.video.currentTime = Math.max(0, nextVideoT);
+				}
+				updateStats();
+				drawPlot();
+			}
+		});
+
+		function releasePointer(evt) {
+			if (els.plot.hasPointerCapture(evt.pointerId)) {
+				els.plot.releasePointerCapture(evt.pointerId);
+			}
+			state.pointerMode = "none";
+		}
+
+		els.plot.addEventListener("pointerup", releasePointer);
+		els.plot.addEventListener("pointercancel", releasePointer);
+		window.addEventListener("resize", drawPlot);
+
+		// ── Recording helpers ────────────────────────────────────────────
+
+		function computeSeriesSummaryFromRange(series, startVideoTime, endVideoTime) {
+			if (!series) return null;
+			const videoStart = Math.min(startVideoTime, endVideoTime);
+			const videoEnd = Math.max(startVideoTime, endVideoTime);
+			const startMetricT = videoStart - state.traceOffsetTime;
+			const endMetricT = videoEnd - state.traceOffsetTime;
+			const values = [];
+			let dataStartTime = null;
+			let dataEndTime = null;
+			for (let i = 0; i < series.times.length; i++) {
+				if (series.times[i] >= startMetricT && series.times[i] <= endMetricT) {
+					values.push(series.metricValues[i]);
+					if (dataStartTime === null) dataStartTime = series.times[i];
+					dataEndTime = series.times[i];
+				}
+			}
+			const n = values.length;
+			if (n === 0) return null;
+			const mean = values.reduce((a, b) => a + b, 0) / n;
+			const min = Math.min(...values);
+			const max = Math.max(...values);
+			const variance = values.reduce((a, b) => a + (b - mean) ** 2, 0) / n;
+			const std = Math.sqrt(variance);
+			const duration = videoEnd - videoStart;
+			return {
+				sheetName: series.sheetName,
+				color: series.color,
+				n,
+				mean,
+				min,
+				max,
+				std,
+				startTime: videoStart,
+				endTime: videoEnd,
+				dataStartTime,
+				dataEndTime,
+				duration
+			};
+		}
+
+		function computeSummariesFromRange(startVideoTime, endVideoTime) {
+			return state.series
+				.map((series) => computeSeriesSummaryFromRange(series, startVideoTime, endVideoTime))
+				.filter(Boolean);
+		}
+
+		function buildSummaryStat(label, value, highlighted = false) {
+			const highlightClass = highlighted ? " highlight" : "";
+			return `<div class="stat-card${highlightClass}"><div class="label">${label}</div><div class="value">${value}</div></div>`;
+		}
+
+		function showSummary(summaries) {
+			els.summaryGrid.innerHTML = summaries.map((summary) => {
+				const statsMarkup = [
+					buildSummaryStat("Video start time", `${formatNum(summary.startTime, 3)} s`),
+					buildSummaryStat("Video end time", `${formatNum(summary.endTime, 3)} s`),
+					buildSummaryStat("Data start time", `${formatNum(summary.dataStartTime, 3)} s`),
+					buildSummaryStat("Data end time", `${formatNum(summary.dataEndTime, 3)} s`),
+					buildSummaryStat("Duration", `${formatNum(summary.duration, 3)} s`),
+					buildSummaryStat("Samples", `${summary.n}`),
+					buildSummaryStat("Mean", formatNum(summary.mean, 4)),
+					buildSummaryStat("Min", formatNum(summary.min, 4)),
+					buildSummaryStat("Max", formatNum(summary.max, 4)),
+					buildSummaryStat("Std Dev", formatNum(summary.std, 4))
+				];
+
+				if (state.summaryCalculated) {
+					statsMarkup.push(buildSummaryStat("Mean × Duration", formatNum(summary.mean * summary.duration, 4), true));
+				}
+
+				return `
+					<div class="summary-sheet">
+						<div class="summary-sheet-head">
+							<span class="summary-sheet-title"><i style="background:${summary.color}"></i>${summary.sheetName}</span>
+							<span class="summary-sheet-metric">${state.metricColumnKey || "Metric"}</span>
+						</div>
+						<div class="summary-stats">${statsMarkup.join("")}</div>
+					</div>
+				`;
+			}).join("");
+			els.summaryGrid.classList.add("visible");
+		}
+
+		function clearSummary() {
+			els.summaryGrid.innerHTML = "";
+			els.summaryGrid.classList.remove("visible");
+			state.summaryCalculated = false;
+			els.btnCalculate.disabled = true;
+		}
+
+		function refreshSummaryForCurrentMetric() {
+			if (state.recordingState !== "done") return;
+			if (!Number.isFinite(state.recordStartVideoTime) || !Number.isFinite(state.recordEndVideoTime)) return;
+
+			const summaries = computeSummariesFromRange(state.recordStartVideoTime, state.recordEndVideoTime);
+			state.recordSummary = summaries;
+
+			if (summaries.length > 0) {
+				showSummary(summaries);
+				els.btnCalculate.disabled = false;
+				els.recordIndicator.textContent = `${summaries.length} sheet result${summaries.length !== 1 ? "s" : ""} in range`;
+			} else {
+				clearSummary();
+				els.recordIndicator.textContent = "No metric data in that range for the selected sheets.";
+			}
+		}
+
+		els.btnRecord.addEventListener("click", () => {
+			if (state.recordingState === "idle" || state.recordingState === "done") {
+				// Start fresh recording
+				clearSummary();
+				state.recordSummary = null;
+				state.recordStartVideoTime = Number.isFinite(els.video.currentTime) ? els.video.currentTime : 0;
+				state.recordEndVideoTime = null;
+				state.recordingState = "recording";
+				els.btnRecord.classList.add("recording");
+				els.btnRecord.textContent = "\u23F9 Stop";
+				els.recordIndicator.textContent = "Recording\u2026";
+				els.recordIndicator.classList.add("active");
+				els.btnCalculate.disabled = true;
+			} else if (state.recordingState === "recording") {
+				// Stop — collect all data points in the recorded range
+				state.recordEndVideoTime = Number.isFinite(els.video.currentTime) ? els.video.currentTime : 0;
+				state.recordingState = "done";
+				els.btnRecord.classList.remove("recording");
+				els.btnRecord.textContent = "\u21BA Reset";
+				els.recordIndicator.classList.remove("active");
+				const summaries = computeSummariesFromRange(state.recordStartVideoTime, state.recordEndVideoTime);
+				state.recordSummary = summaries;
+				if (summaries.length > 0) {
+					els.recordIndicator.textContent = `${summaries.length} sheet result${summaries.length !== 1 ? "s" : ""} in range`;
+					showSummary(summaries);
+					els.btnCalculate.disabled = false;
+				} else {
+					els.recordIndicator.textContent = "No metric data in that range — try again.";
+				}
+			}
+		});
+
+		els.btnCalculate.addEventListener("click", () => {
+			if (!Array.isArray(state.recordSummary) || state.recordSummary.length === 0) return;
+			state.summaryCalculated = true;
+			showSummary(state.recordSummary);
+		});
+
+		drawPlot();
+		updateStats();
+	</script>
+</body>
+</html>

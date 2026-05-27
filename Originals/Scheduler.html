@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Race Day Planner</title>
+  <style>
+    #runSheet li {
+      padding: 10px 0 10px 0;
+      list-style-type: disc;
+      display: flex;
+      align-items: flex-start;
+    }
+    .runSheet-time {
+      font-size: 1.4em;
+      font-weight: bold;
+      margin-right: 12px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 4px;
+      min-width: 90px;
+      display: inline-block;
+    }
+    .big-btn {
+      font-size: 20px;
+      padding: 10px 24px;
+      margin-right: 12px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      border: 1px solid #888;
+      background: #f2f2f2;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .big-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .big-btn:hover:not(:disabled) {
+      background: #e0e0e0;
+    }
+    .task-row {
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+    }
+    .arrow-btn {
+      font-size: 16px;
+      padding: 2px 8px;
+      margin-right: 8px;
+      margin-bottom: 0;
+      border-radius: 4px;
+      border: 1px solid #aaa;
+      background: #f9f9f9;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .arrow-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .arrow-btn:hover:not(:disabled) {
+      background: #e0e0e0;
+    }
+  </style>
+</head>
+<body style="font-family: Arial, sans-serif; font-size: 18px;">
+  <h1>Race Day Planner</h1>
+  <div style="margin-bottom: 18px;">
+    <label style="font-size: 1.4em; font-weight: bold;">Race Start Time: 
+      <input type="time" id="raceTime" style="font-size: 1.3em; padding: 6px 12px; width: 160px;">
+    </label>
+  </div>
+  <div id="tasks"></div>
+  <div style="margin-bottom: 18px;">
+    <button onclick="addTask()" class="big-btn">Add Task</button>
+    <button onclick="generateRunSheet()" class="big-btn">Generate Run Sheet</button>
+    <button onclick="exportRunSheetPng()" class="big-btn">Export Run Sheet as PNG</button>
+  </div>
+  <!-- html2canvas CDN for PNG export -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <div style="margin-top: 20px;">
+    <label for="runSheetTitle">Run Sheet Title: </label>
+    <input type="text" id="runSheetTitle" value="Run Sheet" style="font-size: 18px; width: 300px;">
+  </div>
+  <div id="runSheetExportArea">
+    <h2 id="runSheetTitleDisplay" style="margin-bottom: 0; margin-top: 10px;">Run Sheet</h2>
+    <ul id="runSheet"></ul>
+  </div>
+
+
+
+  <script>
+    // Export run sheet as PNG
+    window.exportRunSheetPng = function() {
+      if (typeof html2canvas !== 'function') {
+        alert('html2canvas library not loaded.');
+        return;
+      }
+      const exportArea = document.getElementById('runSheetExportArea');
+      // Get and sanitize the run sheet title for filename
+      let title = document.getElementById('runSheetTitle').value || 'run-sheet';
+      title = title.replace(/[^a-z0-9\-_ ]/gi, '').replace(/\s+/g, '-');
+      html2canvas(exportArea, {scale: 2}).then(function(canvas) {
+        // Crop horizontal whitespace
+        const ctx = canvas.getContext('2d');
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        let minX = canvas.width, maxX = 0;
+        for (let y = 0; y < canvas.height; y++) {
+          for (let x = 0; x < canvas.width; x++) {
+            const idx = (y * canvas.width + x) * 4;
+            // If not white and not fully transparent
+            if (!(imgData.data[idx] > 240 && imgData.data[idx+1] > 240 && imgData.data[idx+2] > 240 && imgData.data[idx+3] > 0)) {
+              if (x < minX) minX = x;
+              if (x > maxX) maxX = x;
+            }
+          }
+        }
+        // Add a small margin
+        minX = Math.max(0, minX - 10);
+        maxX = Math.min(canvas.width - 1, maxX + 10);
+        const cropWidth = maxX - minX + 1;
+        // Create cropped canvas (scaled)
+        const cropped = document.createElement('canvas');
+        cropped.width = cropWidth;
+        cropped.height = canvas.height;
+        cropped.getContext('2d').drawImage(canvas, minX, 0, cropWidth, canvas.height, 0, 0, cropWidth, canvas.height);
+        // Create a link to download the image
+        const link = document.createElement('a');
+        link.download = title + '.png';
+        link.href = cropped.toDataURL('image/png');
+        link.click();
+      });
+    }
+    const tasks = [];
+
+    function renderTasks() {
+      const tasksDiv = document.getElementById("tasks");
+      tasksDiv.innerHTML = "";
+      tasks.forEach((task, idx) => {
+        const div = document.createElement("div");
+        div.className = "task-row";
+        // Up arrow
+  const upBtn = document.createElement("button");
+  upBtn.textContent = "↑";
+  upBtn.className = "arrow-btn";
+  upBtn.disabled = idx === 0;
+        upBtn.onclick = function() {
+          if (idx > 0) {
+            [tasks[idx-1], tasks[idx]] = [tasks[idx], tasks[idx-1]];
+            renderTasks();
+            generateRunSheet();
+          }
+        };
+        // Down arrow
+  const downBtn = document.createElement("button");
+  downBtn.textContent = "↓";
+  downBtn.className = "arrow-btn";
+  downBtn.disabled = idx === tasks.length - 1;
+        downBtn.onclick = function() {
+          if (idx < tasks.length - 1) {
+            [tasks[idx+1], tasks[idx]] = [tasks[idx], tasks[idx+1]];
+            renderTasks();
+            generateRunSheet();
+          }
+        };
+        // Name input
+        const nameInput = document.createElement("input");
+        nameInput.type = "text";
+        nameInput.value = task.name;
+        nameInput.size = 20;
+        nameInput.onchange = function() {
+          task.name = nameInput.value;
+          generateRunSheet();
+        };
+        // Duration input
+        const durationInput = document.createElement("input");
+        durationInput.type = "number";
+        durationInput.value = task.duration;
+        durationInput.min = 1;
+        durationInput.style.width = "60px";
+        durationInput.onchange = function() {
+          const oldDuration = task.duration;
+          const newDuration = parseInt(durationInput.value, 10) || 1;
+          const delta = newDuration - oldDuration;
+          // If user has set minutesBeforeEvent, adjust it to keep end time the same
+          if (task.minutesBeforeEvent !== undefined && !isNaN(task.minutesBeforeEvent)) {
+            task.minutesBeforeEvent = task.minutesBeforeEvent + delta;
+          }
+          task.duration = newDuration;
+          // Shift all earlier tasks
+          if (delta !== 0) {
+            for (let i = 0; i < idx; i++) {
+              if (tasks[i].minutesBeforeEvent !== undefined && !isNaN(tasks[i].minutesBeforeEvent)) {
+                tasks[i].minutesBeforeEvent += delta;
+              }
+            }
+          }
+          generateRunSheet();
+        };
+        // Minutes before event input
+        const beforeEventInput = document.createElement("input");
+        beforeEventInput.type = "number";
+        beforeEventInput.min = task.duration;
+        beforeEventInput.style.width = "80px";
+        beforeEventInput.value = task.minutesBeforeEvent !== undefined ? task.minutesBeforeEvent : "";
+        beforeEventInput.placeholder = "auto";
+        beforeEventInput.onchange = function() {
+          const oldVal = task.minutesBeforeEvent !== undefined ? task.minutesBeforeEvent : undefined;
+          if (beforeEventInput.value === "") {
+            delete task.minutesBeforeEvent;
+          } else {
+            let val = parseInt(beforeEventInput.value, 10) || 0;
+            if (val < task.duration) val = task.duration;
+            beforeEventInput.value = val;
+            task.minutesBeforeEvent = val;
+            // If changed, shift all earlier tasks
+            if (oldVal !== undefined && !isNaN(oldVal)) {
+              const delta = val - oldVal;
+              if (delta !== 0) {
+                for (let i = 0; i < idx; i++) {
+                  if (tasks[i].minutesBeforeEvent !== undefined && !isNaN(tasks[i].minutesBeforeEvent)) {
+                    tasks[i].minutesBeforeEvent += delta;
+                  }
+                }
+              }
+            }
+          }
+          generateRunSheet();
+        };
+        // Label
+        div.appendChild(upBtn);
+        div.appendChild(downBtn);
+        div.appendChild(document.createTextNode("Task: "));
+        div.appendChild(nameInput);
+        div.appendChild(document.createTextNode(" Duration (min): "));
+        div.appendChild(durationInput);
+        div.appendChild(document.createTextNode(" Minutes before event: "));
+        div.appendChild(beforeEventInput);
+        tasksDiv.appendChild(div);
+      });
+    }
+
+    function addTask() {
+      const taskName = prompt("Task name:");
+      const duration = parseInt(prompt("Duration in minutes:"), 10);
+      if (taskName && duration) {
+        tasks.unshift({ name: taskName, duration }); // Add to start of array
+        renderTasks();
+        generateRunSheet();
+      }
+    }
+
+    function generateRunSheet() {
+      const raceTime = document.getElementById("raceTime").value;
+      if (!raceTime) return alert("Please enter race start time");
+
+      // Update run sheet title
+      const runSheetTitle = document.getElementById("runSheetTitle").value || "Run Sheet";
+      document.getElementById("runSheetTitleDisplay").textContent = runSheetTitle;
+
+      const runSheet = document.getElementById("runSheet");
+      runSheet.innerHTML = "";
+
+      // Calculate minutes before event for each task
+      let autoMinutes = 0;
+      let minutesArr = [];
+      for (let i = tasks.length - 1; i >= 0; i--) {
+        if (tasks[i].minutesBeforeEvent !== undefined && tasks[i].minutesBeforeEvent !== "") {
+          minutesArr[i] = tasks[i].minutesBeforeEvent;
+          autoMinutes = tasks[i].minutesBeforeEvent;
+        } else {
+          autoMinutes += tasks[i].duration;
+          minutesArr[i] = autoMinutes;
+        }
+      }
+
+      // Calculate and display start time for each task
+      // Collect all task display info with their times
+      let displayTasks = [];
+      for (let i = 0; i < tasks.length; i++) {
+        const minutesBefore = minutesArr[i];
+        const raceDate = new Date(`1970-01-01T${raceTime}:00`);
+        const taskTime = new Date(raceDate.getTime() - minutesBefore * 60000);
+        // Format time as am/pm
+        let hours = taskTime.getHours();
+        const minutes = taskTime.getMinutes();
+        const ampm = hours >= 12 ? 'pm' : 'am';
+        hours = hours % 12;
+        if (hours === 0) hours = 12;
+        const timeStr = `${hours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+        // Format minutesBefore as hours and minutes
+        let beforeStr = "";
+        if (minutesBefore >= 60) {
+          const h = Math.floor(minutesBefore / 60);
+          const m = minutesBefore % 60;
+          beforeStr = `${h}h${m > 0 ? ' ' + m + 'm' : ''}`;
+        } else {
+          beforeStr = `${minutesBefore}m`;
+        }
+        displayTasks.push({
+          time: taskTime,
+          timeStr: timeStr,
+          name: tasks[i].name,
+          duration: tasks[i].duration,
+          beforeStr: beforeStr
+        });
+      }
+      // Sort by time ascending (chronological)
+      displayTasks.sort((a, b) => a.time - b.time);
+      for (const t of displayTasks) {
+        const li = document.createElement("li");
+        // Start time styled larger and bold
+  const timeSpan = document.createElement("span");
+  timeSpan.textContent = t.timeStr;
+  timeSpan.className = "runSheet-time";
+  li.appendChild(timeSpan);
+        // Rest of the text
+        li.appendChild(document.createTextNode(`- ${t.name} (${t.duration} min duration, starting ${t.beforeStr} before event)`));
+        runSheet.appendChild(li);
+      }
+      renderTasks();
+    }
+
+    // Update run sheet title live
+    document.getElementById("runSheetTitle").addEventListener("input", function() {
+      document.getElementById("runSheetTitleDisplay").textContent = this.value || "Run Sheet";
+    });
+
+    // Initial render
+    renderTasks();
+  </script>
+</body>
+</html>

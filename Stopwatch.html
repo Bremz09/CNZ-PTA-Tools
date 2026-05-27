@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stopwatch</title>
+  <link rel="stylesheet" href="theme.css" />
+  <style>
+    .stopwatch-display {
+      display: grid;
+      place-items: center;
+      min-height: 200px;
+      border-radius: 16px;
+      border: 1px solid var(--color-border);
+      background: linear-gradient(180deg, #FFFFFF, #F7F7F7);
+      font-size: clamp(44px, 8vw, 88px);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--color-brand-blue);
+    }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <section class="page-frame">
+      <header class="page-header">
+        <span class="page-kicker">Timing</span>
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">Stopwatch</h1>
+            <p class="page-subtitle">Run a standalone timer, take lap splits, and export a CSV for quick race-day logging or review.</p>
+          </div>
+          <div class="page-actions">
+            <a class="btn btn-ghost" href="index.html">Back to index</a>
+          </div>
+        </div>
+      </header>
+
+      <div class="page-body grid-two">
+        <section class="grid-stack">
+          <div class="panel">
+            <h2 class="panel-title">Timer</h2>
+            <div id="display" class="stopwatch-display">00:00:00.00</div>
+          </div>
+          <div class="panel">
+            <div class="button-row">
+              <button id="startBtn" class="btn btn-primary">Start</button>
+              <button id="lapBtn" class="btn btn-secondary">Lap</button>
+              <button id="resetBtn" class="btn btn-surface">Reset</button>
+              <button id="exportBtn" class="btn btn-success">Export CSV</button>
+            </div>
+          </div>
+          <div class="stat-grid">
+            <div class="stat-card">
+              <div class="stat-label">Status</div>
+              <div id="statusValue" class="stat-value">Idle</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Lap Count</div>
+              <div id="lapCountValue" class="stat-value">0</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2 class="panel-title">Lap Splits</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Lap</th>
+                  <th>Lap Time</th>
+                  <th>Total Time</th>
+                </tr>
+              </thead>
+              <tbody id="lapBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const display = document.getElementById('display');
+    const startBtn = document.getElementById('startBtn');
+    const lapBtn = document.getElementById('lapBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const lapBody = document.getElementById('lapBody');
+    const statusValue = document.getElementById('statusValue');
+    const lapCountValue = document.getElementById('lapCountValue');
+
+    let startTimestamp = null;
+    let elapsedBeforePause = 0;
+    let animationId = null;
+    let running = false;
+    let laps = [];
+
+    function formatTime(milliseconds) {
+      const totalCentiseconds = Math.floor(milliseconds / 10);
+      const centiseconds = totalCentiseconds % 100;
+      const totalSeconds = Math.floor(totalCentiseconds / 100);
+      const seconds = totalSeconds % 60;
+      const totalMinutes = Math.floor(totalSeconds / 60);
+      const minutes = totalMinutes % 60;
+      const hours = Math.floor(totalMinutes / 60);
+
+      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(centiseconds).padStart(2, '0')}`;
+    }
+
+    function getElapsed() {
+      return running ? elapsedBeforePause + (performance.now() - startTimestamp) : elapsedBeforePause;
+    }
+
+    function updateDisplay() {
+      display.textContent = formatTime(getElapsed());
+      if (running) {
+        animationId = requestAnimationFrame(updateDisplay);
+      }
+    }
+
+    function renderLaps() {
+      lapBody.innerHTML = '';
+      laps.forEach((lap, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td>${index + 1}</td><td>${formatTime(lap.lapTime)}</td><td>${formatTime(lap.totalTime)}</td>`;
+        lapBody.appendChild(row);
+      });
+      lapCountValue.textContent = String(laps.length);
+    }
+
+    function startStopwatch() {
+      if (running) {
+        elapsedBeforePause = getElapsed();
+        running = false;
+        cancelAnimationFrame(animationId);
+        startBtn.textContent = 'Resume';
+        statusValue.textContent = 'Paused';
+        return;
+      }
+
+      startTimestamp = performance.now();
+      running = true;
+      startBtn.textContent = elapsedBeforePause > 0 ? 'Pause' : 'Pause';
+      statusValue.textContent = 'Running';
+      updateDisplay();
+    }
+
+    function addLap() {
+      if (!running && getElapsed() === 0) {
+        return;
+      }
+
+      const totalTime = getElapsed();
+      const previousTotal = laps.length ? laps[laps.length - 1].totalTime : 0;
+      laps.push({
+        lapTime: totalTime - previousTotal,
+        totalTime
+      });
+      renderLaps();
+    }
+
+    function resetStopwatch() {
+      running = false;
+      cancelAnimationFrame(animationId);
+      startTimestamp = null;
+      elapsedBeforePause = 0;
+      laps = [];
+      display.textContent = '00:00:00.00';
+      startBtn.textContent = 'Start';
+      statusValue.textContent = 'Idle';
+      renderLaps();
+    }
+
+    function exportCsv() {
+      if (!laps.length) {
+        return;
+      }
+
+      const rows = ['Lap,Lap Time,Total Time'];
+      laps.forEach((lap, index) => {
+        rows.push(`${index + 1},${formatTime(lap.lapTime)},${formatTime(lap.totalTime)}`);
+      });
+
+      const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'stopwatch_laps.csv';
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    startBtn.addEventListener('click', startStopwatch);
+    lapBtn.addEventListener('click', addLap);
+    resetBtn.addEventListener('click', resetStopwatch);
+    exportBtn.addEventListener('click', exportCsv);
+  </script>
+</body>
+</html>

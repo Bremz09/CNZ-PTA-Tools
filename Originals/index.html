@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Video Overlay Tools</title>
+  <style>
+    :root {
+      --bg-1: #f3efe4;
+      --bg-2: #f8d9ae;
+      --card: rgba(255, 255, 255, 0.86);
+      --card-strong: rgba(255, 255, 255, 0.94);
+      --ink: #1f2937;
+      --muted: #6b7280;
+      --accent: #d9480f;
+      --accent-soft: #fb923c;
+      --line: #0f766e;
+      --shadow: rgba(15, 23, 42, 0.16);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 10% 12%, rgba(219, 107, 48, 0.72), transparent 28%),
+        radial-gradient(circle at 86% 18%, rgba(15, 118, 110, 0.18), transparent 30%),
+        linear-gradient(145deg, var(--bg-1), var(--bg-2));
+      padding: 18px;
+    }
+
+    .shell {
+      max-width: 1150px;
+      margin: 0 auto;
+      background: var(--card);
+      border: 1px solid rgba(31, 41, 55, 0.08);
+      border-radius: 18px;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 18px 35px var(--shadow);
+      overflow: hidden;
+    }
+
+    .hero {
+      padding: 28px 28px 22px;
+      border-bottom: 1px solid rgba(31, 41, 55, 0.08);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0.62));
+      display: grid;
+      gap: 12px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid rgba(31, 41, 55, 0.08);
+    }
+
+    .eyebrow i {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--accent);
+      display: inline-block;
+    }
+
+    .title {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      line-height: 1.02;
+      letter-spacing: -0.03em;
+    }
+
+    .subtitle {
+      margin: 0;
+      max-width: 760px;
+      font-size: 1rem;
+      line-height: 1.6;
+      color: var(--muted);
+    }
+
+    .content {
+      padding: 22px 28px 28px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+
+    .section-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(260px, 1fr));
+      gap: 16px;
+    }
+
+    .tool-card {
+      position: relative;
+      display: grid;
+      gap: 14px;
+      padding: 20px;
+      border-radius: 16px;
+      background: linear-gradient(180deg, var(--card-strong), rgba(255, 255, 255, 0.78));
+      border: 1px solid rgba(31, 41, 55, 0.08);
+      text-decoration: none;
+      color: inherit;
+      box-shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+      overflow: hidden;
+    }
+
+    .tool-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 30px rgba(15, 23, 42, 0.12);
+      border-color: rgba(15, 118, 110, 0.22);
+    }
+
+    .tool-card::after {
+      content: "";
+      position: absolute;
+      inset: auto -30px -45px auto;
+      width: 150px;
+      height: 150px;
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(251, 146, 60, 0.28), transparent 64%);
+      pointer-events: none;
+    }
+
+    .tool-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .tool-icon {
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      font-size: 1.3rem;
+      font-weight: 700;
+      background: rgba(15, 118, 110, 0.12);
+      color: var(--line);
+      border: 1px solid rgba(15, 118, 110, 0.14);
+    }
+
+    .tool-tag {
+      padding: 5px 9px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: rgba(217, 72, 15, 0.08);
+      color: var(--accent);
+    }
+
+    .tool-card h3 {
+      margin: 0;
+      font-size: 1.2rem;
+    }
+
+    .tool-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 0.95rem;
+    }
+
+    .tool-list {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .tool-list span {
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      background: #fff;
+      border: 1px solid rgba(31, 41, 55, 0.1);
+      color: var(--ink);
+    }
+
+    .tool-foot {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding-top: 4px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .tool-foot strong {
+      color: var(--line);
+    }
+
+    .note {
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: rgba(255, 251, 235, 0.86);
+      border: 1px solid rgba(180, 83, 9, 0.12);
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.55;
+    }
+
+    .note strong {
+      color: var(--ink);
+    }
+
+    @media (max-width: 760px) {
+      body {
+        padding: 10px;
+      }
+
+      .hero,
+      .content {
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+
+      .card-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <span class="eyebrow"><i></i>CNZ Video Tools</span>
+      <h1 class="title">Choose Your Overlay Workflow</h1>
+      <p class="subtitle">Launch the video analysis tool that matches your data source. Both pages share the same visual approach and interaction model, so switching between spreadsheet and FIT workflows stays consistent.</p>
+    </header>
+
+    <section class="content">
+      <div class="section-head">
+        <h2>Available Tools</h2>
+        <p>Click a card to open the corresponding video overlay tool.</p>
+      </div>
+
+      <div class="card-grid">
+        <a class="tool-card" href="VideoOverlayExcelData.html">
+          <div class="tool-top">
+            <div class="tool-icon">XLSX</div>
+            <span class="tool-tag">Excel</span>
+          </div>
+          <div>
+            <h3>Excel Data Overlay</h3>
+            <p>Load a video and one Excel metrics export from the configuration browser of HPSNZ Logger display. Compare shared metrics, and review aligned traces with per-stream summaries.</p>
+          </div>
+          <div class="tool-list">
+            <span>Multi-rider overlays</span>
+            <span>Shared metric selection</span>
+            <span>Per-rider summaries</span>
+          </div>
+          <div class="tool-foot">
+            <span>Best for metrics exported from the configuration browser of HPSNZ Logger display.</span>
+            <strong>Open tool</strong>
+          </div>
+        </a>
+
+        <a class="tool-card" href="VideoOverlayFitFiles.html">
+          <div class="tool-top">
+            <div class="tool-icon">F</div>
+            <span class="tool-tag">FIT</span>
+          </div>
+          <div>
+            <h3>FIT File Overlay</h3>
+            <p>Load multiple rider FIT files, plot common metrics together, and fine-tune sync per rider with adjustable drag targeting.</p>
+          </div>
+          <div class="tool-list">
+            <span>Multi-rider traces</span>
+            <span>Per-rider sync targeting</span>
+            <span>Friendly rider labels</span>
+          </div>
+          <div class="tool-foot">
+            <span>Best for native device data</span>
+            <strong>Open tool</strong>
+          </div>
+        </a>
+      </div>
+
+      <div class="note">
+        <strong>Tip:</strong> if you are sharing this page with analysts or coaches, the FIT workflow is usually the quickest route for rider-by-rider sync, while the Excel workflow is better when your data has already been cleaned or exported from another platform.
+      </div>
+    </section>
+  </main>
+</body>
+</html>

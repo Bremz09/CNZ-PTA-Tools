@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Wheel Height Measurement</title>
+  <style>
+    canvas {
+      border: 1px solid black;
+      cursor: crosshair;
+      display: block;
+      margin-top: 10px;
+    }
+    #info {
+      margin-top: 10px;
+      font-family: Arial, sans-serif;
+    }
+  </style>
+</head>
+<body>
+
+<h3>Select an image to begin:</h3>
+<input type="file" id="imageLoader" accept="image/*">
+<canvas id="canvas"></canvas>
+<div id="info">Click 1 & 2: wheel base<br>Click 3 & 4: wheel centers<br>Click 5+: measure height</div>
+
+<script>
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const imageLoader = document.getElementById('imageLoader');
+  const points = [];
+  let pixelToMmRatio = null;
+  const REAL_RADIUS_MM = 333.6;
+
+  let image = new Image();
+
+  imageLoader.addEventListener('change', function (e) {
+    const reader = new FileReader();
+    reader.onload = function (event) {
+      image.onload = function () {
+        canvas.width = image.width;
+        canvas.height = image.height;
+        ctx.drawImage(image, 0, 0);
+        points.length = 0;
+        pixelToMmRatio = null;
+        document.getElementById('info').innerText = "Click 1 & 2: wheel base\nClick 3 & 4: wheel centers\nClick 5+: measure height";
+      };
+      image.src = event.target.result;
+    };
+    reader.readAsDataURL(e.target.files[0]);
+  });
+
+  canvas.addEventListener('click', (e) => {
+    if (!image.src) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const point = { x, y };
+    points.push(point);
+
+    ctx.fillStyle = 'blue';
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, 2 * Math.PI);
+    ctx.fill();
+
+    if (points.length === 2) {
+      // Draw wheel base line
+      ctx.strokeStyle = 'green';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      ctx.lineTo(points[1].x, points[1].y);
+      ctx.stroke();
+    }
+
+    if (points.length === 4) {
+      // Calculate pixel radius and pixel-to-mm ratio
+      const radius1 = distance(points[0], points[2]);
+      const radius2 = distance(points[1], points[3]);
+      const avgRadius = (radius1 + radius2) / 2;
+      pixelToMmRatio = REAL_RADIUS_MM / avgRadius;
+      document.getElementById('info').innerText = `Pixel-to-mm ratio established: ${pixelToMmRatio.toFixed(4)} mm/pixel\nClick more points to measure height.`;
+    }
+
+    if (points.length > 4 && pixelToMmRatio) {
+      const baseStart = points[0];
+      const baseEnd = points[1];
+      const heightPoint = point;
+
+      const { distancePx, projection } = perpendicularDistanceAndProjection(heightPoint, baseStart, baseEnd);
+      const distanceMm = distancePx * pixelToMmRatio;
+
+      // Clear previous height line
+      ctx.drawImage(image, 0, 0);
+      redrawPointsAndBase();
+
+      // Draw perpendicular line
+      ctx.strokeStyle = 'red';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(heightPoint.x, heightPoint.y);
+      ctx.lineTo(projection.x, projection.y);
+      ctx.stroke();
+
+      document.getElementById('info').innerText = `Height: ${distanceMm.toFixed(2)} mm`;
+    }
+  });
+
+  function distance(p1, p2) {
+    return Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
+  }
+
+  function perpendicularDistanceAndProjection(p, a, b) {
+    const ap = { x: p.x - a.x, y: p.y - a.y };
+    const ab = { x: b.x - a.x, y: b.y - a.y };
+    const abLenSq = ab.x ** 2 + ab.y ** 2;
+    const dot = ap.x * ab.x + ap.y * ab.y;
+    const t = dot / abLenSq;
+    const projection = {
+      x: a.x + ab.x * t,
+      y: a.y + ab.y * t
+    };
+    const dist = distance(p, projection);
+    return { distancePx: dist, projection };
+  }
+
+  function redrawPointsAndBase() {
+    for (let i = 0; i < points.length; i++) {
+      ctx.fillStyle = 'blue';
+      ctx.beginPath();
+      ctx.arc(points[i].x, points[i].y, 5, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+
+    if (points.length >= 2) {
+      ctx.strokeStyle = 'green';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      ctx.lineTo(points[1].x, points[1].y);
+      ctx.stroke();
+    }
+  }
+</script>
+
+</body>
+</html>

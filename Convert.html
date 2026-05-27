@@ -1,0 +1,751 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Track Split Converter</title>
+	<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+	<style>
+		:root {
+			--bg1: #f6f8f5;
+			--bg2: #d8ece8;
+			--ink: #1f2937;
+			--muted: #475569;
+			--line: rgba(31, 41, 55, 0.15);
+			--card: rgba(255, 255, 255, 0.9);
+			--primary: #0f766e;
+			--primary2: #115e59;
+			--accent: #1d4ed8;
+			--ok: #166534;
+			--warn: #a16207;
+			--bad: #b91c1c;
+		}
+
+		* { box-sizing: border-box; }
+
+		body {
+			margin: 0;
+			min-height: 100vh;
+			font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+			color: var(--ink);
+			background:
+				radial-gradient(circle at 10% 8%, rgba(15, 118, 110, 0.2), transparent 30%),
+				radial-gradient(circle at 90% 18%, rgba(29, 78, 216, 0.18), transparent 35%),
+				linear-gradient(160deg, var(--bg1), var(--bg2));
+			padding: 20px;
+		}
+
+		.shell {
+			max-width: 1200px;
+			margin: 0 auto;
+			border: 1px solid var(--line);
+			border-radius: 16px;
+			overflow: hidden;
+			background: var(--card);
+			box-shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
+		}
+
+		.head {
+			padding: 18px 20px;
+			border-bottom: 1px solid var(--line);
+			background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.75));
+		}
+
+		h1 {
+			margin: 0;
+			font-size: 1.3rem;
+		}
+
+		.sub {
+			margin: 8px 0 0;
+			color: var(--muted);
+			font-size: 0.92rem;
+		}
+
+		.grid {
+			display: grid;
+			gap: 12px;
+			grid-template-columns: repeat(3, minmax(220px, 1fr));
+			padding: 16px 20px;
+			border-bottom: 1px solid var(--line);
+			background: rgba(255, 255, 255, 0.7);
+		}
+
+		.field {
+			display: grid;
+			gap: 6px;
+		}
+
+		.field label {
+			font-size: 0.82rem;
+			font-weight: 600;
+			color: var(--muted);
+		}
+
+		input,
+		select,
+		button {
+			font: inherit;
+		}
+
+		input[type="text"],
+		input[type="datetime-local"],
+		input[type="number"],
+		input[type="file"],
+		select {
+			width: 100%;
+			border: 1px solid var(--line);
+			border-radius: 10px;
+			padding: 8px 10px;
+			background: #fff;
+		}
+
+		.hint {
+			margin: 0;
+			font-size: 0.8rem;
+			color: var(--muted);
+		}
+
+		.actions {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 10px;
+			padding: 14px 20px;
+			border-bottom: 1px solid var(--line);
+			background: rgba(255, 255, 255, 0.8);
+		}
+
+		button {
+			border: none;
+			border-radius: 10px;
+			padding: 10px 14px;
+			font-weight: 600;
+			cursor: pointer;
+		}
+
+		.primary {
+			color: #fff;
+			background: linear-gradient(135deg, var(--primary), var(--primary2));
+		}
+
+		.secondary {
+			color: #fff;
+			background: linear-gradient(135deg, var(--accent), #1e3a8a);
+		}
+
+		.ghost {
+			color: #1e3a8a;
+			background: #eef2ff;
+			border: 1px solid #c7d2fe;
+		}
+
+		.disabled {
+			opacity: 0.55;
+			cursor: not-allowed;
+		}
+
+		.status {
+			padding: 10px 20px 0;
+			min-height: 26px;
+			font-size: 0.9rem;
+		}
+
+		.status.ok { color: var(--ok); }
+		.status.warn { color: var(--warn); }
+		.status.bad { color: var(--bad); }
+
+		.chips {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+			padding: 2px 20px 12px;
+		}
+
+		.chip {
+			border: 1px solid var(--line);
+			border-radius: 999px;
+			background: #fff;
+			padding: 6px 10px;
+			font-size: 0.8rem;
+			color: #334155;
+		}
+
+		.table-wrap {
+			padding: 0 20px 20px;
+			overflow: auto;
+			max-height: 62vh;
+		}
+
+		table {
+			width: 100%;
+			min-width: 1020px;
+			border-collapse: collapse;
+			background: #fff;
+			border: 1px solid var(--line);
+			border-radius: 12px;
+			overflow: hidden;
+		}
+
+		th,
+		td {
+			border-bottom: 1px solid #e5e7eb;
+			padding: 7px 8px;
+			text-align: left;
+			font-size: 0.82rem;
+			white-space: nowrap;
+		}
+
+		th {
+			position: sticky;
+			top: 0;
+			background: #f8fafc;
+			z-index: 1;
+			font-size: 0.8rem;
+			color: #334155;
+		}
+
+		@media (max-width: 980px) {
+			.grid {
+				grid-template-columns: 1fr;
+			}
+		}
+	</style>
+</head>
+<body>
+	<div class="shell">
+		<header class="head">
+			<h1>Pursuit Split Converter and XLSX Appender</h1>
+			<p class="sub">Converts split export rows into your target 10-column timing structure and appends them to a selected worksheet.</p>
+		</header>
+
+		<section class="grid">
+			<div class="field">
+				<label for="sourceInput">Source CSV or TSV</label>
+				<input id="sourceInput" type="file" accept=".csv,.tsv,.txt,text/csv,text/plain" />
+				<p class="hint">Tab-delimited or comma-delimited files are both supported.</p>
+			</div>
+
+			<div class="field">
+				<label for="xlsxInput">Target XLSX file</label>
+				<input id="xlsxInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+				<p class="hint">Rows are appended to the end of the selected sheet.</p>
+			</div>
+
+			<div class="field">
+				<label for="sheetSelect">Worksheet</label>
+				<select id="sheetSelect" disabled>
+					<option value="">Upload XLSX first</option>
+				</select>
+			</div>
+
+			<div class="field">
+				<label for="sessionName">Session label (col 1)</label>
+				<input id="sessionName" type="text" value="25-03-14 Konya NC NZL Q" />
+			</div>
+
+			<div class="field">
+				<label for="sessionDateTime">Session date/time (col 2)</label>
+				<input id="sessionDateTime" type="datetime-local" step="1" />
+			</div>
+
+			<div class="field">
+				<label for="videoUrl">Video URL (col 10, first row only)</label>
+				<input id="videoUrl" type="text" value="https://youtu.be/OQ7wsLNy3zM" />
+			</div>
+
+			<div class="field">
+				<label for="startOffset">Start offset seconds</label>
+				<input id="startOffset" type="number" step="0.01" placeholder="auto from # startTime or 0" />
+				<p class="hint">If blank, the converter uses # startTime when present.</p>
+			</div>
+
+			<div class="field">
+				<label for="rider0">frontRiderIndex 0</label>
+				<input id="rider0" type="text" value="Prue Fowler" />
+			</div>
+
+			<div class="field">
+				<label for="rider1">frontRiderIndex 1</label>
+				<input id="rider1" type="text" value="Sami Donnelly" />
+			</div>
+
+			<div class="field">
+				<label for="rider2">frontRiderIndex 2</label>
+				<input id="rider2" type="text" value="Bryony Botha" />
+			</div>
+
+			<div class="field">
+				<label for="rider3">frontRiderIndex 3</label>
+				<input id="rider3" type="text" value="Emily Shearman" />
+			</div>
+		</section>
+
+		<section class="actions">
+			<button id="previewBtn" class="ghost">Build Preview</button>
+			<button id="appendBtn" class="primary disabled" disabled>Append to XLSX and Download</button>
+			<button id="downloadCsvBtn" class="secondary disabled" disabled>Download Converted CSV</button>
+		</section>
+
+		<div id="status" class="status"></div>
+
+		<div class="chips">
+			<div id="sourceInfo" class="chip">Source: not loaded</div>
+			<div id="xlsxInfo" class="chip">XLSX: not loaded</div>
+			<div id="rowInfo" class="chip">Converted rows: 0</div>
+		</div>
+
+		<div id="xlsxPreviewSection" style="display: none; padding: 0 20px 20px; border-bottom: 1px solid var(--line);">
+			<h3 style="margin: 16px 0 8px; font-size: 0.95rem; color: var(--muted);">XLSX Preview (first 2 rows)</h3>
+			<div class="table-wrap" style="max-height: 180px;">
+				<table>
+					<thead id="xlsxPreviewHead"></thead>
+					<tbody id="xlsxPreviewBody"></tbody>
+				</table>
+			</div>
+		</div>
+
+		<div class="table-wrap">
+			<table>
+				<thead id="previewHead"></thead>
+				<tbody id="previewBody"></tbody>
+			</table>
+		</div>
+	</div>
+
+	<script>
+		const TARGET_HEADERS = [
+			"Session",
+			"DateTime",
+			"Distance",
+			"Cumulative Time",
+			"Split Time",
+			"Team Speed",
+			"Delivery Speed",
+			"Event",
+			"Athlete",
+			"Video URL"
+		];
+
+		const state = {
+			sourceName: "",
+			headers: [],
+			rows: [],
+			meta: {},
+			convertedRows: [],
+			workbook: null,
+			workbookName: ""
+		};
+
+		const sourceInput = document.getElementById("sourceInput");
+		const xlsxInput = document.getElementById("xlsxInput");
+		const sheetSelect = document.getElementById("sheetSelect");
+		const sessionNameInput = document.getElementById("sessionName");
+		const sessionDateTimeInput = document.getElementById("sessionDateTime");
+		const videoUrlInput = document.getElementById("videoUrl");
+		const startOffsetInput = document.getElementById("startOffset");
+		const rider0Input = document.getElementById("rider0");
+		const rider1Input = document.getElementById("rider1");
+		const rider2Input = document.getElementById("rider2");
+		const rider3Input = document.getElementById("rider3");
+		const previewBtn = document.getElementById("previewBtn");
+		const appendBtn = document.getElementById("appendBtn");
+		const downloadCsvBtn = document.getElementById("downloadCsvBtn");
+		const statusEl = document.getElementById("status");
+		const sourceInfoEl = document.getElementById("sourceInfo");
+		const xlsxInfoEl = document.getElementById("xlsxInfo");
+		const rowInfoEl = document.getElementById("rowInfo");
+		const previewHead = document.getElementById("previewHead");
+		const previewBody = document.getElementById("previewBody");
+
+		sourceInput.addEventListener("change", onSourceSelected);
+		xlsxInput.addEventListener("change", onXlsxSelected);
+		previewBtn.addEventListener("click", onBuildPreview);
+		appendBtn.addEventListener("click", onAppend);
+		downloadCsvBtn.addEventListener("click", onDownloadCsv);
+		sheetSelect.addEventListener("change", toggleAppend);
+
+		sessionDateTimeInput.value = new Date().toISOString().slice(0, 19);
+
+		function setStatus(message, kind) {
+			statusEl.textContent = message;
+			statusEl.className = "status" + (kind ? " " + kind : "");
+		}
+
+		function escapeHtml(value) {
+			return String(value)
+				.replace(/&/g, "&amp;")
+				.replace(/</g, "&lt;")
+				.replace(/>/g, "&gt;")
+				.replace(/\"/g, "&quot;")
+				.replace(/'/g, "&#39;");
+		}
+
+		function parseLineWithDelimiter(line, delimiter) {
+			const out = [];
+			let token = "";
+			let quote = false;
+			for (let i = 0; i < line.length; i += 1) {
+				const ch = line[i];
+				if (ch === '"') {
+					if (quote && line[i + 1] === '"') {
+						token += '"';
+						i += 1;
+					} else {
+						quote = !quote;
+					}
+				} else if (ch === delimiter && !quote) {
+					out.push(token.trim());
+					token = "";
+				} else {
+					token += ch;
+				}
+			}
+			out.push(token.trim());
+			return out;
+		}
+
+		function detectDelimiter(headerLine) {
+			const tabs = (headerLine.match(/\t/g) || []).length;
+			const commas = (headerLine.match(/,/g) || []).length;
+			return tabs > commas ? "\t" : ",";
+		}
+
+		function parseSourceText(text) {
+			const normalized = text.replace(/^\uFEFF/, "");
+			const lines = normalized.split(/\r\n|\n|\r/).filter((line) => line.trim() !== "");
+			if (lines.length < 2) {
+				throw new Error("Source file must include headers and data rows.");
+			}
+
+			const delimiter = detectDelimiter(lines[0]);
+			const headers = parseLineWithDelimiter(lines[0], delimiter);
+			const rows = [];
+			const meta = {};
+
+			for (let i = 1; i < lines.length; i += 1) {
+				const parts = parseLineWithDelimiter(lines[i], delimiter);
+				const firstCell = parts[0] || "";
+				if (firstCell.startsWith("#")) {
+					const key = firstCell.replace(/^#\s*/, "").trim();
+					const value = parts[1] ? parts[1].trim() : "";
+					meta[key] = value;
+					continue;
+				}
+
+				const row = {};
+				headers.forEach((h, idx) => {
+					row[h] = parts[idx] !== undefined ? parts[idx] : "";
+				});
+				rows.push(row);
+			}
+
+			return { headers, rows, meta };
+		}
+
+		function asNumber(value) {
+			const n = Number(value);
+			return Number.isFinite(n) ? n : null;
+		}
+
+		function round(value, places) {
+			const f = 10 ** places;
+			return Math.round((value + Number.EPSILON) * f) / f;
+		}
+
+		function formatDateTimeLocal(value) {
+			if (!value) {
+				return "";
+			}
+			return value.replace("T", " ");
+		}
+
+		function eventLabel(eventRaw) {
+			const e = (eventRaw || "").trim();
+			if (!e || e.toLowerCase() === "none") {
+				return "No Change";
+			}
+			return e;
+		}
+
+		function riderNameFromIndex(index, map) {
+			const n = Number(index);
+			if (!Number.isInteger(n) || n < 0 || n > 3) {
+				return "Unknown Rider";
+			}
+			return map[n] || ("Rider " + (n + 1));
+		}
+
+		function kmhFromSplitSeconds(splitSeconds) {
+			if (!Number.isFinite(splitSeconds) || splitSeconds <= 0) {
+				return "";
+			}
+			return round(225 / splitSeconds, 8);
+		}
+
+		function buildConvertedRows() {
+			const inputRows = state.rows.filter((row) => {
+				const splitType = (row.splitType || "").toUpperCase();
+				return splitType === "QUARTER" || splitType === "TEAM_FINISH";
+			});
+
+			if (!inputRows.length) {
+				const availableCols = state.headers.join(", ");
+				throw new Error("No QUARTER or TEAM_FINISH rows found in source data.\nAvailable columns: " + availableCols);
+			}
+
+			const riderMap = {
+				0: rider0Input.value.trim(),
+				1: rider1Input.value.trim(),
+				2: rider2Input.value.trim(),
+				3: rider3Input.value.trim()
+			};
+
+			const sessionName = sessionNameInput.value.trim();
+			const sessionDateTime = formatDateTimeLocal(sessionDateTimeInput.value);
+			const videoUrl = videoUrlInput.value.trim();
+
+			const outputRows = [];
+			let cumulativeTime = 0;
+
+			// Try to find the Quarter Time column (case-insensitive)
+			let quarterTimeCol = null;
+			for (const col of state.headers) {
+				if (col.toLowerCase().includes("quarter") && col.toLowerCase().includes("time")) {
+					quarterTimeCol = col;
+					break;
+				}
+			}
+
+			if (!quarterTimeCol && inputRows.length > 0) {
+				const availableCols = state.headers.join(", ");
+				throw new Error("Could not find Quarter Time column.\nAvailable columns: " + availableCols + "\nFirst row values: " + JSON.stringify(inputRows[0]));
+			}
+
+			inputRows.forEach((row, idx) => {
+				// Get quarter time (split time) from the Quarter Time column
+				const quarterTime = asNumber(row[quarterTimeCol]);
+				if (quarterTime === null || quarterTime <= 0) {
+					return;
+				}
+
+				// Cumulative time is calculated by accumulating splits
+				cumulativeTime = cumulativeTime + quarterTime;
+				const cumulativeRounded = round(cumulativeTime, 2);
+				const splitTime = round(quarterTime, 2);
+
+				const computedSpeed = kmhFromSplitSeconds(splitTime);
+				const deliveryRaw = asNumber(row["Delivery Speed (km/h)"]);
+				const deliverySpeed = eventLabel(row.Event) === "No Change"
+					? computedSpeed
+					: (deliveryRaw !== null ? round(deliveryRaw, 8) : computedSpeed);
+
+				outputRows.push({
+					Session: sessionName,
+					DateTime: sessionDateTime,
+					Distance: round((outputRows.length + 1) * 62.5, 1),
+					"Cumulative Time": cumulativeRounded,
+					"Split Time": splitTime,
+					"Team Speed": computedSpeed,
+					"Delivery Speed": deliverySpeed,
+					Event: eventLabel(row.Event),
+					Athlete: riderNameFromIndex(row.frontRiderIndex, riderMap),
+					"Video URL": outputRows.length === 0 ? videoUrl : ""
+				});
+			});
+
+			if (!outputRows.length) {
+				const availableCols = state.headers.join(", ");
+				const sampleValues = inputRows.slice(0, 3).map((row, i) => "Row " + i + ": " + quarterTimeCol + " = " + row[quarterTimeCol]).join(" | ");
+				throw new Error("No valid rows produced. Column '" + quarterTimeCol + "' values may be empty or invalid.\nSample: " + sampleValues + "\nAvailable columns: " + availableCols);
+			}
+
+			return outputRows;
+		}
+
+		function renderPreview(rows) {
+			previewHead.innerHTML = "<tr>" + TARGET_HEADERS.map((h) => "<th>" + escapeHtml(h) + "</th>").join("") + "</tr>";
+			if (!rows.length) {
+				previewBody.innerHTML = "<tr><td colspan=\"10\">No converted rows yet.</td></tr>";
+				return;
+			}
+
+			previewBody.innerHTML = rows.slice(0, 80)
+				.map((row) => "<tr>" + TARGET_HEADERS.map((h) => "<td>" + escapeHtml(row[h]) + "</td>").join("") + "</tr>")
+				.join("");
+		}
+
+		function csvEscape(value) {
+			const raw = value === undefined || value === null ? "" : String(value);
+			if (/[,"\n\r]/.test(raw)) {
+				return '"' + raw.replace(/"/g, '""') + '"';
+			}
+			return raw;
+		}
+
+		function onSourceSelected(event) {
+			const file = event.target.files && event.target.files[0];
+			if (!file) {
+				return;
+			}
+
+			const reader = new FileReader();
+			reader.onload = () => {
+				try {
+					const parsed = parseSourceText(String(reader.result || ""));
+					state.sourceName = file.name;
+					state.headers = parsed.headers;
+					state.rows = parsed.rows;
+					state.meta = parsed.meta;
+					state.convertedRows = [];
+
+					sourceInfoEl.textContent = "Source: " + file.name + " | rows: " + parsed.rows.length;
+					rowInfoEl.textContent = "Converted rows: 0";
+					renderPreview([]);
+					toggleAppend();
+					setStatus("Source loaded. Click Build Preview.", "ok");
+				} catch (error) {
+					setStatus("Source parse error: " + error.message, "bad");
+				}
+			};
+			reader.onerror = () => setStatus("Unable to read source file.", "bad");
+			reader.readAsText(file);
+		}
+
+		function onXlsxSelected(event) {
+			const file = event.target.files && event.target.files[0];
+			if (!file) {
+				return;
+			}
+
+			const reader = new FileReader();
+			reader.onload = () => {
+				try {
+					const workbook = XLSX.read(reader.result, { type: "array", cellDates: true });
+					state.workbook = workbook;
+					state.workbookName = file.name;
+
+					sheetSelect.innerHTML = "";
+					workbook.SheetNames.forEach((name, idx) => {
+						const opt = document.createElement("option");
+						opt.value = name;
+						opt.textContent = name;
+						if (idx === 0) {
+							opt.selected = true;
+						}
+						sheetSelect.appendChild(opt);
+					});
+					sheetSelect.disabled = false;
+					
+					// Preview first 2 rows of the first sheet
+					const sheet = workbook.Sheets[workbook.SheetNames[0]];
+					const xlsxData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+					renderXlsxPreview(xlsxData.slice(0, 3)); // header + 2 rows
+					
+					xlsxInfoEl.textContent = "XLSX: " + file.name + " | sheets: " + workbook.SheetNames.length;
+					toggleAppend();
+					setStatus("XLSX loaded. Pick worksheet and append when ready.", "ok");
+				} catch (error) {
+					setStatus("XLSX read error: " + error.message, "bad");
+				}
+			};
+			reader.onerror = () => setStatus("Unable to read XLSX file.", "bad");
+			reader.readAsArrayBuffer(file);
+		}
+
+		function renderXlsxPreview(rows) {
+			const previewSection = document.getElementById("xlsxPreviewSection");
+			const previewHead = document.getElementById("xlsxPreviewHead");
+			const previewBody = document.getElementById("xlsxPreviewBody");
+			
+			if (!rows || rows.length === 0) {
+				previewSection.style.display = "none";
+				return;
+			}
+			
+			previewSection.style.display = "block";
+			const headers = rows[0] || [];
+			previewHead.innerHTML = "<tr>" + headers.map((h) => "<th>" + escapeHtml(h || "") + "</th>").join("") + "</tr>";
+			
+			if (rows.length > 1) {
+				previewBody.innerHTML = rows.slice(1, 3)
+					.map((row) => "<tr>" + headers.map((_, idx) => "<td>" + escapeHtml(row[idx] || "") + "</td>").join("") + "</tr>")
+					.join("");
+			} else {
+				previewBody.innerHTML = "<tr><td colspan=\"" + headers.length + "\">No data rows.</td></tr>";
+			}
+		}
+
+		function onBuildPreview() {
+			try {
+				if (!state.rows.length) {
+					setStatus("Load source file first.", "warn");
+					return;
+				}
+
+				const rows = buildConvertedRows();
+				state.convertedRows = rows;
+				rowInfoEl.textContent = "Converted rows: " + rows.length;
+				renderPreview(rows);
+				downloadCsvBtn.disabled = false;
+				downloadCsvBtn.classList.remove("disabled");
+				toggleAppend();
+				setStatus("Preview built: " + rows.length + " rows.", "ok");
+			} catch (error) {
+				setStatus("Preview error: " + error.message, "bad");
+			}
+		}
+
+		function toggleAppend() {
+			const canAppend = Boolean(state.workbook) && Boolean(sheetSelect.value) && state.convertedRows.length > 0;
+			appendBtn.disabled = !canAppend;
+			appendBtn.classList.toggle("disabled", !canAppend);
+		}
+
+		function onAppend() {
+			if (!state.workbook || !sheetSelect.value) {
+				setStatus("Load XLSX and select a worksheet.", "warn");
+				return;
+			}
+			if (!state.convertedRows.length) {
+				setStatus("Build preview first.", "warn");
+				return;
+			}
+
+			try {
+				const sheet = state.workbook.Sheets[sheetSelect.value];
+				const values = state.convertedRows.map((row) => TARGET_HEADERS.map((h) => row[h]));
+				XLSX.utils.sheet_add_aoa(sheet, values, { origin: -1 });
+
+				XLSX.writeFile(state.workbook, state.workbookName);
+				setStatus("Done. Appended " + values.length + " rows to " + state.workbookName + ".", "ok");
+			} catch (error) {
+				setStatus("Append error: " + error.message, "bad");
+			}
+		}
+
+		function onDownloadCsv() {
+			if (!state.convertedRows.length) {
+				setStatus("No converted rows to download.", "warn");
+				return;
+			}
+
+			const lines = [TARGET_HEADERS.map(csvEscape).join(",")];
+			state.convertedRows.forEach((row) => {
+				lines.push(TARGET_HEADERS.map((h) => csvEscape(row[h])).join(","));
+			});
+
+			const blob = new Blob([lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+			const link = document.createElement("a");
+			link.href = URL.createObjectURL(blob);
+			link.download = (state.sourceName || "converted").replace(/\.[^.]+$/, "") + "_converted.csv";
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			URL.revokeObjectURL(link.href);
+			setStatus("Converted CSV downloaded.", "ok");
+		}
+
+		renderPreview([]);
+	</script>
+</body>
+</html>

@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Team Pursuit Strategy Builder</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:       #0d1117;
+  --bg2:      #161b22;
+  --bg3:      #21262d;
+  --border:   #30363d;
+  --accent:   #4493f8;
+  --text:     #e6edf3;
+  --dim:      #7d8590;
+  --danger:   #f85149;
+  --warn:     #d29922;
+  --success:  #3fb950;
+  --r0:       #4493f8;
+  --r1:       #f0883e;
+  --r2:       #3fb950;
+  --r3:       #bc8cff;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;line-height:1.5}
+a{color:var(--accent)}
+
+/* ── Layout ─────────────────────────────────── */
+.wrap{margin:0 auto;padding:20px 24px}
+header{padding:20px 0 14px;border-bottom:1px solid var(--border);margin-bottom:20px}
+header h1{font-size:22px;font-weight:700;color:var(--accent)}
+header p{color:var(--dim);font-size:12px;margin-top:2px}
+
+/* ── Collapsible sections ───────────────────── */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;cursor:pointer;user-select:none}
+.card-head h2{font-size:14px;font-weight:600;letter-spacing:.02em}
+.card-head .chevron{color:var(--dim);transition:transform .2s;font-style:normal}
+.card-head.open .chevron{transform:rotate(180deg)}
+.card-body{padding:16px 18px;border-top:1px solid var(--border)}
+.card-body.hidden{display:none}
+
+/* ── Form helpers ───────────────────────────── */
+.grid{display:grid;gap:10px}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g6{grid-template-columns:repeat(6,1fr)}
+.field label{display:block;font-size:11px;color:var(--dim);margin-bottom:3px;letter-spacing:.03em;text-transform:uppercase}
+input[type=number],input[type=text],select{
+  width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:5px;
+  color:var(--text);padding:6px 9px;font-size:13px;outline:none;transition:border-color .15s
+}
+input:focus,select:focus{border-color:var(--accent)}
+input.err{border-color:var(--danger)!important}
+
+/* ── Rider cards ────────────────────────────── */
+.rider-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.rcrd{background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:14px;position:relative}
+.rcrd::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:7px 7px 0 0}
+.rcrd.r0::before{background:var(--r0)}.rcrd.r1::before{background:var(--r1)}
+.rcrd.r2::before{background:var(--r2)}.rcrd.r3::before{background:var(--r3)}
+.rcrd h3{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+.rcrd.r0 h3{color:var(--r0)}.rcrd.r1 h3{color:var(--r1)}
+.rcrd.r2 h3{color:var(--r2)}.rcrd.r3 h3{color:var(--r3)}
+.rcrd .field{margin-bottom:7px}
+
+/* ── Rotation table ─────────────────────────── */
+.rot-wrap{overflow-x:auto}
+table.rot{width:100%;border-collapse:collapse}
+table.rot th{text-align:left;font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.04em;padding:6px 10px;border-bottom:1px solid var(--border);font-weight:500}
+table.rot td{padding:4px 6px;border-bottom:1px solid rgba(48,54,61,.5)}
+table.rot td:first-child{color:var(--dim);font-size:12px;padding-left:10px;width:36px}
+table.rot td select,table.rot td input{padding:5px 8px;font-size:13px}
+table.rot td select{width:115px}
+table.rot td input[type=number]{width:110px}
+.dist-info{font-size:12px;padding:4px 0}.ok{color:var(--success)}.bad{color:var(--danger)}
+
+/* ── Buttons ────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 16px;border:none;border-radius:5px;font-size:13px;font-weight:600;cursor:pointer;transition:opacity .15s;white-space:nowrap}
+.btn:hover{opacity:.82}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-ghost{background:var(--bg3);color:var(--text);border:1px solid var(--border)}
+.btn-danger-sm{background:rgba(248,81,73,.18);color:var(--danger);border:1px solid rgba(248,81,73,.35);padding:3px 8px;font-size:12px;border-radius:4px}
+.btn-run{background:var(--success);color:#0d1117;padding:13px 40px;font-size:16px;border-radius:7px}
+.run-row{text-align:center;padding:20px 0}
+.err-box{margin-bottom:10px}
+.alert{padding:9px 13px;border-radius:5px;font-size:13px;margin-bottom:8px}
+.alert-err{background:rgba(248,81,73,.12);border:1px solid rgba(248,81,73,.35);color:#f47070}
+.alert-warn{background:rgba(210,153,34,.12);border:1px solid rgba(210,153,34,.4);color:var(--warn)}
+
+/* ── Results ────────────────────────────────── */
+#results{display:none}
+.res-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:18px;margin-bottom:14px}
+.res-card h3{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);margin-bottom:14px}
+.finish-big{font-size:52px;font-weight:700;color:var(--success);text-align:center;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.finish-lbl{text-align:center;color:var(--dim);font-size:12px;margin-top:4px}
+.top-row{display:grid;grid-template-columns:200px 1fr;gap:14px;margin-bottom:14px}
+.summary-riders{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.scard{border-radius:6px;padding:11px 13px;background:var(--bg3);border-left:3px solid transparent}
+.scard.r0{border-left-color:var(--r0)}.scard.r1{border-left-color:var(--r1)}
+.scard.r2{border-left-color:var(--r2)}.scard.r3{border-left-color:var(--r3)}
+.scard .sname{font-weight:600;font-size:13px;margin-bottom:5px}
+.scard .srow{font-size:12px;color:var(--dim);margin-top:2px}
+.scard .sval{color:var(--text);font-weight:500}
+.wlow{color:var(--warn);font-weight:600}
+.wcrit{color:var(--danger);font-weight:700}
+
+/* ── Charts row ─────────────────────────────── */
+.charts-row{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:14px}
+.chart-wrap{position:relative;height:310px}
+
+/* ── Model tabs ─────────────────────────────── */
+.mtabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
+.mtab{padding:4px 13px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;
+  background:var(--bg3);color:var(--dim);border:1px solid var(--border);transition:all .15s}
+.mtab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.mtab-note{font-size:11px;color:var(--dim);margin-left:6px;align-self:center}
+
+/* ── Data tables ────────────────────────────── */
+.dtable{width:100%;border-collapse:collapse;font-size:12px}
+.dtable th{background:var(--bg3);padding:7px 10px;text-align:left;font-size:11px;
+  text-transform:uppercase;letter-spacing:.04em;color:var(--dim);font-weight:500;
+  border-bottom:1px solid var(--border);white-space:nowrap}
+.dtable th.r{text-align:right}
+.dtable td{padding:6px 10px;border-bottom:1px solid rgba(48,54,61,.4);white-space:nowrap}
+.dtable td.r{text-align:right;font-variant-numeric:tabular-nums}
+.dtable tr:hover td{background:rgba(68,147,248,.04)}
+.pos-lead{font-weight:600}
+
+details.step-wrap summary{cursor:pointer;color:var(--dim);font-size:13px;padding:4px 0;user-select:none}
+details.step-wrap summary:hover{color:var(--text)}
+details.step-wrap .inner{margin-top:12px;overflow-x:auto}
+
+/* ── W' colour helpers ──────────────────────── */
+.wp-ok{color:var(--text)}
+.wp-low{color:var(--warn);font-weight:600}
+.wp-crit{color:var(--danger);font-weight:700}
+
+/* ── Tooltip info ───────────────────────────── */
+.info{display:inline-block;width:14px;height:14px;background:var(--bg3);border:1px solid var(--border);
+  border-radius:50%;font-size:10px;text-align:center;line-height:13px;cursor:help;color:var(--dim);margin-left:4px}
+
+/* ── Responsive ─────────────────────────────── */
+@media(max-width:1100px){
+  .rider-grid{grid-template-columns:repeat(2,1fr)}
+  .g6{grid-template-columns:repeat(3,1fr)}
+  .charts-row{grid-template-columns:1fr}
+  .top-row{grid-template-columns:1fr}
+  .summary-riders{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:640px){
+  .rider-grid{grid-template-columns:1fr}
+  .g6,.g4,.g3{grid-template-columns:repeat(2,1fr)}
+  .summary-riders{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ═══════════════════════════════ HEADER ═══════════════════════════════ -->
+<header>
+  <h1>Team Pursuit Strategy Builder</h1>
+  <p>4 km · 250 m track · Critical Power &amp; W′ Model</p>
+</header>
+
+<!-- ═══════════════════════════════ GLOBAL SETTINGS ══════════════════════ -->
+<div class="card" id="sec-global">
+  <div class="card-head open" onclick="toggleCard('sec-global')">
+    <h2>Global Settings</h2><i class="chevron">▼</i>
+  </div>
+  <div class="card-body">
+    <div class="grid g6">
+      <div class="field"><label>Travelling Lap Time (s)</label>
+        <input type="number" id="g-laptime" value="14" step="0.05" min="12" max="30"></div>
+      <div class="field"><label>Wheel 2 Follow Load
+          <span class="info" title="CdA multiplier for the 2nd-wheel rider. e.g. 0.50 = 50% of lead CdA.">?</span></label>
+        <input type="number" id="g-w2load" value="0.68" step="0.01" min="0" max="1.0"></div>
+      <div class="field"><label>Wheel 3/4 Follow Load
+          <span class="info" title="CdA multiplier for 3rd and 4th wheel riders.">?</span></label>
+        <input type="number" id="g-w34load" value="0.595" step="0.01" min="0" max="1.0"></div>
+      <div class="field"><label>Crr</label>
+        <input type="number" id="g-crr" value="0.0021" step="0.0001" min="0" max="0.02"></div>
+      <div class="field"><label>Drivetrain Efficiency (η)</label>
+        <input type="number" id="g-eta" value="0.9974" step="0.001" min="0.9" max="1.0"></div>
+      <div class="field"><label>Air Density ρ (kg/m³)</label>
+        <input type="number" id="g-rho" value="1.14" step="0.005" min="0.8" max="1.3"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ RIDER CARDS ══════════════════════════ -->
+<div class="card" id="sec-riders">
+  <div class="card-head open" onclick="toggleCard('sec-riders')">
+    <h2>Rider Settings</h2><i class="chevron">▼</i>
+  </div>
+  <div class="card-body">
+    <div class="rider-grid" id="rider-cards"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ ROTATION ═════════════════════════════ -->
+<div class="card" id="sec-rot">
+  <div class="card-head open" onclick="toggleCard('sec-rot')">
+    <h2>Rotation Schedule</h2><i class="chevron">▼</i>
+  </div>
+  <div class="card-body">
+    <p style="font-size:12px;color:var(--dim);margin-bottom:12px">
+      Specify each pull in order. The lead rider swings off and drops to wheel 4; others shift up.
+      Pull distances must sum to exactly <strong>16 laps</strong> (1 lap = 250 m).
+    </p>
+    <div class="rot-wrap">
+      <table class="rot">
+        <thead><tr>
+          <th>#</th><th>W1 — Lead</th><th>W2</th><th>W3</th><th>W4</th><th>Pull (laps)</th><th></th>
+        </tr></thead>
+        <tbody id="rot-body"></tbody>
+      </table>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px">
+      <button class="btn btn-ghost" onclick="addRow()">+ Add Row</button>
+      <button class="btn btn-ghost" onclick="presetEqual()">Load Equal Rotation</button>
+      <span class="dist-info" id="dist-lbl"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ RUN ══════════════════════════════════ -->
+<div class="run-row">
+  <div class="err-box" id="run-errs"></div>
+  <button class="btn btn-run" onclick="runSim()">▶ Run Simulation</button>
+</div>
+
+<!-- ═══════════════════════════════ RESULTS ══════════════════════════════ -->
+<div id="results">
+
+  <!-- Top row: finish time + rider summary -->
+  <div class="top-row">
+    <div class="res-card" style="display:flex;flex-direction:column;justify-content:center">
+      <div class="finish-big" id="finish-disp">—</div>
+      <div class="finish-lbl">Predicted Finish Time</div>
+    </div>
+    <div class="res-card">
+      <h3>Rider Summary</h3>
+      <div class="summary-riders" id="summary-riders"></div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-row">
+    <div class="res-card">
+      <h3>W′ Balance Over Distance</h3>
+      <div class="mtabs" id="wp-tabs"></div>
+      <div class="chart-wrap"><canvas id="chart-wp"></canvas></div>
+    </div>
+    <div class="res-card">
+      <h3>Work Contribution</h3>
+      <div class="chart-wrap"><canvas id="chart-work"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Lap table -->
+  <div class="res-card">
+    <h3>Lap-by-Lap Summary</h3>
+    <div class="mtabs" id="lap-view-tabs" style="margin-bottom:6px"></div>
+    <div class="mtabs" id="lap-tabs"></div>
+    <div style="overflow-x:auto"><table class="dtable" id="lap-tbl"></table></div>
+  </div>
+
+  <!-- Step detail -->
+  <div class="res-card">
+    <details class="step-wrap">
+      <summary>▸ Step-by-Step Detail (per rotation segment)</summary>
+      <div class="inner"><table class="dtable" id="step-tbl"></table></div>
+    </details>
+  </div>
+
+</div><!-- /results -->
+</div><!-- /wrap -->
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     JavaScript
+     ════════════════════════════════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+/* ─── Constants ───────────────────────────────────────────────────────── */
+const TRACK  = 250;
+const RACE   = 4000;
+const NR     = 4;
+const G      = 9.81;
+const COLORS = ['#4493f8','#f0883e','#3fb950','#bc8cff'];
+
+function rgba(i, a) {
+  const h = COLORS[i].slice(1);
+  const r = parseInt(h,16) >> 16, g = (parseInt(h,16) >> 8) & 0xff, b = parseInt(h,16) & 0xff;
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+const MODELS = [
+  { id:'simple',    label:'Simple Integral',
+    note:'W′ depletes above CP; no reconstitution below CP.' },
+  { id:'skiba12',   label:'Skiba 2012',
+    note:'Exponential reconstitution below CP; τ = 546·e^(−0.01·DCP) + 316 s (Skiba et al., 2012).' },
+  { id:'skiba15',   label:'Skiba 2015',
+    note:'Integral accumulation method; same τ formula as 2012. Differences emerge with alternating hard/easy efforts (Skiba et al., 2015).' },
+  { id:'fc',        label:'Froncioni–Clarke',
+    note:'Fixed reconstitution τ = 377 s regardless of DCP. Typically faster recovery than Skiba at moderate DCP (Froncioni, 2006).' },
+];
+
+/* ─── Defaults ───────────────────────────────────────────────────────── */
+const DEFAULTS = [
+  { name:'Tom',      cp:385, wp:30000, rm:75, bm:8, cda:0.156, st:20, sp:1000 },
+  { name:'Campbell', cp:375, wp:32000, rm:80, bm:8, cda:0.185, st:20, sp:375  },
+  { name:'Gatey',    cp:420, wp:27000, rm:70, bm:8, cda:0.170, st:20, sp:850  },
+  { name:'Keegan',   cp:340, wp:27000, rm:70, bm:8, cda:0.149, st:20, sp:800  },
+];
+
+/* ─── Rotation state ─────────────────────────────────────────────────── */
+let rows = [];
+let rowId = 0;
+
+/* ─── Simulation results ─────────────────────────────────────────────── */
+let simData = null;
+
+/* ════════════════════════════════════════════════════════════════════════
+   UI INIT
+   ════════════════════════════════════════════════════════════════════════ */
+function init() {
+  buildRiderCards();
+  loadDefaultRotation();
+  buildModelTabs('wp-tabs',  'wpModel',  'skiba12', updateWpChart);
+  buildModelTabs('lap-tabs', 'lapModel', 'skiba12', renderLapTable);
+}
+
+function loadDefaultRotation() {
+  rows = [];
+  rowId = 0;
+  // Exact positions [W1, W2, W3, W4] per row; -1 = Dropped
+  [
+    { positions: [0, 1, 2,  3], dist: 2.25 },
+    { positions: [1, 2, 3,  0], dist: 2    },
+    { positions: [2, 3, 0,  1], dist: 2    },
+    { positions: [3, 0, 1,  2], dist: 2.5  },
+    { positions: [0, 1, 2,  3], dist: 1    },
+    { positions: [1, 2, 3, -1], dist: 1.5  },
+    { positions: [2, 3, 1, -1], dist: 2.5  },
+    { positions: [3, 1, 2, -1], dist: 2.25 },
+  ].forEach(d => rows.push({ id: rowId++, positions: d.positions, dist: d.dist }));
+  renderRot();
+}
+
+function buildRiderCards() {
+  const el = document.getElementById('rider-cards');
+  el.innerHTML = DEFAULTS.map((d, i) => `
+  <div class="rcrd r${i}">
+    <h3>Rider ${i+1}</h3>
+    <div class="field"><label>Name</label>
+      <input type="text" id="r${i}-name" value="${d.name}" oninput="refreshRotSelects()"></div>
+    <div class="field"><label>CP (W)</label>
+      <input type="number" id="r${i}-cp" value="${d.cp}" min="100" max="1000"></div>
+    <div class="field"><label>W′ (J)</label>
+      <input type="number" id="r${i}-wp" value="${d.wp}" min="1000" max="100000" step="100"></div>
+    <div class="field"><label>Rider Mass (kg)</label>
+      <input type="number" id="r${i}-rm" value="${d.rm}" step="0.1" min="40" max="130"></div>
+    <div class="field"><label>Bike Mass (kg)</label>
+      <input type="number" id="r${i}-bm" value="${d.bm}" step="0.1" min="3" max="20"></div>
+    <div class="field"><label>Lead CdA (m²)</label>
+      <input type="number" id="r${i}-cda" value="${d.cda}" step="0.001" min="0.1" max="0.5"></div>
+    <div class="field"><label>Start Lap Time (s)</label>
+      <input type="number" id="r${i}-st" value="${d.st}" step="0.1" min="10" max="40"></div>
+    <div class="field"><label>Start Lap Power (W)</label>
+      <input type="number" id="r${i}-sp" value="${d.sp}" step="5" min="100" max="2000"></div>
+  </div>`).join('');
+}
+
+/* ─── Collapsible cards ──────────────────────────────────────────────── */
+function toggleCard(id) {
+  const card = document.getElementById(id);
+  const head = card.querySelector('.card-head');
+  const body = card.querySelector('.card-body');
+  head.classList.toggle('open');
+  body.classList.toggle('hidden');
+}
+
+/* ─── Rotation table ─────────────────────────────────────────────────── */
+
+/**
+ * Auto-fill W2/W3/W4 when the lead (W1) changes.
+ * prevPositions: [w1_ridx, w2_ridx, w3_ridx, w4_ridx] from the previous row.
+ * newLead: 0-indexed rider index for W1.
+ * Applies standard TP rotation: bring newLead to front; others shift up in their prev order.
+ */
+function autoFillPositions(newLead, prevPositions) {
+  const pos = prevPositions.indexOf(newLead);
+  if (pos < 0) {
+    // newLead wasn't in prev order; put them at front, others follow in prev order
+    const others = prevPositions.filter(p => p !== newLead);
+    return [newLead, others[0] ?? -1, others[1] ?? -1, others[2] ?? -1];
+  }
+  // Rotate so newLead is at index 0
+  return Array.from({length: 4}, (_, i) => prevPositions[(pos + i) % 4]);
+}
+
+function getStartPositions() { return [0, 1, 2, 3]; }
+
+function prevRowPositions(idx) {
+  return idx > 0 ? [...rows[idx - 1].positions] : getStartPositions();
+}
+
+function presetEqual() {
+  rows = [];
+  rowId = 0;
+  [0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3].forEach(r => addRow(r, 1, false));
+  renderRot();
+}
+
+function addRow(leadRider = 0, dist = 1, rerender = true) {
+  const prev = rows.length > 0 ? [...rows[rows.length - 1].positions] : getStartPositions();
+  const positions = autoFillPositions(leadRider, prev);
+  rows.push({ id: rowId++, positions, dist });
+  if (rerender) renderRot();
+}
+
+function removeRow(id) {
+  rows = rows.filter(r => r.id !== id);
+  renderRot();
+}
+
+function riderOpts(selectedIdx, allowDropped = true) {
+  const opts = [0,1,2,3].map(i =>
+    `<option value="${i}" ${selectedIdx === i ? 'selected' : ''}>${riderName(i)}</option>`);
+  if (allowDropped)
+    opts.push(`<option value="-1" ${selectedIdx === -1 ? 'selected' : ''}>— Dropped</option>`);
+  return opts.join('');
+}
+
+function renderRot() {
+  const tbody = document.getElementById('rot-body');
+  tbody.innerHTML = rows.map((row, idx) => {
+    const [p0, p1, p2, p3] = row.positions;
+    return `<tr>
+    <td>${idx + 1}</td>
+    <td><select onchange="setRowW1(${row.id},this.value)">${riderOpts(p0, false)}</select></td>
+    <td><select onchange="setRowPos(${row.id},1,this.value)">${riderOpts(p1)}</select></td>
+    <td><select onchange="setRowPos(${row.id},2,this.value)">${riderOpts(p2)}</select></td>
+    <td><select onchange="setRowPos(${row.id},3,this.value)">${riderOpts(p3)}</select></td>
+    <td><input type="number" value="${row.dist}" min="0.25" max="16" step="0.25" style="width:90px"
+      oninput="setRowDist(${row.id},this.value)"></td>
+    <td><button class="btn btn-danger-sm" onclick="removeRow(${row.id})">✕</button></td>
+  </tr>`;
+  }).join('');
+  updateDistLabel();
+}
+
+// W1 changed: auto-fill W2/W3/W4 and re-render
+function setRowW1(id, val) {
+  const idx = rows.findIndex(r => r.id === id);
+  if (idx < 0) return;
+  rows[idx].positions = autoFillPositions(parseInt(val), prevRowPositions(idx));
+  renderRot();
+}
+
+// W2/W3/W4 manually overridden: just update the value
+function setRowPos(id, posIdx, val) {
+  const row = rows.find(r => r.id === id);
+  if (row) row.positions[posIdx] = parseInt(val);
+}
+
+function setRowDist(id, val) {
+  const r = rows.find(r => r.id === id); if(r) r.dist = parseFloat(val) || 0;
+  updateDistLabel();
+}
+function refreshRotSelects() { renderRot(); }
+
+function updateDistLabel() {
+  const total = rows.reduce((s,r) => s + (r.dist || 0), 0);
+  const el = document.getElementById('dist-lbl');
+  el.textContent = `Total: ${total.toFixed(2)} laps / ${RACE/TRACK} laps`;
+  el.className = 'dist-info ' + (Math.abs(total - RACE/TRACK) < 0.01 ? 'ok' : 'bad');
+}
+
+function riderName(i) {
+  const el = document.getElementById(`r${i}-name`);
+  return el ? (el.value.trim() || `Rider ${i+1}`) : `Rider ${i+1}`;
+}
+
+/* ─── Model tabs ─────────────────────────────────────────────────────── */
+const modelState = {};
+
+function buildModelTabs(containerId, stateKey, defaultId, onchange) {
+  modelState[stateKey] = defaultId;
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = MODELS.map(m => `
+    <button class="mtab ${m.id === defaultId ? 'active' : ''}"
+      data-state="${stateKey}" data-id="${m.id}"
+      title="${m.note}"
+      onclick="selectTab(this,'${stateKey}','${containerId}',${onchange.name})">${m.label}</button>
+  `).join('') + `<span class="mtab-note" id="${containerId}-note">${MODELS.find(m=>m.id===defaultId)?.note||''}</span>`;
+}
+
+function selectTab(btn, stateKey, containerId, onchange) {
+  const id = btn.dataset.id;
+  modelState[stateKey] = id;
+  document.querySelectorAll(`#${containerId} .mtab`).forEach(t => t.classList.toggle('active', t.dataset.id === id));
+  const note = document.getElementById(`${containerId}-note`);
+  if (note) note.textContent = MODELS.find(m => m.id === id)?.note || '';
+  if (simData) onchange();
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   PHYSICS
+   ════════════════════════════════════════════════════════════════════════ */
+function readGlobals() {
+  return {
+    lapTime: +document.getElementById('g-laptime').value,
+    w2:      +document.getElementById('g-w2load').value,
+    w34:     +document.getElementById('g-w34load').value,
+    crr:     +document.getElementById('g-crr').value,
+    eta:     +document.getElementById('g-eta').value,
+    rho:     +document.getElementById('g-rho').value,
+  };
+}
+
+function readRiders() {
+  return Array.from({length:NR}, (_,i) => ({
+    name: riderName(i),
+    cp:   +document.getElementById(`r${i}-cp`).value,
+    wp:   +document.getElementById(`r${i}-wp`).value,
+    mass: +document.getElementById(`r${i}-rm`).value + +document.getElementById(`r${i}-bm`).value,
+    cda:  +document.getElementById(`r${i}-cda`).value,
+    st:   +document.getElementById(`r${i}-st`).value,
+    sp:   +document.getElementById(`r${i}-sp`).value,
+  }));
+}
+
+/**
+ * Power required for a rider at a given speed and formation position.
+ * @param {object} rider  - rider object (mass, cda)
+ * @param {number} pos    - 0=lead, 1=wheel2, 2/3=wheel3/4
+ * @param {number} v      - speed m/s
+ * @param {object} g      - globals
+ */
+function calcPower(rider, pos, v, g) {
+  const cdaEff = pos === 0 ? rider.cda
+               : pos === 1 ? rider.cda * g.w2
+               : rider.cda * g.w34;
+  const fRr   = g.crr * rider.mass * G;
+  const fAero = 0.5 * g.rho * cdaEff * v * v;
+  return (fRr + fAero) * v / g.eta;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   W′ BALANCE MODELS
+   Step function: returns new W'bal after one time step dt seconds.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * @param {string} modelId
+ * @param {object} state  - mutable per-model per-rider state object
+ * @param {number} w0     - initial W' (J)
+ * @param {number} cp     - Critical Power (W)
+ * @param {number} P      - current power (W)
+ * @param {number} dt     - time step (s)
+ * @returns {number} new W'bal (J)
+ */
+function stepW(modelId, state, w0, cp, P, dt) {
+  switch (modelId) {
+
+    /* ── Simple Integral: no reconstitution ─── */
+    case 'simple':
+      if (P > cp) state.wbal = Math.max(0, state.wbal - (P - cp) * dt);
+      return state.wbal;
+
+    /* ── Skiba 2012 – Differential ─────────── */
+    case 'skiba12': {
+      if (P > cp) {
+        state.wbal = Math.max(0, state.wbal - (P - cp) * dt);
+      } else {
+        const dcp = cp - P;
+        const tau = 546 * Math.exp(-0.01 * dcp) + 316;
+        state.wbal = w0 - (w0 - state.wbal) * Math.exp(-dt / tau);
+      }
+      return state.wbal;
+    }
+
+    /* ── Skiba 2015 – Integral accumulation ── */
+    // Tracks each bout above CP individually; each bout decays with τ based on
+    // the CURRENT DCP. Produces different results from the differential method
+    // when efforts alternate between above/below CP.
+    case 'skiba15': {
+      state.t += dt;
+      if (P > cp) {
+        state.bouts.push({ t0: state.t - dt, e: (P - cp) * dt });
+        // When above CP: no reconstitution, sum all undecayed bouts
+        const totalExp = state.bouts.reduce((s, b) => s + b.e, 0);
+        state.wbal = Math.max(0, w0 - totalExp);
+      } else {
+        const dcp = cp - P;
+        const tau = 546 * Math.exp(-0.01 * dcp) + 316;
+        // Each past bout decays with the CURRENT τ (DCP-dependent)
+        const totalExp = state.bouts.reduce((s, b) =>
+          s + b.e * Math.exp(-(state.t - b.t0) / tau), 0);
+        state.wbal = Math.max(0, w0 - totalExp);
+
+        // Prune bouts that have negligibly decayed (< 0.1 J remaining) to manage array size
+        state.bouts = state.bouts.filter(b => b.e * Math.exp(-(state.t - b.t0) / tau) > 0.1);
+      }
+      return state.wbal;
+    }
+
+    /* ── Froncioni–Clarke 2006 – Fixed τ ───── */
+    // Reconstitution with a fixed time constant τ ≈ 377 s regardless of DCP.
+    case 'fc': {
+      if (P > cp) {
+        state.wbal = Math.max(0, state.wbal - (P - cp) * dt);
+      } else {
+        const tau_fc = 377;
+        state.wbal = w0 - (w0 - state.wbal) * Math.exp(-dt / tau_fc);
+      }
+      return state.wbal;
+    }
+
+    default: return state.wbal;
+  }
+}
+
+/* Initial state factory for each model */
+function makeState(w0) {
+  return { wbal: w0, bouts: [], t: 0 };
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   POSITION SCHEDULE
+   ════════════════════════════════════════════════════════════════════════ */
+/**
+ * Convert rotation table rows into an array of segments:
+ *   { startDist, endDist, leadRider (0-idx), positions[NR] (0=lead) }
+ *
+ * When the leader swings off:
+ *   - leader drops to wheel 4
+ *   - others shift up one position
+ * The user specifies the NEXT lead rider explicitly.
+ */
+function buildSchedule(rotRows) {
+  const segs = [];
+  let dist = 0;
+
+  for (const row of rotRows) {
+    const d = (parseFloat(row.dist) || 0) * TRACK; // laps → metres
+    if (d <= 0) continue;
+
+    // posArr[riderIdx] = position (0=lead…3) or -1 if dropped
+    const posArr = new Array(NR).fill(-1);
+    row.positions.forEach((riderIdx, pos) => {
+      if (riderIdx >= 0 && riderIdx < NR) posArr[riderIdx] = pos;
+    });
+
+    const lead = row.positions[0] >= 0 ? row.positions[0] : 0;
+    segs.push({ startDist: dist, endDist: dist + d, leadRider: lead, positions: posArr });
+    dist += d;
+  }
+  return segs;
+}
+
+/* Find segment for distance d (fast sequential scan; only ~16 segments max) */
+function findSeg(segs, d) {
+  for (const s of segs) {
+    if (d >= s.startDist && d < s.endDist) return s;
+  }
+  return segs[segs.length - 1];
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   VALIDATION
+   ════════════════════════════════════════════════════════════════════════ */
+function validate() {
+  const errs = [];
+  if (rows.length === 0) errs.push('Rotation schedule is empty.');
+  const total = rows.reduce((s,r) => s + (r.dist||0), 0);
+  if (Math.abs(total - RACE/TRACK) > 0.01) errs.push(`Rotation distances sum to ${total.toFixed(2)} laps — must equal ${RACE/TRACK} laps.`);
+  const g = readGlobals();
+  if (!g.lapTime || g.lapTime <= 0) errs.push('Travelling lap time must be > 0.');
+  const riders = readRiders();
+  riders.forEach((r, i) => {
+    if (!r.cp || r.cp <= 0) errs.push(`Rider ${i+1}: CP must be > 0.`);
+    if (!r.wp || r.wp <= 0) errs.push(`Rider ${i+1}: W′ must be > 0.`);
+  });
+  return errs;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   SIMULATION
+   ════════════════════════════════════════════════════════════════════════ */
+function runSim() {
+  const errs = validate();
+  const errDiv = document.getElementById('run-errs');
+  if (errs.length) {
+    errDiv.innerHTML = errs.map(e => `<div class="alert alert-err">${e}</div>`).join('');
+    return;
+  }
+  errDiv.innerHTML = '';
+
+  const g      = readGlobals();
+  const riders = readRiders();
+  const segs   = buildSchedule(rows);
+
+  // Speeds
+  const vTravel = TRACK / g.lapTime;
+  // Use the lead rider's start lap time for lap 1 speed
+  const firstLead = segs[0]?.leadRider ?? 0;
+  const vStart  = TRACK / riders[firstLead].st;
+
+  // ── State ────────────────────────────────────────────────────────────
+  // wState[modelIdx][riderIdx] = mutable state object
+  const wState = MODELS.map(() => riders.map(r => makeState(r.wp)));
+
+  // Accumulators
+  const totalWork = riders.map(() => ({ lead: 0, follow: 0 })); // kJ
+  let totalTime = 0;
+
+  // Chart samples (every 10 m)
+  const CSAMP  = 10;
+  const cDists = [];
+  // chartW[modelIdx][riderIdx] = kJ values; null when rider is dropped (ends the line)
+  const chartW = MODELS.map(() => riders.map(() => []));
+
+  // Quarter-lap interval summaries:
+  //   itvSums[0]    = full start lap (0–250 m)
+  //   itvSums[1..N] = 62.5 m each (quarter-lap resolution)
+  const QLAP   = TRACK / 4;                              // 62.5 m
+  const N_ITV  = 1 + Math.round((RACE - TRACK) / QLAP); // 61 total
+  const itvIdx = d => d < TRACK ? 0 : 1 + Math.floor((d - TRACK) / QLAP);
+
+  const itvSums = Array.from({length: N_ITV}, (_, ii) => ({
+    ii,
+    startDist: ii === 0 ? 0 : TRACK + (ii - 1) * QLAP,
+    time:      0,
+    speed:     0,
+    leadRider: -1,
+    riderPow:  riders.map(() => ({ work: 0, time: 0 })),
+    wbalEnd:   MODELS.map(() => riders.map(() => 0)),
+    dropped:   riders.map(() => false),
+  }));
+
+  // Per-segment summaries
+  const segSums = segs.map(seg => ({
+    seg,
+    time:     0,
+    riderPow: riders.map(() => ({ work: 0, time: 0 })),
+    wbalStart: MODELS.map(() => riders.map(() => 0)),
+    wbalEnd:   MODELS.map(() => riders.map(() => 0)),
+  }));
+
+  // Track current segment index for transition detection
+  let curSegIdx = -1;
+
+  // ── Meter-by-meter loop ──────────────────────────────────────────────
+  for (let d = 0; d < RACE; d++) {
+    const isStart = (d < TRACK);
+    const v       = isStart ? vStart : vTravel;
+    const dt      = 1.0 / v;
+    const itv     = itvIdx(d);
+
+    // Find segment
+    let segIdx = curSegIdx;
+    if (segIdx < 0 || d >= segs[segIdx].endDist) {
+      for (let s = 0; s < segs.length; s++) {
+        if (d >= segs[s].startDist && d < segs[s].endDist) { segIdx = s; break; }
+      }
+    }
+
+    // Segment transition
+    if (segIdx !== curSegIdx) {
+      if (curSegIdx >= 0) {
+        // Capture wbalEnd for the segment we're leaving
+        MODELS.forEach((_, mi) => riders.forEach((_, ri) => {
+          segSums[curSegIdx].wbalEnd[mi][ri] = wState[mi][ri].wbal;
+        }));
+      }
+      curSegIdx = segIdx;
+      if (segIdx >= 0) {
+        // Capture wbalStart for new segment
+        MODELS.forEach((_, mi) => riders.forEach((_, ri) => {
+          segSums[segIdx].wbalStart[mi][ri] = wState[mi][ri].wbal;
+        }));
+      }
+    }
+
+    const seg = segs[segIdx];
+    const iv  = itvSums[itv];
+    const ss  = segSums[segIdx];
+
+    totalTime += dt;
+    iv.time   += dt;
+    iv.speed   = v;
+    if (iv.leadRider < 0) iv.leadRider = seg.leadRider;
+    ss.time   += dt;
+
+    riders.forEach((rider, ri) => {
+      const pos = seg.positions[ri]; // -1 if dropped
+      // Dropped riders coast at CP so W′ stays flat; excluded from team work totals
+      const P   = isStart ? rider.sp
+                : pos < 0 ? rider.cp
+                :           calcPower(rider, pos, v, g);
+
+      // Work accumulation (active riders only)
+      const Jdt = P * dt;
+      if (pos >= 0) {
+        if (pos === 0) totalWork[ri].lead   += Jdt / 1000;
+        else           totalWork[ri].follow += Jdt / 1000;
+      }
+      iv.riderPow[ri].work += Jdt;
+      iv.riderPow[ri].time += dt;
+      ss.riderPow[ri].work += Jdt;
+      ss.riderPow[ri].time += dt;
+
+      // W' update for all models
+      MODELS.forEach((m, mi) => {
+        stepW(m.id, wState[mi][ri], rider.wp, rider.cp, P, dt);
+      });
+    });
+
+    // End of interval: capture wbalEnd and dropped flags
+    const nextItv = d + 1 < RACE ? itvIdx(d + 1) : -1;
+    if (nextItv !== itv) {
+      MODELS.forEach((_, mi) => riders.forEach((_, ri) => {
+        iv.wbalEnd[mi][ri] = wState[mi][ri].wbal;
+      }));
+      riders.forEach((_, ri) => { iv.dropped[ri] = seg.positions[ri] < 0; });
+    }
+
+    // Chart sample — null for dropped riders so the line ends
+    if (d % CSAMP === 0 || d === RACE - 1) {
+      cDists.push(d + 1);
+      MODELS.forEach((_, mi) => riders.forEach((_, ri) => {
+        const val = seg.positions[ri] < 0 ? null : Math.max(0, wState[mi][ri].wbal) / 1000;
+        chartW[mi][ri].push(val);
+      }));
+    }
+  }
+
+  // Capture wbalEnd for the last segment
+  if (curSegIdx >= 0) {
+    MODELS.forEach((_, mi) => riders.forEach((_, ri) => {
+      segSums[curSegIdx].wbalEnd[mi][ri] = wState[mi][ri].wbal;
+    }));
+  }
+
+  // Fix interval times: 62.5 m is not an integer so accumulated dt alternates between
+  // 62-meter and 63-meter intervals. Override with exact analytical values instead.
+  const tQuarter = QLAP / vTravel;          // lapTime / 4  (e.g. 14 / 4 = 3.5 s)
+  itvSums.forEach((iv, ii) => {
+    iv.time = ii === 0 ? TRACK / vStart : tQuarter;
+  });
+
+  // Derive average powers for interval and segment summaries
+  itvSums.forEach(iv => {
+    iv.avgPow = riders.map((_, ri) =>
+      iv.riderPow[ri].time > 0 ? iv.riderPow[ri].work / iv.riderPow[ri].time : 0);
+  });
+  segSums.forEach(ss => {
+    ss.avgPow = riders.map((_, ri) =>
+      ss.riderPow[ri].time > 0 ? ss.riderPow[ri].work / ss.riderPow[ri].time : 0);
+  });
+
+  simData = { g, riders, segs, segSums, totalWork, cDists, chartW, itvSums, totalTime };
+  renderResults();
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('results').scrollIntoView({ behavior:'smooth' });
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   RENDER RESULTS
+   ════════════════════════════════════════════════════════════════════════ */
+function renderResults() {
+  renderFinishTime();
+  renderRiderSummary();
+  updateWpChart();
+  updateWorkChart();
+  renderLapTable();
+  renderStepTable();
+}
+
+function renderFinishTime() {
+  const t  = simData.totalTime;
+  const mm = Math.floor(t / 60);
+  const ss = (t % 60).toFixed(3).padStart(6, '0');
+  document.getElementById('finish-disp').textContent = `${mm}:${ss}`;
+}
+
+function renderRiderSummary() {
+  const { riders, totalWork, chartW, lapSums } = simData;
+  const mi = MODELS.findIndex(m => m.id === 'skiba12');
+  const el = document.getElementById('summary-riders');
+  el.innerHTML = riders.map((r, ri) => {
+    const tot  = (totalWork[ri].lead + totalWork[ri].follow).toFixed(1);
+    const lead = totalWork[ri].lead.toFixed(1);
+    const foll = totalWork[ri].follow.toFixed(1);
+    const wf   = (chartW[mi][ri].at(-1) ?? 0).toFixed(1);
+    const wClass = +wf < 2 ? 'wcrit' : +wf < 5 ? 'wlow' : '';
+    return `<div class="scard r${ri}">
+      <div class="sname">${r.name}</div>
+      <div class="srow">CP: <span class="sval">${r.cp} W</span> · W′: <span class="sval">${(r.wp/1000).toFixed(1)} kJ</span></div>
+      <div class="srow">Total work: <span class="sval">${tot} kJ</span></div>
+      <div class="srow">Lead: <span class="sval">${lead} kJ</span> · Follow: <span class="sval">${foll} kJ</span></div>
+      <div class="srow">W′ remain (Skiba 2012): <span class="sval ${wClass}">${wf} kJ</span></div>
+    </div>`;
+  }).join('');
+}
+
+/* ─── W′ Balance Chart ───────────────────────────────────────────────── */
+let wpChart = null;
+
+function updateWpChart() {
+  if (!simData) return;
+  const { riders, cDists, chartW } = simData;
+  const mi = MODELS.findIndex(m => m.id === modelState['wpModel']);
+
+  const datasets = riders.map((r, ri) => ({
+    label: r.name,
+    data:  chartW[mi][ri].map((y, i) => ({ x: cDists[i], y })),
+    borderColor: COLORS[ri],
+    backgroundColor: rgba(ri, 0.06),
+    borderWidth: 2,
+    pointRadius: 0,
+    tension: 0.3,
+    fill: false,
+  }));
+
+  // Add zero reference line
+  datasets.push({
+    label: 'W′ = 0',
+    data: [{ x: 0, y: 0 }, { x: RACE, y: 0 }],
+    borderColor: 'rgba(248,81,73,0.35)',
+    borderDash: [4, 4],
+    borderWidth: 1,
+    pointRadius: 0,
+    fill: false,
+  });
+
+  const ctx = document.getElementById('chart-wp').getContext('2d');
+  if (wpChart) wpChart.destroy();
+  wpChart = new Chart(ctx, {
+    type: 'line',
+    data: { datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: { duration: 250 },
+      plugins: {
+        legend: { labels: { color: '#7d8590', font: { size: 11 },
+          filter: item => item.text !== 'W′ = 0' } },
+        tooltip: {
+          mode: 'index', intersect: false,
+          callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)} kJ` }
+        }
+      },
+      scales: {
+        x: {
+          type: 'linear',
+          ticks: { color:'#7d8590', maxTicksLimit:16, callback: v => v+'m' },
+          grid:  { color:'rgba(48,54,61,0.6)' },
+          title: { display:true, text:'Distance (m)', color:'#7d8590', font:{size:11} },
+          min: 0, max: RACE,
+        },
+        y: {
+          ticks: { color:'#7d8590', callback: v => v.toFixed(0)+' kJ' },
+          grid:  { color:'rgba(48,54,61,0.6)' },
+          title: { display:true, text:"W′ Balance (kJ)", color:'#7d8590', font:{size:11} },
+          min: 0,
+        }
+      }
+    }
+  });
+}
+
+/* ─── Work Contribution Chart ────────────────────────────────────────── */
+let workChart = null;
+
+function updateWorkChart() {
+  if (!simData) return;
+  const { riders, totalWork } = simData;
+  const ctx = document.getElementById('chart-work').getContext('2d');
+  if (workChart) workChart.destroy();
+  workChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: riders.map(r => r.name),
+      datasets: [
+        {
+          label: 'Lead (kJ)',
+          data: riders.map((_,ri) => +totalWork[ri].lead.toFixed(1)),
+          backgroundColor: riders.map((_,ri) => rgba(ri, 0.85)),
+          borderColor: COLORS,
+          borderWidth: 1,
+        },
+        {
+          label: 'Follow (kJ)',
+          data: riders.map((_,ri) => +totalWork[ri].follow.toFixed(1)),
+          backgroundColor: riders.map((_,ri) => rgba(ri, 0.3)),
+          borderColor: COLORS,
+          borderWidth: 1,
+        },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: { duration: 250 },
+      plugins: {
+        legend: { labels: { color:'#7d8590', font:{size:11} } },
+        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y} kJ` } }
+      },
+      scales: {
+        x: { stacked:true, ticks:{color:'#7d8590'}, grid:{color:'rgba(48,54,61,0.5)'} },
+        y: { stacked:true, ticks:{color:'#7d8590', callback: v => v+' kJ'}, grid:{color:'rgba(48,54,61,0.5)'} },
+      }
+    }
+  });
+}
+
+/* ─── Lap/Interval Table ─────────────────────────────────────────────── */
+function renderLapTable() {
+  if (!simData) return;
+  const { riders, itvSums, segs } = simData;
+  const mi      = MODELS.findIndex(m => m.id === modelState['lapModel']);
+  const modelId = modelState['lapModel'];
+
+  // τ for a given model/rider/avgPow
+  function tauStr(cp, avgPow) {
+    const dcp = Math.max(0, cp - avgPow);
+    if (modelId === 'skiba12' || modelId === 'skiba15')
+      return (546 * Math.exp(-0.01 * dcp) + 316).toFixed(0);
+    if (modelId === 'fc') return '377';
+    return null;
+  }
+  const showTau = (modelId !== 'simple');
+
+  // Label: cumulative laps at end of interval — "1", "1.25", "1.5", "1.75", "2", …
+  function itvLabel(ii) {
+    const laps = 1 + ii * 0.25;
+    return laps.toFixed(2).replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+  }
+
+  if (!modelState['lapView']) modelState['lapView'] = 'summary';
+
+  // Build view-selector tabs: Summary + one per rider
+  const lapViewEl = document.getElementById('lap-view-tabs');
+  if (lapViewEl) {
+    const cur = modelState['lapView'];
+    lapViewEl.innerHTML = [
+      `<button class="mtab ${cur === 'summary' ? 'active' : ''}" onclick="modelState['lapView']='summary'; renderLapTable();">Summary</button>`,
+      ...riders.map((r, ri) => {
+        const active = cur === String(ri);
+        return `<button class="mtab ${active ? 'active' : ''}" onclick="modelState['lapView']='${ri}'; renderLapTable();"
+          style="${active ? `border-bottom-color:${COLORS[ri]};color:${COLORS[ri]}` : ''}">${r.name}</button>`;
+      })
+    ].join('');
+  }
+
+  // ── Per-rider detail view ──────────────────────────────────────────
+  if (modelState['lapView'] !== 'summary') {
+    const ri    = parseInt(modelState['lapView']);
+    const rider = riders[ri];
+    const hdr = `<tr style="color:${COLORS[ri]}">
+      <th style="color:#7d8590">Lap</th>
+      <th class="r" style="color:#7d8590">Time (s)</th>
+      <th style="color:#7d8590">Position</th>
+      <th class="r">Avg W</th><th class="r">CP (W)</th>
+      <th class="r">W−CP (W)</th><th class="r">DCP (W)</th>
+      ${showTau ? '<th class="r">τ (s)</th>' : ''}
+      <th class="r">W′ start (kJ)</th><th class="r">W′ end (kJ)</th><th class="r">ΔW′ (kJ)</th>
+    </tr>`;
+    const detailRows = itvSums.map((iv, ii) => {
+      const seg = segs.find(s => iv.startDist >= s.startDist && iv.startDist < s.endDist)
+                || segs[segs.length - 1];
+      const pos       = seg.positions[ri];
+      const isDropped = iv.dropped[ri] || pos < 0;
+      const posLbl    = isDropped ? '— Dropped' : (['① Lead','② W2','③ W3','④ W4'][pos] || '?');
+      const wStart    = ii === 0 ? rider.wp : itvSums[ii - 1].wbalEnd[mi][ri];
+      const wEnd      = iv.wbalEnd[mi][ri];
+      if (isDropped) {
+        const n = 6 + (showTau ? 1 : 0);
+        return `<tr><td>${itvLabel(ii)}</td><td class="r">${iv.time.toFixed(3)}</td>
+          <td style="opacity:.4">${posLbl}</td>${'<td class="r" style="opacity:.4">—</td>'.repeat(n)}</tr>`;
+      }
+      const avgW   = iv.avgPow[ri];
+      const net    = avgW - rider.cp;
+      const dcp    = Math.max(0, -net);
+      const wSkJ   = (wStart / 1000).toFixed(2);
+      const wEkJ   = (wEnd   / 1000).toFixed(2);
+      const dWkJ   = ((wEnd - wStart) / 1000).toFixed(2);
+      const weCls  = +wEkJ < 2 ? 'wp-crit' : +wEkJ < 5 ? 'wp-low' : 'wp-ok';
+      const netCls = net > 0 ? 'wp-crit' : 'wp-ok';
+      return `<tr>
+        <td>${itvLabel(ii)}</td><td class="r">${iv.time.toFixed(3)}</td>
+        <td class="${pos===0?'pos-lead':''}" style="color:${COLORS[ri]}">${posLbl}</td>
+        <td class="r">${avgW.toFixed(0)}</td><td class="r">${rider.cp}</td>
+        <td class="r ${netCls}">${net>0?'+':''}${net.toFixed(0)}</td>
+        <td class="r">${dcp.toFixed(0)}</td>
+        ${showTau ? `<td class="r">${tauStr(rider.cp, avgW)}</td>` : ''}
+        <td class="r">${wSkJ}</td>
+        <td class="r ${weCls}">${wEkJ}</td>
+        <td class="r ${netCls}">${dWkJ}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('lap-tbl').innerHTML =
+      `<thead>${hdr}</thead><tbody>${detailRows}</tbody>`;
+    return;
+  }
+
+  // ── Summary view (all riders) ──────────────────────────────────────
+  const rHdr = riders.map((r, ri) =>
+    `<th style="color:${COLORS[ri]};min-width:58px">${r.name}<br>Pos</th>
+     <th class="r" style="color:${COLORS[ri]}">Avg W</th>
+     ${showTau ? `<th class="r" style="color:${COLORS[ri]}">τ (s)</th>` : ''}
+     <th class="r" style="color:${COLORS[ri]}">W′ kJ</th>`
+  ).join('');
+
+  const tableRows = itvSums.map(iv => {
+    // Find the segment active at the START of this interval
+    const seg = segs.find(s => iv.startDist >= s.startDist && iv.startDist < s.endDist)
+              || segs[segs.length - 1];
+
+    const rCells = riders.map((r, ri) => {
+      const pos       = seg.positions[ri];
+      const isDropped = iv.dropped[ri] || pos < 0;
+      const posLbl    = isDropped ? '— Dropped'
+                      : (['① Lead','② W2','③ W3','④ W4'][pos] || '?');
+
+      if (isDropped) {
+        return `<td style="color:${COLORS[ri]};opacity:.4">${posLbl}</td>
+                <td class="r" style="opacity:.4">—</td>
+                ${showTau ? '<td class="r" style="opacity:.4">—</td>' : ''}
+                <td class="r" style="opacity:.4">—</td>`;
+      }
+
+      const avgW = iv.avgPow[ri].toFixed(0);
+      const tau  = showTau ? tauStr(r.cp, iv.avgPow[ri]) : null;
+      const wkJ  = (iv.wbalEnd[mi][ri] / 1000).toFixed(1);
+      const wCls = +wkJ < 2 ? 'wp-crit' : +wkJ < 5 ? 'wp-low' : 'wp-ok';
+      return `<td class="${pos === 0 ? 'pos-lead' : ''}" style="color:${COLORS[ri]}">${posLbl}</td>
+              <td class="r">${avgW}</td>
+              ${showTau ? `<td class="r">${tau}</td>` : ''}
+              <td class="r ${wCls}">${wkJ}</td>`;
+    }).join('');
+
+    return `<tr>
+      <td>${itvLabel(iv.ii)}</td>
+      <td class="r">${iv.time.toFixed(3)}</td>
+      <td class="r">${(iv.speed * 3.6).toFixed(2)}</td>
+      <td style="color:${COLORS[iv.leadRider]}">${riders[iv.leadRider]?.name || '-'}</td>
+      ${rCells}
+    </tr>`;
+  }).join('');
+
+  document.getElementById('lap-tbl').innerHTML = `
+  <thead><tr>
+    <th>Lap</th><th class="r">Time (s)</th><th class="r">Speed (km/h)</th><th>Lead Rider</th>
+    ${rHdr}
+  </tr></thead>
+  <tbody>${tableRows}</tbody>`;
+}
+
+/* ─── Step Table ─────────────────────────────────────────────────────── */
+function renderStepTable() {
+  if (!simData) return;
+  const { riders, segs, segSums } = simData;
+  const mi = MODELS.findIndex(m => m.id === 'skiba12');
+
+  const rHdr = riders.map((r, ri) =>
+    `<th style="color:${COLORS[ri]}">${r.name}<br>Pos</th>
+     <th class="r" style="color:${COLORS[ri]}">Avg W</th>
+     <th class="r" style="color:${COLORS[ri]}">W′ start</th>
+     <th class="r" style="color:${COLORS[ri]}">W′ end</th>`
+  ).join('');
+
+  const rows2 = segs.map((seg, si) => {
+    const ss = segSums[si];
+    const rCells = riders.map((_, ri) => {
+      const pos    = seg.positions[ri];
+      const posLbl = pos < 0 ? 'Dropped' : (['Lead','W2','W3','W4'][pos] || '?');
+      const ws     = (ss.wbalStart[mi][ri]/1000).toFixed(2);
+      const we     = (ss.wbalEnd[mi][ri]/1000).toFixed(2);
+      const weCls  = +we < 2 ? 'wp-crit' : +we < 5 ? 'wp-low' : '';
+      return `<td class="${pos===0?'pos-lead':''}" style="color:${COLORS[ri]}">${posLbl}</td>
+              <td class="r">${ss.avgPow[ri].toFixed(0)}</td>
+              <td class="r">${ws}</td>
+              <td class="r ${weCls}">${we}</td>`;
+    }).join('');
+    return `<tr>
+      <td>${si+1}</td>
+      <td>${seg.startDist}–${seg.endDist} m</td>
+      <td class="r">${ss.time.toFixed(2)}</td>
+      <td style="color:${COLORS[seg.leadRider]}">${riders[seg.leadRider]?.name||'-'}</td>
+      ${rCells}
+    </tr>`;
+  }).join('');
+
+  document.getElementById('step-tbl').innerHTML = `
+  <thead><tr>
+    <th>#</th><th>Distance</th><th class="r">Duration (s)</th><th>Lead Rider</th>
+    ${rHdr}
+  </tr></thead>
+  <tbody>${rows2}</tbody>`;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   BOOT
+   ════════════════════════════════════════════════════════════════════════ */
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Frame-by-Frame Video Viewer</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    .container { display: flex; gap: 20px; align-items: flex-start; }
+    .video-section { flex: 0 0 auto; }
+    .lap-section { flex: 1; }
+    video { max-width: 900px; height: 537px; margin-bottom: 10px; }
+    button { margin: 5px; }
+    #info { margin-top: 10px; }
+    #lapTable { margin-top: 15px; }
+  </style>
+</head>
+<body>
+  <h2>Frame-by-Frame Video Viewer</h2>
+  <h3>Use Spacebar to Play/Pause, arrows to go frame by frame, "s" to start timer, "l" to lap, and "r" to reset.</h3>
+  <input type="file" accept="video/mp4,video/quicktime" id="videoInput"><br><br>
+  <div class="container">
+    <div class="video-section">
+      <video id="video" controls style="display:none;"></video><br>
+      <label for="fpsInput">FPS:</label>
+      <input type="number" id="fpsInput" min="1" max="240" value="50" style="width:60px;">
+      <button id="prevFrame">⏪ Previous Frame</button>
+      <button id="nextFrame">⏩ Next Frame</button>
+      <button id="startBtn">Start</button>
+      <button id="lapBtn">Lap</button>
+      <button id="resetLapBtn">Reset</button>
+      <div id="info">Current Time: <span id="currentTime">0.00</span>s</div>
+    </div>
+    <div class="lap-section">
+      <table id="lapTable" border="1" style="display:none;">
+        <thead>
+          <tr><th>Lap #</th><th>Lap Time (s)</th><th>Total Time (s)</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+  const video = document.getElementById('video');
+  const videoInput = document.getElementById('videoInput');
+  const currentTimeDisplay = document.getElementById('currentTime');
+  const fpsInput = document.getElementById('fpsInput');
+  const startBtn = document.getElementById('startBtn');
+  const lapBtn = document.getElementById('lapBtn');
+  const resetLapBtn = document.getElementById('resetLapBtn');
+  const lapTable = document.getElementById('lapTable');
+  const lapTableBody = lapTable.querySelector('tbody');
+  // Reset button handler
+  resetLapBtn.addEventListener('click', () => {
+    startTime = null;
+    lastLapTime = null;
+    lapCount = 0;
+    lapTableBody.innerHTML = '';
+    lapTable.style.display = 'none';
+  });
+
+  let startTime = null;
+  let lastLapTime = null;
+  let lapCount = 0;
+  // Start button handler
+  startBtn.addEventListener('click', () => {
+    startTime = video.currentTime;
+    lastLapTime = startTime;
+    lapCount = 0;
+    lapTableBody.innerHTML = '';
+    lapTable.style.display = 'table';
+  });
+
+  // Lap button handler
+  lapBtn.addEventListener('click', () => {
+    if (startTime === null) return;
+    lapCount++;
+    const now = video.currentTime;
+    const lapTime = now - lastLapTime;
+    const totalTime = now - startTime;
+    lastLapTime = now;
+    const row = document.createElement('tr');
+    row.innerHTML = `<td>${lapCount}</td><td>${lapTime.toFixed(2)}</td><td>${totalTime.toFixed(2)}</td>`;
+    lapTableBody.appendChild(row);
+  });
+
+    videoInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const url = URL.createObjectURL(file);
+        video.src = url;
+        video.load();
+        video.style.display = '';
+        // Prevent video from taking focus and interfering with our controls
+        video.addEventListener('focus', () => video.blur());
+      }
+    });
+
+    // Use user-set FPS, default to 50
+    video.frameRate = parseInt(fpsInput.value, 10) || 50;
+    const frameDuration = () => 1 / video.frameRate;
+
+    fpsInput.addEventListener('input', () => {
+      video.frameRate = parseInt(fpsInput.value, 10) || 50;
+    });
+
+    video.addEventListener('loadedmetadata', () => {
+      // Reset to user-set FPS on new video
+      video.frameRate = parseInt(fpsInput.value, 10) || 50;
+    });
+
+    // Hold-to-repeat for frame stepping
+    const nextFrameBtn = document.getElementById('nextFrame');
+    const prevFrameBtn = document.getElementById('prevFrame');
+    let nextFrameInterval = null;
+    let prevFrameInterval = null;
+
+    function stepNextFrame() {
+      video.pause();
+      video.currentTime = Math.min(video.duration, video.currentTime + frameDuration());
+    }
+    function stepPrevFrame() {
+      video.pause();
+      video.currentTime = Math.max(0, video.currentTime - frameDuration());
+    }
+
+    nextFrameBtn.addEventListener('mousedown', () => {
+      stepNextFrame();
+      nextFrameInterval = setInterval(stepNextFrame, 80);
+    });
+    nextFrameBtn.addEventListener('mouseup', () => {
+      clearInterval(nextFrameInterval);
+    });
+    nextFrameBtn.addEventListener('mouseleave', () => {
+      clearInterval(nextFrameInterval);
+    });
+    nextFrameBtn.addEventListener('touchstart', () => {
+      stepNextFrame();
+      nextFrameInterval = setInterval(stepNextFrame, 80);
+    });
+    nextFrameBtn.addEventListener('touchend', () => {
+      clearInterval(nextFrameInterval);
+    });
+
+    prevFrameBtn.addEventListener('mousedown', () => {
+      stepPrevFrame();
+      prevFrameInterval = setInterval(stepPrevFrame, 80);
+    });
+    prevFrameBtn.addEventListener('mouseup', () => {
+      clearInterval(prevFrameInterval);
+    });
+    prevFrameBtn.addEventListener('mouseleave', () => {
+      clearInterval(prevFrameInterval);
+    });
+    prevFrameBtn.addEventListener('touchstart', () => {
+      stepPrevFrame();
+      prevFrameInterval = setInterval(stepPrevFrame, 80);
+    });
+    prevFrameBtn.addEventListener('touchend', () => {
+      clearInterval(prevFrameInterval);
+    });
+
+    // Arrow key controls for frame navigation
+    document.addEventListener('keydown', (e) => {
+      if (document.activeElement === fpsInput) return; // Don't trigger when editing FPS
+      
+      // Always prevent default arrow key behavior to override video controls
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      
+      if (e.key === 'ArrowRight') {
+        stepNextFrame();
+      } else if (e.key === 'ArrowLeft') {
+        stepPrevFrame();
+      } else if (e.key === 's' || e.key === 'S') {
+        startBtn.click();
+        e.preventDefault();
+      } else if (e.key === 'l' || e.key === 'L') {
+        lapBtn.click();
+        e.preventDefault();
+      } else if (e.key === ' ') {
+        if (video.paused) {
+          video.play();
+        } else {
+          video.pause();
+        }
+        e.preventDefault();
+      } else if (e.key === 'r' || e.key === 'R') {
+        resetLapBtn.click();
+        e.preventDefault();
+      }
+    });
+
+    video.addEventListener('timeupdate', () => {
+      currentTimeDisplay.textContent = video.currentTime.toFixed(2);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,3303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Madison Report Builder</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      margin: 0;
+    }
+    h2, h3 {
+      margin: 0 0 10px;
+    }
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: flex-start;
+    }
+    .video-section {
+      flex: 1 1 700px;
+      min-width: 320px;
+    }
+    .report-section {
+      flex: 1 1 340px;
+      min-width: 280px;
+    }
+    .inputs-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(130px, 1fr));
+      gap: 10px 12px;
+      margin-bottom: 12px;
+    }
+    .inputs-grid label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+    .inputs-grid input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 6px 8px;
+    }
+    video {
+      width: 100%;
+      max-width: 960px;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      margin-bottom: 10px;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    button {
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    #info, #status {
+      margin-top: 6px;
+    }
+    [hidden] { display: none !important; }
+
+    /* Marker indicator */
+    .marker-strip {
+      display: flex;
+      gap: 12px;
+      margin-top: 6px;
+      margin-bottom: 4px;
+      font-size: 13px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .marker-badge {
+      padding: 3px 10px;
+      border-radius: 999px;
+      border: 1px solid #cbd5e1;
+      background: #f1f5f9;
+      color: #475569;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .marker-badge.set {
+      background: #dcfce7;
+      border-color: #86efac;
+      color: #166534;
+    }
+
+    /* Changes panel */
+    .changes-panel {
+      margin: 18px 20px 0;
+      border: 1px solid #dbe2ea;
+      border-radius: 12px;
+      background: linear-gradient(180deg, #fff8f0 0%, #ffffff 100%);
+      padding: 14px;
+    }
+    .changes-panel h3 {
+      margin: 0 0 8px;
+    }
+    .changes-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: flex-end;
+      margin-bottom: 12px;
+    }
+    .changes-control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .changes-control-group label {
+      font-size: 13px;
+      color: #475569;
+    }
+    .changes-control-group input {
+      padding: 6px 8px;
+      width: 90px;
+      box-sizing: border-box;
+    }
+    #detectChangesBtn {
+      background: #1d4ed8;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    #detectChangesBtn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    #clearChangesBtn {
+      background: #fff;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .changes-summary {
+      font-size: 13px;
+      color: #475569;
+      margin-bottom: 10px;
+      min-height: 20px;
+    }
+    .changes-table-wrap {
+      max-height: 380px;
+      overflow-y: auto;
+      border: 1px solid #dbe2ea;
+      border-radius: 8px;
+    }
+    #changesTable {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    #changesTable th,
+    #changesTable td {
+      border: 1px solid #dbe2ea;
+      padding: 7px 10px;
+      text-align: left;
+      white-space: nowrap;
+    }
+    #changesTable th {
+      background: #f8fafc;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      font-size: 13px;
+    }
+    #changesTable tbody tr:hover {
+      background: #f0f9ff;
+    }
+    .jump-btn {
+      padding: 3px 9px;
+      font-size: 12px;
+      border-radius: 6px;
+      border: 1px solid #93c5fd;
+      background: #eff6ff;
+      color: #1e40af;
+      cursor: pointer;
+    }
+    .jump-btn:hover {
+      background: #dbeafe;
+    }
+    /* Sprint set control row */
+    .sprint-set-group {
+      flex-direction: row !important;
+      align-items: center;
+      gap: 8px;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      padding: 6px 12px;
+      margin-bottom: 8px;
+    }
+    .sprint-set-group label {
+      font-size: 13px;
+      color: #166534;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .sprint-set-group input {
+      width: 56px !important;
+      padding: 4px 6px;
+    }
+    #setSprintBtn {
+      background: #16a34a;
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      padding: 5px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    #setSprintBtn:hover { background: #15803d; }
+    .sprint-set-diag {
+      font-size: 12px;
+      color: #166534;
+      font-style: italic;
+    }
+    /* Sprint rows in changes table */
+    #changesTable tbody tr.sprint-row {
+      background: #f0fdf4;
+    }
+    #changesTable tbody tr.sprint-row:hover {
+      background: #dcfce7;
+    }
+    .sprint-label {
+      font-weight: 600;
+      color: #166534;
+    }
+    .sprint-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      border-radius: 4px;
+      padding: 1px 5px;
+      vertical-align: middle;
+      margin-left: 4px;
+    }
+    .sprint-badge-auto   { background: #e0f2fe; color: #0369a1; }
+    .sprint-badge-manual { background: #fef9c3; color: #854d0e; }
+    .diag-panel {
+      margin: 18px 20px 0;
+      border: 1px solid #dbe2ea;
+      border-radius: 12px;
+      background: #fafafa;
+      padding: 14px;
+    }
+    .diag-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 10px;
+    }
+    .diag-header h3 {
+      margin: 0;
+      flex: 1;
+    }
+    .diag-live {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+    .diag-live-box {
+      border: 1px solid #dbe2ea;
+      border-radius: 8px;
+      padding: 8px 14px;
+      background: #fff;
+      min-width: 140px;
+    }
+    .diag-live-label {
+      font-size: 11px;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 2px;
+    }
+    .diag-live-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    .diag-live-value.positive { color: #16a34a; }
+    .diag-live-value.negative { color: #dc2626; }
+    .diag-live-value.zero     { color: #64748b; }
+    .diag-leader {
+      font-size: 13px;
+      color: #fff;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-weight: 600;
+      align-self: center;
+    }
+    .diag-table-wrap {
+      max-height: 340px;
+      overflow-y: auto;
+      border: 1px solid #dbe2ea;
+      border-radius: 8px;
+    }
+    #diagTable {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      font-variant-numeric: tabular-nums;
+    }
+    #diagTable th,
+    #diagTable td {
+      border: 1px solid #e2e8f0;
+      padding: 5px 10px;
+      white-space: nowrap;
+    }
+    #diagTable th {
+      background: #f8fafc;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      font-size: 12px;
+    }
+    #diagTable tr.diag-current {
+      background: #fffbeb !important;
+      font-weight: 700;
+    }
+    #diagTable tr.diag-crossing {
+      background: #fef3c7;
+      outline: 2px solid #f59e0b;
+      outline-offset: -2px;
+    }
+    #diagTable tr.diag-crossing.diag-current {
+      background: #fde68a;
+    }
+    .diag-cross-marker {
+      display: inline-block;
+      background: #f59e0b;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      border-radius: 4px;
+      padding: 1px 5px;
+      margin-left: 4px;
+    }
+    .diag-diff-pos { color: #16a34a; font-weight: 600; }
+    .diag-diff-neg { color: #dc2626; font-weight: 600; }
+    .rider-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    /* FIT sync panel (adapted from TP tool) */
+    .fit-sync-panel {
+      margin: 18px 20px 0;
+      border: 1px solid #dbe2ea;
+      border-radius: 12px;
+      background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+      padding: 14px;
+    }
+    .fit-sync-panel h3,
+    .fit-sync-panel h4 {
+      margin: 0 0 8px;
+    }
+    .fit-sync-panel p {
+      margin: 0 0 10px;
+      color: #475569;
+      font-size: 13px;
+    }
+    .fit-sync-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px 12px;
+      margin-bottom: 12px;
+    }
+    .fit-field label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+    .fit-field input,
+    .fit-field select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 6px 8px;
+    }
+    .fit-assignment-layout {
+      display: grid;
+      grid-template-columns: minmax(200px, 1fr) minmax(280px, 2fr);
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .fit-assignment-card {
+      border: 1px solid #dbe2ea;
+      border-radius: 10px;
+      background: #fff;
+      padding: 8px;
+    }
+    .fit-assignment-card h4 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      color: #334155;
+    }
+    .fit-dropzone {
+      min-height: 52px;
+      border: 1px dashed #cbd5e1;
+      border-radius: 8px;
+      padding: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-content: flex-start;
+      background: #f8fafc;
+    }
+    .fit-dropzone.over {
+      border-color: #0f766e;
+      background: #ecfdf5;
+    }
+    .fit-rider-slots {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(140px, 1fr));
+      gap: 8px;
+    }
+    .fit-slot {
+      border: 1px solid #dbe2ea;
+      border-radius: 8px;
+      padding: 6px;
+      background: #ffffff;
+    }
+    .fit-slot-title {
+      font-size: 12px;
+      color: #334155;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+    .fit-file-chip {
+      display: inline-flex;
+      align-items: center;
+      max-width: 100%;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: #334155;
+      font-size: 12px;
+      cursor: grab;
+      user-select: none;
+    }
+    .fit-file-chip:active {
+      cursor: grabbing;
+    }
+    .fit-slot-placeholder {
+      color: #64748b;
+      font-size: 12px;
+    }
+    .fit-file-note {
+      margin-top: 4px;
+      font-size: 12px;
+      color: #64748b;
+      min-height: 16px;
+      word-break: break-word;
+    }
+    .fit-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .fit-chip {
+      border: 1px solid #dbe2ea;
+      border-radius: 999px;
+      background: #fff;
+      padding: 5px 10px;
+      font-size: 12px;
+      color: #334155;
+    }
+    .fit-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 8px;
+      font-size: 13px;
+      color: #334155;
+    }
+    .fit-swatch {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .fit-swatch i {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+    }
+    .fit-plot-wrap {
+      position: relative;
+      border: 1px solid #dbe2ea;
+      border-radius: 10px;
+      background: #fff;
+      overflow: hidden;
+    }
+    .fit-plot {
+      display: block;
+      width: 100%;
+      height: 320px;
+      touch-action: none;
+      cursor: grab;
+    }
+    .fit-current-values {
+      padding: 8px 10px 0;
+      font-size: 13px;
+      color: #334155;
+    }
+    .fit-controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 10px;
+      align-items: end;
+    }
+    .fit-control-group {
+      flex: 1 1 220px;
+    }
+    .fit-control-group.fit-actions {
+      flex: 0 0 auto;
+    }
+    .fit-control-group label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+    .fit-control-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .fit-control-row input {
+      flex: 1 1 auto;
+    }
+    .fit-control-value {
+      min-width: 54px;
+      font-size: 12px;
+      color: #475569;
+      text-align: right;
+    }
+    .sync-targets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .sync-targets .target-btn {
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: #334155;
+      font-size: 12px;
+    }
+    .sync-targets .target-btn.active {
+      border-color: #0f766e;
+      background: #ecfdf5;
+      color: #166534;
+    }
+    .fit-status {
+      margin-top: 10px;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 13px;
+      background: #fff7ed;
+      color: #b45309;
+    }
+    .fit-status.ok {
+      background: #f0fdf4;
+      color: #166534;
+    }
+    @media (max-width: 768px) {
+      .fit-assignment-layout {
+        grid-template-columns: 1fr;
+      }
+      .fit-rider-slots {
+        grid-template-columns: 1fr;
+      }
+      .fit-plot {
+        height: 240px;
+      }
+      .inputs-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ── Report modal ────────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.60);
+      z-index: 1000;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 0;
+      overflow-y: auto;
+    }
+    .modal-overlay[aria-hidden="true"] { display: none !important; }
+    .modal-panel {
+      background: #fff;
+      width: 100%;
+      max-width: 100%;
+      min-height: 100vh;
+      box-shadow: none;
+      display: flex;
+      flex-direction: column;
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px 14px;
+      border-bottom: 1px solid #e2e8f0;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .modal-header h3 {
+      margin: 0;
+      font-size: 22px;
+      flex: 1;
+    }
+    .modal-header-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .modal-close {
+      background: none;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 3px 10px;
+      color: #475569;
+    }
+    .modal-close:hover { background: #f1f5f9; }
+    .report-content {
+      padding: 16px 20px 28px;
+      flex: 1;
+    }
+    .report-stats-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      margin-bottom: 18px;
+      font-size: 14px;
+    }
+    .report-stat-chip {
+      padding: 4px 12px;
+      border: 1px solid #dbe2ea;
+      border-radius: 999px;
+      background: #f8fafc;
+      color: #334155;
+      font-size: 13px;
+    }
+    .report-main {
+      display: grid;
+      grid-template-columns: minmax(260px, 360px) 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+    .report-stint-table-wrap {
+      max-height: 520px;
+      overflow-y: auto;
+      border: 1px solid #dbe2ea;
+      border-radius: 8px;
+    }
+    .report-stint-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      font-variant-numeric: tabular-nums;
+    }
+    .report-stint-table th,
+    .report-stint-table td {
+      border: 1px solid #e2e8f0;
+      padding: 6px 10px;
+      white-space: nowrap;
+    }
+    .report-stint-table th {
+      background: #f8fafc;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      font-size: 12px;
+    }
+    .report-charts {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .report-charts-row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .report-charts-row .report-chart-card {
+      flex: 1 1 400px;
+    }
+    .report-chart-card {
+      border: 1px solid #dbe2ea;
+      border-radius: 10px;
+      background: #fff;
+      padding: 12px;
+    }
+    .rpt-summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .rpt-summary-table th, .rpt-summary-table td {
+      padding: 5px 10px;
+      text-align: right;
+      border-bottom: 1px solid #e9eef4;
+    }
+    .rpt-summary-table th { font-weight: 600; color: #475569; background: #f8fafc; }
+    .rpt-summary-table td.rpt-row-lbl { text-align: left; font-weight: 500; color: #334155; white-space: nowrap; }
+    .rpt-summary-table tbody tr:last-child td { border-bottom: none; }
+    .rpt-summary-table tbody tr:hover td { background: #f1f5f9; }
+    .report-chart-card h4 {
+      margin: 0 0 8px;
+      font-size: 14px;
+      color: #334155;
+    }
+    .report-chart-canvas {
+      display: block;
+      width: 100%;
+    }
+    .report-chart-legend {
+      display: flex;
+      gap: 14px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+      font-size: 12px;
+    }
+    .report-chart-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .report-chart-legend-swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .rpt-view-toggle {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+    .rpt-view-btn {
+      padding: 5px 16px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background: #f8fafc;
+      color: #475569;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .rpt-view-btn.active {
+      background: #1d4ed8;
+      color: #fff;
+      border-color: #1d4ed8;
+    }
+    .rpt-view-btn:hover:not(.active) { background: #f1f5f9; }
+    @media (max-width: 900px) {
+      .report-main { grid-template-columns: 1fr; }
+    }
+    @media print {
+      .modal-overlay {
+        position: static;
+        background: none;
+        padding: 0;
+        overflow: visible;
+      }
+      .modal-panel {
+        box-shadow: none;
+        border-radius: 0;
+        max-width: 100%;
+      }
+      .modal-close, .modal-header-actions { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <h2>Madison Report Builder</h2>
+  <h3>Keys: S start, E end, Space play/pause, arrows frame-step, Ctrl+arrows jump.</h3>
+  <input type="file" accept="video/mp4,video/quicktime" id="videoInput">
+  <br><br>
+
+  <div class="container">
+    <div class="video-section">
+      <video id="video" controls style="display:none;"></video>
+
+      <div class="controls">
+        <label for="fpsInput">FPS:</label>
+        <input type="number" id="fpsInput" min="1" max="240" value="50" style="width:70px;">
+        <button id="prevFrame">⏪ Prev Frame</button>
+        <button id="nextFrame">⏩ Next Frame</button>
+        <button id="startBtn">Mark Start (S)</button>
+        <button id="endBtn">Mark End (E)</button>
+        <button id="clearMarkersBtn">Clear Markers</button>
+      </div>
+
+      <div class="marker-strip">
+        <span>Start:</span>
+        <span id="startBadge" class="marker-badge">Not set</span>
+        <span style="margin-left:6px;">End:</span>
+        <span id="endBadge" class="marker-badge">Not set</span>
+        <span id="durationBadge" class="marker-badge" style="margin-left:6px;display:none;"></span>
+      </div>
+
+      <div id="info">Current Time: <span id="currentTime">0.00</span>s</div>
+      <div id="status">Status: Load a video to begin.</div>
+      <div class="changes-control-group sprint-set-group" id="sprintSetGroup" style="display:none; margin-top:8px;">
+        <label>Set sprint finish:</label>
+        <input id="sprintSetIndexInput" type="number" min="1" value="1" style="width:56px;">
+        <button id="setSprintBtn" type="button">Set to current time</button>
+        <span id="sprintSetDiag" class="sprint-set-diag"></span>
+      </div>
+    </div>
+
+    <div class="report-section">
+      <div class="inputs-grid">
+        <div>
+          <label for="sessionInput">Session Title</label>
+          <input id="sessionInput" type="text" placeholder="Session title">
+        </div>
+        <div>
+          <label for="jumpFramesInput">Jump Ahead (frames)</label>
+          <input id="jumpFramesInput" type="number" min="1" value="160">
+        </div>
+        <div>
+          <label for="rider1Input">Rider 1</label>
+          <input id="rider1Input" type="text" placeholder="Rider 1">
+        </div>
+        <div>
+          <label for="rider2Input">Rider 2</label>
+          <input id="rider2Input" type="text" placeholder="Rider 2">
+        </div>
+        <div>
+          <label for="sprintCountInput">Sprints in race</label>
+          <input id="sprintCountInput" type="number" min="0" value="20" placeholder="0">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FIT Sync panel -->
+  <section class="fit-sync-panel">
+    <h3>FIT Sync</h3>
+    <p>Load FIT files and drag each onto the correct rider slot. Choose a shared metric, then <strong>left-drag</strong> to scrub video or <strong>right-drag</strong> to sync selected riders.</p>
+    <div class="fit-sync-grid">
+      <div class="fit-field">
+        <label for="fitFilesInput">FIT files (.fit)</label>
+        <input id="fitFilesInput" type="file" accept=".fit,application/octet-stream" multiple>
+        <div class="fit-file-note">Load FIT files, then drag chips to rider slots below.</div>
+        <div class="fit-control-row" style="margin-top:8px;">
+          <button id="fitSaveSyncBtn" type="button">Save sync</button>
+          <button id="fitUploadSyncBtn" type="button">Upload synced file</button>
+        </div>
+        <input id="fitSyncedUploadInput" type="file" accept=".json,.mdsync" style="display:none;">
+      </div>
+      <div class="fit-field">
+        <label for="fitMetricSelect">Shared FIT Metric</label>
+        <select id="fitMetricSelect" disabled>
+          <option value="">Select metric</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="fit-assignment-layout">
+      <div class="fit-assignment-card">
+        <h4>Unassigned FIT files</h4>
+        <div id="fitUnassignedList" class="fit-dropzone" data-drop-target="unassigned">
+          <span class="fit-slot-placeholder">Drop FIT files here to unassign.</span>
+        </div>
+      </div>
+      <div class="fit-assignment-card">
+        <h4>Rider FIT assignment</h4>
+        <div class="fit-rider-slots">
+          <div class="fit-slot">
+            <div class="fit-slot-title" id="fitSlotTitle0">Rider 1</div>
+            <div id="fitRiderSlot0" class="fit-dropzone" data-drop-target="rider" data-rider-index="0"></div>
+          </div>
+          <div class="fit-slot">
+            <div class="fit-slot-title" id="fitSlotTitle1">Rider 2</div>
+            <div id="fitRiderSlot1" class="fit-dropzone" data-drop-target="rider" data-rider-index="1"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fit-stats">
+      <span class="fit-chip">Sampling: <strong id="fitSamplingHz">-</strong></span>
+      <span class="fit-chip">Video FPS: <strong id="fitVideoFps">-</strong></span>
+      <span class="fit-chip">Sync Offset: <strong id="fitTraceOffset">0.000s</strong></span>
+      <span class="fit-chip">Video Time: <strong id="fitVideoTime">0.000s</strong></span>
+    </div>
+
+    <div id="fitLegend" class="fit-legend"></div>
+
+    <div class="fit-plot-wrap">
+      <canvas id="fitPlot" class="fit-plot"></canvas>
+      <div id="fitCurrentValues" class="fit-current-values">Values @ playhead: -</div>
+    </div>
+
+    <div class="fit-controls-row">
+      <div class="fit-control-group">
+        <label for="fitScaleControl">Trace window scale</label>
+        <div class="fit-control-row">
+          <input id="fitScaleControl" type="range" min="5" max="100" step="5" value="100">
+          <span id="fitScaleValue" class="fit-control-value">100%</span>
+        </div>
+      </div>
+      <div class="fit-control-group">
+        <label for="fitSensitivityControl">Drag sensitivity</label>
+        <div class="fit-control-row">
+          <input id="fitSensitivityControl" type="range" min="5" max="300" step="5" value="20">
+          <span id="fitSensitivityValue" class="fit-control-value">0.20x</span>
+        </div>
+      </div>
+      <div class="fit-control-group fit-actions">
+        <label>&nbsp;</label>
+        <div class="fit-control-row">
+          <button id="fitSnapBtn" type="button">Snap to playhead</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="fitSyncTargets" class="sync-targets"></div>
+    <div id="fitStatus" class="fit-status">Assign FIT files to rider slots to begin syncing.</div>
+  </section>
+
+  <!-- Change Detection panel -->
+  <section class="changes-panel">
+    <h3>Change Detection</h3>
+    <div class="changes-controls">
+      <div class="changes-control-group">
+        <label for="minGapInput">Min gap between changes (s)</label>
+        <input id="minGapInput" type="number" value="8" min="1" max="60" step="1">
+      </div>
+      <div class="changes-control-group">
+        <label for="sampleIntervalInput">Sample interval (s)</label>
+        <input id="sampleIntervalInput" type="number" value="0.1" min="0.05" max="1" step="0.05">
+      </div>
+      <button id="detectChangesBtn" disabled>Detect Changes</button>
+      <button id="clearChangesBtn">Clear</button>
+      <button id="createReportBtn" disabled>Create Report</button>
+    </div>
+    <div class="changes-summary" id="changesSummary">Set start &amp; end markers, sync FIT files, then click Detect Changes.</div>
+    <div class="changes-table-wrap">
+      <table id="changesTable" hidden>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Video Time</th>
+            <th>Elapsed (s)</th>
+            <th>Outgoing Rider</th>
+            <th>Incoming Rider</th>
+            <th>Go to</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Diagnostic panel -->
+  <section class="diag-panel">
+    <div class="diag-header">
+      <h3>Live Diagnostic</h3>
+      <span style="font-size:13px;color:#64748b;">Updates as you scrub. Crossings <span style="background:#f59e0b;color:#fff;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:700;">X</span> are highlighted.</span>
+    </div>
+    <div class="diag-live" id="diagLive">
+      <div class="diag-live-box"><div class="diag-live-label" id="diagLabel0">Rider 1</div><div class="diag-live-value" id="diagVal0">-</div></div>
+      <div class="diag-live-box"><div class="diag-live-label" id="diagLabel1">Rider 2</div><div class="diag-live-value" id="diagVal1">-</div></div>
+      <div class="diag-live-box"><div class="diag-live-label">Diff (R1 − R2)</div><div class="diag-live-value" id="diagDiff">-</div></div>
+      <div style="align-self:center;"><span id="diagLeader" class="diag-leader" style="display:none;"></span></div>
+    </div>
+    <div class="diag-table-wrap">
+      <table id="diagTable">
+        <thead><tr>
+          <th>Video Time</th>
+          <th id="diagColR0">Rider 1</th>
+          <th id="diagColR1">Rider 2</th>
+          <th>Diff (R1−R2)</th>
+          <th>Leader</th>
+        </tr></thead>
+        <tbody id="diagTableBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Report Modal -->
+  <div id="reportModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3 id="reportModalTitle">Madison Report</h3>
+        <div class="modal-header-actions">
+          <button id="printReportBtn" type="button">Print / Export PDF</button>
+          <button id="closeReportModalBtn" class="modal-close" type="button" aria-label="Close">×</button>
+        </div>
+      </div>
+      <div id="reportContent" class="report-content">
+        <p style="color:#64748b;">Building report…</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ─── Constants ────────────────────────────────────────────────────────────────
+    const RIDER_PALETTE = ['#ff7f41', '#2dc84d'];
+    const INACTIVE_RIDER_COLOR = '#94a3b8';
+    const NUM_RIDERS = 2;
+
+    // ─── DOM refs ─────────────────────────────────────────────────────────────────
+    const video        = document.getElementById('video');
+    const videoInput   = document.getElementById('videoInput');
+    const fpsInput     = document.getElementById('fpsInput');
+    const jumpFramesInput = document.getElementById('jumpFramesInput');
+    const sessionInput = document.getElementById('sessionInput');
+    const rider1Input  = document.getElementById('rider1Input');
+    const rider2Input  = document.getElementById('rider2Input');
+    const riderInputs  = [rider1Input, rider2Input];
+
+    const startBtn         = document.getElementById('startBtn');
+    const endBtn           = document.getElementById('endBtn');
+    const clearMarkersBtn  = document.getElementById('clearMarkersBtn');
+    const prevFrameBtn     = document.getElementById('prevFrame');
+    const nextFrameBtn     = document.getElementById('nextFrame');
+    const currentTimeDisplay = document.getElementById('currentTime');
+    const statusDisplay    = document.getElementById('status');
+    const startBadge       = document.getElementById('startBadge');
+    const endBadge         = document.getElementById('endBadge');
+    const durationBadge    = document.getElementById('durationBadge');
+
+    const fitFilesInput       = document.getElementById('fitFilesInput');
+    const fitUnassignedList   = document.getElementById('fitUnassignedList');
+    const fitRiderSlots       = [document.getElementById('fitRiderSlot0'), document.getElementById('fitRiderSlot1')];
+    const fitSlotTitles       = [document.getElementById('fitSlotTitle0'), document.getElementById('fitSlotTitle1')];
+    const fitMetricSelect     = document.getElementById('fitMetricSelect');
+    const fitSaveSyncBtn      = document.getElementById('fitSaveSyncBtn');
+    const fitUploadSyncBtn    = document.getElementById('fitUploadSyncBtn');
+    const fitSyncedUploadInput = document.getElementById('fitSyncedUploadInput');
+    const fitSamplingHz       = document.getElementById('fitSamplingHz');
+    const fitVideoFps         = document.getElementById('fitVideoFps');
+    const fitTraceOffset      = document.getElementById('fitTraceOffset');
+    const fitVideoTime        = document.getElementById('fitVideoTime');
+    const fitLegend           = document.getElementById('fitLegend');
+    const fitPlot             = document.getElementById('fitPlot');
+    const fitPlotContext      = fitPlot.getContext('2d');
+    const fitCurrentValues    = document.getElementById('fitCurrentValues');
+    const fitScaleControl     = document.getElementById('fitScaleControl');
+    const fitScaleValue       = document.getElementById('fitScaleValue');
+    const fitSensitivityControl = document.getElementById('fitSensitivityControl');
+    const fitSensitivityValue = document.getElementById('fitSensitivityValue');
+    const fitSnapBtn          = document.getElementById('fitSnapBtn');
+    const fitSyncTargets      = document.getElementById('fitSyncTargets');
+    const fitStatusDisplay    = document.getElementById('fitStatus');
+
+    const minGapInput         = document.getElementById('minGapInput');
+    const sampleIntervalInput = document.getElementById('sampleIntervalInput');
+    const detectChangesBtn    = document.getElementById('detectChangesBtn');
+    const clearChangesBtn     = document.getElementById('clearChangesBtn');
+    const changesSummary      = document.getElementById('changesSummary');
+    const changesTable        = document.getElementById('changesTable');
+    const changesTableBody    = changesTable.querySelector('tbody');
+    const sprintCountInput    = document.getElementById('sprintCountInput');
+    const sprintSetGroup      = document.getElementById('sprintSetGroup');
+    const sprintSetIndexInput = document.getElementById('sprintSetIndexInput');
+    const setSprintBtn        = document.getElementById('setSprintBtn');
+    const sprintSetDiag       = document.getElementById('sprintSetDiag');
+
+    const diagLabel0    = document.getElementById('diagLabel0');
+    const diagLabel1    = document.getElementById('diagLabel1');
+    const diagVal0      = document.getElementById('diagVal0');
+    const diagVal1      = document.getElementById('diagVal1');
+    const diagDiff      = document.getElementById('diagDiff');
+    const diagLeader    = document.getElementById('diagLeader');
+    const diagColR0     = document.getElementById('diagColR0');
+    const diagColR1     = document.getElementById('diagColR1');
+    const diagTableBody = document.getElementById('diagTableBody');
+
+    const createReportBtn    = document.getElementById('createReportBtn');
+    const reportModal        = document.getElementById('reportModal');
+    const reportModalTitle   = document.getElementById('reportModalTitle');
+    const reportContent      = document.getElementById('reportContent');
+    const closeReportModalBtn = document.getElementById('closeReportModalBtn');
+    const printReportBtn     = document.getElementById('printReportBtn');
+
+    // ─── State ────────────────────────────────────────────────────────────────────
+    let videoFileName   = 'data';
+    let startMarkerTime = null;
+    let endMarkerTime   = null;
+    let detectedChanges = [];
+    let sprintState     = { count: 0, sprints: [] };
+    let reportViewMode  = 'split';
+    let FitParserClass  = null;
+
+    const fitSyncState = {
+      streams: [null, null],
+      parsedFiles: [],
+      nextParsedFileId: 1,
+      metricKey: '',
+      series: [],
+      syncTargetRiderIndexes: [],
+      samplingDisplay: '-',
+      dragLastX: 0,
+      pointerMode: 'none',
+      drawingData: null,
+      viewScale: 1,
+      dragSensitivity: 0.2
+    };
+
+    // ─── Helpers ──────────────────────────────────────────────────────────────────
+    function getFps() { return parseInt(fpsInput.value, 10) || 50; }
+    function frameDuration() { return 1 / getFps(); }
+    function getJumpSeconds() { return (parseInt(jumpFramesInput.value, 10) || 160) / getFps(); }
+    function getRiderNames() {
+      return riderInputs.map((inp, i) => inp.value.trim() || `Rider ${i + 1}`);
+    }
+    function formatFitNum(v, digits = 3) {
+      return Number.isFinite(v) ? v.toFixed(digits) : '-';
+    }
+    function formatClockTime(v) {
+      if (!Number.isFinite(v)) return '--';
+      const minutes = Math.floor(v / 60);
+      const seconds = v - minutes * 60;
+      return `${minutes}:${seconds.toFixed(2).padStart(5, '0')}`;
+    }
+    function clampValue(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+    function toNumeric(value) {
+      const num = Number(value);
+      return Number.isFinite(num) ? num : null;
+    }
+    function findTimeColumn(columns) {
+      return columns.find((name) => String(name).trim().toLowerCase() === 'time') || null;
+    }
+    function setStatus(msg) { statusDisplay.textContent = `Status: ${msg}`; }
+    function setFitStatus(message, level = 'warn') {
+      fitStatusDisplay.textContent = message;
+      fitStatusDisplay.classList.toggle('ok', level === 'ok');
+    }
+    function updateFitControlLabels() {
+      fitScaleValue.textContent = `${Math.round(fitSyncState.viewScale * 100)}%`;
+      fitSensitivityValue.textContent = `${formatFitNum(fitSyncState.dragSensitivity, 2)}x`;
+    }
+    function getLoadedFitStreams() {
+      return fitSyncState.streams.filter(Boolean);
+    }
+    function toTimestampSeconds(value) {
+      if (value instanceof Date) return value.getTime() / 1000;
+      if (typeof value === 'string') {
+        const parsed = Date.parse(value);
+        if (Number.isFinite(parsed)) return parsed / 1000;
+      }
+      const numeric = toNumeric(value);
+      if (numeric === null) return null;
+      if (numeric > 1e12) return numeric / 1000;
+      if (numeric > 1e9) return numeric;
+      return numeric;
+    }
+
+    // ─── FIT Parser loading ───────────────────────────────────────────────────────
+    async function ensureFitParserLoaded() {
+      if (FitParserClass) return FitParserClass;
+      const moduleUrls = [
+        'https://cdn.jsdelivr.net/npm/fit-file-parser@2.3.3/+esm',
+        'https://esm.sh/fit-file-parser@2.3.3'
+      ];
+      let lastError = null;
+      for (const moduleUrl of moduleUrls) {
+        try {
+          const mod = await import(moduleUrl);
+          FitParserClass = mod.default || mod.FitParser || null;
+          if (FitParserClass) return FitParserClass;
+          lastError = new Error(`No FitParser export found at ${moduleUrl}`);
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      throw lastError || new Error('Unable to load FIT parser module.');
+    }
+
+    async function parseFitArrayBuffer(buffer) {
+      const ParserCtor = await ensureFitParserLoaded();
+      return new Promise((resolve, reject) => {
+        const parser = new ParserCtor({
+          force: true,
+          speedUnit: 'm/s',
+          lengthUnit: 'm',
+          temperatureUnit: 'celsius',
+          elapsedRecordField: true,
+          mode: 'both'
+        });
+        parser.parse(new Uint8Array(buffer), (error, fitData) => {
+          if (error) { reject(error); return; }
+          resolve(fitData || {});
+        });
+      });
+    }
+
+    function extractFitRecords(fitData) {
+      if (!fitData || typeof fitData !== 'object') return [];
+      if (Array.isArray(fitData.records) && fitData.records.length > 0) return fitData.records;
+      const records = [];
+      const pushRecords = (candidate) => {
+        if (Array.isArray(candidate) && candidate.length > 0) records.push(...candidate);
+      };
+      if (fitData.activity && Array.isArray(fitData.activity.sessions)) {
+        for (const session of fitData.activity.sessions) {
+          pushRecords(session.records);
+          if (Array.isArray(session.laps)) {
+            for (const lap of session.laps) pushRecords(lap.records);
+          }
+        }
+      }
+      if (Array.isArray(fitData.sessions)) {
+        for (const session of fitData.sessions) {
+          pushRecords(session.records);
+          if (Array.isArray(session.laps)) {
+            for (const lap of session.laps) pushRecords(lap.records);
+          }
+        }
+      }
+      if (Array.isArray(fitData.laps)) {
+        for (const lap of fitData.laps) pushRecords(lap.records);
+      }
+      return records;
+    }
+
+    function normalizeFitRecordsToRows(records) {
+      const rows = [];
+      for (const record of records || []) {
+        if (!record || typeof record !== 'object') continue;
+        const rawTime = record.timestamp ?? record.enhanced_timestamp ?? record.local_timestamp ?? record.time;
+        const timeSeconds = toTimestampSeconds(rawTime);
+        if (!Number.isFinite(timeSeconds)) continue;
+        const row = { Time: timeSeconds };
+        for (const [key, value] of Object.entries(record)) {
+          if (['timestamp', 'enhanced_timestamp', 'local_timestamp', 'time'].includes(key)) continue;
+          const numeric = toNumeric(value);
+          if (numeric !== null) row[key] = numeric;
+        }
+        rows.push(row);
+      }
+      return rows;
+    }
+
+    function addDerivedFitColumns(rows) {
+      const hasPower = rows.some((row) => row.power != null);
+      const hasCadence = rows.some((row) => row.cadence != null);
+      if (hasPower && hasCadence) {
+        for (const row of rows) {
+          const power = toNumeric(row.power);
+          const cadence = toNumeric(row.cadence);
+          if (power !== null && cadence !== null) {
+            row.torque = (power > 0 && cadence > 0) ? (power * 60) / (2 * Math.PI * cadence) : 0;
+          }
+        }
+      }
+    }
+
+    function intersectMetricColumns(streams) {
+      if (streams.length === 0) return [];
+      let common = [...streams[0].metricColumns];
+      for (let i = 1; i < streams.length; i++) {
+        const metricSet = new Set(streams[i].metricColumns);
+        common = common.filter((column) => metricSet.has(column));
+      }
+      return common.sort((a, b) => a.localeCompare(b));
+    }
+
+    function formatSamplingDisplay(streams) {
+      const values = streams.map((stream) => stream.samplingHz).filter(Number.isFinite);
+      if (values.length === 0) return '-';
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      return Math.abs(max - min) < 1e-6
+        ? `${formatFitNum(min, 3)} Hz`
+        : `${formatFitNum(min, 3)}-${formatFitNum(max, 3)} Hz`;
+    }
+
+    function getFitSeriesLabel(riderIndex) {
+      return getRiderNames()[riderIndex] || `Rider ${riderIndex + 1}`;
+    }
+
+    function getAssignedFitFile(riderIndex) {
+      return fitSyncState.parsedFiles.find((file) => file.assignedRiderIndex === riderIndex) || null;
+    }
+
+    function syncStreamsFromAssignments() {
+      fitSyncState.streams = [null, null];
+      for (const file of fitSyncState.parsedFiles) {
+        if (!Number.isInteger(file.assignedRiderIndex) || file.assignedRiderIndex < 0 || file.assignedRiderIndex > 1) continue;
+        file.riderIndex = file.assignedRiderIndex;
+        fitSyncState.streams[file.assignedRiderIndex] = file;
+      }
+    }
+
+    function getFitFileChipHtml(file) {
+      return `<span class="fit-file-chip" draggable="true" data-fit-file-id="${file.id}" title="${file.fileName}">${file.fileName}</span>`;
+    }
+
+    function renderFitAssignments({ rebuild = true } = {}) {
+      fitSlotTitles.forEach((slotTitle, riderIndex) => {
+        slotTitle.textContent = getFitSeriesLabel(riderIndex);
+      });
+      const unassigned = fitSyncState.parsedFiles.filter((file) => !Number.isInteger(file.assignedRiderIndex));
+      fitUnassignedList.innerHTML = unassigned.length > 0
+        ? unassigned.map(getFitFileChipHtml).join('')
+        : '<span class="fit-slot-placeholder">No unassigned FIT files.</span>';
+      fitRiderSlots.forEach((slot, riderIndex) => {
+        const assigned = getAssignedFitFile(riderIndex);
+        slot.innerHTML = assigned
+          ? getFitFileChipHtml(assigned)
+          : '<span class="fit-slot-placeholder">Drop FIT file here</span>';
+      });
+      syncStreamsFromAssignments();
+      if (rebuild) rebuildFitMetricOptions();
+    }
+
+    function buildSyncedFitExportPayload() {
+      const payload = {
+        version: 1,
+        tool: 'madison',
+        createdAt: new Date().toISOString(),
+        metricKey: fitSyncState.metricKey || '',
+        riderNames: getRiderNames(),
+        startMarkerTime: Number.isFinite(startMarkerTime) ? startMarkerTime : null,
+        endMarkerTime: Number.isFinite(endMarkerTime) ? endMarkerTime : null,
+        files: fitSyncState.parsedFiles.map((file) => ({
+          id: file.id,
+          fileName: file.fileName,
+          assignedRiderIndex: Number.isInteger(file.assignedRiderIndex) ? file.assignedRiderIndex : null,
+          offset: Number.isFinite(file.offset) ? file.offset : 0,
+          timeColumnKey: file.timeColumnKey,
+          metricColumns: Array.isArray(file.metricColumns) ? file.metricColumns : [],
+          samplingHz: Number.isFinite(file.samplingHz) ? file.samplingHz : null,
+          rows: Array.isArray(file.rows) ? file.rows : []
+        }))
+      };
+      if (detectedChanges.length > 0) {
+        payload.detectedChanges = detectedChanges.map(c => ({
+          time: c.time,
+          outgoingRider: c.outgoingRider,
+          incomingRider: c.incomingRider
+        }));
+      }
+      if (sprintState.count > 0) {
+        payload.sprintState = {
+          count: sprintState.count,
+          sprints: sprintState.sprints.map(s => ({
+            index: s.index,
+            time: s.time,
+            isManual: s.isManual
+          }))
+        };
+      }
+      return payload;
+    }
+
+    function restoreSyncedFitPayload(payload) {
+      if (!payload || typeof payload !== 'object' || !Array.isArray(payload.files)) {
+        throw new Error('Synced FIT file format not recognised.');
+      }
+      fitSyncState.parsedFiles = payload.files.map((file, index) => ({
+        id: Number.isFinite(file.id) ? file.id : index + 1,
+        fileName: file.fileName || `Synced FIT ${index + 1}`,
+        rows: Array.isArray(file.rows) ? file.rows : [],
+        timeColumnKey: file.timeColumnKey || 'Time',
+        metricColumns: Array.isArray(file.metricColumns) ? file.metricColumns : [],
+        samplingHz: Number.isFinite(file.samplingHz) ? file.samplingHz : null,
+        offset: Number.isFinite(file.offset) ? file.offset : 0,
+        assignedRiderIndex: Number.isInteger(file.assignedRiderIndex) ? file.assignedRiderIndex : null,
+        riderIndex: Number.isInteger(file.assignedRiderIndex) ? file.assignedRiderIndex : null
+      }));
+      fitSyncState.nextParsedFileId = fitSyncState.parsedFiles.reduce((maxId, file) => Math.max(maxId, file.id), 0) + 1;
+      if (Array.isArray(payload.riderNames)) {
+        payload.riderNames.slice(0, riderInputs.length).forEach((name, index) => {
+          if (typeof name === 'string' && name.trim()) riderInputs[index].value = name;
+        });
+      }
+      if (Number.isFinite(payload.startMarkerTime)) {
+        startMarkerTime = payload.startMarkerTime;
+        updateMarkerBadges();
+      }
+      if (Number.isFinite(payload.endMarkerTime)) {
+        endMarkerTime = payload.endMarkerTime;
+        updateMarkerBadges();
+      }
+      if (payload.sprintState && Number.isInteger(payload.sprintState.count)) {
+        sprintCountInput.value = payload.sprintState.count;
+      }
+      recalcAutoSprints();
+      renderFitAssignments();
+      if (payload.metricKey) {
+        const streams = getLoadedFitStreams();
+        const commonMetricColumns = intersectMetricColumns(streams);
+        if (commonMetricColumns.includes(payload.metricKey)) {
+          fitMetricSelect.value = payload.metricKey;
+          buildFitSeries(payload.metricKey);
+        }
+      }
+      // Restore sprint positions (overrides auto-calculated positions)
+      if (payload.sprintState && Array.isArray(payload.sprintState.sprints) && payload.sprintState.sprints.length > 0) {
+        sprintState.sprints = payload.sprintState.sprints
+          .filter(s => Number.isInteger(s.index) && Number.isFinite(s.time))
+          .map(s => ({ index: s.index, time: s.time, isManual: !!s.isManual }));
+        renderChangesTable();
+      }
+      // Restore detected changes
+      if (Array.isArray(payload.detectedChanges) && payload.detectedChanges.length > 0) {
+        detectedChanges = payload.detectedChanges
+          .filter(c => Number.isFinite(c.time))
+          .map(c => ({ time: c.time, outgoingRider: c.outgoingRider ?? 0, incomingRider: c.incomingRider ?? 1 }));
+        renderChangesTable();
+        drawFitPlot();
+      }
+    }
+
+    function populateFitMetricSelect(metricColumns, selectedValue = '') {
+      fitMetricSelect.innerHTML = '<option value="">Select metric</option>';
+      for (const key of metricColumns) {
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = key;
+        fitMetricSelect.appendChild(option);
+      }
+      fitMetricSelect.disabled = metricColumns.length === 0;
+      if (selectedValue && metricColumns.includes(selectedValue)) {
+        fitMetricSelect.value = selectedValue;
+      }
+    }
+
+    function renderFitLegend() {
+      if (fitSyncState.series.length === 0) {
+        fitLegend.innerHTML = '<span class="fit-swatch"><i style="background:#94a3b8"></i>No active FIT streams</span>';
+        return;
+      }
+      fitLegend.innerHTML = fitSyncState.series
+        .map((series) => `<span class="fit-swatch"><i style="background:${series.color}"></i>${series.label}</span>`)
+        .join('');
+    }
+
+    function getSelectedFitTargetSet() {
+      const selected = new Set(fitSyncState.syncTargetRiderIndexes || []);
+      if (selected.size === 0) {
+        for (const series of fitSyncState.series) selected.add(series.riderIndex);
+      }
+      return selected;
+    }
+
+    function renderFitSyncTargets() {
+      if (fitSyncState.series.length === 0) {
+        fitSyncTargets.innerHTML = '';
+        return;
+      }
+      const selectedSet = getSelectedFitTargetSet();
+      const allSelected = fitSyncState.series.every((series) => selectedSet.has(series.riderIndex));
+      const buttons = [
+        `<button type="button" class="target-btn ${allSelected ? 'active' : ''}" data-target="all">All riders</button>`
+      ];
+      for (const series of fitSyncState.series) {
+        const isActive = selectedSet.has(series.riderIndex);
+        buttons.push(`<button type="button" class="target-btn ${isActive ? 'active' : ''}" data-target="${series.riderIndex}">${series.label}</button>`);
+      }
+      fitSyncTargets.innerHTML = buttons.join('');
+    }
+
+    function getFitOffsetLabel() {
+      if (fitSyncState.series.length === 0) return '0.000s';
+      const selectedSet = getSelectedFitTargetSet();
+      const offsets = fitSyncState.series
+        .filter((series) => selectedSet.has(series.riderIndex))
+        .map((series) => series.offset || 0);
+      if (offsets.length === 0) return '0.000s';
+      const min = Math.min(...offsets);
+      const max = Math.max(...offsets);
+      if (Math.abs(max - min) < 1e-6) return `${formatFitNum(offsets[0], 3)}s`;
+      return 'mixed';
+    }
+
+    function updateFitStats() {
+      fitSamplingHz.textContent = fitSyncState.samplingDisplay;
+      fitVideoFps.textContent = `${getFps()} fps`;
+      fitTraceOffset.textContent = getFitOffsetLabel();
+      fitVideoTime.textContent = `${formatFitNum(video.currentTime || 0, 3)}s`;
+    }
+
+    function resetFitMetricAndPlot(options = {}) {
+      const { preserveMetricOptions = false } = options;
+      fitSyncState.metricKey = '';
+      fitSyncState.series = [];
+      fitSyncState.syncTargetRiderIndexes = [];
+      fitSyncState.samplingDisplay = getLoadedFitStreams().length ? formatSamplingDisplay(getLoadedFitStreams()) : '-';
+      if (!preserveMetricOptions) populateFitMetricSelect([]);
+      else fitMetricSelect.value = '';
+      fitCurrentValues.textContent = 'Values @ playhead: -';
+      renderFitLegend();
+      renderFitSyncTargets();
+      updateFitStats();
+      drawFitPlot();
+    }
+
+    function rebuildFitMetricOptions() {
+      const streams = getLoadedFitStreams();
+      fitSyncState.samplingDisplay = formatSamplingDisplay(streams);
+      if (streams.length === 0) {
+        resetFitMetricAndPlot();
+        setFitStatus('Assign FIT files to rider slots to begin syncing.');
+        return;
+      }
+      const commonMetricColumns = intersectMetricColumns(streams);
+      const previousMetric = fitSyncState.metricKey;
+      populateFitMetricSelect(commonMetricColumns, previousMetric);
+      updateFitStats();
+      if (commonMetricColumns.length === 0) {
+        resetFitMetricAndPlot();
+        setFitStatus('No common numeric metrics found across the assigned FIT files.');
+        return;
+      }
+      if (previousMetric && commonMetricColumns.includes(previousMetric)) {
+        buildFitSeries(previousMetric);
+        setFitStatus(`${streams.length} FIT stream(s) ready. Overlaying ${previousMetric}.`, 'ok');
+        return;
+      }
+      resetFitMetricAndPlot({ preserveMetricOptions: true });
+      setFitStatus(`${streams.length} FIT stream(s) loaded. Choose a shared metric.`, 'ok');
+    }
+
+    function buildFitSeries(metricKey) {
+      if (!metricKey) {
+        resetFitMetricAndPlot({ preserveMetricOptions: true });
+        return;
+      }
+      const series = [];
+      for (const stream of getLoadedFitStreams()) {
+        const points = [];
+        for (const row of stream.rows) {
+          const t = toNumeric(row[stream.timeColumnKey]);
+          const y = toNumeric(row[metricKey]);
+          if (t !== null && y !== null) points.push({ t, y });
+        }
+        points.sort((a, b) => a.t - b.t);
+        if (points.length < 2) continue;
+        const baseTime = points[0].t;
+        series.push({
+          riderIndex: stream.riderIndex,
+          label: getFitSeriesLabel(stream.riderIndex),
+          fileName: stream.fileName,
+          color: RIDER_PALETTE[stream.riderIndex % RIDER_PALETTE.length],
+          offset: toNumeric(stream.offset) || 0,
+          times: points.map((point) => point.t - baseTime),
+          metricValues: points.map((point) => point.y)
+        });
+      }
+      fitSyncState.series = series;
+      fitSyncState.metricKey = metricKey;
+      fitSyncState.syncTargetRiderIndexes = series.map((item) => item.riderIndex);
+      renderFitLegend();
+      renderFitSyncTargets();
+      updateFitStats();
+      drawFitPlot();
+      updateDetectChangesAvailability();
+      updateDiagnosticDisplay();
+      if (series.length > 0) {
+        setFitStatus(`Loaded ${series.length} rider FIT stream(s). Left drag scrubs video, right drag syncs selected riders.`, 'ok');
+      } else {
+        setFitStatus('The selected metric does not have enough numeric points to plot.');
+      }
+    }
+
+    async function loadFitFilesToPool(files) {
+      if (!files || files.length === 0) return;
+      setFitStatus('Loading FIT file(s)...', 'ok');
+      const loadedNames = [];
+      const failedNames = [];
+      for (const file of files) {
+        try {
+          const buffer = await file.arrayBuffer();
+          const fitData = await parseFitArrayBuffer(buffer);
+          const records = extractFitRecords(fitData);
+          const rows = normalizeFitRecordsToRows(records);
+          addDerivedFitColumns(rows);
+          const columnSet = new Set();
+          for (const row of rows) { for (const key of Object.keys(row)) columnSet.add(key); }
+          const columns = [...columnSet];
+          const timeColumnKey = findTimeColumn(columns);
+          if (!timeColumnKey || rows.length < 2) {
+            throw new Error(`No readable timestamp series found in ${file.name}.`);
+          }
+          const timeValues = [];
+          for (const row of rows) {
+            const value = toNumeric(row[timeColumnKey]);
+            if (value !== null) timeValues.push(value);
+          }
+          const dts = [];
+          for (let i = 1; i < timeValues.length; i++) {
+            const dt = timeValues[i] - timeValues[i - 1];
+            if (Number.isFinite(dt) && dt > 0) dts.push(dt);
+          }
+          if (dts.length === 0) throw new Error(`Timestamps not increasing in ${file.name}.`);
+          const meanDt = dts.reduce((sum, value) => sum + value, 0) / dts.length;
+          fitSyncState.parsedFiles.push({
+            id: fitSyncState.nextParsedFileId++,
+            fileName: file.name,
+            rows,
+            timeColumnKey,
+            metricColumns: columns.filter((column) => column !== timeColumnKey),
+            samplingHz: meanDt > 0 ? 1 / meanDt : null,
+            offset: 0,
+            assignedRiderIndex: null,
+            riderIndex: null
+          });
+          loadedNames.push(file.name);
+        } catch (error) {
+          console.error(error);
+          failedNames.push(file.name);
+        }
+      }
+      renderFitAssignments();
+      if (loadedNames.length > 0 && failedNames.length > 0) {
+        setFitStatus(`Loaded ${loadedNames.length} FIT file(s). ${failedNames.length} failed. Drag files into rider slots.`, 'ok');
+      } else if (loadedNames.length > 0) {
+        setFitStatus(`Loaded ${loadedNames.length} FIT file(s). Drag files into rider slots.`, 'ok');
+      } else {
+        setFitStatus('No FIT files loaded successfully.');
+      }
+    }
+
+    function assignFitFileToRider(fileId, riderIndex) {
+      const file = fitSyncState.parsedFiles.find((item) => item.id === fileId);
+      if (!file) return;
+      const currentForRider = getAssignedFitFile(riderIndex);
+      if (currentForRider && currentForRider.id !== file.id) currentForRider.assignedRiderIndex = null;
+      file.assignedRiderIndex = riderIndex;
+      renderFitAssignments();
+    }
+
+    function unassignFitFile(fileId) {
+      const file = fitSyncState.parsedFiles.find((item) => item.id === fileId);
+      if (!file) return;
+      file.assignedRiderIndex = null;
+      renderFitAssignments();
+    }
+
+    function getFitSeriesValueAtVideoTime(series, videoTime) {
+      if (!series || series.times.length === 0 || series.metricValues.length === 0) return null;
+      const metricT = videoTime - (series.offset || 0);
+      let lo = 0;
+      let hi = series.times.length - 1;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (series.times[mid] < metricT) lo = mid + 1;
+        else hi = mid;
+      }
+      if (lo > 0 && Math.abs(series.times[lo - 1] - metricT) <= Math.abs(series.times[lo] - metricT)) {
+        return series.metricValues[lo - 1];
+      }
+      return series.metricValues[lo];
+    }
+
+    function snapFitSeriesToPlayhead() {
+      if (fitSyncState.series.length === 0) {
+        setFitStatus('Load FIT streams and select a metric before snapping.');
+        return;
+      }
+      const playhead = Number.isFinite(video.currentTime) ? video.currentTime : 0;
+      let snappedCount = 0;
+      let skippedCount = 0;
+      for (const series of fitSyncState.series) {
+        const metricT = playhead - (series.offset || 0);
+        let targetIdx = -1;
+        for (let i = 0; i < series.times.length; i++) {
+          if (series.times[i] < metricT) continue;
+          if (Math.abs(series.metricValues[i]) <= 1e-9) continue;
+          targetIdx = i;
+          break;
+        }
+        if (targetIdx < 0) { skippedCount++; continue; }
+        const targetTime = series.times[targetIdx];
+        const newOffset = playhead - targetTime;
+        series.offset = newOffset;
+        const stream = fitSyncState.streams[series.riderIndex];
+        if (stream) stream.offset = newOffset;
+        snappedCount++;
+      }
+      updateFitStats();
+      drawFitPlot();
+      if (snappedCount === 0) {
+        setFitStatus('No non-zero values found to the right of the playhead in loaded streams.');
+      } else if (skippedCount > 0) {
+        setFitStatus(`Snapped ${snappedCount} stream(s). ${skippedCount} stream(s) skipped.`, 'ok');
+      } else {
+        setFitStatus(`Snapped ${snappedCount} stream(s) to the playhead.`, 'ok');
+      }
+    }
+
+    function findFitBounds(values) {
+      let min = Infinity;
+      let max = -Infinity;
+      for (const value of values) {
+        if (value < min) min = value;
+        if (value > max) max = value;
+      }
+      if (!Number.isFinite(min) || !Number.isFinite(max)) return [0, 1];
+      if (min === max) {
+        const pad = Math.abs(min) * 0.05 || 1;
+        return [min - pad, max + pad];
+      }
+      const pad = (max - min) * 0.08;
+      return [min - pad, max + pad];
+    }
+
+    function resizeFitCanvasToDisplaySize() {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = fitPlot.getBoundingClientRect();
+      const width = Math.max(220, Math.floor(rect.width));
+      const height = Math.max(200, Math.floor(rect.height));
+      const targetWidth = Math.floor(width * dpr);
+      const targetHeight = Math.floor(height * dpr);
+      if (fitPlot.width !== targetWidth || fitPlot.height !== targetHeight) {
+        fitPlot.width = targetWidth;
+        fitPlot.height = targetHeight;
+      }
+      fitPlotContext.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { width, height };
+    }
+
+    function drawFitPlot() {
+      const { width, height } = resizeFitCanvasToDisplaySize();
+      fitPlotContext.clearRect(0, 0, width, height);
+      fitPlotContext.fillStyle = '#ffffff';
+      fitPlotContext.fillRect(0, 0, width, height);
+      const margin = { l: 58, r: 16, t: 14, b: 26 };
+      const plotWidth = width - margin.l - margin.r;
+      const plotHeight = height - margin.t - margin.b;
+
+      if (fitSyncState.series.length === 0) {
+        fitPlotContext.fillStyle = '#64748b';
+        fitPlotContext.font = '14px sans-serif';
+        fitPlotContext.fillText('Load rider FIT files and choose a shared metric to draw traces.', 14, 28);
+        fitSyncState.drawingData = null;
+        fitCurrentValues.textContent = 'Values @ playhead: -';
+        return;
+      }
+
+      const allValues = [];
+      let minDisplayTime = Infinity;
+      let maxDisplayTime = -Infinity;
+      for (const series of fitSyncState.series) {
+        if (series.times.length < 2 || series.metricValues.length < 2) continue;
+        allValues.push(...series.metricValues);
+        minDisplayTime = Math.min(minDisplayTime, series.times[0] + (series.offset || 0));
+        maxDisplayTime = Math.max(maxDisplayTime, series.times[series.times.length - 1] + (series.offset || 0));
+      }
+
+      const baseSpan = Math.max(0.01, maxDisplayTime - minDisplayTime);
+      const raceSpan = (Number.isFinite(startMarkerTime) && Number.isFinite(endMarkerTime))
+        ? Math.max(0.01, endMarkerTime - startMarkerTime)
+        : baseSpan;
+      const visibleSpan = Math.max(0.01, raceSpan * fitSyncState.viewScale);
+      const viewCenterT = Number.isFinite(video.currentTime) ? video.currentTime : 0;
+      const viewMinT = viewCenterT - visibleSpan / 2;
+      const viewMaxT = viewCenterT + visibleSpan / 2;
+      const [yMin, yMax] = findFitBounds(allValues);
+      const xFromT = (t) => margin.l + ((t - viewMinT) / (viewMaxT - viewMinT || 1)) * plotWidth;
+      const yFromV = (v) => margin.t + (1 - (v - yMin) / (yMax - yMin || 1)) * plotHeight;
+      fitSyncState.drawingData = { xFromT, viewMinT, viewMaxT, visibleSpan, plotWidth };
+
+      // Grid lines
+      fitPlotContext.strokeStyle = 'rgba(31, 41, 55, 0.15)';
+      fitPlotContext.lineWidth = 1;
+      fitPlotContext.beginPath();
+      for (let i = 0; i <= 4; i++) {
+        const gy = margin.t + (plotHeight * i) / 4;
+        fitPlotContext.moveTo(margin.l, gy);
+        fitPlotContext.lineTo(width - margin.r, gy);
+      }
+      fitPlotContext.stroke();
+
+      // Start / end marker shading
+      if (Number.isFinite(startMarkerTime) || Number.isFinite(endMarkerTime)) {
+        const shadeLo = Number.isFinite(startMarkerTime) ? xFromT(startMarkerTime) : margin.l;
+        const shadeHi = Number.isFinite(endMarkerTime) ? xFromT(endMarkerTime) : margin.l + plotWidth;
+        const clampedLo = clampValue(shadeLo, margin.l, margin.l + plotWidth);
+        const clampedHi = clampValue(shadeHi, margin.l, margin.l + plotWidth);
+        if (clampedHi > clampedLo) {
+          fitPlotContext.fillStyle = 'rgba(219, 234, 254, 0.38)';
+          fitPlotContext.fillRect(clampedLo, margin.t, clampedHi - clampedLo, plotHeight);
+        }
+        // Start marker line
+        if (Number.isFinite(startMarkerTime)) {
+          const sx = clampValue(xFromT(startMarkerTime), margin.l, margin.l + plotWidth);
+          fitPlotContext.save();
+          fitPlotContext.strokeStyle = '#16a34a';
+          fitPlotContext.lineWidth = 1.5;
+          fitPlotContext.setLineDash([4, 3]);
+          fitPlotContext.beginPath();
+          fitPlotContext.moveTo(sx, margin.t);
+          fitPlotContext.lineTo(sx, margin.t + plotHeight);
+          fitPlotContext.stroke();
+          fitPlotContext.restore();
+        }
+        // End marker line
+        if (Number.isFinite(endMarkerTime)) {
+          const ex = clampValue(xFromT(endMarkerTime), margin.l, margin.l + plotWidth);
+          fitPlotContext.save();
+          fitPlotContext.strokeStyle = '#dc2626';
+          fitPlotContext.lineWidth = 1.5;
+          fitPlotContext.setLineDash([4, 3]);
+          fitPlotContext.beginPath();
+          fitPlotContext.moveTo(ex, margin.t);
+          fitPlotContext.lineTo(ex, margin.t + plotHeight);
+          fitPlotContext.stroke();
+          fitPlotContext.restore();
+        }
+      }
+
+      // Draw detected change markers on the plot
+      if (detectedChanges.length > 0) {
+        fitPlotContext.save();
+        fitPlotContext.strokeStyle = '#f59e0b';
+        fitPlotContext.lineWidth = 1.2;
+        fitPlotContext.setLineDash([3, 4]);
+        for (const change of detectedChanges) {
+          const cx = xFromT(change.time);
+          if (cx < margin.l || cx > margin.l + plotWidth) continue;
+          fitPlotContext.beginPath();
+          fitPlotContext.moveTo(cx, margin.t);
+          fitPlotContext.lineTo(cx, margin.t + plotHeight);
+          fitPlotContext.stroke();
+        }
+        fitPlotContext.restore();
+      }
+
+      // Sprint finish lines
+      if (sprintState.sprints.length > 0) {
+        fitPlotContext.save();
+        fitPlotContext.lineWidth = 1.5;
+        fitPlotContext.setLineDash([2, 4]);
+        for (const sprint of sprintState.sprints) {
+          const cx = xFromT(sprint.time);
+          if (cx < margin.l || cx > margin.l + plotWidth) continue;
+          fitPlotContext.strokeStyle = sprint.isManual ? '#854d0e' : '#0369a1';
+          fitPlotContext.beginPath();
+          fitPlotContext.moveTo(cx, margin.t);
+          fitPlotContext.lineTo(cx, margin.t + plotHeight);
+          fitPlotContext.stroke();
+        }
+        fitPlotContext.restore();
+      }
+
+      // Trace lines
+      for (const series of fitSyncState.series) {
+        fitPlotContext.strokeStyle = series.color;
+        fitPlotContext.lineWidth = 1.7;
+        fitPlotContext.setLineDash([]);
+        fitPlotContext.beginPath();
+        for (let i = 0; i < series.times.length; i++) {
+          const x = xFromT(series.times[i] + (series.offset || 0));
+          const y = yFromV(series.metricValues[i]);
+          if (i === 0) fitPlotContext.moveTo(x, y);
+          else fitPlotContext.lineTo(x, y);
+        }
+        fitPlotContext.stroke();
+      }
+
+      // Axes
+      fitPlotContext.strokeStyle = '#111827';
+      fitPlotContext.lineWidth = 1;
+      fitPlotContext.setLineDash([]);
+      fitPlotContext.beginPath();
+      fitPlotContext.moveTo(margin.l, margin.t);
+      fitPlotContext.lineTo(margin.l, margin.t + plotHeight);
+      fitPlotContext.lineTo(margin.l + plotWidth, margin.t + plotHeight);
+      fitPlotContext.stroke();
+
+      // Axis labels
+      fitPlotContext.fillStyle = '#374151';
+      fitPlotContext.font = '12px sans-serif';
+      fitPlotContext.fillText(`${formatFitNum(yMax, 2)}`, 8, margin.t + 4);
+      fitPlotContext.fillText(`${formatFitNum(yMin, 2)}`, 8, margin.t + plotHeight + 4);
+      fitPlotContext.fillText(`${formatFitNum(viewMinT, 2)} s`, margin.l, height - 8);
+      fitPlotContext.fillText(`${formatFitNum(viewMaxT, 2)} s`, width - margin.r - 64, height - 8);
+
+      // Playhead (centre of view)
+      const linkedX = margin.l + plotWidth * 0.5;
+      fitPlotContext.strokeStyle = '#dc2626';
+      fitPlotContext.lineWidth = 2;
+      fitPlotContext.setLineDash([]);
+      fitPlotContext.beginPath();
+      fitPlotContext.moveTo(linkedX, margin.t);
+      fitPlotContext.lineTo(linkedX, margin.t + plotHeight);
+      fitPlotContext.stroke();
+
+      // Current values display
+      const playheadValues = fitSyncState.series
+        .map((series) => ({ label: series.label, value: getFitSeriesValueAtVideoTime(series, viewCenterT) }))
+        .filter((entry) => entry.value !== null);
+      fitCurrentValues.textContent = playheadValues.length > 0
+        ? `Values @ playhead: ${playheadValues.map((entry) => `${entry.label}: ${formatFitNum(entry.value, 4)}`).join(' | ')}`
+        : 'Values @ playhead: -';
+    }
+
+    // ─── Markers ──────────────────────────────────────────────────────────────────
+    function updateMarkerBadges() {
+      if (Number.isFinite(startMarkerTime)) {
+        startBadge.textContent = formatClockTime(startMarkerTime);
+        startBadge.classList.add('set');
+      } else {
+        startBadge.textContent = 'Not set';
+        startBadge.classList.remove('set');
+      }
+      if (Number.isFinite(endMarkerTime)) {
+        endBadge.textContent = formatClockTime(endMarkerTime);
+        endBadge.classList.add('set');
+      } else {
+        endBadge.textContent = 'Not set';
+        endBadge.classList.remove('set');
+      }
+      if (Number.isFinite(startMarkerTime) && Number.isFinite(endMarkerTime) && endMarkerTime > startMarkerTime) {
+        const dur = endMarkerTime - startMarkerTime;
+        durationBadge.textContent = `Duration: ${dur.toFixed(2)}s`;
+        durationBadge.style.display = '';
+      } else {
+        durationBadge.style.display = 'none';
+      }
+      updateDetectChangesAvailability();
+      drawFitPlot();
+    }
+
+    function markStart() {
+      startMarkerTime = video.currentTime;
+      if (Number.isFinite(endMarkerTime) && endMarkerTime <= startMarkerTime) endMarkerTime = null;
+      updateMarkerBadges();
+      recalcAutoSprints();
+      setStatus(`Start marked at ${startMarkerTime.toFixed(3)}s.`);
+    }
+
+    function markEnd() {
+      const t = video.currentTime;
+      if (Number.isFinite(startMarkerTime) && t <= startMarkerTime) {
+        setStatus('End must be after start.');
+        return;
+      }
+      endMarkerTime = t;
+      updateMarkerBadges();
+      recalcAutoSprints();
+      setStatus(`End marked at ${endMarkerTime.toFixed(3)}s.`);
+    }
+
+    function clearMarkers() {
+      startMarkerTime = null;
+      endMarkerTime = null;
+      updateMarkerBadges();
+      clearDetectedChanges();
+      recalcAutoSprints();
+      setStatus('Markers cleared.');
+    }
+
+    function updateDetectChangesAvailability() {
+      const hasMarkers = Number.isFinite(startMarkerTime) && Number.isFinite(endMarkerTime);
+      const hasTwoStreams = fitSyncState.series.length >= 2;
+      detectChangesBtn.disabled = !(hasMarkers && hasTwoStreams);
+      createReportBtn.disabled = !(hasMarkers && hasTwoStreams);
+      if (!hasMarkers) {
+        changesSummary.textContent = 'Set start & end markers, sync FIT files, then click Detect Changes.';
+      } else if (!hasTwoStreams) {
+        changesSummary.textContent = 'Assign and sync FIT files for both riders, then click Detect Changes.';
+      } else {
+        changesSummary.textContent = 'Ready — click Detect Changes to find handoffs.';
+      }
+    }
+
+    // ─── Change detection ─────────────────────────────────────────────────────────
+    function detectChanges() {
+      if (fitSyncState.series.length < 2) {
+        changesSummary.textContent = 'Need two FIT streams to detect changes.';
+        return;
+      }
+      if (!Number.isFinite(startMarkerTime) || !Number.isFinite(endMarkerTime)) {
+        changesSummary.textContent = 'Set start and end markers first.';
+        return;
+      }
+      if (endMarkerTime <= startMarkerTime) {
+        changesSummary.textContent = 'End marker must be after start marker.';
+        return;
+      }
+
+      const sampleInterval = Math.max(0.05, parseFloat(sampleIntervalInput.value) || 0.1);
+      const minGap = Math.max(1, parseFloat(minGapInput.value) || 8);
+
+      const s0 = fitSyncState.series[0];
+      const s1 = fitSyncState.series[1];
+
+      // Build a uniform time grid over the marked range
+      const times = [];
+      const vals0 = [];
+      const vals1 = [];
+
+      for (let t = startMarkerTime; t <= endMarkerTime + sampleInterval * 0.5; t += sampleInterval) {
+        const v0 = getFitSeriesValueAtVideoTime(s0, t);
+        const v1 = getFitSeriesValueAtVideoTime(s1, t);
+        if (v0 !== null && v1 !== null) {
+          times.push(t);
+          vals0.push(v0);
+          vals1.push(v1);
+        }
+      }
+
+      if (times.length < 4) {
+        changesSummary.textContent = 'Not enough data points in the marked range.';
+        return;
+      }
+
+      // Find sign changes in (vals0 - vals1). Equal values (diff=0) between two
+      // opposite-sign regions still count as a crossing — track last non-zero diff.
+      const changes = [];
+      let lastNZIdx = -1; // index of last sample where diff !== 0
+      for (let i = 0; i < times.length; i++) {
+        const d = vals0[i] - vals1[i];
+        if (d === 0) continue;
+        if (lastNZIdx >= 0) {
+          const dPrev = vals0[lastNZIdx] - vals1[lastNZIdx];
+          if (dPrev * d < 0) {
+            // Sign changed — interpolate crossing time between the two non-zero samples
+            const crossT = times[lastNZIdx] + (-dPrev) * (times[i] - times[lastNZIdx]) / (d - dPrev);
+            const lastTime = changes.length > 0 ? changes[changes.length - 1].time : -Infinity;
+            if (crossT - lastTime >= minGap) {
+              changes.push({
+                time: crossT,
+                // dPrev > 0 means series0 was higher before → series0 is outgoing
+                outgoingRider: dPrev > 0 ? s0.riderIndex : s1.riderIndex,
+                incomingRider: dPrev > 0 ? s1.riderIndex : s0.riderIndex
+              });
+            }
+          }
+        }
+        lastNZIdx = i;
+      }
+
+      detectedChanges = changes;
+      renderChangesTable();
+      drawFitPlot();
+
+      if (changes.length === 0) {
+        changesSummary.textContent = 'No crossings detected. Try adjusting smoothing, min gap, or sync offsets.';
+      } else {
+        changesSummary.textContent = `${changes.length} change${changes.length === 1 ? '' : 's'} detected.`;
+      }
+    }
+
+    function clearDetectedChanges() {
+      detectedChanges = [];
+      renderChangesTable();
+      drawFitPlot();
+      changesSummary.textContent = 'Changes cleared.';
+    }
+
+    function recalcAutoSprints() {
+      const n = Math.max(0, parseInt(sprintCountInput.value) || 0);
+      sprintState.count = n;
+      sprintSetGroup.style.display = n > 0 ? 'flex' : 'none';
+      sprintSetIndexInput.max = n;
+      if (n <= 0 || !Number.isFinite(startMarkerTime) || !Number.isFinite(endMarkerTime)) {
+        // Preserve manual sprints but clear auto ones if count changed
+        sprintState.sprints = sprintState.sprints
+          .filter(s => s.isManual && s.index < n)
+          .map(s => ({ ...s }));
+        renderChangesTable();
+        return;
+      }
+      const duration = endMarkerTime - startMarkerTime;
+      const newSprints = [];
+      for (let i = 0; i < n; i++) {
+        const existing = sprintState.sprints.find(s => s.index === i);
+        if (existing && existing.isManual) {
+          newSprints.push(existing);
+        } else {
+          newSprints.push({ index: i, time: startMarkerTime + ((i + 1) / n) * duration, isManual: false });
+        }
+      }
+      sprintState.sprints = newSprints;
+      renderChangesTable();
+    }
+
+    function renderChangesTable() {
+      changesTableBody.innerHTML = '';
+
+      // Merge rider changes and sprint markers, sorted by time
+      const items = [
+        ...detectedChanges.map(c => ({ ...c, _kind: 'change' })),
+        ...sprintState.sprints.map(s => ({ ...s, _kind: 'sprint' }))
+      ].sort((a, b) => a.time - b.time);
+
+      if (items.length === 0) {
+        changesTable.hidden = true;
+        return;
+      }
+      const names  = getRiderNames();
+      const colors = RIDER_PALETTE;
+      let changeNum = 0;
+
+      items.forEach((item) => {
+        const elapsed = Number.isFinite(startMarkerTime) ? item.time - startMarkerTime : item.time;
+        const tr = document.createElement('tr');
+
+        if (item._kind === 'sprint') {
+          const sprintNum = item.index + 1;
+          const badge = item.isManual
+            ? '<span class="sprint-badge sprint-badge-manual">Manual</span>'
+            : '<span class="sprint-badge sprint-badge-auto">Auto</span>';
+          tr.className = 'sprint-row';
+          tr.innerHTML = `
+            <td><strong>S${sprintNum}</strong></td>
+            <td>${formatClockTime(item.time)}</td>
+            <td>${elapsed.toFixed(2)}</td>
+            <td colspan="2"><span class="sprint-label">Sprint ${sprintNum} Finish</span>${badge}</td>
+            <td><button class="jump-btn" data-time="${item.time}">&#9654; Go</button></td>
+          `;
+        } else {
+          changeNum++;
+          const outName  = names[item.outgoingRider] || `Rider ${item.outgoingRider + 1}`;
+          const inName   = names[item.incomingRider] || `Rider ${item.incomingRider + 1}`;
+          const outColor = colors[item.outgoingRider % colors.length];
+          const inColor  = colors[item.incomingRider % colors.length];
+          tr.innerHTML = `
+            <td>${changeNum}</td>
+            <td>${formatClockTime(item.time)}</td>
+            <td>${elapsed.toFixed(2)}</td>
+            <td><span class="rider-pill" style="background:${outColor}">${outName}</span></td>
+            <td><span class="rider-pill" style="background:${inColor}">${inName}</span></td>
+            <td><button class="jump-btn" data-time="${item.time}">&#9654; Go</button></td>
+          `;
+        }
+        changesTableBody.appendChild(tr);
+      });
+      changesTable.hidden = false;
+    }
+
+    // ─── Video controls ───────────────────────────────────────────────────────────
+    function stepNextFrame() {
+      video.pause();
+      const duration = Number.isFinite(video.duration) ? video.duration : Infinity;
+      video.currentTime = Math.min(duration, video.currentTime + frameDuration());
+    }
+
+    function stepPrevFrame() {
+      video.pause();
+      video.currentTime = Math.max(0, video.currentTime - frameDuration());
+    }
+
+    function jumpForward() {
+      video.pause();
+      const duration = Number.isFinite(video.duration) ? video.duration : Infinity;
+      video.currentTime = Math.min(duration, video.currentTime + getJumpSeconds());
+    }
+
+    function jumpBackward() {
+      video.pause();
+      video.currentTime = Math.max(0, video.currentTime - getJumpSeconds());
+    }
+
+    // ─── Event listeners ──────────────────────────────────────────────────────────
+
+    // Frame step buttons (hold-to-repeat)
+    let nextFrameInterval = null;
+    let prevFrameInterval = null;
+
+    nextFrameBtn.addEventListener('mousedown', () => {
+      stepNextFrame();
+      nextFrameInterval = setInterval(stepNextFrame, 80);
+    });
+    nextFrameBtn.addEventListener('mouseup', () => clearInterval(nextFrameInterval));
+    nextFrameBtn.addEventListener('mouseleave', () => clearInterval(nextFrameInterval));
+    nextFrameBtn.addEventListener('touchstart', () => {
+      stepNextFrame();
+      nextFrameInterval = setInterval(stepNextFrame, 80);
+    });
+    nextFrameBtn.addEventListener('touchend', () => clearInterval(nextFrameInterval));
+
+    prevFrameBtn.addEventListener('mousedown', () => {
+      stepPrevFrame();
+      prevFrameInterval = setInterval(stepPrevFrame, 80);
+    });
+    prevFrameBtn.addEventListener('mouseup', () => clearInterval(prevFrameInterval));
+    prevFrameBtn.addEventListener('mouseleave', () => clearInterval(prevFrameInterval));
+    prevFrameBtn.addEventListener('touchstart', () => {
+      stepPrevFrame();
+      prevFrameInterval = setInterval(stepPrevFrame, 80);
+    });
+    prevFrameBtn.addEventListener('touchend', () => clearInterval(prevFrameInterval));
+
+    startBtn.addEventListener('click', markStart);
+    endBtn.addEventListener('click', markEnd);
+    clearMarkersBtn.addEventListener('click', clearMarkers);
+
+    videoInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      videoFileName = file.name.replace(/\.[^.]+$/, '');
+      video.src = URL.createObjectURL(file);
+      video.load();
+      video.style.display = '';
+      video.addEventListener('focus', () => video.blur());
+      setStatus('Video loaded. Mark the start and end of the effort.');
+    });
+
+    riderInputs.forEach((input) => input.addEventListener('input', () => {
+      renderFitAssignments({ rebuild: false });
+      if (fitSyncState.metricKey) buildFitSeries(fitSyncState.metricKey);
+      else {
+        renderFitLegend();
+        renderFitSyncTargets();
+        drawFitPlot();
+        updateDiagnosticDisplay();
+      }
+      renderChangesTable();
+    }));
+
+    // FIT files
+    fitFilesInput.addEventListener('change', async (event) => {
+      const files = Array.from(event.target.files || []);
+      if (files.length === 0) return;
+      await loadFitFilesToPool(files);
+      fitFilesInput.value = '';
+    });
+
+    fitSaveSyncBtn.addEventListener('click', () => {
+      if (fitSyncState.parsedFiles.length === 0) {
+        setFitStatus('Load and assign FIT files before saving sync.');
+        return;
+      }
+      const payload = buildSyncedFitExportPayload();
+      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${videoFileName || 'session'} Synced FIT.mdsync`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      setFitStatus('Synced FIT file saved.', 'ok');
+    });
+
+    fitUploadSyncBtn.addEventListener('click', () => fitSyncedUploadInput.click());
+
+    fitSyncedUploadInput.addEventListener('change', (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (loadEvent) => {
+        try {
+          const payload = JSON.parse(String(loadEvent.target.result || '{}'));
+          restoreSyncedFitPayload(payload);
+          setFitStatus('Synced FIT file loaded.', 'ok');
+        } catch (error) {
+          console.error(error);
+          setFitStatus(error.message || 'Failed to load synced FIT file.');
+        } finally {
+          fitSyncedUploadInput.value = '';
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // Metric select
+    fitMetricSelect.addEventListener('change', (event) => {
+      buildFitSeries(event.target.value);
+    });
+
+    // Scale / sensitivity sliders
+    fitScaleControl.addEventListener('input', (event) => {
+      const raw = toNumeric(event.target.value);
+      if (raw === null) return;
+      fitSyncState.viewScale = clampValue(raw / 100, 0.05, 1.0);
+      updateFitControlLabels();
+      drawFitPlot();
+    });
+
+    fitSensitivityControl.addEventListener('input', (event) => {
+      const raw = toNumeric(event.target.value);
+      if (raw === null) return;
+      fitSyncState.dragSensitivity = clampValue(raw / 100, 0.05, 3);
+      updateFitControlLabels();
+    });
+
+    fitSnapBtn.addEventListener('click', () => snapFitSeriesToPlayhead());
+
+    // FIT plot drag
+    fitPlot.addEventListener('contextmenu', (event) => event.preventDefault());
+
+    fitPlot.addEventListener('pointerdown', (event) => {
+      if (!fitSyncState.drawingData) return;
+      fitPlot.setPointerCapture(event.pointerId);
+      fitSyncState.dragLastX = event.clientX;
+      fitSyncState.pointerMode = event.button === 2 ? 'right' : 'left';
+    });
+
+    fitPlot.addEventListener('pointermove', (event) => {
+      if (fitSyncState.pointerMode === 'none' || !fitSyncState.drawingData) return;
+      const dx = event.clientX - fitSyncState.dragLastX;
+      fitSyncState.dragLastX = event.clientX;
+      const secondsPerPixel = fitSyncState.drawingData.visibleSpan / (fitSyncState.drawingData.plotWidth || 1);
+      const deltaT = dx * secondsPerPixel * fitSyncState.dragSensitivity;
+      if (fitSyncState.pointerMode === 'right') {
+        const selectedSet = getSelectedFitTargetSet();
+        for (const series of fitSyncState.series) {
+          if (!selectedSet.has(series.riderIndex)) continue;
+          series.offset = (series.offset || 0) + deltaT;
+          const stream = fitSyncState.streams[series.riderIndex];
+          if (stream) stream.offset = series.offset;
+        }
+        updateFitStats();
+        drawFitPlot();
+      } else if (fitSyncState.pointerMode === 'left') {
+        const currentVideoT = Number.isFinite(video.currentTime) ? video.currentTime : 0;
+        const nextVideoT = currentVideoT - deltaT;
+        if (Number.isFinite(video.duration)) {
+          video.currentTime = clampValue(nextVideoT, 0, video.duration);
+        } else {
+          video.currentTime = Math.max(0, nextVideoT);
+        }
+        updateFitStats();
+        drawFitPlot();
+      }
+    });
+
+    function releaseFitPointer(event) {
+      if (fitPlot.hasPointerCapture(event.pointerId)) fitPlot.releasePointerCapture(event.pointerId);
+      fitSyncState.pointerMode = 'none';
+    }
+    fitPlot.addEventListener('pointerup', releaseFitPointer);
+    fitPlot.addEventListener('pointercancel', releaseFitPointer);
+
+    // Sync target buttons
+    fitSyncTargets.addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-target]');
+      if (!button) return;
+      const target = button.dataset.target;
+      if (target === 'all') {
+        fitSyncState.syncTargetRiderIndexes = fitSyncState.series.map((series) => series.riderIndex);
+        renderFitSyncTargets();
+        updateFitStats();
+        drawFitPlot();
+        return;
+      }
+      const riderIndex = parseInt(target, 10);
+      if (!Number.isFinite(riderIndex)) return;
+      const next = new Set(fitSyncState.syncTargetRiderIndexes || []);
+      if (next.has(riderIndex)) next.delete(riderIndex);
+      else next.add(riderIndex);
+      fitSyncState.syncTargetRiderIndexes = Array.from(next);
+      renderFitSyncTargets();
+      updateFitStats();
+      drawFitPlot();
+    });
+
+    // Drag and drop for FIT chips
+    function clearFitDropzoneHighlights() {
+      document.querySelectorAll('.fit-dropzone.over').forEach((el) => el.classList.remove('over'));
+    }
+
+    document.addEventListener('dragstart', (event) => {
+      const chip = event.target.closest('.fit-file-chip[data-fit-file-id]');
+      if (!chip) return;
+      event.dataTransfer.setData('text/plain', chip.dataset.fitFileId);
+      event.dataTransfer.effectAllowed = 'move';
+    });
+
+    document.addEventListener('dragover', (event) => {
+      const zone = event.target.closest('.fit-dropzone');
+      if (!zone) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      clearFitDropzoneHighlights();
+      zone.classList.add('over');
+    });
+
+    document.addEventListener('dragleave', (event) => {
+      const zone = event.target.closest('.fit-dropzone');
+      if (!zone) return;
+      zone.classList.remove('over');
+    });
+
+    document.addEventListener('drop', (event) => {
+      const zone = event.target.closest('.fit-dropzone');
+      if (!zone) return;
+      event.preventDefault();
+      clearFitDropzoneHighlights();
+      const fileId = parseInt(event.dataTransfer.getData('text/plain'), 10);
+      if (!Number.isFinite(fileId)) return;
+      const dropTarget = zone.dataset.dropTarget;
+      if (dropTarget === 'unassigned') {
+        unassignFitFile(fileId);
+        return;
+      }
+      if (dropTarget === 'rider') {
+        const riderIndex = parseInt(zone.dataset.riderIndex, 10);
+        if (!Number.isFinite(riderIndex)) return;
+        assignFitFileToRider(fileId, riderIndex);
+      }
+    });
+
+    // Change detection buttons
+    detectChangesBtn.addEventListener('click', detectChanges);
+    clearChangesBtn.addEventListener('click', clearDetectedChanges);
+    createReportBtn.addEventListener('click', openReport);
+
+    // Sprint count input
+    sprintCountInput.addEventListener('input', recalcAutoSprints);
+
+    // Set sprint finish button
+    setSprintBtn.addEventListener('click', () => {
+      const n = sprintState.count;
+      if (n <= 0) return;
+      const idx = Math.min(n, Math.max(1, parseInt(sprintSetIndexInput.value) || 1)) - 1;
+      const t   = video.currentTime;
+      const was = sprintState.sprints[idx];
+      const wasAuto = was ? !was.isManual : true;
+      sprintState.sprints[idx] = { index: idx, time: t, isManual: true };
+      renderChangesTable();
+      const label = `Sprint ${idx + 1}: ${wasAuto ? 'auto' : 'manual'} \u2192 manually set at ${formatClockTime(t)}`;
+      sprintSetDiag.textContent = label;
+      // Advance to next sprint
+      const nextIdx = idx + 1;
+      if (nextIdx < n) {
+        sprintSetIndexInput.value = nextIdx + 1;
+        const nextSprint = sprintState.sprints[nextIdx];
+        if (nextSprint && Number.isFinite(nextSprint.time) && Number.isFinite(video.duration)) {
+          video.currentTime = clampValue(nextSprint.time - 3, 0, video.duration);
+          updateFitStats();
+          drawFitPlot();
+        }
+      }
+    });
+
+    closeReportModalBtn.addEventListener('click', closeReport);
+    printReportBtn.addEventListener('click', () => window.print());
+    reportModal.addEventListener('click', (e) => { if (e.target === reportModal) closeReport(); });
+
+    // Changes table: jump-to-time buttons
+    changesTable.addEventListener('click', (event) => {
+      const btn = event.target.closest('.jump-btn[data-time]');
+      if (!btn) return;
+      const t = parseFloat(btn.dataset.time);
+      if (Number.isFinite(t) && Number.isFinite(video.duration)) {
+        video.currentTime = clampValue(t - 3, 0, video.duration);
+        video.pause();
+        updateFitStats();
+        drawFitPlot();
+        video.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      const tag = document.activeElement && document.activeElement.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      const key = e.key.toLowerCase();
+
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      if (e.ctrlKey && e.key === 'ArrowRight') { jumpForward(); return; }
+      if (e.ctrlKey && e.key === 'ArrowLeft')  { jumpBackward(); return; }
+
+      if (e.key === 'ArrowRight') {
+        stepNextFrame();
+      } else if (e.key === 'ArrowLeft') {
+        stepPrevFrame();
+      } else if (key === 's') {
+        markStart();
+      } else if (key === 'e') {
+        markEnd();
+      } else if (e.key === ' ') {
+        if (video.paused) video.play();
+        else video.pause();
+      } else {
+        return;
+      }
+      e.preventDefault();
+    });
+
+    // Video time update
+    video.addEventListener('timeupdate', () => {
+      currentTimeDisplay.textContent = video.currentTime.toFixed(2);
+      updateFitStats();
+      drawFitPlot();
+      updateDiagnosticDisplay();
+    });
+
+    video.addEventListener('loadedmetadata', () => {
+      updateFitStats();
+      drawFitPlot();
+    });
+
+    window.addEventListener('resize', () => drawFitPlot());
+
+    // ─── Report ─────────────────────────────────────────────────────────────────────────
+
+    function sampleAvgFromSeries(series, fromT, toT, interval) {
+      let sum = 0, count = 0;
+      for (let t = fromT; t <= toT + interval * 0.1; t += interval) {
+        const v = getFitSeriesValueAtVideoTime(series, t);
+        if (v !== null) { sum += v; count++; }
+      }
+      return count > 0 ? sum / count : null;
+    }
+
+    function buildTempSeriesForMetric(stream, metricKey) {
+      if (!stream || !stream.rows) return null;
+      const points = [];
+      for (const row of stream.rows) {
+        const t = toNumeric(row[stream.timeColumnKey]);
+        const y = toNumeric(row[metricKey]);
+        if (t !== null && y !== null) points.push({ t, y });
+      }
+      points.sort((a, b) => a.t - b.t);
+      if (points.length < 2) return null;
+      const baseTime = points[0].t;
+      return {
+        riderIndex: stream.riderIndex,
+        offset: stream.offset || 0,
+        times: points.map((p) => p.t - baseTime),
+        metricValues: points.map((p) => p.y)
+      };
+    }
+
+    function buildReportData() {
+      if (fitSyncState.series.length < 2) return null;
+      if (!Number.isFinite(startMarkerTime) || !Number.isFinite(endMarkerTime)) return null;
+
+      const s0 = fitSyncState.series[0];
+      const s1 = fitSyncState.series[1];
+      const interval = Math.max(0.05, parseFloat(sampleIntervalInput.value) || 0.1);
+
+      const boundaries = [startMarkerTime, ...detectedChanges.map((c) => c.time), endMarkerTime];
+
+      // Who is leading at the start
+      let initialInRider;
+      if (detectedChanges.length > 0) {
+        initialInRider = detectedChanges[0].outgoingRider;
+      } else {
+        const a0 = sampleAvgFromSeries(s0, startMarkerTime, endMarkerTime, interval);
+        const a1 = sampleAvgFromSeries(s1, startMarkerTime, endMarkerTime, interval);
+        initialInRider = (a0 !== null && a1 !== null && a1 > a0) ? s1.riderIndex : s0.riderIndex;
+      }
+
+      // Check for separate power metric
+      const stream0 = fitSyncState.streams[s0.riderIndex];
+      const stream1 = fitSyncState.streams[s1.riderIndex];
+      const hasPowerInBoth = stream0 && stream1 &&
+        stream0.metricColumns.includes('power') && stream1.metricColumns.includes('power');
+      const hasSeparatePower = hasPowerInBoth && fitSyncState.metricKey !== 'power';
+      const powerSeries0 = hasSeparatePower ? buildTempSeriesForMetric(stream0, 'power') : null;
+      const powerSeries1 = hasSeparatePower ? buildTempSeriesForMetric(stream1, 'power') : null;
+
+      const cadenceSeries0 = buildTempSeriesForMetric(stream0, 'cadence');
+      const cadenceSeries1 = buildTempSeriesForMetric(stream1, 'cadence');
+      const hasCadence = !!(cadenceSeries0 && cadenceSeries1);
+
+      const torqueSeries0 = buildTempSeriesForMetric(stream0, 'torque');
+      const torqueSeries1 = buildTempSeriesForMetric(stream1, 'torque');
+      const hasTorque = !!(torqueSeries0 && torqueSeries1);
+
+      const stints = [];
+      let currentInRider = initialInRider;
+
+      for (let i = 0; i < boundaries.length - 1; i++) {
+        const stintStart = boundaries[i];
+        const stintEnd   = boundaries[i + 1];
+
+        // avgMetric indexed by riderIndex (0 or 1)
+        const avgMetric = [null, null];
+        avgMetric[s0.riderIndex] = sampleAvgFromSeries(s0, stintStart, stintEnd, interval);
+        avgMetric[s1.riderIndex] = sampleAvgFromSeries(s1, stintStart, stintEnd, interval);
+
+        const avgPower = [null, null];
+        if (hasSeparatePower && powerSeries0 && powerSeries1) {
+          avgPower[s0.riderIndex] = sampleAvgFromSeries(powerSeries0, stintStart, stintEnd, interval);
+          avgPower[s1.riderIndex] = sampleAvgFromSeries(powerSeries1, stintStart, stintEnd, interval);
+        }
+
+        const avgCadence = [null, null];
+        if (hasCadence) {
+          avgCadence[s0.riderIndex] = sampleAvgFromSeries(cadenceSeries0, stintStart, stintEnd, interval);
+          avgCadence[s1.riderIndex] = sampleAvgFromSeries(cadenceSeries1, stintStart, stintEnd, interval);
+        }
+
+        const avgTorque = [null, null];
+        if (hasTorque) {
+          avgTorque[s0.riderIndex] = sampleAvgFromSeries(torqueSeries0, stintStart, stintEnd, interval);
+          avgTorque[s1.riderIndex] = sampleAvgFromSeries(torqueSeries1, stintStart, stintEnd, interval);
+        }
+
+        stints.push({
+          index: i,
+          startTime: stintStart,
+          endTime: stintEnd,
+          duration: stintEnd - stintStart,
+          inRider: currentInRider,
+          outRider: 1 - currentInRider,
+          avgMetric,
+          avgPower,
+          avgCadence,
+          avgTorque
+        });
+
+        if (i < detectedChanges.length) currentInRider = detectedChanges[i].incomingRider;
+      }
+
+      return { stints, hasSeparatePower, hasCadence, hasTorque };
+    }
+
+    // Overlap bar chart: for each group draw a wide bar (in-rider) then a narrower bar
+    // on top (out-rider), both starting from 0.
+    // groups: [{label, inVal, outVal}]
+    function drawOverlapBarChart(canvas, groups, inColor, outColor, options = {}) {
+      const { yLabel = '', inName = 'In', outName = 'Out' } = options;
+      const dpr = window.devicePixelRatio || 1;
+      const W = Math.max(100, canvas.clientWidth  || 500);
+      const H = Math.max(80,  canvas.clientHeight || 300);
+      canvas.width  = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, W, H);
+
+      const margin = { l: 54, r: 16, t: 18, b: 46 };
+      const pw = W - margin.l - margin.r;
+      const ph = H - margin.t - margin.b;
+
+      let maxVal = 0;
+      for (const g of groups) {
+        if (Number.isFinite(g.inVal)  && g.inVal  > maxVal) maxVal = g.inVal;
+        if (Number.isFinite(g.outVal) && g.outVal > maxVal) maxVal = g.outVal;
+      }
+      if (maxVal === 0) maxVal = 1;
+      maxVal *= 1.12;
+
+      const yBase  = margin.t + ph;
+      const yFromV = (v) => margin.t + (1 - v / maxVal) * ph;
+      const groupW = pw / Math.max(1, groups.length);
+      const wideW  = groupW * 0.72;
+      const narrowW = wideW * 0.60;
+      const wideOff  = (groupW - wideW)   / 2;
+      const narrowOff = (groupW - narrowW) / 2;
+
+      // Grid lines
+      ctx.strokeStyle = 'rgba(31,41,55,0.10)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([]);
+      for (let i = 0; i <= 4; i++) {
+        const gy = margin.t + ph * i / 4;
+        ctx.beginPath();
+        ctx.moveTo(margin.l, gy); ctx.lineTo(W - margin.r, gy);
+        ctx.stroke();
+        ctx.fillStyle = '#64748b';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText((maxVal * (1 - i / 4)).toFixed(0), margin.l - 4, gy + 4);
+      }
+
+      for (let g = 0; g < groups.length; g++) {
+        const gLeft = margin.l + g * groupW;
+        const inV   = groups[g].inVal;
+        const outV  = groups[g].outVal;
+
+        // In-rider bar (wider, behind)
+        if (Number.isFinite(inV) && inV > 0) {
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = inColor;
+          const x  = gLeft + wideOff;
+          const bH = yBase - yFromV(inV);
+          ctx.fillRect(x, yFromV(inV), wideW, bH);
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = '#1e293b';
+          ctx.font = 'bold 10px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(inV.toFixed(0), x + wideW / 2, Math.max(margin.t + 10, yFromV(inV) - 3));
+        }
+
+        // Out-rider bar (narrower, in front)
+        if (Number.isFinite(outV) && outV > 0) {
+          ctx.globalAlpha = 0.85;
+          ctx.fillStyle = outColor;
+          const x  = gLeft + narrowOff;
+          const bH = yBase - yFromV(outV);
+          ctx.fillRect(x, yFromV(outV), narrowW, bH);
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = '#1e293b';
+          ctx.font = '10px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(outV.toFixed(0), x + narrowW / 2, Math.max(margin.t + 12, yFromV(outV) - 4));
+        }
+
+        // Group label
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#334155';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(groups[g].label, gLeft + groupW / 2, H - margin.b + 14);
+      }
+
+      // Axes
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(margin.l, margin.t);
+      ctx.lineTo(margin.l, yBase);
+      ctx.lineTo(margin.l + pw, yBase);
+      ctx.stroke();
+
+      if (yLabel) {
+        ctx.save();
+        ctx.fillStyle = '#475569';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.translate(12, margin.t + ph / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText(yLabel, 0, 0);
+        ctx.restore();
+      }
+
+      // Legend
+      const legendItems = [
+        { label: `${inName} (leading)`,   color: inColor,  alpha: 1.0 },
+        { label: `${outName} (recovering)`, color: outColor, alpha: 0.85 }
+      ];
+      let lx = margin.l;
+      const ly = H - 5;
+      for (const li of legendItems) {
+        ctx.globalAlpha = li.alpha;
+        ctx.fillStyle = li.color;
+        ctx.fillRect(lx, ly - 10, 12, 10);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#334155';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(li.label, lx + 15, ly);
+        lx += 15 + ctx.measureText(li.label).width + 16;
+      }
+    }
+
+    // Timeline bar chart: bars positioned and sized proportionally to stint duration on race x-axis.
+    // groups: [{startElapsed, duration, inVal, outVal, inColor, outColor, label}]
+    function drawTimelineBarChart(canvas, groups, raceDuration, options = {}) {
+      const { yLabel = '' } = options;
+      const dpr = window.devicePixelRatio || 1;
+      const W = Math.max(100, canvas.clientWidth  || 500);
+      const H = Math.max(80,  canvas.clientHeight || 300);
+      canvas.width  = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, W, H);
+
+      const margin = { l: 54, r: 16, t: 18, b: 36 };
+      const pw = W - margin.l - margin.r;
+      const ph = H - margin.t - margin.b;
+
+      let maxVal = 0;
+      for (const g of groups) {
+        if (Number.isFinite(g.inVal)  && g.inVal  > maxVal) maxVal = g.inVal;
+        if (Number.isFinite(g.outVal) && g.outVal > maxVal) maxVal = g.outVal;
+      }
+      if (maxVal === 0) maxVal = 1;
+      maxVal *= 1.12;
+
+      const yBase  = margin.t + ph;
+      const rd     = Math.max(0.001, raceDuration);
+      const yFromV = (v) => margin.t + (1 - v / maxVal) * ph;
+      const xFromE = (e) => margin.l + (e / rd) * pw;
+      const wFromD = (d) => Math.max(2, (d / rd) * pw - 1);
+
+      // Horizontal grid lines
+      ctx.strokeStyle = 'rgba(31,41,55,0.10)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([]);
+      for (let i = 0; i <= 4; i++) {
+        const gy = margin.t + ph * i / 4;
+        ctx.beginPath();
+        ctx.moveTo(margin.l, gy);
+        ctx.lineTo(W - margin.r, gy);
+        ctx.stroke();
+        ctx.fillStyle = '#64748b';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText((maxVal * (1 - i / 4)).toFixed(0), margin.l - 4, gy + 4);
+      }
+
+      // Sprint finish lines
+      if (sprintState.sprints.length > 0) {
+        ctx.save();
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 4]);
+        for (const sprint of sprintState.sprints) {
+          const sx = xFromE(sprint.time - startMarkerTime);
+          if (sx < margin.l || sx > margin.l + pw) continue;
+          ctx.strokeStyle = sprint.isManual ? '#854d0e' : '#0369a1';
+          ctx.beginPath();
+          ctx.moveTo(sx, margin.t);
+          ctx.lineTo(sx, yBase);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      // Bars
+      for (const g of groups) {
+        const x    = xFromE(g.startElapsed);
+        const barW = wFromD(g.duration);
+        const narrowW   = barW * 0.60;
+        const narrowOff = (barW - narrowW) / 2;
+
+        // In-rider bar (full width)
+        if (Number.isFinite(g.inVal) && g.inVal > 0) {
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = g.inColor;
+          ctx.fillRect(x, yFromV(g.inVal), barW, yBase - yFromV(g.inVal));
+          if (barW > 20) {
+            ctx.fillStyle = '#1e293b';
+            ctx.font = 'bold 9px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(g.inVal.toFixed(0), x + barW / 2, Math.max(margin.t + 10, yFromV(g.inVal) - 3));
+          }
+        }
+
+        // Out-rider bar (narrower, in front)
+        if (Number.isFinite(g.outVal) && g.outVal > 0) {
+          ctx.globalAlpha = 0.82;
+          ctx.fillStyle = g.outColor;
+          ctx.fillRect(x + narrowOff, yFromV(g.outVal), narrowW, yBase - yFromV(g.outVal));
+          ctx.globalAlpha = 1;
+        }
+
+        // Stint label below x-axis (only if wide enough)
+        ctx.globalAlpha = 1;
+        if (barW > 14) {
+          ctx.fillStyle = '#475569';
+          ctx.font = '9px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(g.label, x + barW / 2, yBase + 12);
+        }
+      }
+
+      // Axes
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(margin.l, margin.t);
+      ctx.lineTo(margin.l, yBase);
+      ctx.lineTo(margin.l + pw, yBase);
+      ctx.stroke();
+
+      // X-axis time ticks (elapsed MM:SS)
+      ctx.fillStyle = '#64748b';
+      ctx.font = '9px sans-serif';
+      const nTicks = 5;
+      for (let i = 0; i <= nTicks; i++) {
+        const t  = (i / nTicks) * raceDuration;
+        const tx = xFromE(t);
+        ctx.textAlign = i === 0 ? 'left' : i === nTicks ? 'right' : 'center';
+        const secs = Math.round(t);
+        const mm = String(Math.floor(secs / 60)).padStart(2, '0');
+        const ss = String(secs % 60).padStart(2, '0');
+        ctx.fillText(`${mm}:${ss}`, tx, H - 4);
+      }
+
+      // Y-axis label
+      if (yLabel) {
+        ctx.save();
+        ctx.fillStyle = '#475569';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.translate(12, margin.t + ph / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText(yLabel, 0, 0);
+        ctx.restore();
+      }
+    }
+
+    function renderReport() {
+      const data = buildReportData();
+      if (!data) {
+        reportContent.innerHTML = '<p style="color:#dc2626;padding:10px;">Cannot build report: need two assigned FIT series and valid start/end markers.</p>';
+        return;
+      }
+
+      const { stints, hasSeparatePower, hasCadence, hasTorque } = data;
+      const names   = getRiderNames();
+      const metric  = fitSyncState.metricKey || 'metric';
+      const session = sessionInput.value.trim() || 'Madison Session';
+      const yLabel  = hasSeparatePower ? 'Watts' : metric;
+      const hasPowerData = hasSeparatePower || metric === 'power';
+      const raceDuration = endMarkerTime - startMarkerTime;
+
+      reportModalTitle.textContent = `${session} \u2014 Madison Report`;
+
+      const statsHtml = `
+        <div class="report-stats-row">
+          <span class="report-stat-chip"><strong>${session}</strong></span>
+          <span class="report-stat-chip"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${RIDER_PALETTE[0]};vertical-align:middle;margin-right:4px;"></span>${names[0]}</span>
+          <span class="report-stat-chip"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${RIDER_PALETTE[1]};vertical-align:middle;margin-right:4px;"></span>${names[1]}</span>
+          <span class="report-stat-chip">Duration: <strong>${raceDuration.toFixed(1)}s</strong></span>
+          <span class="report-stat-chip">Changes: <strong>${detectedChanges.length}</strong></span>
+          <span class="report-stat-chip">Stints: <strong>${stints.length}</strong></span>
+          <span class="report-stat-chip">Showing: <strong>${yLabel}</strong></span>
+        </div>`;
+
+      const toggleHtml = `
+        <div class="rpt-view-toggle">
+          <button class="rpt-view-btn${reportViewMode === 'split' ? ' active' : ''}" onclick="window._rpSetView('split')">Split by rider</button>
+          <button class="rpt-view-btn${reportViewMode === 'merged' ? ' active' : ''}" onclick="window._rpSetView('merged')">Merged timeline</button>
+        </div>`;
+
+      // Per-rider groups for split view (each positioned on full race timeline)
+      const splitGroups = [0, 1].map(ri =>
+        stints
+          .filter(s => s.inRider === ri)
+          .map(s => ({
+            startElapsed: s.startTime - startMarkerTime,
+            duration: s.duration,
+            inVal:  hasSeparatePower ? s.avgPower[ri]     : s.avgMetric[ri],
+            outVal: hasSeparatePower ? s.avgPower[1 - ri] : s.avgMetric[1 - ri],
+            inColor:  RIDER_PALETTE[ri],
+            outColor: RIDER_PALETTE[1 - ri],
+            label: `S${s.index + 1}`
+          }))
+      );
+
+      // All stints merged onto one timeline, colored by in-rider
+      const mergedGroups = stints.map(s => ({
+        startElapsed: s.startTime - startMarkerTime,
+        duration: s.duration,
+        inVal:  hasSeparatePower ? s.avgPower[s.inRider]  : s.avgMetric[s.inRider],
+        outVal: hasSeparatePower ? s.avgPower[s.outRider] : s.avgMetric[s.outRider],
+        inColor:  RIDER_PALETTE[s.inRider],
+        outColor: RIDER_PALETTE[s.outRider],
+        label: `S${s.index + 1}`
+      }));
+
+      // Accumulate per-stint stats for summary table
+      const riderBuckets = [
+        { in: { power: [], cadence: [], torque: [] }, out: { power: [], cadence: [], torque: [] } },
+        { in: { power: [], cadence: [], torque: [] }, out: { power: [], cadence: [], torque: [] } }
+      ];
+      for (const s of stints) {
+        const inR  = s.inRider;
+        const outR = s.outRider;
+        if (hasPowerData) {
+          const inPwr  = hasSeparatePower ? s.avgPower[inR]  : s.avgMetric[inR];
+          const outPwr = hasSeparatePower ? s.avgPower[outR] : s.avgMetric[outR];
+          if (Number.isFinite(inPwr))  riderBuckets[inR].in.power.push(inPwr);
+          if (Number.isFinite(outPwr)) riderBuckets[outR].out.power.push(outPwr);
+        }
+        if (hasCadence) {
+          if (Number.isFinite(s.avgCadence[inR]))  riderBuckets[inR].in.cadence.push(s.avgCadence[inR]);
+          if (Number.isFinite(s.avgCadence[outR])) riderBuckets[outR].out.cadence.push(s.avgCadence[outR]);
+        }
+        if (hasTorque) {
+          if (Number.isFinite(s.avgTorque[inR]))  riderBuckets[inR].in.torque.push(s.avgTorque[inR]);
+          if (Number.isFinite(s.avgTorque[outR])) riderBuckets[outR].out.torque.push(s.avgTorque[outR]);
+        }
+      }
+
+      const arrStats = (arr) => {
+        const v = arr.filter(Number.isFinite);
+        if (!v.length) return null;
+        return { max: Math.max(...v), min: Math.min(...v), avg: v.reduce((a, b) => a + b, 0) / v.length };
+      };
+
+      const fmtStat = (stats, decimals) => stats
+        ? `<td>${stats.max.toFixed(decimals)}</td><td>${stats.min.toFixed(decimals)}</td><td>${stats.avg.toFixed(decimals)}</td>`
+        : '<td>–</td><td>–</td><td>–</td>';
+
+      const summaryTableHtml = (ri) => {
+        const b = riderBuckets[ri];
+        const rows = [];
+        if (hasPowerData) {
+          rows.push(`<tr><td class="rpt-row-lbl">In Power (W)</td>${fmtStat(arrStats(b.in.power), 0)}</tr>`);
+          rows.push(`<tr><td class="rpt-row-lbl">Out Power (W)</td>${fmtStat(arrStats(b.out.power), 0)}</tr>`);
+        }
+        if (hasCadence) {
+          rows.push(`<tr><td class="rpt-row-lbl">In Cadence (rpm)</td>${fmtStat(arrStats(b.in.cadence), 1)}</tr>`);
+          rows.push(`<tr><td class="rpt-row-lbl">Out Cadence (rpm)</td>${fmtStat(arrStats(b.out.cadence), 1)}</tr>`);
+        }
+        if (hasTorque) {
+          rows.push(`<tr><td class="rpt-row-lbl">In Torque (Nm)</td>${fmtStat(arrStats(b.in.torque), 1)}</tr>`);
+          rows.push(`<tr><td class="rpt-row-lbl">Out Torque (Nm)</td>${fmtStat(arrStats(b.out.torque), 1)}</tr>`);
+        }
+        if (!rows.length) return '';
+        return `
+          <div class="report-chart-card" style="overflow-x:auto;">
+            <h4><span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${RIDER_PALETTE[ri]};vertical-align:middle;margin-right:5px;"></span>${names[ri]} — summary</h4>
+            <table class="rpt-summary-table">
+              <thead><tr><th></th><th>Max</th><th>Min</th><th>Avg</th></tr></thead>
+              <tbody>${rows.join('')}</tbody>
+            </table>
+          </div>`;
+      };
+
+      const summaryRow = (summaryTableHtml(0) || summaryTableHtml(1))
+        ? `<div class="report-charts-row" style="margin-top:12px;">${summaryTableHtml(0)}${summaryTableHtml(1)}</div>`
+        : '';
+
+      const chartH = 320;
+      let chartsHtml;
+      if (reportViewMode === 'merged') {
+        chartsHtml = `
+          <div class="report-charts-row">
+            <div class="report-chart-card" style="flex:1 1 100%;">
+              <h4>All stints &mdash; merged timeline</h4>
+              <canvas id="rpChart0" class="report-chart-canvas" style="height:${chartH}px;"></canvas>
+              <div class="report-chart-legend">
+                <span class="report-chart-legend-item"><span class="report-chart-legend-swatch" style="background:${RIDER_PALETTE[0]};"></span>${names[0]} leading</span>
+                <span class="report-chart-legend-item"><span class="report-chart-legend-swatch" style="background:${RIDER_PALETTE[1]};"></span>${names[1]} leading</span>
+              </div>
+            </div>
+          </div>`;
+      } else {
+        chartsHtml = `
+          <div class="report-charts-row">
+            <div class="report-chart-card">
+              <h4>
+                <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${RIDER_PALETTE[0]};vertical-align:middle;margin-right:5px;"></span>
+                ${names[0]} leading &mdash; ${splitGroups[0].length} stint${splitGroups[0].length !== 1 ? 's' : ''}
+              </h4>
+              <canvas id="rpChart0" class="report-chart-canvas" style="height:${chartH}px;"></canvas>
+            </div>
+            <div class="report-chart-card">
+              <h4>
+                <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${RIDER_PALETTE[1]};vertical-align:middle;margin-right:5px;"></span>
+                ${names[1]} leading &mdash; ${splitGroups[1].length} stint${splitGroups[1].length !== 1 ? 's' : ''}
+              </h4>
+              <canvas id="rpChart1" class="report-chart-canvas" style="height:${chartH}px;"></canvas>
+            </div>
+          </div>`;
+      }
+
+      // Sprint power table (per sprint period: race-start→S1, S1→S2, …)
+      let sprintPowerTableHtml = '';
+      const raceSprints = sprintState.sprints;
+      if (raceSprints.length > 0 && hasPowerData) {
+        const sprintBounds = [startMarkerTime, ...raceSprints.map(sp => sp.time)];
+        const nPeriods = sprintBounds.length - 1;
+
+        // Weighted-average power per period, per rider, per role (in/out)
+        const periodStats = [];
+        for (let p = 0; p < nPeriods; p++) {
+          const pStart = sprintBounds[p];
+          const pEnd   = sprintBounds[p + 1];
+          const acc = [
+            { inSum: 0, inDur: 0, outSum: 0, outDur: 0 },
+            { inSum: 0, inDur: 0, outSum: 0, outDur: 0 }
+          ];
+          for (const s of stints) {
+            const overlap = Math.min(s.endTime, pEnd) - Math.max(s.startTime, pStart);
+            if (overlap <= 0) continue;
+            for (let ri = 0; ri < 2; ri++) {
+              const pwr = hasSeparatePower ? s.avgPower[ri] : s.avgMetric[ri];
+              if (!Number.isFinite(pwr)) continue;
+              if (s.inRider === ri) { acc[ri].inSum  += pwr * overlap; acc[ri].inDur  += overlap; }
+              else                  { acc[ri].outSum += pwr * overlap; acc[ri].outDur += overlap; }
+            }
+          }
+          periodStats.push([
+            { inAvg:  acc[0].inDur  > 0 ? acc[0].inSum  / acc[0].inDur  : null,
+              outAvg: acc[0].outDur > 0 ? acc[0].outSum / acc[0].outDur : null },
+            { inAvg:  acc[1].inDur  > 0 ? acc[1].inSum  / acc[1].inDur  : null,
+              outAvg: acc[1].outDur > 0 ? acc[1].outSum / acc[1].outDur : null }
+          ]);
+        }
+
+        const headerCells = raceSprints.map((sp, i) => {
+          const col = sp.isManual ? '#854d0e' : '#0369a1';
+          const bg  = sp.isManual ? '#fef9c3' : '#e0f2fe';
+          return `<th style="background:${bg};color:${col};white-space:nowrap;">Sprint ${i + 1}</th>`;
+        }).join('');
+
+        const tableRows = [
+          { label: `${names[0]} \u2014 IN`,  ri: 0, role: 'in'  },
+          { label: `${names[0]} \u2014 OUT`, ri: 0, role: 'out' },
+          { label: `${names[1]} \u2014 IN`,  ri: 1, role: 'in'  },
+          { label: `${names[1]} \u2014 OUT`, ri: 1, role: 'out' },
+        ].map(({ label, ri, role }) => {
+          const vals = periodStats.map(ps => role === 'in' ? ps[ri].inAvg : ps[ri].outAvg);
+          const finite = vals.filter(Number.isFinite);
+          const rowMin = finite.length ? Math.min(...finite) : 0;
+          const rowMax = finite.length ? Math.max(...finite) : 0;
+          const rowRange = rowMax - rowMin;
+          const cells = vals.map(v => {
+            if (!Number.isFinite(v)) return `<td style="text-align:right;">\u2013</td>`;
+            const t = rowRange > 0 ? (v - rowMin) / rowRange : 0.5;
+            const bg = `rgba(34,197,94,${(0.1 + t * 0.55).toFixed(2)})`;
+            return `<td style="text-align:right;background:${bg};">${v.toFixed(0)}</td>`;
+          }).join('');
+          return `<tr><td class="rpt-row-lbl">${label}</td>${cells}</tr>`;
+        }).join('');
+
+        const metricLabel = hasSeparatePower ? 'power' : yLabel;
+        sprintPowerTableHtml = `
+          <div class="report-charts-row" style="margin-top:12px;">
+            <div class="report-chart-card" style="flex:1 1 100%;overflow-x:auto;">
+              <h4>Avg ${metricLabel} by sprint period</h4>
+              <table class="rpt-summary-table">
+                <thead><tr><th></th>${headerCells}</tr></thead>
+                <tbody>${tableRows}</tbody>
+              </table>
+            </div>
+          </div>`;
+      }
+
+      reportContent.innerHTML = statsHtml + toggleHtml + chartsHtml + summaryRow + sprintPowerTableHtml;
+      window._rpSetView = (mode) => { reportViewMode = mode; renderReport(); };
+
+      requestAnimationFrame(() => {
+        if (reportViewMode === 'merged') {
+          const c0 = document.getElementById('rpChart0');
+          if (c0) drawTimelineBarChart(c0, mergedGroups, raceDuration, { yLabel });
+        } else {
+          const c0 = document.getElementById('rpChart0');
+          if (c0) drawTimelineBarChart(c0, splitGroups[0], raceDuration, { yLabel });
+          const c1 = document.getElementById('rpChart1');
+          if (c1) drawTimelineBarChart(c1, splitGroups[1], raceDuration, { yLabel });
+        }
+      });
+    }
+
+
+    function openReport() {
+      renderReport();
+      reportModal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeReport() {
+      reportModal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+
+    // ─── Diagnostic display ─────────────────────────────────────────────────────
+    const DIAG_WINDOW = 20; // rows before and after current time
+
+    function updateDiagnosticDisplay() {
+      const names = getRiderNames();
+      diagLabel0.textContent = names[0];
+      diagLabel1.textContent = names[1];
+      diagColR0.textContent  = names[0];
+      diagColR1.textContent  = names[1];
+
+      if (fitSyncState.series.length < 2) {
+        diagVal0.textContent = '-';
+        diagVal1.textContent = '-';
+        diagDiff.textContent = '-';
+        diagDiff.className = 'diag-live-value';
+        diagLeader.style.display = 'none';
+        diagTableBody.innerHTML = '<tr><td colspan="5" style="color:#64748b;text-align:center;padding:12px;">Assign two FIT files and select a metric.</td></tr>';
+        return;
+      }
+
+      const s0 = fitSyncState.series[0];
+      const s1 = fitSyncState.series[1];
+      const t = Number.isFinite(video.currentTime) ? video.currentTime : 0;
+      const interval = Math.max(0.05, parseFloat(sampleIntervalInput.value) || 0.1);
+      const minGap = Math.max(1, parseFloat(minGapInput.value) || 8);
+
+      // Live readout at current time
+      const lv0 = getFitSeriesValueAtVideoTime(s0, t);
+      const lv1 = getFitSeriesValueAtVideoTime(s1, t);
+      diagVal0.textContent = lv0 !== null ? formatFitNum(lv0, 2) : '-';
+      diagVal0.style.color = RIDER_PALETTE[s0.riderIndex % RIDER_PALETTE.length];
+      diagVal1.textContent = lv1 !== null ? formatFitNum(lv1, 2) : '-';
+      diagVal1.style.color = RIDER_PALETTE[s1.riderIndex % RIDER_PALETTE.length];
+
+      if (lv0 !== null && lv1 !== null) {
+        const diff = lv0 - lv1;
+        diagDiff.textContent = (diff >= 0 ? '+' : '') + formatFitNum(diff, 2);
+        diagDiff.className = 'diag-live-value ' + (diff > 0 ? 'positive' : diff < 0 ? 'negative' : 'zero');
+        const leaderIdx = diff > 0 ? s0.riderIndex : (diff < 0 ? s1.riderIndex : -1);
+        if (leaderIdx >= 0) {
+          diagLeader.textContent = names[leaderIdx] + ' higher';
+          diagLeader.style.background = RIDER_PALETTE[leaderIdx % RIDER_PALETTE.length];
+          diagLeader.style.display = '';
+        } else {
+          diagLeader.style.display = 'none';
+        }
+      } else {
+        diagDiff.textContent = '-';
+        diagDiff.className = 'diag-live-value';
+        diagLeader.style.display = 'none';
+      }
+
+      // Sample table around current time
+      const rows = [];
+      for (let i = -DIAG_WINDOW; i <= DIAG_WINDOW; i++) {
+        const sampleT = t + i * interval;
+        const v0 = getFitSeriesValueAtVideoTime(s0, sampleT);
+        const v1 = getFitSeriesValueAtVideoTime(s1, sampleT);
+        if (v0 !== null && v1 !== null) {
+          rows.push({ t: sampleT, v0, v1, diff: v0 - v1, isCurrent: i === 0 });
+        }
+      }
+
+      // Mark crossings and check min-gap (skip zeros when comparing signs)
+      let lastCrossT = -Infinity;
+      let lastNZRow = -1;
+      for (let i = 0; i < rows.length; i++) {
+        if (rows[i].diff === 0) continue;
+        if (lastNZRow >= 0 && rows[lastNZRow].diff * rows[i].diff < 0) {
+          const dPrev = rows[lastNZRow].diff;
+          const dCurr = rows[i].diff;
+          const crossT = rows[lastNZRow].t + (-dPrev) * (rows[i].t - rows[lastNZRow].t) / (dCurr - dPrev);
+          const gapOk = crossT - lastCrossT >= minGap;
+          rows[i].crossing = true;
+          rows[i].crossingTime = crossT;
+          rows[i].crossingGapOk = gapOk;
+          rows[i].crossingGap = crossT - lastCrossT;
+          if (gapOk) lastCrossT = crossT;
+        }
+        lastNZRow = i;
+      }
+
+      // Build table HTML
+      const html = rows.map((row) => {
+        const diffStr = (row.diff >= 0 ? '+' : '') + formatFitNum(row.diff, 2);
+        const diffCls = row.diff > 0 ? 'diag-diff-pos' : row.diff < 0 ? 'diag-diff-neg' : '';
+        const leaderName = row.diff > 0 ? names[s0.riderIndex] : (row.diff < 0 ? names[s1.riderIndex] : '=');
+        const leaderColor = row.diff > 0 ? RIDER_PALETTE[s0.riderIndex % RIDER_PALETTE.length]
+                           : row.diff < 0 ? RIDER_PALETTE[s1.riderIndex % RIDER_PALETTE.length] : '#94a3b8';
+        let crossMarker = '';
+        if (row.crossing) {
+          if (row.crossingGapOk) {
+            crossMarker = ` <span class="diag-cross-marker" title="Crossing @ ${formatFitNum(row.crossingTime,3)}s">X CHANGE</span>`;
+          } else {
+            crossMarker = ` <span class="diag-cross-marker" style="background:#94a3b8;" title="Gap ${formatFitNum(row.crossingGap,1)}s < min ${minGap}s — skipped">X gap ${formatFitNum(row.crossingGap,1)}s</span>`;
+          }
+        }
+        const rowCls = (row.isCurrent ? 'diag-current ' : '') + (row.crossing ? 'diag-crossing' : '');
+        return `<tr class="${rowCls}" ${row.isCurrent ? 'id="diagCurrentRow"' : ''}>
+          <td>${formatClockTime(row.t)}${crossMarker}</td>
+          <td style="color:${RIDER_PALETTE[s0.riderIndex % RIDER_PALETTE.length]};font-weight:600;">${formatFitNum(row.v0, 2)}</td>
+          <td style="color:${RIDER_PALETTE[s1.riderIndex % RIDER_PALETTE.length]};font-weight:600;">${formatFitNum(row.v1, 2)}</td>
+          <td class="${diffCls}">${diffStr}</td>
+          <td><span style="background:${leaderColor};color:#fff;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;">${leaderName}</span></td>
+        </tr>`;
+      }).join('');
+      diagTableBody.innerHTML = html;
+
+      // Scroll the current row to the centre of the table container only (no page scroll)
+      const currentRow = document.getElementById('diagCurrentRow');
+      const tableWrap = currentRow && currentRow.closest('.diag-table-wrap');
+      if (currentRow && tableWrap) {
+        const rowTop = currentRow.offsetTop;
+        const rowHeight = currentRow.offsetHeight;
+        tableWrap.scrollTop = rowTop - tableWrap.clientHeight / 2 + rowHeight / 2;
+      }
+    }
+
+    // ─── Init ─────────────────────────────────────────────────────────────────────
+    renderFitAssignments();
+    updateFitControlLabels();
+    updateFitStats();
+    renderFitLegend();
+    updateDetectChangesAvailability();
+    updateDiagnosticDisplay();
+  </script>
+</body>
+</html>

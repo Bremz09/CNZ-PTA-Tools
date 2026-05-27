@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Team Pursuit Video Timing</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      margin: 0;
+    }
+    h2, h3 {
+      margin: 0 0 10px;
+    }
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: flex-start;
+    }
+    .video-section {
+      flex: 1 1 700px;
+      min-width: 320px;
+    }
+    .report-section {
+      flex: 1 1 420px;
+      min-width: 320px;
+    }
+    .inputs-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(140px, 1fr));
+      gap: 10px 12px;
+      margin-bottom: 12px;
+    }
+    .inputs-grid label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+    .inputs-grid input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 6px 8px;
+    }
+    video {
+      width: 100%;
+      max-width: 960px;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      margin-bottom: 10px;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    button {
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    #info, #status {
+      margin-top: 6px;
+    }
+    #reportTable {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      display: none;
+    }
+    #reportTable th,
+    #reportTable td {
+      border: 1px solid #ccc;
+      padding: 6px 8px;
+      text-align: left;
+      font-size: 14px;
+    }
+    #reportTable th {
+      background: #f2f2f2;
+    }
+    .small-note {
+      font-size: 13px;
+      color: #333;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Team Pursuit Video Timing</h2>
+  <h3>Keys: S start, Z quarter lap, C change, D drop, R rider finish, T team finish, Space play/pause, arrows frame-step, Ctrl+arrows jump.</h3>
+  <input type="file" accept="video/mp4,video/quicktime" id="videoInput"><br><br>
+
+  <div class="container">
+    <div class="video-section">
+      <video id="video" controls style="display:none;"></video>
+
+      <div class="controls">
+        <label for="fpsInput">FPS:</label>
+        <input type="number" id="fpsInput" min="1" max="240" value="50" style="width:70px;">
+        <button id="prevFrame">⏪ Previous Frame</button>
+        <button id="nextFrame">⏩ Next Frame</button>
+        <button id="startBtn">Start (S)</button>
+        <button id="quarterBtn">Quarter (Z)</button>
+        <button id="changeBtn">Change (C)</button>
+        <button id="dropBtn">Drop (D)</button>
+        <button id="riderFinishBtn">Rider Finish (R)</button>
+        <button id="teamFinishBtn">Team Finish (T)</button>
+        <button id="resetBtn">Reset</button>
+        <button id="deleteLastBtn">Delete Last Row</button>
+      </div>
+
+      <div id="info">Current Time: <span id="currentTime">0.00</span>s</div>
+      <div id="status">Status: Waiting for start.</div>
+      <div class="small-note">Team speed and delivery speed are calculated from 62.5m split distance.</div>
+    </div>
+
+    <div class="report-section">
+      <div class="inputs-grid">
+        <div>
+          <label for="countryInput">Country</label>
+          <input id="countryInput" type="text" placeholder="Country name">
+        </div>
+        <div>
+          <label for="jumpFramesInput">Jump Ahead (frames)</label>
+          <input id="jumpFramesInput" type="number" min="1" value="160">
+        </div>
+        <div>
+          <label for="rider1Input">Rider 1</label>
+          <input id="rider1Input" type="text" placeholder="Rider 1">
+        </div>
+        <div>
+          <label for="changeTimeInput">Change Time (s)</label>
+          <input id="changeTimeInput" type="number" min="0" step="0.01" value="0.12">
+        </div>
+        <div>
+          <label for="rider2Input">Rider 2</label>
+          <input id="rider2Input" type="text" placeholder="Rider 2">
+        </div>
+        <div>
+          <label for="rider3Input">Rider 3</label>
+          <input id="rider3Input" type="text" placeholder="Rider 3">
+        </div>
+        <div>
+          <label for="rider4Input">Rider 4</label>
+          <input id="rider4Input" type="text" placeholder="Rider 4">
+        </div>
+      </div>
+      <button id="updateBtn" style="margin-bottom:12px;">Update Report</button>
+      <button id="downloadBtn" style="margin-bottom:12px;">Download Data</button>
+      <label style="margin-bottom:12px;">
+        <button id="uploadBtn" onclick="document.getElementById('csvUploadInput').click()" style="margin-bottom:0;">Upload Data</button>
+        <input type="file" id="csvUploadInput" accept=".csv" style="display:none;">
+      </label>
+
+      <h3 id="reportTitle">Team Pursuit Report</h3>
+      <table id="reportTable">
+        <thead>
+          <tr>
+            <th>Split</th>
+            <th>Athlete In Front</th>
+            <th>Quarter Time (s)</th>
+            <th>Team Speed (km/h)</th>
+            <th>Delivery Speed (km/h)</th>
+            <th>Event</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const SPLIT_DISTANCE_METERS = 62.5;
+
+    const video = document.getElementById('video');
+    const videoInput = document.getElementById('videoInput');
+    const currentTimeDisplay = document.getElementById('currentTime');
+    const statusDisplay = document.getElementById('status');
+
+    const fpsInput = document.getElementById('fpsInput');
+    const jumpFramesInput = document.getElementById('jumpFramesInput');
+    const changeTimeInput = document.getElementById('changeTimeInput');
+
+    const countryInput = document.getElementById('countryInput');
+    const riderInputs = [
+      document.getElementById('rider1Input'),
+      document.getElementById('rider2Input'),
+      document.getElementById('rider3Input'),
+      document.getElementById('rider4Input')
+    ];
+
+    const startBtn = document.getElementById('startBtn');
+    const quarterBtn = document.getElementById('quarterBtn');
+    const changeBtn = document.getElementById('changeBtn');
+    const dropBtn = document.getElementById('dropBtn');
+    const riderFinishBtn = document.getElementById('riderFinishBtn');
+    const teamFinishBtn = document.getElementById('teamFinishBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const deleteLastBtn = document.getElementById('deleteLastBtn');
+    const updateBtn = document.getElementById('updateBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const csvUploadInput = document.getElementById('csvUploadInput');
+
+    let videoFileName = 'data';
+
+    const nextFrameBtn = document.getElementById('nextFrame');
+    const prevFrameBtn = document.getElementById('prevFrame');
+
+    const reportTitle = document.getElementById('reportTitle');
+    const reportTable = document.getElementById('reportTable');
+    const reportTableBody = reportTable.querySelector('tbody');
+
+    // Session state
+    let startTime = null;
+    let lastMarkerTime = null;
+    let teamFinished = false;
+    let pendingDeliveryAdjustment = false; // used only by Rider Finish (R)
+    let currentEventLabel = '';
+
+    // Rider rotation: stores indices 0-3 into riderInputs
+    let riderOrder = [0, 1, 2, 3];
+    let frontPosition = 0;
+
+    // Each row: { splitType, splitLabel, endTime, frontRiderIndex, quarterTime, teamSpeed, deliverySpeed, eventLabel, deliveryAdjusted }
+    const splitRows = [];
+
+    // --- Helpers ---
+
+    function getFps() { return parseInt(fpsInput.value, 10) || 50; }
+    function frameDuration() { return 1 / getFps(); }
+    function getJumpSeconds() { return (parseInt(jumpFramesInput.value, 10) || 160) / getFps(); }
+    function getChangeTimeSeconds() {
+      const v = parseFloat(changeTimeInput.value);
+      return Number.isFinite(v) ? Math.max(0, v) : 0.12;
+    }
+    function getRiderNames() {
+      return riderInputs.map((inp, i) => inp.value.trim() || `Rider ${i + 1}`);
+    }
+    function getCountryName() { return countryInput.value.trim() || 'Unknown Country'; }
+    function speedFromTime(s) { return s > 0 ? (SPLIT_DISTANCE_METERS / s) * 3.6 : 0; }
+
+    function getCurrentFrontRiderIndex() {
+      return riderOrder.length > 0 ? riderOrder[frontPosition] : -1;
+    }
+
+    function updateTitle() {
+      reportTitle.textContent = `${getCountryName()} Team Pursuit Report`;
+    }
+
+    function setStatus(msg) { statusDisplay.textContent = `Status: ${msg}`; }
+
+    function renumberRows() {
+      let n = 0;
+      for (const row of splitRows) {
+        n++;
+        row.splitLabel = row.splitType === 'TEAM_FINISH' ? `Q${n} (Finish)` : `Q${n}`;
+      }
+    }
+
+    function renderRows() {
+      const names = getRiderNames();
+      reportTableBody.innerHTML = '';
+      for (let i = splitRows.length - 1; i >= 0; i--) {
+        const row = splitRows[i];
+        const riderName = row.frontRiderIndex >= 0
+          ? (names[row.frontRiderIndex] || `Rider ${row.frontRiderIndex + 1}`)
+          : 'No Active Rider';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${row.splitLabel}</td>
+          <td>${riderName}</td>
+          <td>${row.quarterTime.toFixed(3)}</td>
+          <td>${row.teamSpeed.toFixed(3)}</td>
+          <td>${row.deliverySpeed.toFixed(3)}</td>
+          <td>${row.eventLabel}</td>
+        `;
+        reportTableBody.appendChild(tr);
+      }
+      reportTable.style.display = splitRows.length > 0 ? 'table' : 'none';
+    }
+
+    // Re-reads names + re-applies current change time to all adjusted rows
+    function updateReport() {
+      updateTitle();
+      const ct = getChangeTimeSeconds();
+      for (const row of splitRows) {
+        if (row.deliveryAdjusted) {
+          const adjTime = Math.max(row.quarterTime - ct, 0.001);
+          row.deliverySpeed = speedFromTime(adjTime);
+        } else {
+          row.deliverySpeed = row.teamSpeed;
+        }
+      }
+      renderRows();
+      setStatus('Report updated with current names and change time.');
+    }
+
+    function resetSession() {
+      startTime = null;
+      lastMarkerTime = null;
+      teamFinished = false;
+      pendingDeliveryAdjustment = false;
+      currentEventLabel = '';
+      riderOrder = [0, 1, 2, 3];
+      frontPosition = 0;
+      splitRows.length = 0;
+      renderRows();
+      updateTitle();
+      setStatus('Waiting for start.');
+    }
+
+    // --- Rider rotation ---
+
+    // Walks every row in chronological order, assigns frontRiderIndex for each,
+    // then syncs the live riderOrder/frontPosition to the end state.
+    // Must be called after any modification to splitRows.
+    function replayRiderRotations() {
+      let order = [0, 1, 2, 3];
+      let pos = 0;
+      for (const row of splitRows) {
+        row.frontRiderIndex = order.length > 0 ? order[pos] : -1;
+        if (row.eventLabel === 'Change') {
+          if (order.length >= 2) pos = (pos + 1) % order.length;
+        } else if (row.eventLabel === 'Drop' || row.eventLabel === 'Rider Finish') {
+          if (order.length > 0) {
+            order.splice(pos, 1);
+            if (pos >= order.length) pos = 0;
+          }
+        }
+      }
+      riderOrder = order;
+      frontPosition = pos;
+    }
+
+    // --- Core timing ---
+
+    function startTiming() {
+      resetSession();
+      startTime = video.currentTime;
+      lastMarkerTime = startTime;
+      reportTable.style.display = 'table';
+      setStatus(`Started at ${startTime.toFixed(3)}s.`);
+    }
+
+    // splitType: 'QUARTER' | 'TEAM_FINISH'
+    // eventLabel: '' | 'Change' | 'Drop' | 'Rider Finish'
+    // deliveryAdjusted: boolean - whether to subtract change time from delivery calc
+    function addSplit(splitType, eventLabel, deliveryAdjusted) {
+      if (startTime === null || teamFinished) return;
+      const now = video.currentTime;
+      if (now <= startTime) return;
+
+      // Check if this timestamp falls between two existing rows (insert mode)
+      let insertIdx = -1;
+      let prevTime = startTime;
+      for (let i = 0; i < splitRows.length; i++) {
+        const rowEnd = splitRows[i].endTime;
+        // Must be clearly inside the gap (at least half a frame away from the boundaries)
+        if (now > prevTime + frameDuration() * 0.4 && now < rowEnd - frameDuration() * 0.4) {
+          insertIdx = i;
+          break;
+        }
+        prevTime = rowEnd;
+      }
+
+      const isAppend = insertIdx === -1;
+      const rowPrevTime = isAppend
+        ? lastMarkerTime
+        : (insertIdx === 0 ? startTime : splitRows[insertIdx - 1].endTime);
+
+      const quarterTime = now - rowPrevTime;
+      if (quarterTime < frameDuration() * 0.5) return; // duplicate / too close
+
+      // For appended rows, allow R's pending adjustment to carry through
+      const useDeliveryAdjust = deliveryAdjusted || (isAppend && pendingDeliveryAdjustment);
+      const resolvedEvent = eventLabel || (isAppend && pendingDeliveryAdjustment ? currentEventLabel : '') || 'None';
+
+      const ct = getChangeTimeSeconds();
+      const adjTime = useDeliveryAdjust ? Math.max(quarterTime - ct, 0.001) : quarterTime;
+      const teamSpeed = speedFromTime(quarterTime);
+      const deliverySpeed = speedFromTime(adjTime);
+
+      const newRow = {
+        splitType,
+        splitLabel: '',
+        endTime: now,
+        frontRiderIndex: -1, // will be set by replayRiderRotations()
+        quarterTime,
+        teamSpeed,
+        deliverySpeed,
+        eventLabel: resolvedEvent,
+        deliveryAdjusted: useDeliveryAdjust
+      };
+
+      if (isAppend) {
+        splitRows.push(newRow);
+        lastMarkerTime = now;
+        pendingDeliveryAdjustment = false;
+        currentEventLabel = '';
+      } else {
+        // Insert: split the existing row's time into [prevEnd→now] + [now→existingEnd]
+        const existingRow = splitRows[insertIdx];
+        const remainderTime = existingRow.endTime - now;
+        existingRow.quarterTime = remainderTime;
+        existingRow.teamSpeed = speedFromTime(remainderTime);
+        existingRow.deliverySpeed = existingRow.deliveryAdjusted
+          ? speedFromTime(Math.max(remainderTime - ct, 0.001))
+          : existingRow.teamSpeed;
+        splitRows.splice(insertIdx, 0, newRow);
+      }
+
+      // Replay all rotations so every row has the correct frontRiderIndex
+      replayRiderRotations();
+      renumberRows();
+
+      const names = getRiderNames();
+      const newFront = getCurrentFrontRiderIndex();
+      if (splitType === 'TEAM_FINISH') {
+        teamFinished = true;
+        setStatus(`Team finished at ${now.toFixed(3)}s.`);
+      } else if (isAppend) {
+        const evtPart = resolvedEvent !== 'None' ? ` (${resolvedEvent})` : '';
+        setStatus(`Quarter at ${now.toFixed(3)}s${evtPart}. Next front: ${newFront >= 0 ? names[newFront] : 'none'}.`);
+      } else {
+        setStatus(`Inserted quarter at ${now.toFixed(3)}s. Downstream riders updated.`);
+      }
+
+      renderRows();
+    }
+
+    // Used by Rider Finish (R) — does not create a new quarter;
+    // either retroactively adjusts the last row or sets a pending flag for the next quarter.
+    function markEvent(label) {
+      if (startTime === null || teamFinished) return;
+      const now = video.currentTime;
+      const eps = frameDuration() * 0.6;
+      const lastRow = splitRows[splitRows.length - 1];
+      if (lastRow && Math.abs(now - lastRow.endTime) <= eps && !lastRow.deliveryAdjusted) {
+        const adjTime = Math.max(lastRow.quarterTime - getChangeTimeSeconds(), 0.001);
+        lastRow.deliverySpeed = speedFromTime(adjTime);
+        lastRow.deliveryAdjusted = true;
+        lastRow.eventLabel = label;
+        replayRiderRotations(); // propagate the removal to all downstream rows
+        renderRows();
+        setStatus(`${label} applied to ${lastRow.splitLabel}.`);
+      } else {
+        pendingDeliveryAdjustment = true;
+        currentEventLabel = label;
+        setStatus(`${label} pending — press Z or T to mark the quarter.`);
+      }
+    }
+
+    function stepNextFrame() {
+      video.pause();
+      const duration = Number.isFinite(video.duration) ? video.duration : Infinity;
+      video.currentTime = Math.min(duration, video.currentTime + frameDuration());
+    }
+
+    function stepPrevFrame() {
+      video.pause();
+      video.currentTime = Math.max(0, video.currentTime - frameDuration());
+    }
+
+    function jumpForward() {
+      video.pause();
+      const duration = Number.isFinite(video.duration) ? video.duration : Infinity;
+      video.currentTime = Math.min(duration, video.currentTime + getJumpSeconds());
+    }
+
+    function jumpBackward() {
+      video.pause();
+      video.currentTime = Math.max(0, video.currentTime - getJumpSeconds());
+    }
+
+    let nextFrameInterval = null;
+    let prevFrameInterval = null;
+
+    nextFrameBtn.addEventListener('mousedown', () => {
+      stepNextFrame();
+      nextFrameInterval = setInterval(stepNextFrame, 80);
+    });
+    nextFrameBtn.addEventListener('mouseup', () => clearInterval(nextFrameInterval));
+    nextFrameBtn.addEventListener('mouseleave', () => clearInterval(nextFrameInterval));
+    nextFrameBtn.addEventListener('touchstart', () => {
+      stepNextFrame();
+      nextFrameInterval = setInterval(stepNextFrame, 80);
+    });
+    nextFrameBtn.addEventListener('touchend', () => clearInterval(nextFrameInterval));
+
+    prevFrameBtn.addEventListener('mousedown', () => {
+      stepPrevFrame();
+      prevFrameInterval = setInterval(stepPrevFrame, 80);
+    });
+    prevFrameBtn.addEventListener('mouseup', () => clearInterval(prevFrameInterval));
+    prevFrameBtn.addEventListener('mouseleave', () => clearInterval(prevFrameInterval));
+    prevFrameBtn.addEventListener('touchstart', () => {
+      stepPrevFrame();
+      prevFrameInterval = setInterval(stepPrevFrame, 80);
+    });
+    prevFrameBtn.addEventListener('touchend', () => clearInterval(prevFrameInterval));
+
+    startBtn.addEventListener('click', startTiming);
+    quarterBtn.addEventListener('click', () => addSplit('QUARTER', '', false));
+    changeBtn.addEventListener('click', () => addSplit('QUARTER', 'Change', true));
+    dropBtn.addEventListener('click', () => addSplit('QUARTER', 'Drop', true));
+    riderFinishBtn.addEventListener('click', () => markEvent('Rider Finish'));
+    teamFinishBtn.addEventListener('click', () => addSplit('TEAM_FINISH', '', false));
+    resetBtn.addEventListener('click', resetSession);
+    deleteLastBtn.addEventListener('click', () => {
+      if (splitRows.length === 0) return;
+      const removed = splitRows.pop();
+      if (removed.splitType === 'TEAM_FINISH') teamFinished = false;
+      lastMarkerTime = splitRows.length > 0 ? splitRows[splitRows.length - 1].endTime : startTime;
+      replayRiderRotations();
+      renumberRows();
+      renderRows();
+      setStatus(`Deleted ${removed.splitLabel}.`);
+    });
+    updateBtn.addEventListener('click', updateReport);
+
+    downloadBtn.addEventListener('click', () => {
+      if (splitRows.length === 0) { setStatus('No data to download.'); return; }
+      const names = getRiderNames();
+      const headers = ['Split','Athlete In Front','Quarter Time (s)','Team Speed (km/h)','Delivery Speed (km/h)','Event',
+                       'splitType','endTime','frontRiderIndex','deliveryAdjusted'];
+      const lines = [headers.join(',')];
+      // Export in chronological order (index 0 first)
+      for (const row of splitRows) {
+        const riderName = row.frontRiderIndex >= 0
+          ? (names[row.frontRiderIndex] || `Rider ${row.frontRiderIndex + 1}`)
+          : 'No Active Rider';
+        lines.push([
+          row.splitLabel,
+          `"${riderName}"`,
+          row.quarterTime.toFixed(3),
+          row.teamSpeed.toFixed(3),
+          row.deliverySpeed.toFixed(3),
+          `"${row.eventLabel}"`,
+          row.splitType,
+          row.endTime.toFixed(6),
+          row.frontRiderIndex,
+          row.deliveryAdjusted ? '1' : '0'
+        ].join(','));
+      }
+      // Append metadata row for session state
+      lines.push(`# startTime,${startTime != null ? startTime.toFixed(6) : ''}`);
+      lines.push(`# country,"${getCountryName()}"`);
+      riderInputs.forEach((inp, i) => lines.push(`# rider${i + 1},"${inp.value.trim()}"`));
+      const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${videoFileName} Data.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      setStatus('CSV downloaded.');
+    });
+
+    csvUploadInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const text = evt.target.result;
+          const allLines = text.split(/\r?\n/);
+          // Separate metadata comment lines from data lines
+          const metaLines = allLines.filter(l => l.startsWith('# '));
+          const dataLines = allLines.filter(l => l.trim() && !l.startsWith('#'));
+
+          // Parse header to find column indices (skip header row)
+          const header = dataLines[0].split(',');
+          const col = (name) => header.indexOf(name);
+          const iSplitType   = col('splitType');
+          const iEndTime     = col('endTime');
+          const iRiderIdx    = col('frontRiderIndex');
+          const iAdjusted    = col('deliveryAdjusted');
+          const iEvent       = col('Event');
+          const iQTime       = col('Quarter Time (s)');
+
+          if ([iSplitType, iEndTime, iRiderIdx, iAdjusted, iEvent, iQTime].some(x => x < 0)) {
+            setStatus('Upload failed: CSV columns not recognised.');
+            return;
+          }
+
+          // Parse metadata
+          let uploadedStartTime = null;
+          for (const ml of metaLines) {
+            const parts = ml.slice(2).split(',');
+            if (parts[0] === 'startTime' && parts[1]) uploadedStartTime = parseFloat(parts[1]);
+            if (parts[0] === 'country') countryInput.value = parts[1].replace(/^"|"$/g, '');
+            riderInputs.forEach((inp, i) => {
+              if (parts[0] === `rider${i + 1}`) inp.value = parts[1].replace(/^"|"$/g, '');
+            });
+          }
+
+          // Restore splitRows
+          resetSession();
+          startTime = uploadedStartTime;
+          for (const line of dataLines.slice(1)) {
+            if (!line.trim()) continue;
+            // CSV-aware split that handles quoted fields
+            const cols = [];
+            let cur = '', inQ = false;
+            for (const ch of line) {
+              if (ch === '"') { inQ = !inQ; }
+              else if (ch === ',' && !inQ) { cols.push(cur); cur = ''; }
+              else { cur += ch; }
+            }
+            cols.push(cur);
+
+            const splitType = cols[iSplitType];
+            const endTime = parseFloat(cols[iEndTime]);
+            const frontRiderIndex = parseInt(cols[iRiderIdx], 10);
+            const deliveryAdjusted = cols[iAdjusted] === '1';
+            const eventLabel = cols[iEvent] || 'None';
+            const quarterTime = parseFloat(cols[iQTime]);
+            const ct = getChangeTimeSeconds();
+            const teamSpeed = speedFromTime(quarterTime);
+            const deliverySpeed = deliveryAdjusted
+              ? speedFromTime(Math.max(quarterTime - ct, 0.001))
+              : teamSpeed;
+
+            splitRows.push({ splitType, splitLabel: '', endTime, frontRiderIndex,
+                             quarterTime, teamSpeed, deliverySpeed, eventLabel, deliveryAdjusted });
+
+            if (splitType === 'TEAM_FINISH') teamFinished = true;
+          }
+
+          lastMarkerTime = splitRows.length > 0
+            ? splitRows[splitRows.length - 1].endTime
+            : startTime;
+
+          replayRiderRotations();
+          renumberRows();
+          updateTitle();
+          renderRows();
+          csvUploadInput.value = '';
+          setStatus(`Loaded ${splitRows.length} rows from CSV.`);
+        } catch (err) {
+          setStatus('Upload failed: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    videoInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      // Strip extension from video filename for use in CSV name
+      videoFileName = file.name.replace(/\.[^.]+$/, '');
+
+      const url = URL.createObjectURL(file);
+      video.src = url;
+      video.load();
+      video.style.display = '';
+
+      video.addEventListener('focus', () => video.blur());
+      setStatus('Video loaded. Press S to start timing.');
+    });
+
+    countryInput.addEventListener('input', updateTitle);
+    riderInputs.forEach((input) => input.addEventListener('input', renderRows));
+
+    document.addEventListener('keydown', (e) => {
+      const tag = document.activeElement && document.activeElement.tagName;
+      const isTypingTarget = tag === 'INPUT' || tag === 'TEXTAREA';
+      if (isTypingTarget) return;
+
+      const key = e.key.toLowerCase();
+
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      if (e.ctrlKey && e.key === 'ArrowRight') {
+        jumpForward();
+        return;
+      }
+
+      if (e.ctrlKey && e.key === 'ArrowLeft') {
+        jumpBackward();
+        return;
+      }
+
+      if (e.key === 'ArrowRight') {
+        stepNextFrame();
+      } else if (e.key === 'ArrowLeft') {
+        stepPrevFrame();
+      } else if (key === 's') {
+        startTiming();
+      } else if (key === 'z') {
+        addSplit('QUARTER', '', false);
+      } else if (key === 'c') {
+        addSplit('QUARTER', 'Change', true);
+      } else if (key === 'd') {
+        addSplit('QUARTER', 'Drop', true);
+      } else if (key === 'r') {
+        markEvent('Rider Finish');
+      } else if (key === 't') {
+        addSplit('TEAM_FINISH', '', false);
+      } else if (e.key === ' ') {
+        if (video.paused) {
+          video.play();
+        } else {
+          video.pause();
+        }
+      } else {
+        return;
+      }
+
+      e.preventDefault();
+    });
+
+    video.addEventListener('timeupdate', () => {
+      currentTimeDisplay.textContent = video.currentTime.toFixed(2);
+    });
+
+    updateTitle();
+    resetSession();
+  </script>
+</body>
+</html>

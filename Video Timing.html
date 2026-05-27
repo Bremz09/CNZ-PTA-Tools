@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Frame-by-Frame Video Viewer</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    .container { display: flex; gap: 20px; align-items: flex-start; }
+    .video-section { flex: 0 0 auto; }
+    .lap-section { flex: 1; }
+    video { max-width: 900px; height: 537px; margin-bottom: 10px; }
+    button { margin: 5px; }
+    #info { margin-top: 10px; }
+    .lap-table { margin-top: 15px; }
+    .lap-table + .lap-table { margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h2>Frame-by-Frame Video Viewer</h2>
+  <h3>Use Spacebar to Play/Pause, arrows to go frame by frame, Shift + arrows for 2x fast forward or rewind while held, Ctrl + arrows to skip by the last lap gap, Ctrl + Shift + arrows to use a fixed jump, "s" to start timer, "l" or "z" to lap, and "r" to reset.</h3>
+  <input type="file" accept="video/mp4,video/quicktime" id="videoInput"><br><br>
+  <div class="container">
+    <div class="video-section">
+      <video id="video" controls style="display:none;"></video><br>
+      <label for="fpsInput">FPS:</label>
+      <input type="number" id="fpsInput" min="1" max="240" value="50" style="width:60px;">
+      <label for="skipFramesInput">Skip Frames:</label>
+      <input type="number" id="skipFramesInput" min="1" max="1000" value="180" style="width:70px;">
+      <label for="fixedSkipFramesInput">Fixed Skip:</label>
+      <input type="number" id="fixedSkipFramesInput" min="1" max="1000" value="180" style="width:70px;">
+      <button id="prevFrame">⏪ Previous Frame</button>
+      <button id="nextFrame">⏩ Next Frame</button>
+      <button id="startBtn">Start</button>
+      <button id="lapBtn">Lap</button>
+      <button id="resetLapBtn">Reset</button>
+      <div id="info">Current Time: <span id="currentTime">0.00</span>s</div>
+    </div>
+    <div class="lap-section">
+      <table id="lapTable" class="lap-table" border="1" style="display:none;">
+        <thead>
+          <tr><th>Lap #</th><th>Lap Time (s)</th><th>Total Time (s)</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <table id="lapTableInverted" class="lap-table" border="1" style="display:none;">
+        <thead>
+          <tr id="lapTableInvertedHeadRow"><th>Metric</th></tr>
+        </thead>
+        <tbody>
+          <tr id="lapTimeRow"><th>Lap Time (s)</th></tr>
+          <tr id="totalTimeRow"><th>Total Time (s)</th></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+  const video = document.getElementById('video');
+  const videoInput = document.getElementById('videoInput');
+  const currentTimeDisplay = document.getElementById('currentTime');
+  const fpsInput = document.getElementById('fpsInput');
+  const skipFramesInput = document.getElementById('skipFramesInput');
+  const fixedSkipFramesInput = document.getElementById('fixedSkipFramesInput');
+  const startBtn = document.getElementById('startBtn');
+  const lapBtn = document.getElementById('lapBtn');
+  const resetLapBtn = document.getElementById('resetLapBtn');
+  const lapTable = document.getElementById('lapTable');
+  const lapTableBody = lapTable.querySelector('tbody');
+  const lapTableInverted = document.getElementById('lapTableInverted');
+  const lapTableInvertedHeadRow = document.getElementById('lapTableInvertedHeadRow');
+  const lapTimeRow = document.getElementById('lapTimeRow');
+  const totalTimeRow = document.getElementById('totalTimeRow');
+
+  function getSkipFrameCount() {
+    return parseInt(skipFramesInput.value, 10) || 10;
+  }
+
+  function getFixedSkipFrameCount() {
+    return parseInt(fixedSkipFramesInput.value, 10) || 10;
+  }
+
+  function resetLapTables() {
+    lapTableBody.innerHTML = '';
+    lapTable.style.display = 'none';
+    lapTableInvertedHeadRow.innerHTML = '<th>Metric</th>';
+    lapTimeRow.innerHTML = '<th>Lap Time (s)</th>';
+    totalTimeRow.innerHTML = '<th>Total Time (s)</th>';
+    lapTableInverted.style.display = 'none';
+  }
+
+  // Reset button handler
+  resetLapBtn.addEventListener('click', () => {
+    startTime = null;
+    lastLapTime = null;
+    lapCount = 0;
+    resetLapTables();
+  });
+
+  let startTime = null;
+  let lastLapTime = null;
+  let lapCount = 0;
+  // Start button handler
+  startBtn.addEventListener('click', () => {
+    startTime = video.currentTime;
+    lastLapTime = startTime;
+    lapCount = 0;
+    resetLapTables();
+    lapTable.style.display = 'table';
+    lapTableInverted.style.display = 'table';
+  });
+
+  // Lap button handler
+  lapBtn.addEventListener('click', () => {
+    if (startTime === null) return;
+    lapCount++;
+    const now = video.currentTime;
+    const lapTime = now - lastLapTime;
+    const totalTime = now - startTime;
+    const framesSinceLastMark = Math.max(1, Math.round(lapTime / frameDuration()));
+    lastLapTime = now;
+    skipFramesInput.value = framesSinceLastMark;
+    const row = document.createElement('tr');
+    row.innerHTML = `<td>${lapCount}</td><td>${lapTime.toFixed(2)}</td><td>${totalTime.toFixed(2)}</td>`;
+    lapTableBody.appendChild(row);
+
+    const lapHeadingCell = document.createElement('th');
+    lapHeadingCell.textContent = `Lap ${lapCount}`;
+    lapTableInvertedHeadRow.appendChild(lapHeadingCell);
+
+    const lapTimeCell = document.createElement('td');
+    lapTimeCell.textContent = lapTime.toFixed(2);
+    lapTimeRow.appendChild(lapTimeCell);
+
+    const totalTimeCell = document.createElement('td');
+    totalTimeCell.textContent = totalTime.toFixed(2);
+    totalTimeRow.appendChild(totalTimeCell);
+  });
+
+    videoInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const url = URL.createObjectURL(file);
+        video.src = url;
+        video.load();
+        video.style.display = '';
+        // Prevent video from taking focus and interfering with our controls
+        video.addEventListener('focus', () => video.blur());
+      }
+    });
+
+    // Use user-set FPS, default to 50
+    video.frameRate = parseInt(fpsInput.value, 10) || 50;
+    const frameDuration = () => 1 / video.frameRate;
+
+    fpsInput.addEventListener('input', () => {
+      video.frameRate = parseInt(fpsInput.value, 10) || 50;
+    });
+
+    video.addEventListener('loadedmetadata', () => {
+      // Reset to user-set FPS on new video
+      video.frameRate = parseInt(fpsInput.value, 10) || 50;
+    });
+
+    // Hold-to-repeat for frame stepping
+    const nextFrameBtn = document.getElementById('nextFrame');
+    const prevFrameBtn = document.getElementById('prevFrame');
+    let nextFrameInterval = null;
+    let prevFrameInterval = null;
+    let shuttleInterval = null;
+    let shuttleDirection = 0;
+    const shuttleIntervalMs = 50;
+    const shuttleStepSeconds = (2 * shuttleIntervalMs) / 1000;
+
+    function stepByFrames(frameCount) {
+      video.pause();
+      const targetTime = video.currentTime + (frameDuration() * frameCount);
+      video.currentTime = Math.min(video.duration, Math.max(0, targetTime));
+    }
+    function stepBySeconds(seconds) {
+      video.pause();
+      const targetTime = video.currentTime + seconds;
+      video.currentTime = Math.min(video.duration, Math.max(0, targetTime));
+    }
+    function stepNextFrame() {
+      stepByFrames(1);
+    }
+    function stepPrevFrame() {
+      stepByFrames(-1);
+    }
+    function stopShuttle() {
+      clearInterval(shuttleInterval);
+      shuttleInterval = null;
+      shuttleDirection = 0;
+    }
+    function startShuttle(direction) {
+      if (shuttleInterval && shuttleDirection === direction) return;
+      stopShuttle();
+      shuttleDirection = direction;
+      stepBySeconds(shuttleStepSeconds * direction);
+      shuttleInterval = setInterval(() => {
+        stepBySeconds(shuttleStepSeconds * direction);
+      }, shuttleIntervalMs);
+    }
+
+    nextFrameBtn.addEventListener('mousedown', () => {
+      stepNextFrame();
+      nextFrameInterval = setInterval(stepNextFrame, 80);
+    });
+    nextFrameBtn.addEventListener('mouseup', () => {
+      clearInterval(nextFrameInterval);
+    });
+    nextFrameBtn.addEventListener('mouseleave', () => {
+      clearInterval(nextFrameInterval);
+    });
+    nextFrameBtn.addEventListener('touchstart', () => {
+      stepNextFrame();
+      nextFrameInterval = setInterval(stepNextFrame, 80);
+    });
+    nextFrameBtn.addEventListener('touchend', () => {
+      clearInterval(nextFrameInterval);
+    });
+
+    prevFrameBtn.addEventListener('mousedown', () => {
+      stepPrevFrame();
+      prevFrameInterval = setInterval(stepPrevFrame, 80);
+    });
+    prevFrameBtn.addEventListener('mouseup', () => {
+      clearInterval(prevFrameInterval);
+    });
+    prevFrameBtn.addEventListener('mouseleave', () => {
+      clearInterval(prevFrameInterval);
+    });
+    prevFrameBtn.addEventListener('touchstart', () => {
+      stepPrevFrame();
+      prevFrameInterval = setInterval(stepPrevFrame, 80);
+    });
+    prevFrameBtn.addEventListener('touchend', () => {
+      clearInterval(prevFrameInterval);
+    });
+
+    window.addEventListener('blur', () => {
+      stopShuttle();
+    });
+
+    // Arrow key controls for frame navigation
+    document.addEventListener('keydown', (e) => {
+      if (document.activeElement === fpsInput || document.activeElement === skipFramesInput || document.activeElement === fixedSkipFramesInput) return; // Don't trigger when editing inputs
+      
+      // Always prevent default arrow key behavior to override video controls
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      
+      if (e.key === 'ArrowRight') {
+        if (e.ctrlKey && e.shiftKey) {
+          stopShuttle();
+          stepByFrames(getFixedSkipFrameCount());
+        } else if (e.shiftKey) {
+          startShuttle(1);
+        } else if (e.ctrlKey) {
+          stopShuttle();
+          stepByFrames(getSkipFrameCount());
+        } else {
+          stopShuttle();
+          stepNextFrame();
+        }
+      } else if (e.key === 'ArrowLeft') {
+        if (e.ctrlKey && e.shiftKey) {
+          stopShuttle();
+          stepByFrames(-getFixedSkipFrameCount());
+        } else if (e.shiftKey) {
+          startShuttle(-1);
+        } else if (e.ctrlKey) {
+          stopShuttle();
+          stepByFrames(-getSkipFrameCount());
+        } else {
+          stopShuttle();
+          stepPrevFrame();
+        }
+      } else if (e.key === 's' || e.key === 'S') {
+        startBtn.click();
+        e.preventDefault();
+      } else if (e.key === 'l' || e.key === 'L' || e.key === 'z' || e.key === 'Z') {
+        lapBtn.click();
+        e.preventDefault();
+      } else if (e.key === ' ') {
+        if (video.paused) {
+          video.play();
+        } else {
+          video.pause();
+        }
+        e.preventDefault();
+      } else if (e.key === 'r' || e.key === 'R') {
+        resetLapBtn.click();
+        e.preventDefault();
+      }
+    });
+
+    document.addEventListener('keyup', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'Shift') {
+        stopShuttle();
+      }
+    });
+
+    video.addEventListener('timeupdate', () => {
+      currentTimeDisplay.textContent = video.currentTime.toFixed(2);
+    });
+  </script>
+</body>
+</html>

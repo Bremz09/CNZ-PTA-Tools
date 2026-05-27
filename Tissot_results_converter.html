@@ -1,0 +1,3387 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Event Results Converter</title>
+  <style>
+    :root {
+      --bg-1: #f3f5e9;
+      --bg-2: #d9e7d1;
+      --ink: #1f2d1a;
+      --ink-soft: #3b4f33;
+      --panel: rgba(255, 255, 255, 0.88);
+      --accent: #245f32;
+      --accent-strong: #173f21;
+      --line: rgba(25, 60, 31, 0.22);
+      --danger: #982d2d;
+      --ok: #1f6d3f;
+      --shadow: 0 18px 50px rgba(27, 61, 23, 0.18);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Avenir Next", "Segoe UI Variable", "Trebuchet MS", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 12%, rgba(123, 175, 106, 0.38), transparent 45%),
+        radial-gradient(circle at 84% 14%, rgba(246, 200, 109, 0.28), transparent 50%),
+        radial-gradient(circle at 80% 82%, rgba(67, 131, 76, 0.2), transparent 55%),
+        linear-gradient(130deg, var(--bg-1), var(--bg-2));
+      padding: 28px 18px 34px;
+    }
+
+    .shell {
+      max-width: 1120px;
+      margin: 0 auto;
+      display: grid;
+      gap: 16px;
+      animation: rise 420ms ease-out;
+    }
+
+    .hero {
+      background: linear-gradient(130deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.7));
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 22px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(4px);
+    }
+
+    h1 {
+      margin: 0;
+      font-family: "Rockwell", "Avenir Next", serif;
+      font-size: clamp(1.4rem, 2.4vw, 2rem);
+      letter-spacing: 0.02em;
+      color: var(--accent-strong);
+    }
+
+    .subhead {
+      margin: 10px 0 0;
+      color: var(--ink-soft);
+      max-width: 70ch;
+      line-height: 1.45;
+    }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: 1fr;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      animation: rise 540ms ease-out;
+    }
+
+    .card h2 {
+      margin: 0 0 12px;
+      font-family: "Rockwell", "Avenir Next", serif;
+      font-size: 1.15rem;
+      color: var(--accent-strong);
+      letter-spacing: 0.015em;
+    }
+
+    .field-grid {
+      display: grid;
+      gap: 10px 12px;
+      grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 0.91rem;
+      font-weight: 700;
+      color: var(--ink-soft);
+      letter-spacing: 0.01em;
+    }
+
+    input[type="text"],
+    input[type="file"] {
+      width: 100%;
+      border: 1px solid rgba(39, 71, 30, 0.35);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--ink);
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 130ms ease, transform 130ms ease;
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 11px;
+      font-weight: 700;
+      font-size: 0.94rem;
+      padding: 11px 14px;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(130deg, var(--accent), var(--accent-strong));
+      transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+      box-shadow: 0 8px 20px rgba(24, 67, 31, 0.28);
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+      transform: none;
+      filter: none;
+    }
+
+    .secondary {
+      background: linear-gradient(130deg, #5f7757, #42543d);
+    }
+
+    .status {
+      min-height: 1.4em;
+      font-weight: 700;
+      margin-top: 8px;
+    }
+
+    .status.ok {
+      color: var(--ok);
+    }
+
+    .status.error {
+      color: var(--danger);
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 200px;
+      resize: vertical;
+      border-radius: 12px;
+      border: 1px solid rgba(39, 71, 30, 0.35);
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.92);
+      color: #273421;
+      font-family: "Consolas", "Cascadia Mono", monospace;
+      font-size: 0.85rem;
+      line-height: 1.35;
+    }
+
+    .hint {
+      margin-top: 8px;
+      font-size: 0.88rem;
+      color: #4b5f45;
+    }
+
+    @media (min-width: 900px) {
+      .grid {
+        grid-template-columns: 1.1fr 1fr;
+      }
+
+      .field-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @keyframes rise {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <h1>Event Results CSV to TSV</h1>
+      <p class="subhead">
+        Upload event CSV files and this page will choose the matching converter from the file names.
+        For now, conversion runs only when the uploaded filenames contain team pursuit_qualifying.
+      </p>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>Inputs</h2>
+        <div class="field-grid">
+          <div class="field">
+            <label for="sourceFiles">Upload source CSV files</label>
+            <input id="sourceFiles" type="file" accept=".csv,text/csv,.pdf,application/pdf" multiple>
+          </div>
+          <div class="field">
+            <label for="outputName">Output filename</label>
+            <input id="outputName" type="text" value="mens_team_pursuit_output.tsv">
+          </div>
+        </div>
+
+        <h2 style="margin-top:16px;">Metadata</h2>
+        <div class="field-grid">
+          <div class="field"><label for="location">Location</label><input id="location" type="text" value="Hong Kong"></div>
+          <div class="field"><label for="year">Year</label><input id="year" type="text" value="2026"></div>
+          <div class="field"><label for="date">Date (dd/mm/yyyy)</label><input id="date" type="text" value="17/04/2026"></div>
+          <div class="field"><label for="event">Event</label><input id="event" type="text" value="NC"></div>
+        </div>
+
+        <div class="actions">
+          <button id="convertBtn" type="button">Convert to TSV</button>
+          <button id="downloadBtn" class="secondary" type="button" disabled>Download TSV</button>
+          <button id="copyBtn" class="secondary" type="button" disabled>Copy TSV (with headers)</button>
+        </div>
+        <div id="status" class="status" aria-live="polite"></div>
+        <p class="hint">Supported filename markers: <strong>team sprint_qualifying</strong>, <strong>team sprint_first round</strong>, <strong>team sprint_finals</strong>, <strong>team pursuit_qualifying</strong>, <strong>team pursuit_first round</strong>, <strong>team pursuit_finals</strong>, <strong>sprint_qualifying</strong> (PDF), <strong>sp2/sp3/sp4/sp5/sp6</strong> (Sprint match PDFs), <strong>1km time trial_qualifying</strong>, <strong>1km time trial_final</strong>, <strong>individual pursuit_qualifying</strong>, <strong>individual pursuit_finals</strong>, <strong>men's keirin_first round</strong>, <strong>men's keirin_first round repechage</strong>, <strong>men's keirin_quarterfinals</strong>, <strong>men's keirin_semifinals</strong>, <strong>men's keirin_finals</strong>, <strong>men's omnium_scratch race 1_4</strong>, <strong>men's omnium_tempo race 2_4</strong>, <strong>men's omnium_elimination race 3_4</strong>, <strong>men's omnium_points race 4_4</strong>, <strong>points race_final</strong>, <strong>scratch race_final</strong>, <strong>madison_final</strong>, <strong>elimination race_final</strong>. Most modes need both Results and Analysis files; Points Race Final, Scratch Race Final, Omnium Scratch Race, Omnium Tempo Race, Omnium Elimination Race, Omnium Overall, Madison Final, Elimination Race Final, Keirin rounds, and Sprint PDFs need only source results.</p>
+      </article>
+
+      <article class="card">
+        <h2>Output Preview</h2>
+        <textarea id="preview" placeholder="TSV output appears here..." readonly></textarea>
+        <div class="actions">
+          <button id="copyDataBtn" class="secondary" type="button" disabled>Copy data (no headers)</button>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    const DISTANCES = Array.from({ length: 32 }, (_, i) => (i + 1) * 125);
+    const TEAM_SPRINT_QUALIFYING_DISTANCES = [125, 250, 375, 500, 625, 750];
+    const TEAM_PURSUIT_QUALIFYING_KEY = "team pursuit_qualifying";
+    const TEAM_PURSUIT_FIRST_ROUND_KEY = "team pursuit_first round";
+    const TEAM_PURSUIT_FINALS_KEY = "team pursuit_finals";
+    const TEAM_SPRINT_QUALIFYING_KEY = "team sprint_qualifying";
+    const TEAM_SPRINT_FIRST_ROUND_KEY = "team sprint_first round";
+    const TEAM_SPRINT_FINALS_KEY = "team sprint_finals";
+    const POINTS_RACE_FINAL_KEY = "points race_final";
+    const SCRATCH_RACE_FINAL_KEY = "scratch race_final";
+    const MADISON_FINAL_KEY = "madison_final";
+    const ELIMINATION_RACE_FINAL_KEY = "elimination race_final";
+    const KILO_QUALIFYING_KEY = "1km time trial_qualifying";
+    const KILO_FINAL_KEY = "1km time trial_final";
+    const INDIVIDUAL_PURSUIT_QUALIFYING_KEY = "individual pursuit_qualifying";
+    const INDIVIDUAL_PURSUIT_FINALS_KEY = "individual pursuit_finals";
+    const KEIRIN_FIRST_ROUND_KEY = "men's keirin_first round_results";
+    const KEIRIN_REPECHAGE_KEY = "men's keirin_first round repechage_results";
+    const KEIRIN_SECOND_ROUND_KEY = "men's keirin_second round_results";
+    const KEIRIN_SECOND_ROUND_REPECHAGE_KEY = "men's keirin_second round repechage_results";
+    const KEIRIN_QUARTERFINALS_KEY = "men's keirin_quarterfinals_results";
+    // Use singular "semifinal" so it matches both "Semifinal" and "Semifinals" filenames.
+    const KEIRIN_SEMIFINALS_KEY = "men's keirin_semifinal";
+    const KEIRIN_FINALS_KEY = "men's keirin_finals_results";
+    const OMNIUM_SCRATCH_RACE_KEY = "men's omnium_scratch race 1_4_results";
+    const OMNIUM_TEMPO_RACE_KEY = "men's omnium_tempo race 2_4_results";
+    const OMNIUM_ELIMINATION_RACE_KEY = "men's omnium_elimination race 3_4_results";
+    const OMNIUM_POINTS_RACE_KEY = "men's omnium_points race 4_4_results";
+    const SPRINT_QUALIFYING_PDF_KEY = "sprint_qualifying";
+    const SPRINT_MATCH_SP2_KEY = "sp2";
+    const SPRINT_MATCH_SP3_KEY = "sp3";
+    const SPRINT_MATCH_SP4_KEY = "sp4";
+    const SPRINT_MATCH_SP5_KEY = "sp5";
+    const SPRINT_MATCH_SP6_KEY = "sp6";
+
+    const refs = {
+      sourceFiles: document.getElementById("sourceFiles"),
+      outputName: document.getElementById("outputName"),
+      location: document.getElementById("location"),
+      year: document.getElementById("year"),
+      date: document.getElementById("date"),
+      event: document.getElementById("event"),
+      convertBtn: document.getElementById("convertBtn"),
+      downloadBtn: document.getElementById("downloadBtn"),
+      copyBtn: document.getElementById("copyBtn"),
+      copyDataBtn: document.getElementById("copyDataBtn"),
+      status: document.getElementById("status"),
+      preview: document.getElementById("preview")
+    };
+
+    let currentTsv = "";
+
+    function setStatus(message, type) {
+      refs.status.textContent = message;
+      refs.status.className = `status ${type || ""}`;
+    }
+
+    function parseDelimited(text, delimiter) {
+      const rows = [];
+      let row = [];
+      let cell = "";
+      let inQuotes = false;
+
+      for (let i = 0; i < text.length; i += 1) {
+        const char = text[i];
+
+        if (char === '"') {
+          if (inQuotes && text[i + 1] === '"') {
+            cell += '"';
+            i += 1;
+          } else {
+            inQuotes = !inQuotes;
+          }
+          continue;
+        }
+
+        if (!inQuotes && char === delimiter) {
+          row.push(cell);
+          cell = "";
+          continue;
+        }
+
+        if (!inQuotes && (char === "\n" || char === "\r")) {
+          if (char === "\r" && text[i + 1] === "\n") {
+            i += 1;
+          }
+          row.push(cell);
+          rows.push(row);
+          row = [];
+          cell = "";
+          continue;
+        }
+
+        cell += char;
+      }
+
+      if (cell.length > 0 || row.length > 0) {
+        row.push(cell);
+        rows.push(row);
+      }
+
+      return rows.filter((r) => !(r.length === 1 && r[0] === ""));
+    }
+
+    function detectDelimiter(text, fallback) {
+      const line = (text.split(/\r?\n/, 1)[0] || "").trim();
+      if (!line) {
+        return fallback;
+      }
+
+      const semis = (line.match(/;/g) || []).length;
+      const commas = (line.match(/,/g) || []).length;
+
+      if (semis > commas) {
+        return ";";
+      }
+      if (commas > semis) {
+        return ",";
+      }
+      return fallback;
+    }
+
+    function rowsToDicts(rows) {
+      if (rows.length < 1) {
+        return [];
+      }
+
+      const headers = rows[0].map((h) => (h || "").trim());
+      return rows.slice(1).map((r) => {
+        const out = {};
+        headers.forEach((header, idx) => {
+          out[header] = (r[idx] || "").trim();
+        });
+        return out;
+      });
+    }
+
+    function parseTimeToSeconds(raw) {
+      const cleaned = String(raw || "").replace(/\s*\(\d+\)\s*$/, "").trim();
+      if (!cleaned) {
+        throw new Error("Empty time value encountered.");
+      }
+
+      if (cleaned.includes(":")) {
+        const [mins, secs] = cleaned.split(":", 2);
+        return Number.parseInt(mins, 10) * 60 + Number.parseFloat(secs);
+      }
+
+      return Number.parseFloat(cleaned);
+    }
+
+    function stripTimeSuffix(raw) {
+      return String(raw || "").replace(/\s*\(\d+\)\s*$/, "").trim();
+    }
+
+    function normalizeName(name) {
+      return String(name || "")
+        .toLowerCase()
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9 ]+/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function format3Trim(num) {
+      return Number(num).toFixed(3).replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+    }
+
+    function parseDdMmYyyy(value) {
+      const m = String(value || "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (!m) {
+        throw new Error(`Invalid date '${value}'. Expected dd/mm/yyyy.`);
+      }
+      const d = Number.parseInt(m[1], 10);
+      const mo = Number.parseInt(m[2], 10);
+      const y = Number.parseInt(m[3], 10);
+      const dt = new Date(y, mo - 1, d);
+      if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) {
+        throw new Error(`Invalid calendar date '${value}'.`);
+      }
+      return dt;
+    }
+
+    async function readTextWithFallbacks(file) {
+      const bytes = await file.arrayBuffer();
+      const tryDecoders = ["utf-8", "windows-1252", "iso-8859-1"];
+      for (const enc of tryDecoders) {
+        try {
+          return new TextDecoder(enc, { fatal: true }).decode(bytes);
+        } catch (error) {
+          // Try next encoding.
+        }
+      }
+      return new TextDecoder("utf-8").decode(bytes);
+    }
+
+    function loadResults(resultRows) {
+      const teams = [];
+      let current = null;
+
+      for (const row of resultRows) {
+        const rankRaw = (row.Rank || "").trim();
+        const bibRaw = (row.Bib || "").trim();
+        const nameRaw = (row.Name || "").trim();
+
+        if (rankRaw) {
+          current = {
+            rank: Number.parseInt(rankRaw, 10),
+            country: (row.Nat || "").trim(),
+            riders: [],
+            t1000: parseTimeToSeconds(row["1000m"] || ""),
+            t2000: parseTimeToSeconds(row["2000m"] || ""),
+            t3000: parseTimeToSeconds(row["3000m"] || ""),
+            t4000: parseTimeToSeconds(row.Finish || row.Time || ""),
+            timeText: stripTimeSuffix(row.Time || ""),
+            avgSpeed: Number.parseFloat((row["Av. Speed"] || "0").trim())
+          };
+          teams.push(current);
+          continue;
+        }
+
+        if (current && bibRaw && nameRaw) {
+          current.riders.push(nameRaw);
+        }
+      }
+
+      for (const team of teams) {
+        while (team.riders.length < 4) {
+          team.riders.push("");
+        }
+      }
+
+      return teams;
+    }
+
+    function loadAnalysis(analysisRows) {
+      const perCountry = {};
+      let currentCountry = null;
+
+      for (const row of analysisRows) {
+        const distanceRaw = (row.Distance || "").trim().replace(/^"|"$/g, "");
+        const timeRaw = (row.Time || "").trim().replace(/^"|"$/g, "");
+        const rankOrCode = (row.Rank || "").trim().replace(/^"|"$/g, "");
+
+        if (!distanceRaw && rankOrCode && rankOrCode.length === 3) {
+          currentCountry = rankOrCode;
+          if (!perCountry[currentCountry]) {
+            perCountry[currentCountry] = {};
+          }
+          continue;
+        }
+
+        if (!distanceRaw || !distanceRaw.endsWith("m") || !currentCountry) {
+          continue;
+        }
+
+        const dist = Number.parseInt(distanceRaw.slice(0, -1), 10);
+        if (!timeRaw) {
+          continue;
+        }
+
+        perCountry[currentCountry][dist] = parseTimeToSeconds(timeRaw);
+      }
+
+      return perCountry;
+    }
+
+    function loadKiloResults(resultRows) {
+      return resultRows
+        .filter((row) => (row.Rank || "").trim())
+        .map((row) => ({
+          rank: (row.Rank || "").trim(),
+          athlete: (row.Name || "").trim(),
+          country: (row.Nat || "").trim(),
+          timeSeconds: parseTimeToSeconds(row.Finish || row.Time || ""),
+          avgSpeed: Number.parseFloat((row["Av. Speed"] || "0").trim())
+        }));
+    }
+
+    function loadKiloAnalysis(analysisRows) {
+      const byAthlete = {};
+      let currentAthleteKey = null;
+
+      for (const row of analysisRows) {
+        const distanceRaw = (row.Distance || "").trim().replace(/^"|"$/g, "");
+        const timeRaw = (row.Time || "").trim().replace(/^"|"$/g, "");
+        const natRaw = (row.Rank || "").trim().replace(/^"|"$/g, "");
+
+        const isHeaderRow = !distanceRaw.endsWith("m") && timeRaw && natRaw && natRaw.length === 3;
+        if (isHeaderRow) {
+          currentAthleteKey = normalizeName(timeRaw);
+          byAthlete[currentAthleteKey] = {};
+          continue;
+        }
+
+        if (!currentAthleteKey || !distanceRaw.endsWith("m") || !timeRaw) {
+          continue;
+        }
+
+        const dist = Number.parseInt(distanceRaw.slice(0, -1), 10);
+        byAthlete[currentAthleteKey][dist] = parseTimeToSeconds(timeRaw);
+      }
+
+      return byAthlete;
+    }
+
+    function buildKiloOutputRows(riders, cumulativeByAthlete, ages, meta, stage) {
+      const distances = [125, 250, 375, 500, 625, 750, 875, 1000];
+
+      return riders.map((rider) => {
+        const cumulative = cumulativeByAthlete[normalizeName(rider.athlete)] || {};
+        const splits = computeSplitsForDistances(cumulative, distances);
+        return [
+          meta.location,
+          String(meta.year),
+          meta.date,
+          meta.event,
+          stage,
+          rider.athlete,
+          rider.country,
+          ages[normalizeName(rider.athlete)] || "",
+          rider.rank,
+          ...splits,
+          format3Trim(rider.timeSeconds),
+          (Number.isFinite(rider.avgSpeed) ? rider.avgSpeed : 0).toFixed(2)
+        ];
+      });
+    }
+
+    function writeKiloTsv(rows) {
+      const headers = [
+        "Location",
+        "Year",
+        "Date",
+        "Event",
+        "Stage",
+        "Athlete",
+        "Country",
+        "Age",
+        "Rank",
+        "125m",
+        "250m",
+        "375m",
+        "500m",
+        "625m",
+        "750m",
+        "875m",
+        "1000m",
+        "Time",
+        "Avg Speed"
+      ];
+
+      const lines = [headers.join("\t")];
+      for (const row of rows) {
+        lines.push(row.join("\t"));
+      }
+      return lines.join("\n");
+    }
+
+    function loadIndividualPursuitQualifyingResults(resultRows) {
+      return resultRows
+        .filter((row) => /^\d+$/.test((row.Rank || "").trim()))
+        .map((row) => ({
+          rank: (row.Rank || "").trim(),
+          athlete: (row.Name || "").trim(),
+          country: (row.Nat || "").trim(),
+          timeSeconds: parseTimeToSeconds(row.Finish || row.Time || ""),
+          avgSpeed: Number.parseFloat((row["Av. Speed"] || "").trim())
+        }));
+    }
+
+    function loadIndividualPursuitFinalsResults(resultRows) {
+      return resultRows
+        .filter((row) => /^\d+$/.test((row.Rank || "").trim()))
+        .map((row) => ({
+          rank: (row.Rank || "").trim(),
+          athlete: (row.Name || "").trim(),
+          country: (row.Nat || "").trim(),
+          timeSeconds: Number.NaN,
+          avgSpeed: Number.NaN
+        }));
+    }
+
+    function buildIndividualPursuitOutputRows(riders, cumulativeByAthlete, ages, meta, stage) {
+      return riders.map((rider) => {
+        const key = normalizeName(rider.athlete);
+        const cumulative = cumulativeByAthlete[key] || {};
+        const splits = computeSplitsForDistances(cumulative, DISTANCES);
+        const finalTimeFromAnalysis = cumulative[4000];
+        const timeSeconds = Number.isFinite(rider.timeSeconds) ? rider.timeSeconds : finalTimeFromAnalysis;
+        const avgSpeed = Number.isFinite(rider.avgSpeed)
+          ? rider.avgSpeed
+          : computeAvgSpeedKmh(4000, timeSeconds);
+
+        return [
+          meta.location,
+          String(meta.year),
+          meta.date,
+          meta.event,
+          stage,
+          rider.athlete,
+          rider.country,
+          ages[key] || "",
+          rider.rank,
+          ...splits,
+          format3Trim(timeSeconds),
+          Number.isFinite(avgSpeed) ? Number(avgSpeed).toFixed(3) : ""
+        ];
+      });
+    }
+
+    function writeIndividualPursuitTsv(rows) {
+      const headers = [
+        "Location",
+        "Year",
+        "Date",
+        "Event",
+        "Stage",
+        "Athlete",
+        "Country",
+        "Age",
+        "Rank",
+        ...DISTANCES.map((dist) => String(dist)),
+        "Time",
+        "Avg Speed"
+      ];
+
+      const lines = [headers.join("\t")];
+      for (const row of rows) {
+        lines.push(row.join("\t"));
+      }
+      return lines.join("\n");
+    }
+
+    function loadKeirinRoundResults(resultRows) {
+      return resultRows
+        .filter((row) => (row.Heat || "").trim() && (row.Name || "").trim())
+        .map((row) => {
+          const rawRank = (row.Rank || "").trim();
+          const statusRaw = (row[""] || "").trim();
+          const rank = statusRaw || rawRank;
+          return {
+            heat: (row.Heat || "").trim(),
+            rank,
+            athlete: (row.Name || "").trim(),
+            country: (row.Nat || "").trim()
+          };
+        });
+    }
+
+    function buildKeirinRoundOutputRows(riders, ages, meta, roundCode) {
+      const finalHeatCounters = {};
+
+      return riders.map((rider) => {
+        const isNumericRank = /^\d+$/.test(String(rider.rank || "").trim());
+        let displayRank = rider.rank;
+        if (roundCode === "Final" && isNumericRank) {
+          const key = String(rider.heat || "").trim();
+          finalHeatCounters[key] = (finalHeatCounters[key] || 0) + 1;
+          displayRank = String(finalHeatCounters[key]);
+        }
+
+        const raceIdName = `${meta.location}_${meta.year}_${meta.event}_${roundCode}_${rider.heat}`;
+        return [
+          meta.location,
+          String(meta.year),
+          meta.date,
+          meta.event,
+          roundCode,
+          rider.heat,
+          displayRank,
+          raceIdName,
+          "#VALUE!",
+          rider.athlete,
+          rider.country,
+          ages[normalizeName(rider.athlete)] || ""
+        ];
+      });
+    }
+
+    function writeKeirinTsv(rows) {
+      const headers = [
+        "Location",
+        "Year",
+        "Date",
+        "Event",
+        "Round",
+        "Heat",
+        "Rank",
+        "race_id_name",
+        "race_id",
+        "Athlete",
+        "Country",
+        "Age"
+      ];
+
+      const lines = [headers.join("\t")];
+      for (const row of rows) {
+        lines.push(row.join("\t"));
+      }
+      return lines.join("\n");
+    }
+
+    function loadAges(ageRows, eventDateText) {
+      if (!ageRows || ageRows.length < 1) {
+        return {};
+      }
+
+      const eventDate = parseDdMmYyyy(eventDateText);
+      const ages = {};
+
+      for (const row of ageRows) {
+        const name = (row.Name || "").trim();
+        if (!name) {
+          continue;
+        }
+
+        const ageRaw = (row.Age || "").trim();
+        const dobRaw = (row.DOB || "").trim();
+
+        if (ageRaw) {
+          ages[normalizeName(name)] = ageRaw;
+          continue;
+        }
+
+        if (dobRaw) {
+          const dob = parseDdMmYyyy(dobRaw);
+          const ageYears = (eventDate.getTime() - dob.getTime()) / (1000 * 60 * 60 * 24 * 365.2425);
+          ages[normalizeName(name)] = ageYears.toFixed(2);
+        }
+      }
+
+      return ages;
+    }
+
+    function compute125Splits(cumulativeByDistance) {
+      const out = [];
+      let prev = 0;
+
+      for (const dist of DISTANCES) {
+        const current = cumulativeByDistance[dist];
+        if (typeof current !== "number" || Number.isNaN(current)) {
+          out.push("");
+          continue;
+        }
+
+        const split = current - prev;
+        out.push(format3Trim(split));
+        prev = current;
+      }
+
+      return out;
+    }
+
+    function computeSplitsForDistances(cumulativeByDistance, distances) {
+      const out = [];
+      let prev = 0;
+
+      for (const dist of distances) {
+        const current = cumulativeByDistance[dist];
+        if (typeof current !== "number" || Number.isNaN(current)) {
+          out.push("");
+          continue;
+        }
+
+        const split = current - prev;
+        out.push(format3Trim(split));
+        prev = current;
+      }
+
+      return out;
+    }
+
+    function computeAvgSpeedKmh(distanceMeters, timeSeconds) {
+      if (!Number.isFinite(timeSeconds) || timeSeconds <= 0) {
+        return 0;
+      }
+      return (distanceMeters / timeSeconds) * 3.6;
+    }
+
+    function loadTeamSprintQualifyingResults(resultRows) {
+      const teams = [];
+      let current = null;
+
+      for (const row of resultRows) {
+        const rankRaw = (row.Rank || "").trim();
+        const bibRaw = (row.Bib || "").trim();
+        const nameRaw = (row.Name || "").trim();
+
+        if (rankRaw && /^\d+$/.test(rankRaw)) {
+          current = {
+            rank: Number.parseInt(rankRaw, 10),
+            country: (row.Nat || "").trim(),
+            riders: [],
+            timeSeconds: parseTimeToSeconds(row.Finish || row.Time || ""),
+            timeText: stripTimeSuffix(row.Time || row.Finish || ""),
+            avgSpeed: Number.parseFloat((row["Av. Speed"] || "0").trim())
+          };
+          teams.push(current);
+          continue;
+        }
+
+        if (current && bibRaw && nameRaw) {
+          current.riders.push(nameRaw);
+        }
+      }
+
+      for (const team of teams) {
+        while (team.riders.length < 3) {
+          team.riders.push("");
+        }
+      }
+
+      return teams;
+    }
+
+    function loadTeamSprintFirstRoundResults(resultRows) {
+      const teams = [];
+      let current = null;
+
+      for (const row of resultRows) {
+        const heatRaw = (row.Heat || row.Race || row.Round || "").trim();
+        const rankRaw = (row.Rank || "").trim();
+        const bibRaw = (row.Bib || "").trim();
+        const nameRaw = (row.Name || "").trim();
+
+        if (heatRaw && rankRaw && /^\d+$/.test(rankRaw)) {
+          current = {
+            heatNum: Number.parseInt(heatRaw, 10),
+            rank: Number.parseInt(rankRaw, 10),
+            country: (row.Nat || "").trim(),
+            riders: [],
+            timeSeconds: parseTimeToSeconds(row.Finish || row.Time || ""),
+            timeText: stripTimeSuffix(row.Time || row.Finish || ""),
+            avgSpeed: Number.parseFloat((row["Av. Speed"] || "0").trim())
+          };
+          teams.push(current);
+          continue;
+        }
+
+        if (current && bibRaw && nameRaw) {
+          current.riders.push(nameRaw);
+        }
+      }
+
+      for (const team of teams) {
+        while (team.riders.length < 3) {
+          team.riders.push("");
+        }
+      }
+
+      // Keep heats grouped and winners first.
+      teams.sort((a, b) => {
+        if (a.heatNum !== b.heatNum) {
+          return a.heatNum - b.heatNum;
+        }
+        if (a.rank !== b.rank) {
+          return a.rank - b.rank;
+        }
+        return a.timeSeconds - b.timeSeconds;
+      });
+
+      return teams;
+    }
+
+    function buildTeamSprintQualifyingOutputRows(teams, analysis, ages, meta) {
+      const rows = [];
+
+      for (const team of teams) {
+        const cumulative = analysis[team.country] || {};
+        const splits = computeSplitsForDistances(cumulative, TEAM_SPRINT_QUALIFYING_DISTANCES);
+        const riderAges = team.riders.slice(0, 3).map((name) => ages[normalizeName(name)] || "");
+
+        const row = [
+          meta.location,
+          String(meta.year),
+          meta.date,
+          meta.event,
+          "Q",
+          "Q",
+          team.country,
+          team.riders[0] || "",
+          team.riders[1] || "",
+          team.riders[2] || "",
+          riderAges[0] || "",
+          riderAges[1] || "",
+          riderAges[2] || "",
+          String(team.rank),
+          ...splits,
+          format3Trim(team.timeSeconds),
+          (Number.isFinite(team.avgSpeed) ? team.avgSpeed : 0).toFixed(3)
+        ];
+
+        rows.push(row);
+      }
+
+      return rows;
+    }
+
+    function buildTeamSprintFirstRoundOutputRows(teams, analysis, ages, meta) {
+      const rows = [];
+
+      for (const team of teams) {
+        const cumulative = analysis[team.country] || {};
+        const splits = computeSplitsForDistances(cumulative, TEAM_SPRINT_QUALIFYING_DISTANCES);
+        const riderAges = team.riders.slice(0, 3).map((name) => ages[normalizeName(name)] || "");
+
+        const row = [
+          meta.location,
+          String(meta.year),
+          meta.date,
+          meta.event,
+          "R1",
+          String(team.heatNum),
+          team.country,
+          team.riders[0] || "",
+          team.riders[1] || "",
+          team.riders[2] || "",
+          riderAges[0] || "",
+          riderAges[1] || "",
+          riderAges[2] || "",
+          String(team.rank),
+          ...splits,
+          format3Trim(team.timeSeconds),
+          (Number.isFinite(team.avgSpeed) ? team.avgSpeed : 0).toFixed(3)
+        ];
+
+        rows.push(row);
+      }
+
+      return rows;
+    }
+
+    function buildTeamSprintFinalsOutputRows(teams, analysis, ages, meta) {
+      const rows = [];
+      const heatLabelByNumber = { 2: "G", 1: "B" };
+
+      for (const team of teams) {
+        const cumulative = analysis[team.country] || {};
+        const splits = computeSplitsForDistances(cumulative, TEAM_SPRINT_QUALIFYING_DISTANCES);
+        const riderAges = team.riders.slice(0, 3).map((name) => ages[normalizeName(name)] || "");
+        const heatLabel = heatLabelByNumber[team.heatNum] || String(team.heatNum);
+
+        const row = [
+          meta.location,
+          String(meta.year),
+          meta.date,
+          meta.event,
+          "F",
+          heatLabel,
+          team.country,
+          team.riders[0] || "",
+          team.riders[1] || "",
+          team.riders[2] || "",
+          riderAges[0] || "",
+          riderAges[1] || "",
+          riderAges[2] || "",
+          String(team.rank),
+          ...splits,
+          format3Trim(team.timeSeconds),
+          (Number.isFinite(team.avgSpeed) ? team.avgSpeed : 0).toFixed(3)
+        ];
+
+        rows.push(row);
+      }
+
+      return rows;
+    }
+
+    function buildOutputRows(teams, analysis, ages, meta) {
+      const rows = [];
+
+      for (const team of teams) {
+        const cumulative = analysis[team.country] || {};
+        const split125 = compute125Splits(cumulative);
+
+        const firstLap = cumulative[250];
+        const secondK = team.t2000 - team.t1000;
+        const thirdK = team.t3000 - team.t2000;
+        const fourthK = team.t4000 - team.t3000;
+
+        const riders = team.riders.slice(0, 4);
+        const riderAges = riders.map((name) => ages[normalizeName(name)] || "");
+
+        const row = [
+          meta.location,
+          String(meta.year),
+          meta.date,
+          meta.event,
+          meta.stage,
+          meta.heat,
+          team.country,
+          riders[0] || "",
+          riders[1] || "",
+          riders[2] || "",
+          riders[3] || "",
+          riderAges[0] || "",
+          riderAges[1] || "",
+          riderAges[2] || "",
+          riderAges[3] || "",
+          String(team.rank),
+          team.timeText,
+          team.t4000.toFixed(3),
+          typeof firstLap === "number" ? firstLap.toFixed(3) : "",
+          team.t1000.toFixed(3),
+          secondK.toFixed(3),
+          thirdK.toFixed(3),
+          fourthK.toFixed(3)
+        ];
+
+        row.push(...split125);
+        row.push((Number.isFinite(team.avgSpeed) ? team.avgSpeed : 0).toFixed(2));
+        rows.push(row);
+      }
+
+      return rows;
+    }
+
+    function writeTsv(rows) {
+      const headers = [
+        "Location",
+        "Year",
+        "Date",
+        "Event",
+        "Stage",
+        "Heat",
+        "Country",
+        "Rider1",
+        "Rider2",
+        "Rider3",
+        "Rider4",
+        "Age1",
+        "Age2",
+        "Age3",
+        "Age4",
+        "Rank",
+        "Time",
+        "Seconds",
+        "1st lap",
+        "1st k",
+        "2nd k",
+        "3rd k",
+        "4th k"
+      ];
+
+      for (const d of DISTANCES) {
+        headers.push(`${d}m`);
+      }
+      headers.push("Avg Speed");
+
+      const lines = [headers.join("\t")];
+      for (const row of rows) {
+        lines.push(row.join("\t"));
+      }
+      return lines.join("\n");
+    }
+
+    function writeTeamSprintQualifyingTsv(rows) {
+      const headers = [
+        "Location",
+        "Year",
+        "Date",
+        "Event",
+        "Stage",
+        "Heat",
+        "Country",
+        "Rider1",
+        "Rider2",
+        "Rider3",
+        "Age1",
+        "Age2",
+        "Age3",
+        "Rank",
+        "125",
+        "250",
+        "375",
+        "500",
+        "625",
+        "750",
+        "Time",
+        "Avg Speed"
+      ];
+
+      const lines = [headers.join("\t")];
+      for (const row of rows) {
+        lines.push(row.join("\t"));
+      }
+      return lines.join("\n");
+    }
+
+    function loadPointsRaceFinalResults(resultRows) {
+      return resultRows
+        .filter((row) => (row.Name || "").trim())
+        .map((row, index) => ({
+          name: (row.Name || "").trim(),
+          country: (row.Nat || "").trim(),
+          rank: String(index + 1),
+          sprints: Array.from({ length: 16 }, (_, sprintIndex) => (row[`Sprint ${sprintIndex + 1}`] || "").trim()),
+          plusLaps: (row["P.Laps"] || "").trim(),
+          minusLaps: (row["M.Laps"] || "").trim(),
+          total: (row.Total || "").trim()
+        }));
+    }
+
+    function buildPointsRaceFinalOutputRows(riders, ages, meta) {
+      return riders.map((rider) => [
+        meta.location,
+        String(meta.year),
+        meta.date,
+        meta.event,
+        rider.name,
+        rider.country,
+        ages[normalizeName(rider.name)] || "",
+        rider.rank,
+        ...rider.sprints,
+        rider.plusLaps,
+        rider.minusLaps,
+        rider.total
+      ]);
+    }
+
+    function writePointsRaceFinalTsv(rows) {
+      const headers = [
+        "Location",
+        "Year",
+        "Date",
+        "Event",
+        "Name",
+        "Country",
+        "Age",
+        "Rank",
+        "Sprint 1",
+        "Sprint 2",
+        "Sprint 3",
+        "Sprint 4",
+        "Sprint 5",
+        "Sprint 6",
+        "Sprint 7",
+        "Sprint 8",
+        "Sprint 9",
+        "Sprint 10",
+        "Sprint 11",
+        "Sprint 12",
+        "Sprint 13",
+        "Sprint 14",
+        "Sprint 15",
+        "Sprint 16",
+        "P.Laps",
+        "M.Laps",
+        "Total"
+      ];
+
+      const lines = [headers.join("\t")];
+      for (const row of rows) {
+        lines.push(row.join("\t"));
+      }
+      return lines.join("\n");
+    }
+
+    function loadScratchRaceFinalResults(resultRows) {
+      return resultRows
+        .filter((row) => (row.Name || "").trim())
+        .map((row, index) => ({
+          athlete: (row.Name || "").trim(),
+          country: (row.Nat || "").trim(),
+          rank: (row.Rank || "").trim() || String(index + 1)
+        }));
+    }
+
+    function buildScratchRaceFinalOutputRows(riders, ages, meta) {
+      return riders.map((rider) => [
+        meta.location,
+        String(meta.year),
+        meta.date,
+        meta.event,
+        rider.athlete,
+        rider.country,
+        ages[normalizeName(rider.athlete)] || "",
+        rider.rank
+      ]);
+    }
+
+    function writeScratchRaceFinalTsv(rows) {
+      const headers = [
+        "Location",
+        "Year",
+        "Date",
+        "Event",
+        "Athlete",
+        "Country",
+        "Age",
+        "Rank"
+      ];
+
+      const lines = [headers.join("\t")];
+      for (const row of rows) {
+        lines.push(row.join("\t"));
+      }
+      return lines.join("\n");
+    }
+
+    function loadOmniumScratchRaceResults(resultRows) {
+      return resultRows
+        .filter((row) => (row.Name || "").trim())
+        .map((row, index) => ({
+          name: (row.Name || "").trim(),
+          country: (row.Nat || "").trim(),
+          rank: (row.Rank || "").trim() || String(index + 1)
+        }));
+    }
+
+    function buildOmniumScratchRaceOutputRows(riders, ages, meta) {
+      return riders.map((rider) => [
+        meta.location,
+        String(meta.year),
+        meta.date,
+        meta.event,
+        rider.name,
+        rider.country,
+        ages[normalizeName(rider.name)] || "",
+        rider.rank
+      ]);
+    }
+
+    function writeOmniumScratchRaceTsv(rows) {
+      const headers = [
+        "Location",
+        "Year",
+        "Date",
+        "Event",
+        "Name",
+        "Country",
+        "Age",
+        "Rank"
+      ];
+
+      const lines = [headers.join("\t")];
+      for (const row of rows) {
+        lines.push(row.join("\t"));
+      }
+      return lines.join("\n");
+    }
+
+    function loadOmniumTempoRaceResults(resultRows) {
+      return resultRows
+        .filter((row) => (row.Name || "").trim())
+        .map((row, index) => ({
+          name: (row.Name || "").trim(),
+          country: (row.Nat || "").trim(),
+          rank: (row.Rank || "").trim() || String(index + 1),
+          sprints: Array.from({ length: 36 }, (_, sprintIndex) => (row[`Sprint ${sprintIndex + 1}`] || "").trim() || "0"),
+          plusLaps: (row["P.Laps"] || "").trim() || "0",
+          minusLaps: (row["M.Laps"] || "").trim() || "0",
+          total: (row.Total || "").trim() || "0"
+        }));
+    }
+
+    function buildOmniumTempoRaceOutputRows(riders, ages, meta) {
+      return riders.map((rider) => [
+        meta.location,
+        String(meta.year),
+        meta.date,
+        meta.event,
+        rider.name,
+        rider.country,
+        ages[normalizeName(rider.name)] || "",
+        rider.rank,
+        ...rider.sprints,
+        rider.plusLaps,
+        rider.minusLaps,
+        rider.total
+      ]);
+    }
+
+    function writeOmniumTempoRaceTsv(rows) {
+      const headers = [
+        "Location",
+        "Year",
+        "Date",
+        "Event",
+        "Name",
+        "Country",
+        "Age",
+        "Rank",
+        ...Array.from({ length: 36 }, (_, i) => String(i + 1)),
+        "P.Laps",
+        "M.Laps",
+        "Total"
+      ];
+
+      const lines = [headers.join("\t")];
+      for (const row of rows) {
+        lines.push(row.join("\t"));
+      }
+      return lines.join("\n");
+    }
+
+    function loadOmniumEliminationRaceResults(resultRows) {
+      return resultRows
+        .filter((row) => (row.Name || "").trim())
+        .map((row, index) => ({
+          name: (row.Name || "").trim(),
+          country: (row.Nat || "").trim(),
+          rank: (row.Rank || "").trim() || String(index + 1)
+        }));
+    }
+
+    function buildOmniumEliminationRaceOutputRows(riders, ages, meta) {
+      return riders.map((rider) => [
+        meta.location,
+        String(meta.year),
+        meta.date,
+        meta.event,
+        rider.name,
+        rider.country,
+        ages[normalizeName(rider.name)] || "",
+        rider.rank
+      ]);
+    }
+
+    function writeOmniumEliminationRaceTsv(rows) {
+      const headers = [
+        "Location",
+        "Year",
+        "Date",
+        "Event",
+        "Name",
+        "Country",
+        "Age",
+        "Rank"
+      ];
+
+      const lines = [headers.join("\t")];
+      for (const row of rows) {
+        lines.push(row.join("\t"));
+      }
+      return lines.join("\n");
+    }
+
+    function getOmniumRankPoints(rankRaw) {
+      const rank = Number.parseInt(String(rankRaw || "").trim(), 10);
+      if (!Number.isFinite(rank) || rank <= 0) {
+        return 0;
+      }
+      if (rank <= 20) {
+        return 42 - (2 * rank);
+      }
+      return 1;
+    }
+
+    function getOmniumTwoLapPenalty(rawValue) {
+      const text = String(rawValue || "").trim();
+      if (!text) {
+        return 0;
+      }
+      if (text.startsWith("-")) {
+        const lostLaps = Number.parseInt(text, 10);
+        return Number.isFinite(lostLaps) && lostLaps <= -2 ? -40 : 0;
+      }
+      const minusPoints = Number.parseInt(text, 10);
+      return Number.isFinite(minusPoints) && minusPoints >= 40 ? -40 : 0;
+    }
+
+    function buildOmniumOverallOutputRows(scratchRows, tempoRows, eliminationRows, pointsRows, ages, meta) {
+      const scratchMap = {};
+      const tempoMap = {};
+      const eliminationMap = {};
+
+      for (const row of scratchRows) {
+        const name = (row.Name || "").trim();
+        if (!name) {
+          continue;
+        }
+        const key = normalizeName(name);
+        const base = getOmniumRankPoints(row.Rank || "");
+        const penalty = getOmniumTwoLapPenalty(row[""] || "");
+        scratchMap[key] = base + penalty;
+      }
+
+      for (const row of tempoRows) {
+        const name = (row.Name || "").trim();
+        if (!name) {
+          continue;
+        }
+        const key = normalizeName(name);
+        const base = getOmniumRankPoints(row.Rank || "");
+        const penalty = getOmniumTwoLapPenalty(row["M.Laps"] || "");
+        tempoMap[key] = base + penalty;
+      }
+
+      for (const row of eliminationRows) {
+        const name = (row.Name || "").trim();
+        if (!name) {
+          continue;
+        }
+        const key = normalizeName(name);
+        eliminationMap[key] = getOmniumRankPoints(row.Rank || "");
+      }
+
+      const riders = pointsRows
+        .filter((row) => (row.Name || "").trim())
+        .map((row) => {
+          const name = (row.Name || "").trim();
+          const key = normalizeName(name);
+          const sprintValues = Array.from({ length: 10 }, (_, idx) => Number.parseInt((row[`Sprint ${idx + 1}`] || "0").trim() || "0", 10) || 0);
+          const lapPlus = Number.parseInt((row["P.Laps"] || "0").trim() || "0", 10) || 0;
+          const lapMinus = Number.parseInt((row["M.Laps"] || "0").trim() || "0", 10) || 0;
+          const pointsRaceTotal = sprintValues.reduce((sum, v) => sum + v, 0) + lapPlus - lapMinus;
+          const scratch = scratchMap[key] || 0;
+          const tempo = tempoMap[key] || 0;
+          const elimination = eliminationMap[key] || 0;
+          const subTotal = scratch + tempo + elimination;
+          const finalTotal = subTotal + pointsRaceTotal;
+
+          return {
+            name,
+            country: (row.Nat || "").trim(),
+            age: ages[key] || "",
+            scratch,
+            tempo,
+            elimination,
+            subTotal,
+            sprints: sprintValues,
+            lapPlus,
+            lapMinus,
+            finalTotal
+          };
+        });
+
+      riders.sort((a, b) => {
+        if (b.finalTotal !== a.finalTotal) {
+          return b.finalTotal - a.finalTotal;
+        }
+        if (b.subTotal !== a.subTotal) {
+          return b.subTotal - a.subTotal;
+        }
+        return a.name.localeCompare(b.name);
+      });
+
+      return riders.map((rider, index) => [
+        meta.location,
+        String(meta.year),
+        meta.date,
+        meta.event,
+        rider.name,
+        rider.country,
+        rider.age,
+        String(index + 1),
+        String(rider.scratch),
+        String(rider.tempo),
+        String(rider.elimination),
+        String(rider.subTotal),
+        ...rider.sprints.map((value) => String(value)),
+        String(rider.lapPlus),
+        String(rider.lapMinus),
+        String(rider.finalTotal)
+      ]);
+    }
+
+    function writeOmniumOverallTsv(rows) {
+      const headers = [
+        "Location",
+        "Year",
+        "Date",
+        "Event",
+        "Name",
+        "Country",
+        "Age",
+        "Rank",
+        "Scratch",
+        "Tempo",
+        "Elimination",
+        "Sub Total",
+        "Sprint 1",
+        "Sprint 2",
+        "Sprint 3",
+        "Sprint 4",
+        "Sprint 5",
+        "Sprint 6",
+        "Sprint 7",
+        "Sprint 8",
+        "Sprint 9",
+        "Sprint 10",
+        "Lap +",
+        "Lap -",
+        "Final"
+      ];
+
+      const lines = [headers.join("\t")];
+      for (const row of rows) {
+        lines.push(row.join("\t"));
+      }
+      return lines.join("\n");
+    }
+
+    function loadEliminationRaceFinalResults(resultRows) {
+      return resultRows
+        .filter((row) => (row.Name || "").trim())
+        .map((row, index) => ({
+          athlete: (row.Name || "").trim(),
+          country: (row.Nat || "").trim(),
+          rank: (row.Rank || "").trim() || String(index + 1)
+        }));
+    }
+
+    function buildEliminationRaceFinalOutputRows(riders, ages, meta) {
+      return riders.map((rider) => [
+        meta.location,
+        String(meta.year),
+        meta.date,
+        meta.event,
+        "F",
+        "F",
+        rider.athlete,
+        rider.country,
+        ages[normalizeName(rider.athlete)] || "",
+        rider.rank
+      ]);
+    }
+
+    function writeEliminationRaceFinalTsv(rows) {
+      const headers = [
+        "Location",
+        "Year",
+        "Date",
+        "Event",
+        "Stage",
+        "Heat",
+        "Athlete",
+        "Country",
+        "Age",
+        "Rank"
+      ];
+
+      const lines = [headers.join("\t")];
+      for (const row of rows) {
+        lines.push(row.join("\t"));
+      }
+      return lines.join("\n");
+    }
+
+    function loadMadisonFinalResults(resultRows) {
+      const teams = [];
+      let current = null;
+
+      for (const row of resultRows) {
+        const rankRaw = (row.Rank || "").trim();
+        const bibRaw = (row.Bib || "").trim();
+        const nameRaw = (row.Name || "").trim();
+
+        if (rankRaw) {
+          current = {
+            country: (row.Nat || "").trim(),
+            riders: [],
+            rank: "",
+            sprints: Array.from({ length: 20 }, (_, sprintIndex) => (row[`Sprint ${sprintIndex + 1}`] || "").trim() || "0"),
+            plusLaps: (row["P.Laps"] || "").trim() || "0",
+            minusLaps: (row["M.Laps"] || "").trim() || "0",
+            total: (row.Total || "").trim()
+          };
+          teams.push(current);
+          continue;
+        }
+
+        if (current && !rankRaw && nameRaw) {
+          current.riders.push(nameRaw);
+        }
+      }
+
+      teams.forEach((team, index) => {
+        while (team.riders.length < 2) {
+          team.riders.push("");
+        }
+        team.rank = String(index + 1);
+      });
+
+      return teams;
+    }
+
+    function buildMadisonFinalOutputRows(teams, ages, meta) {
+      return teams.map((team) => [
+        meta.location,
+        String(meta.year),
+        meta.date,
+        meta.event,
+        "F",
+        "F",
+        team.riders[0] || "",
+        team.riders[1] || "",
+        team.country,
+        ages[normalizeName(team.riders[0])] || "",
+        ages[normalizeName(team.riders[1])] || "",
+        team.rank,
+        ...team.sprints,
+        team.plusLaps,
+        team.minusLaps,
+        team.total
+      ]);
+    }
+
+    function writeMadisonFinalTsv(rows) {
+      const headers = [
+        "Location",
+        "Year",
+        "Date",
+        "Event",
+        "Stage",
+        "Heat",
+        "Rider1",
+        "Rider2",
+        "Country",
+        "Age1",
+        "Age2",
+        "Rank",
+        "Sprint 1",
+        "Sprint 2",
+        "Sprint 3",
+        "Sprint 4",
+        "Sprint 5",
+        "Sprint 6",
+        "Sprint 7",
+        "Sprint 8",
+        "Sprint 9",
+        "Sprint 10",
+        "Sprint 11",
+        "Sprint 12",
+        "Sprint 13",
+        "Sprint 14",
+        "Sprint 15",
+        "Sprint 16",
+        "Sprint 17",
+        "Sprint 18",
+        "Sprint 19",
+        "Sprint 20",
+        "P.Laps",
+        "M.Laps",
+        "Total"
+      ];
+
+      const lines = [headers.join("\t")];
+      for (const row of rows) {
+        lines.push(row.join("\t"));
+      }
+      return lines.join("\n");
+    }
+
+    async function parseCsvFile(file, fallbackDelimiter) {
+      const text = await readTextWithFallbacks(file);
+      const delimiter = detectDelimiter(text, fallbackDelimiter);
+      const rows = parseDelimited(text, delimiter);
+      if (!rows.length) {
+        throw new Error(`File '${file.name}' has no rows.`);
+      }
+      return rowsToDicts(rows);
+    }
+
+    async function parseSprintQualifyingPdf(file) {
+      const pdfLib = window.pdfjsLib;
+      if (!pdfLib) {
+        throw new Error("PDF parser is not available. Please reload the page and try again.");
+      }
+
+      if (!pdfLib.GlobalWorkerOptions.workerSrc) {
+        pdfLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      }
+
+      const buffer = await file.arrayBuffer();
+      const loadingTask = pdfLib.getDocument({ data: new Uint8Array(buffer) });
+      const pdf = await loadingTask.promise;
+      const entries = [];
+      const pageTexts = [];
+
+      const decimalPattern = /^\d+[\.,]\d{2,3}$/;
+      const toNumber = (raw) => Number.parseFloat(String(raw || "").replace(",", "."));
+
+      for (let pageIndex = 1; pageIndex <= pdf.numPages; pageIndex += 1) {
+        const page = await pdf.getPage(pageIndex);
+        const content = await page.getTextContent();
+        const linesByY = new Map();
+
+        // Also keep a plain text stream for a fallback regex parse.
+        const streamText = (content.items || [])
+          .map((item) => {
+            const part = String(item.str || "").trim();
+            if (!part) {
+              return "";
+            }
+            return item.hasEOL ? `${part}\n` : `${part} `;
+          })
+          .join("")
+          .replace(/\s+\n/g, "\n")
+          .replace(/\n\s+/g, "\n");
+        pageTexts.push(streamText);
+
+        for (const item of content.items || []) {
+          const text = String(item.str || "").trim();
+          if (!text) {
+            continue;
+          }
+          const x = Number(item.transform?.[4] || 0);
+          const yRaw = Number(item.transform?.[5] || 0);
+          const y = Math.round(yRaw * 2) / 2;
+          if (!linesByY.has(y)) {
+            linesByY.set(y, []);
+          }
+          linesByY.get(y).push({ x, text });
+        }
+
+        const sortedY = Array.from(linesByY.keys()).sort((a, b) => b - a);
+        for (const y of sortedY) {
+          const parts = linesByY.get(y).sort((a, b) => a.x - b.x).map((p) => p.text);
+          const line = parts.join(" ").replace(/\s+/g, " ").trim();
+          if (!line || !/^\d+\s+/.test(line)) {
+            continue;
+          }
+
+          const tokens = line.split(/\s+/);
+          if (tokens.length < 7 || !/^\d+$/.test(tokens[0])) {
+            continue;
+          }
+
+          const decimalIndices = [];
+          for (let i = 0; i < tokens.length; i += 1) {
+            if (decimalPattern.test(tokens[i])) {
+              decimalIndices.push(i);
+            }
+          }
+
+          if (decimalIndices.length < 3) {
+            continue;
+          }
+
+          const t100Idx = decimalIndices[decimalIndices.length - 3];
+          const t200Idx = decimalIndices[decimalIndices.length - 2];
+          const avgIdx = decimalIndices[decimalIndices.length - 1];
+
+          const countryIdx = t100Idx - 1;
+          const countryTok = countryIdx >= 0 ? tokens[countryIdx] : "";
+          if (!/^[A-Z]{2,3}$/.test(countryTok)) {
+            continue;
+          }
+
+          const t100Tok = tokens[t100Idx];
+          const t200Tok = tokens[t200Idx];
+          const avgSpeedTok = tokens[avgIdx];
+
+          const nameStart = /^\d+$/.test(tokens[1]) ? 2 : 1;
+          const nameTokens = tokens.slice(nameStart, countryIdx);
+          if (!nameTokens.length) {
+            continue;
+          }
+
+          const t100 = toNumber(t100Tok);
+          const t200 = toNumber(t200Tok);
+          const avgSpeed = toNumber(avgSpeedTok);
+          if (![t100, t200, avgSpeed].every((n) => Number.isFinite(n))) {
+            continue;
+          }
+
+          entries.push({
+            rank: tokens[0],
+            athlete: nameTokens.join(" "),
+            country: countryTok,
+            t100,
+            t200,
+            avgSpeed
+          });
+        }
+      }
+
+      // Fallback: scan the page text for rank/name/country/100m/200m/avg speed rows.
+      let mergedText = "";
+      if (!entries.length) {
+        mergedText = pageTexts.join("\n").replace(/[\t\r]+/g, " ");
+        const pattern = /(?:^|\n)\s*(\d{1,2})\s+(?:\d{1,3}\s+)?(.+?)\s+([A-Z]{2,3})\s+(\d+[\.,]\d{2,3})\s+(\d+[\.,]\d{2,3})\s+(\d+[\.,]\d{2,3})(?=\s|$)/g;
+        const seen = new Set();
+        let match;
+        while ((match = pattern.exec(mergedText)) !== null) {
+          const rank = String(match[1] || "").trim();
+          const athlete = String(match[2] || "").trim();
+          const country = String(match[3] || "").trim();
+          const t100 = toNumber(match[4]);
+          const t200 = toNumber(match[5]);
+          const avgSpeed = toNumber(match[6]);
+          const key = `${rank}|${athlete}|${country}`;
+          if (!rank || !athlete || !country || seen.has(key)) {
+            continue;
+          }
+          if (![t100, t200, avgSpeed].every((n) => Number.isFinite(n))) {
+            continue;
+          }
+          seen.add(key);
+          entries.push({ rank, athlete, country, t100, t200, avgSpeed });
+        }
+      }
+
+      if (!entries.length) {
+        const preview = (mergedText || pageTexts.join("\n"))
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 300);
+        throw new Error(`Could not read sprint rows from PDF. Extracted text preview: ${preview || "<empty>"}`);
+      }
+
+      entries.sort((a, b) => Number.parseInt(a.rank, 10) - Number.parseInt(b.rank, 10));
+      return entries;
+    }
+
+    async function extractPdfLines(file) {
+      const pdfLib = window.pdfjsLib;
+      if (!pdfLib) {
+        throw new Error("PDF parser is not available. Please reload the page and try again.");
+      }
+
+      if (!pdfLib.GlobalWorkerOptions.workerSrc) {
+        pdfLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      }
+
+      const buffer = await file.arrayBuffer();
+      const loadingTask = pdfLib.getDocument({ data: new Uint8Array(buffer) });
+      const pdf = await loadingTask.promise;
+      const lines = [];
+      const pageTexts = [];
+
+      for (let pageIndex = 1; pageIndex <= pdf.numPages; pageIndex += 1) {
+        const page = await pdf.getPage(pageIndex);
+        const content = await page.getTextContent();
+        const linesByY = new Map();
+
+        const streamText = (content.items || [])
+          .map((item) => {
+            const part = String(item.str || "").trim();
+            if (!part) {
+              return "";
+            }
+            return item.hasEOL ? `${part}\n` : `${part} `;
+          })
+          .join("")
+          .replace(/\s+\n/g, "\n")
+          .replace(/\n\s+/g, "\n");
+        pageTexts.push(streamText);
+
+        for (const item of content.items || []) {
+          const text = String(item.str || "").trim();
+          if (!text) {
+            continue;
+          }
+          const x = Number(item.transform?.[4] || 0);
+          const yRaw = Number(item.transform?.[5] || 0);
+          const y = Math.round(yRaw * 2) / 2;
+          if (!linesByY.has(y)) {
+            linesByY.set(y, []);
+          }
+          linesByY.get(y).push({ x, text });
+        }
+
+        const sortedY = Array.from(linesByY.keys()).sort((a, b) => b - a);
+        for (const y of sortedY) {
+          const parts = linesByY.get(y).sort((a, b) => a.x - b.x).map((p) => p.text);
+          const line = parts.join(" ").replace(/\s+/g, " ").trim();
+          if (line) {
+            lines.push(line);
+          }
+        }
+      }
+
+      return {
+        lines,
+        mergedText: pageTexts.join("\n")
+      };
+    }
+
+    function parseSprintMatchRideLine(tokens, fallbackHeat, fallbackRide) {
+      const toNumber = (raw) => Number.parseFloat(String(raw || "").replace(",", "."));
+      const decimalPattern = /^\d+[\.,]\d{2,3}$/;
+      const countryPattern = /^[A-Z]{3}$/;
+
+      if (!tokens.length) {
+        return null;
+      }
+
+      let cursor = 0;
+      let rank = "";
+      if (/^\d{1,2}$/.test(tokens[cursor]) && Number.parseInt(tokens[cursor], 10) <= 2) {
+        rank = tokens[cursor];
+        cursor += 1;
+      }
+
+      if (cursor < tokens.length && /^\d{1,3}$/.test(tokens[cursor])) {
+        cursor += 1;
+      }
+
+      let countryIdx = -1;
+      for (let i = cursor + 1; i < tokens.length; i += 1) {
+        if (countryPattern.test(tokens[i])) {
+          countryIdx = i;
+          break;
+        }
+      }
+      if (countryIdx < 0) {
+        return null;
+      }
+
+      const athlete = tokens.slice(cursor, countryIdx).join(" ").trim();
+      if (!athlete) {
+        return null;
+      }
+
+      const afterCountry = tokens.slice(countryIdx + 1);
+      const decimals = afterCountry.filter((tok) => decimalPattern.test(tok));
+      if (decimals.length < 2) {
+        return null;
+      }
+
+      const t200 = toNumber(decimals[0]);
+      const gap = decimals.length >= 3 ? toNumber(decimals[1]) : 0;
+      const avgSpeed = decimals.length >= 3 ? toNumber(decimals[2]) : toNumber(decimals[1]);
+
+      if (![t200, gap, avgSpeed].every((n) => Number.isFinite(n))) {
+        return null;
+      }
+
+      return {
+        athlete,
+        country: tokens[countryIdx],
+        rank: rank || "",
+        t200,
+        gap,
+        avgSpeed,
+        heat: fallbackHeat || "",
+        ride: fallbackRide || 1
+      };
+    }
+
+    function parseFinalRanksFromLines(lines) {
+      const finalRanks = new Map();
+      for (const line of lines) {
+        const tokens = String(line || "").split(/\s+/).filter(Boolean);
+        if (tokens.length < 4 || !/^\d{1,2}$/.test(tokens[0])) {
+          continue;
+        }
+
+        const rank = Number.parseInt(tokens[0], 10);
+        // Skip bib number if tokens[1] is a pure integer
+        const nameStart = /^\d+$/.test(tokens[1]) ? 2 : 1;
+        let countryIdx = -1;
+        for (let i = nameStart; i < tokens.length; i += 1) {
+          if (/^[A-Z]{3}$/.test(tokens[i])) {
+            countryIdx = i;
+            break;
+          }
+        }
+        if (countryIdx < 0 || countryIdx <= nameStart) {
+          continue;
+        }
+
+        const athlete = tokens.slice(nameStart, countryIdx).join(" ").trim();
+        if (!athlete) {
+          continue;
+        }
+
+        const key = normalizeName(athlete);
+        // Use MAX: overall-standings rank (e.g. 3 for bronze) beats race-result rank (1 or 2)
+        if (!finalRanks.has(key) || rank > finalRanks.get(key)) {
+          finalRanks.set(key, rank);
+        }
+      }
+      return finalRanks;
+    }
+
+    function parseFinalRanksFromText(mergedText) {
+      const finalRanks = new Map();
+      const text = String(mergedText || "").replace(/[\t\r\n]+/g, " ");
+      const regex = /\b(\d{1,2})\s+\d{1,3}\s+([A-Za-z'\-\.]+(?:\s+[A-Za-z'\-\.]+)*)\s+([A-Z]{3})\b/g;
+      let match;
+      while ((match = regex.exec(text)) !== null) {
+        const rank = Number.parseInt(match[1], 10);
+        const athlete = String(match[2] || "").trim();
+        if (!athlete || !Number.isFinite(rank)) {
+          continue;
+        }
+
+        const key = normalizeName(athlete);
+        // Use MAX: overall-standings rank beats within-race rank (1 or 2)
+        if (!finalRanks.has(key) || rank > finalRanks.get(key)) {
+          finalRanks.set(key, rank);
+        }
+      }
+      return finalRanks;
+    }
+
+    function parseSprintMatchRidesFromText(mergedText, stage) {
+      const toNumber = (raw) => Number.parseFloat(String(raw || "").replace(",", "."));
+      const clean = String(mergedText || "").replace(/[\t\r\n]+/g, " ").replace(/\s+/g, " ").trim();
+      if (!clean) {
+        return [];
+      }
+
+      const tokens = clean.split(" ");
+      const rides = [];
+
+      const blockRegex = /\bHeat\s+([A-Za-z]|\d{1,2})\b[\s\S]{0,320}?\bkm\/h:\s*(\d+[\.,]\d{2,3})\s+(\d+[\.,]\d{2,3})[\s\S]{0,320}?\b1\s+\d{1,3}\s+(.+?)\s+([A-Z]{3})\s+Winner\b[\s\S]{0,220}?\b2\s+\d{1,3}\s+(.+?)\s+([A-Z]{3})\s+\+?(\d+[\.,]\d{2,3})\b/g;
+      let blockMatch;
+      while ((blockMatch = blockRegex.exec(clean)) !== null) {
+        const heat = String(blockMatch[1] || "").toUpperCase();
+        const t200 = toNumber(blockMatch[2]);
+        const avg = toNumber(blockMatch[3]);
+        const winnerAthlete = String(blockMatch[4] || "").replace(/\s+/g, " ").trim();
+        const winnerCountry = String(blockMatch[5] || "").trim();
+        const loserAthlete = String(blockMatch[6] || "").replace(/\s+/g, " ").trim();
+        const loserCountry = String(blockMatch[7] || "").trim();
+        const loserGap = toNumber(blockMatch[8]);
+
+        if (!winnerAthlete || !loserAthlete || !Number.isFinite(t200) || !Number.isFinite(avg) || !Number.isFinite(loserGap)) {
+          continue;
+        }
+
+        rides.push({
+          athlete: winnerAthlete,
+          country: winnerCountry,
+          rank: "1",
+          t200,
+          gap: 0,
+          avgSpeed: avg,
+          heat,
+          ride: stage === "QF" || stage === "SF" || stage === "F" ? 1 : 1
+        });
+        rides.push({
+          athlete: loserAthlete,
+          country: loserCountry,
+          rank: "2",
+          t200,
+          gap: loserGap,
+          avgSpeed: avg,
+          heat,
+          ride: stage === "QF" || stage === "SF" || stage === "F" ? 1 : 1
+        });
+      }
+
+      let currentHeat = "";
+      let currentRide = 1;
+      let currentT200 = null;
+      let currentAvg = null;
+
+      const isDec = (value) => /^\d+[\.,]\d{2,3}$/.test(value);
+      const isCountry = (value) => /^[A-Z]{3}$/.test(value);
+
+      for (let i = 0; i < tokens.length; i += 1) {
+        const token = tokens[i];
+
+        if (/^(Heat|Match)$/i.test(token) && i + 1 < tokens.length) {
+          const next = tokens[i + 1];
+          if (/^[A-Za-z]$/.test(next) || /^\d{1,2}$/.test(next)) {
+            currentHeat = String(next).toUpperCase();
+          }
+        }
+
+        if ((stage === "QF" || stage === "SF" || stage === "F") && /^(Ride|Race)$/i.test(token) && i + 1 < tokens.length) {
+          const next = Number.parseInt(tokens[i + 1], 10);
+          if (Number.isFinite(next) && next >= 1 && next <= 3) {
+            currentRide = next;
+          }
+        }
+
+        if (/^km\/h:$/i.test(token) && i + 2 < tokens.length && isDec(tokens[i + 1]) && isDec(tokens[i + 2])) {
+          currentT200 = toNumber(tokens[i + 1]);
+          currentAvg = toNumber(tokens[i + 2]);
+          continue;
+        }
+
+        if (!/^[12]$/.test(token) || i + 2 >= tokens.length || !/^\d{1,3}$/.test(tokens[i + 1])) {
+          continue;
+        }
+
+        if (!Number.isFinite(currentT200) || !Number.isFinite(currentAvg)) {
+          continue;
+        }
+
+        let countryIdx = -1;
+        for (let j = i + 2; j < Math.min(tokens.length, i + 15); j += 1) {
+          if (isCountry(tokens[j])) {
+            countryIdx = j;
+            break;
+          }
+        }
+        if (countryIdx < 0) {
+          continue;
+        }
+
+        const athlete = tokens.slice(i + 2, countryIdx).join(" ").trim();
+        if (!athlete) {
+          continue;
+        }
+
+        const status = String(tokens[countryIdx + 1] || "").trim();
+        let gap = 0;
+        if (!/^winner$/i.test(status)) {
+          const numericGap = toNumber(status.replace(/^\+/, ""));
+          if (Number.isFinite(numericGap)) {
+            gap = numericGap;
+          }
+        }
+
+        rides.push({
+          athlete,
+          country: tokens[countryIdx],
+          rank: token,
+          t200: currentT200,
+          gap,
+          avgSpeed: currentAvg,
+          heat: currentHeat,
+          ride: currentRide
+        });
+      }
+
+      return rides;
+    }
+
+    function parseSprintBestOfThreeRidesFromText(mergedText) {
+      const toNumber = (raw) => Number.parseFloat(String(raw || "").replace(",", "."));
+      const clean = String(mergedText || "").replace(/[\t\r\n]+/g, " ").replace(/\s+/g, " ").trim();
+      if (!clean) {
+        return [];
+      }
+      const tokens = clean.split(" ");
+      const rides = [];
+
+      const isCountry = (value) => /^[A-Z]{3}$/.test(value);
+      const isDec = (value) => /^\d+[\.,]\d{2,3}$/.test(value);
+      const isMedalLabel = (value) => /^(GOLD|SILVER|BRONZE)$/i.test(String(value || ""));
+      const parseGapValue = (value) => {
+        if (!/^\+?\d+[\.,]\d{2,3}$/.test(String(value || ""))) {
+          return NaN;
+        }
+        const parsed = toNumber(String(value || "").replace(/^\+/, ""));
+        // Accept any non-negative gap up to 30 s (covers crashes/relegations).
+        // Race times (9-12 s) and avg speeds (70-76 km/h) never appear as status tokens.
+        if (!Number.isFinite(parsed) || parsed < 0 || parsed > 30) {
+          return NaN;
+        }
+        return parsed;
+      };
+      const isStatusToken = (value) => /^Winner$/i.test(value) || Number.isFinite(parseGapValue(value));
+      const isRowStartAt = (index) => {
+        if (index + 1 >= tokens.length) {
+          return false;
+        }
+        if (!/^[1-4]$/.test(tokens[index])) {
+          return false;
+        }
+
+        // Typical case: rank + bib + name...
+        if (/^\d{1,3}$/.test(tokens[index + 1])) {
+          return true;
+        }
+
+        // Fallback: rank + name... (bib may be dropped by PDF text extraction)
+        const next = tokens[index + 1];
+        if (!next) {
+          return false;
+        }
+        if (/^(Heat|Race|Decider)$/i.test(next) || isDec(next) || isCountry(next)) {
+          return false;
+        }
+        return /^[A-Za-zÀ-ÿ'\-\.]+$/.test(next);
+      };
+
+      let currentHeat = "";
+      let currentRideLabel = 1;
+      let metricsByRide = {};
+
+      for (let i = 0; i < tokens.length; i += 1) {
+        const token = tokens[i];
+
+        if (/^Heat$/i.test(token) && i + 1 < tokens.length) {
+          const next = tokens[i + 1];
+          if (/^[A-Za-z]$/.test(next) || /^\d{1,2}$/.test(next)) {
+            currentHeat = String(next).toUpperCase();
+            currentRideLabel = 1;
+            metricsByRide = {};
+            i += 1;
+            continue;
+          }
+        }
+
+        // Finals often use section labels instead of Heat numbers.
+        if (/^For$/i.test(token) && i + 1 < tokens.length) {
+          const next = String(tokens[i + 1] || "").toLowerCase();
+          if (next === "gold") {
+            currentHeat = "G";
+            currentRideLabel = 1;
+            metricsByRide = {};
+            i += 1;
+            continue;
+          }
+          if (next === "bronze") {
+            currentHeat = "B";
+            currentRideLabel = 1;
+            metricsByRide = {};
+            i += 1;
+            continue;
+          }
+        }
+
+        if (/^Race$/i.test(token) && i + 1 < tokens.length) {
+          const rideNum = Number.parseInt(tokens[i + 1], 10);
+          if (Number.isFinite(rideNum) && rideNum >= 1 && rideNum <= 3) {
+            currentRideLabel = rideNum;
+            i += 1;
+            continue;
+          }
+        }
+
+        if (/^Decider$/i.test(token)) {
+          currentRideLabel = 3;
+          continue;
+        }
+
+        if (/^km\/h:$/i.test(token)) {
+          let j = i + 1;
+          let ride = currentRideLabel;
+          while (j + 1 < tokens.length && isDec(tokens[j]) && isDec(tokens[j + 1]) && ride <= 3) {
+            metricsByRide[ride] = {
+              t200: toNumber(tokens[j]),
+              avg: toNumber(tokens[j + 1])
+            };
+            j += 2;
+            ride += 1;
+          }
+          i = j - 1;
+          continue;
+        }
+
+        if (!isRowStartAt(i)) {
+          continue;
+        }
+
+        const hasBib = i + 1 < tokens.length && /^\d{1,3}$/.test(tokens[i + 1]);
+        const nameStart = hasBib ? i + 2 : i + 1;
+
+        let countryIdx = -1;
+        for (let j = nameStart; j < Math.min(tokens.length, i + 24); j += 1) {
+          if (!isCountry(tokens[j])) {
+            continue;
+          }
+
+          // Avoid treating uppercase surname tokens (e.g. OTA) as country.
+          // A valid country token should be followed by a status token for that race.
+          const nextToken = String(tokens[j + 1] || "");
+          const secondNextToken = String(tokens[j + 2] || "");
+          if (isStatusToken(nextToken) || isStatusToken(secondNextToken)) {
+            countryIdx = j;
+            break;
+          }
+        }
+        if (countryIdx < 0) {
+          continue;
+        }
+
+        const athlete = tokens.slice(nameStart, countryIdx).join(" ").trim();
+        const country = tokens[countryIdx];
+        if (!athlete || !country) {
+          continue;
+        }
+
+        const statuses = [];
+        let k = countryIdx + 1;
+        while (k < tokens.length) {
+          const nextTok = tokens[k];
+          if (/^Heat$/i.test(nextTok) || /^Race$/i.test(nextTok) || /^Decider$/i.test(nextTok) || /^For$/i.test(nextTok) || isRowStartAt(k)) {
+            break;
+          }
+
+          if (isMedalLabel(nextTok)) {
+            k += 1;
+            continue;
+          }
+
+          if (/^Winner$/i.test(nextTok)) {
+            statuses.push(nextTok);
+          } else if (Number.isFinite(parseGapValue(nextTok))) {
+            statuses.push(nextTok);
+          }
+          k += 1;
+        }
+
+        for (let ride = 1; ride <= 3; ride += 1) {
+          // Fall back to ride-1 metrics when a race reused the same conditions
+          // (PDF only prints one km/h: line for a 2-0 sweep).
+          const metric = metricsByRide[ride] || metricsByRide[1];
+          if (!metric || !Number.isFinite(metric.t200) || !Number.isFinite(metric.avg)) {
+            continue;
+          }
+
+          const status = statuses[ride - 1] || "";
+          if (!status) {
+            continue;
+          }
+
+          const isWinner = /^Winner$/i.test(status);
+          const gapValue = isWinner ? 0 : parseGapValue(status);
+          if (!isWinner && !Number.isFinite(gapValue)) {
+            continue;
+          }
+
+          rides.push({
+            athlete,
+            country,
+            rank: isWinner ? "1" : "2",
+            t200: metric.t200,
+            gap: isWinner ? 0 : gapValue,
+            avgSpeed: metric.avg,
+            heat: currentHeat,
+            ride
+          });
+        }
+
+        i = k - 1;
+      }
+
+      return rides;
+    }
+
+    async function parseSprintMatchPdf(file, stage) {
+      const { lines, mergedText } = await extractPdfLines(file);
+      const rides = [];
+      const seenRideKeys = new Set();
+      let currentHeat = "";
+      let currentRide = 1;
+
+      const addUniqueRide = (ride) => {
+        if (!ride) {
+          return;
+        }
+
+        const key = [
+          normalizeName(ride.athlete),
+          String(ride.country || ""),
+          String(ride.heat || ""),
+          String(ride.ride || 1),
+          String(ride.rank || ""),
+          format3Trim(Number(ride.t200 || 0)),
+          format3Trim(Number(ride.gap || 0)),
+          format3Trim(Number(ride.avgSpeed || 0))
+        ].join("|");
+
+        if (seenRideKeys.has(key)) {
+          return;
+        }
+
+        seenRideKeys.add(key);
+        rides.push(ride);
+      };
+
+      const useLineParser = !(stage === "QF" || stage === "SF" || stage === "F");
+      if (useLineParser) {
+        for (const line of lines) {
+          const lowered = line.toLowerCase();
+
+          const heatMatch = line.match(/\b(?:heat|match)\s*([A-Za-z]|\d{1,2})\b/i);
+          if (heatMatch) {
+            currentHeat = String(heatMatch[1]).toUpperCase();
+          }
+
+          if (stage === "QF" || stage === "SF" || stage === "F") {
+            const rideMatch = line.match(/\b(?:ride|race)\s*(\d)\b/i);
+            if (rideMatch) {
+              currentRide = Number.parseInt(rideMatch[1], 10);
+            }
+          } else {
+            currentRide = 1;
+          }
+
+          if (!/^\d/.test(line)) {
+            continue;
+          }
+
+          if (lowered.includes("avg") || lowered.includes("speed") || lowered.includes("time")) {
+            continue;
+          }
+
+          const tokens = line.split(/\s+/).filter(Boolean);
+          const parsed = parseSprintMatchRideLine(tokens, currentHeat, currentRide);
+          addUniqueRide(parsed);
+        }
+      }
+
+      // Always merge text-stream fallback rows to catch partial extraction misses.
+      const fallbackRides = (stage === "QF" || stage === "SF" || stage === "F")
+        ? parseSprintBestOfThreeRidesFromText(mergedText)
+        : parseSprintMatchRidesFromText(mergedText, stage);
+      for (const ride of fallbackRides) {
+        addUniqueRide(ride);
+      }
+
+      if (!rides.length) {
+        const preview = String(mergedText || "").replace(/\s+/g, " ").trim().slice(0, 300);
+        throw new Error(`Could not read sprint match rows from '${file.name}'. Extracted text preview: ${preview || "<empty>"}`);
+      }
+
+      return {
+        stage,
+        rides,
+        sp6MergedText: stage === "F" ? mergedText : null,
+        finalRanks: stage === "F"
+          ? (() => {
+            const fromLines = parseFinalRanksFromLines(lines);
+            if (fromLines.size) {
+              return fromLines;
+            }
+            return parseFinalRanksFromText(mergedText);
+          })()
+          : new Map()
+      };
+    }
+
+    function buildFinalRanksFromKnownAthletes(sp6Text, athleteNameByKey) {
+      const finalRanks = new Map();
+      const text = String(sp6Text || "").replace(/[\t\r\n]+/g, " ").replace(/\s+/g, " ");
+      for (const [key, name] of athleteNameByKey.entries()) {
+        if (!name) {
+          continue;
+        }
+        const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        // Match: rank (1-2 digits), optional bib number, then athlete name
+        const regex = new RegExp(`\\b(\\d{1,2})\\s+(?:\\d{1,3}\\s+)?${escapedName}\\b`, "gi");
+        let bestRank = 0;
+        let m;
+        while ((m = regex.exec(text)) !== null) {
+          const rank = Number.parseInt(m[1], 10);
+          // Use MAX: standings rank (e.g. 3) beats within-race rank (1 or 2)
+          if (rank > bestRank) {
+            bestRank = rank;
+          }
+        }
+        if (bestRank > 0) {
+          finalRanks.set(key, bestRank);
+        }
+      }
+      return finalRanks;
+    }
+
+    function sortHeatValue(a, b) {
+      const aStr = String(a || "");
+      const bStr = String(b || "");
+      const aNum = Number.parseInt(aStr, 10);
+      const bNum = Number.parseInt(bStr, 10);
+      const aIsNum = Number.isFinite(aNum) && String(aNum) === aStr;
+      const bIsNum = Number.isFinite(bNum) && String(bNum) === bStr;
+      if (aIsNum && bIsNum) {
+        return aNum - bNum;
+      }
+      if (aIsNum) {
+        return -1;
+      }
+      if (bIsNum) {
+        return 1;
+      }
+      return aStr.localeCompare(bStr);
+    }
+
+    function buildSprintMatchPdfOutputRows(parsedByStage, ages, meta) {
+      const stageOrder = { R16: 0, R8: 1, QF: 2, SF: 3, F: 4 };
+      const combinedFinalRanks = new Map();
+      for (const parsed of parsedByStage) {
+        for (const [key, rank] of parsed.finalRanks.entries()) {
+          if (!combinedFinalRanks.has(key) || rank < combinedFinalRanks.get(key)) {
+            combinedFinalRanks.set(key, rank);
+          }
+        }
+      }
+
+      const rowsByKey = new Map();
+      for (const parsed of parsedByStage) {
+        const pairIndexByRide = new Map();
+        for (const ride of parsed.rides) {
+          const rideNumber = Math.min(3, Math.max(1, Number.parseInt(ride.ride, 10) || 1));
+          const pairKey = `${parsed.stage}|${rideNumber}`;
+          const indexForRide = (pairIndexByRide.get(pairKey) || 0) + 1;
+          pairIndexByRide.set(pairKey, indexForRide);
+          const fallbackHeat = String(Math.ceil(indexForRide / 2));
+          let heat = String(ride.heat || fallbackHeat).toUpperCase();
+          if (parsed.stage === "F") {
+            if (heat === "1") {
+              heat = "G";
+            } else if (heat === "2") {
+              heat = "B";
+            }
+          }
+          const athleteKey = normalizeName(ride.athlete);
+          const mapKey = `${parsed.stage}|${heat}|${athleteKey}`;
+
+          if (!rowsByKey.has(mapKey)) {
+            rowsByKey.set(mapKey, {
+              stage: parsed.stage,
+              heat,
+              athlete: ride.athlete,
+              country: ride.country,
+              finalRank: combinedFinalRanks.get(athleteKey) || "",
+              r1: { rank: "", t200: "", gap: "", avg: "" },
+              r2: { rank: "", t200: "", gap: "", avg: "" },
+              r3: { rank: "", t200: "", gap: "", avg: "" }
+            });
+          }
+
+          const row = rowsByKey.get(mapKey);
+          row.country = row.country || ride.country;
+          if (!row.finalRank && combinedFinalRanks.has(athleteKey)) {
+            row.finalRank = combinedFinalRanks.get(athleteKey);
+          }
+
+          const slot = rideNumber === 1 ? row.r1 : (rideNumber === 2 ? row.r2 : row.r3);
+          slot.rank = ride.rank || slot.rank || "";
+          slot.t200 = format3Trim(ride.t200);
+          slot.gap = format3Trim(ride.gap);
+          slot.avg = format3Trim(ride.avgSpeed);
+        }
+      }
+
+      const rows = Array.from(rowsByKey.values());
+
+      for (const row of rows) {
+        if (row.stage !== "F" || row.finalRank) {
+          continue;
+        }
+
+        const heatCode = String(row.heat || "").toUpperCase();
+        const primaryRank = Number.parseInt(String(row.r1.rank || row.r2.rank || row.r3.rank || ""), 10);
+        if (!Number.isFinite(primaryRank)) {
+          continue;
+        }
+
+        if (heatCode === "G") {
+          row.finalRank = primaryRank === 1 ? 1 : 2;
+        } else if (heatCode === "B") {
+          row.finalRank = primaryRank === 1 ? 3 : 4;
+        }
+      }
+
+      // Fill any remaining missing finalRanks by searching sp6 text with exact athlete names.
+      // This is more robust than blind line parsing because the names come from the parsed rides.
+      const sp6ParsedStage = parsedByStage.find((p) => p.stage === "F");
+      const sp6Text = sp6ParsedStage ? String(sp6ParsedStage.sp6MergedText || "") : "";
+      if (sp6Text) {
+        const athleteNameByKey = new Map();
+        for (const row of rows) {
+          if (!row.finalRank) {
+            const key = normalizeName(row.athlete);
+            if (!athleteNameByKey.has(key)) {
+              athleteNameByKey.set(key, row.athlete);
+            }
+          }
+        }
+        if (athleteNameByKey.size) {
+          const ranksFromSp6 = buildFinalRanksFromKnownAthletes(sp6Text, athleteNameByKey);
+          for (const row of rows) {
+            if (!row.finalRank) {
+              const rank = ranksFromSp6.get(normalizeName(row.athlete));
+              if (rank) {
+                row.finalRank = rank;
+              }
+            }
+          }
+        }
+      }
+
+      // Guard against noisy PDF tokenization creating a phantom single decider row.
+      // A valid decider should exist for both riders in the same stage+heat.
+      const deciderCountByHeat = new Map();
+      for (const row of rows) {
+        const key = `${row.stage}|${row.heat}`;
+        const hasR3 = String(row.r3.rank || "").trim() !== "";
+        if (!hasR3) {
+          continue;
+        }
+        deciderCountByHeat.set(key, (deciderCountByHeat.get(key) || 0) + 1);
+      }
+      for (const row of rows) {
+        const key = `${row.stage}|${row.heat}`;
+        const deciderCount = deciderCountByHeat.get(key) || 0;
+        if (deciderCount >= 2) {
+          continue;
+        }
+        row.r3 = { rank: "", t200: "", gap: "", avg: "" };
+      }
+
+      rows.sort((a, b) => {
+        const stageDiff = (stageOrder[a.stage] ?? 99) - (stageOrder[b.stage] ?? 99);
+        if (stageDiff !== 0) {
+          return stageDiff;
+        }
+
+        const heatDiff = sortHeatValue(a.heat, b.heat);
+        if (heatDiff !== 0) {
+          return heatDiff;
+        }
+
+        // Sort by number of race wins (more wins = heat winner = first row).
+        // Using win-count instead of min-rank correctly handles the case where
+        // the heat winner lost Race 1 but won Race 2 and the Decider.
+        const rowWins = (row) => [row.r1.rank, row.r2.rank, row.r3.rank]
+          .filter((r) => String(r || "") === "1").length;
+
+        const winsDiff = rowWins(b) - rowWins(a); // descending: more wins first
+        if (winsDiff !== 0) {
+          return winsDiff;
+        }
+
+        const rankA = Number.parseInt(String(a.finalRank || ""), 10);
+        const rankB = Number.parseInt(String(b.finalRank || ""), 10);
+        if (Number.isFinite(rankA) && Number.isFinite(rankB) && rankA !== rankB) {
+          return rankA - rankB;
+        }
+        return a.athlete.localeCompare(b.athlete);
+      });
+
+      return rows.map((row) => {
+        const age = ages[normalizeName(row.athlete)] || "";
+        return [
+          meta.location,
+          String(meta.year),
+          meta.date,
+          meta.event,
+          row.stage,
+          row.heat,
+          row.athlete,
+          row.country,
+          age,
+          row.finalRank,
+          row.r1.rank,
+          row.r1.t200,
+          row.r1.gap,
+          row.r1.avg,
+          row.r2.rank,
+          row.r2.t200,
+          row.r2.gap,
+          row.r2.avg,
+          row.r3.rank,
+          row.r3.t200,
+          row.r3.gap,
+          row.r3.avg
+        ];
+      });
+    }
+
+    function writeSprintMatchPdfTsv(rows) {
+      const headers = [
+        "Location",
+        "Year",
+        "Date",
+        "Event",
+        "Stage",
+        "Heat",
+        "Athlete",
+        "Country",
+        "Age",
+        "Final_Rank",
+        "Rank R1",
+        "200m R1",
+        "Gap R1",
+        "Avg Speed R1",
+        "Rank R2",
+        "200m R2",
+        "Gap R2",
+        "Avg Speed R2",
+        "Rank R3",
+        "200m R3",
+        "Gap R3",
+        "Avg Speed R3"
+      ];
+
+      const lines = [headers.join("\t")];
+      for (const row of rows) {
+        lines.push(row.join("\t"));
+      }
+      return lines.join("\n");
+    }
+
+    function buildSprintQualifyingPdfOutputRows(entries, ages, meta) {
+      return entries.map((entry) => {
+        const split100to200 = entry.t200 - entry.t100;
+        const diff = split100to200 - entry.t100;
+        return [
+          meta.location,
+          String(meta.year),
+          meta.date,
+          meta.event,
+          entry.athlete,
+          entry.country,
+          ages[normalizeName(entry.athlete)] || "",
+          entry.rank,
+          format3Trim(entry.t100),
+          format3Trim(split100to200),
+          format3Trim(diff),
+          format3Trim(entry.t200),
+          entry.avgSpeed.toFixed(3)
+        ];
+      });
+    }
+
+    function writeSprintQualifyingPdfTsv(rows) {
+      const headers = [
+        "Location",
+        "Year",
+        "Date",
+        "Event",
+        "Athlete",
+        "Country",
+        "Age",
+        "Rank",
+        "100m",
+        "100-200m",
+        "Diff",
+        "200m",
+        "Avg Speed"
+      ];
+
+      const lines = [headers.join("\t")];
+      for (const row of rows) {
+        lines.push(row.join("\t"));
+      }
+      return lines.join("\n");
+    }
+
+    function safeOutputName(name) {
+      const trimmed = String(name || "").trim();
+      if (!trimmed) {
+        return "mens_team_pursuit_output.tsv";
+      }
+      return trimmed.toLowerCase().endsWith(".tsv") ? trimmed : `${trimmed}.tsv`;
+    }
+
+    function fileNameLower(file) {
+      return String(file?.name || "").toLowerCase();
+    }
+
+    function inferStageHeat(converterId) {
+      // Derive stage and heat values automatically from the converter ID.
+      // Extend this map as new converters are added.
+      const lookup = {
+        "team-pursuit-qualifying": { stage: "Q", heat: "Q" },
+        "team-sprint-qualifying": { stage: "Q", heat: "Q" }
+      };
+      return lookup[converterId] || { stage: "", heat: "" };
+    }
+
+    function detectSupportedConversions(files) {
+      if (!files.length) {
+        throw new Error("Please upload CSV files first.");
+      }
+
+      const agesFile = files.find((file) => {
+        const name = fileNameLower(file);
+        return name.includes("age") || name.includes("dob");
+      });
+
+      const omniumScratchFile = files.find((file) => fileNameLower(file).includes(OMNIUM_SCRATCH_RACE_KEY));
+      const omniumTempoFile = files.find((file) => fileNameLower(file).includes(OMNIUM_TEMPO_RACE_KEY));
+      const omniumEliminationFile = files.find((file) => fileNameLower(file).includes(OMNIUM_ELIMINATION_RACE_KEY));
+      const omniumPointsFile = files.find((file) => fileNameLower(file).includes(OMNIUM_POINTS_RACE_KEY));
+      const pdfFiles = files.filter((file) => fileNameLower(file).endsWith(".pdf"));
+      const sprintMatchFiles = {
+        R16: files.find((file) => fileNameLower(file).endsWith(".pdf") && fileNameLower(file).includes(SPRINT_MATCH_SP2_KEY)),
+        R8: files.find((file) => fileNameLower(file).endsWith(".pdf") && fileNameLower(file).includes(SPRINT_MATCH_SP3_KEY)),
+        QF: files.find((file) => fileNameLower(file).endsWith(".pdf") && fileNameLower(file).includes(SPRINT_MATCH_SP4_KEY)),
+        SF: files.find((file) => fileNameLower(file).endsWith(".pdf") && fileNameLower(file).includes(SPRINT_MATCH_SP5_KEY)),
+        F: files.find((file) => fileNameLower(file).endsWith(".pdf") && fileNameLower(file).includes(SPRINT_MATCH_SP6_KEY))
+      };
+      const sprintMatchCount = Object.values(sprintMatchFiles).filter(Boolean).length;
+      const sprintQualifyingPdf = files.find((file) => fileNameLower(file).endsWith(".pdf") && fileNameLower(file).includes(SPRINT_QUALIFYING_PDF_KEY))
+        || (pdfFiles.length === 1 ? pdfFiles[0] : null);
+
+      if (sprintMatchCount > 0) {
+        const missing = Object.entries(sprintMatchFiles)
+          .filter(([, file]) => !file)
+          .map(([stage]) => stage);
+        if (missing.length) {
+          throw new Error(`Sprint match conversion needs all five PDF files named with sp2/sp3/sp4/sp5/sp6. Missing stage file(s): ${missing.join(", ")}.`);
+        }
+
+        return {
+          jobs: [
+            {
+              converterId: "sprint-match-pdf",
+              label: "Sprint Match PDFs",
+              stage: "R16-F",
+              outputType: "sprint-match-pdf",
+              resultsFile: sprintMatchFiles.R16,
+              analysisFile: null,
+              sprintMatchFiles
+            }
+          ],
+          agesFile,
+          outputType: "sprint-match-pdf"
+        };
+      }
+
+      if (sprintQualifyingPdf) {
+        return {
+          jobs: [
+            {
+              converterId: "sprint-qualifying-pdf",
+              label: "Sprint Qualifying PDF",
+              stage: "Q",
+              outputType: "sprint-qualifying-pdf",
+              resultsFile: sprintQualifyingPdf,
+              analysisFile: null
+            }
+          ],
+          agesFile,
+          outputType: "sprint-qualifying-pdf"
+        };
+      }
+
+      if (omniumPointsFile) {
+        if (!omniumScratchFile || !omniumTempoFile || !omniumEliminationFile) {
+          throw new Error("Omnium Overall conversion requires all four files: Scratch Race 1/4, Tempo Race 2/4, Elimination Race 3/4, and Points Race 4/4.");
+        }
+
+        return {
+          jobs: [
+            {
+              converterId: "omnium-overall",
+              label: "Omnium Overall",
+              stage: "F",
+              outputType: "omnium-overall",
+              resultsFile: omniumPointsFile,
+              analysisFile: null
+            }
+          ],
+          agesFile,
+          outputType: "omnium-overall"
+        };
+      }
+
+      const specs = [
+        { converterId: "team-sprint-qualifying", key: TEAM_SPRINT_QUALIFYING_KEY, label: "Team Sprint Qualifying", stage: "Q", outputType: "team-sprint" },
+        { converterId: "team-sprint-first-round", key: TEAM_SPRINT_FIRST_ROUND_KEY, label: "Team Sprint First Round", stage: "R1", outputType: "team-sprint" },
+        { converterId: "team-sprint-finals", key: TEAM_SPRINT_FINALS_KEY, label: "Team Sprint Finals", stage: "F", outputType: "team-sprint" },
+        { converterId: "team-pursuit-qualifying", key: TEAM_PURSUIT_QUALIFYING_KEY, label: "Team Pursuit Qualifying", stage: "Q", outputType: "team-pursuit" },
+        { converterId: "team-pursuit-first-round", key: TEAM_PURSUIT_FIRST_ROUND_KEY, label: "Team Pursuit First Round", stage: "R1", outputType: "team-pursuit" },
+        { converterId: "team-pursuit-finals", key: TEAM_PURSUIT_FINALS_KEY, label: "Team Pursuit Finals", stage: "F", outputType: "team-pursuit" },
+        { converterId: "kilo-qualifying", key: KILO_QUALIFYING_KEY, label: "1Km Time Trial Qualifying", stage: "Q", outputType: "kilo" },
+        { converterId: "kilo-final", key: KILO_FINAL_KEY, label: "1Km Time Trial Final", stage: "F", outputType: "kilo" },
+        { converterId: "individual-pursuit-qualifying", key: INDIVIDUAL_PURSUIT_QUALIFYING_KEY, label: "Individual Pursuit Qualifying", stage: "Q", outputType: "individual-pursuit" },
+        { converterId: "individual-pursuit-finals", key: INDIVIDUAL_PURSUIT_FINALS_KEY, label: "Individual Pursuit Finals", stage: "F", outputType: "individual-pursuit" },
+        { converterId: "keirin-first-round", key: KEIRIN_FIRST_ROUND_KEY, label: "Keirin First Round", stage: "R1", outputType: "keirin", requiresAnalysis: false, roundCode: "R1" },
+        { converterId: "keirin-repechage", key: KEIRIN_REPECHAGE_KEY, label: "Keirin R1 Repechage", stage: "R1 Rep", outputType: "keirin", requiresAnalysis: false, roundCode: "R1 Rep" },
+        { converterId: "keirin-second-round", key: KEIRIN_SECOND_ROUND_KEY, label: "Keirin Second Round", stage: "R2", outputType: "keirin", requiresAnalysis: false, roundCode: "R2" },
+        { converterId: "keirin-quarterfinals", key: KEIRIN_QUARTERFINALS_KEY, label: "Keirin Quarterfinals", stage: "R2", outputType: "keirin", requiresAnalysis: false, roundCode: "R2" },
+        { converterId: "keirin-second-round-repechage", key: KEIRIN_SECOND_ROUND_REPECHAGE_KEY, label: "Keirin R2 Repechage", stage: "R2 Rep", outputType: "keirin", requiresAnalysis: false, roundCode: "R2 Rep" },
+        { converterId: "keirin-semifinals", key: KEIRIN_SEMIFINALS_KEY, label: "Keirin Semifinals", stage: "R3", outputType: "keirin", requiresAnalysis: false, roundCode: "R3" },
+        { converterId: "keirin-finals", key: KEIRIN_FINALS_KEY, label: "Keirin Finals", stage: "Final", outputType: "keirin", requiresAnalysis: false, roundCode: "Final" },
+        { converterId: "omnium-scratch-race", key: OMNIUM_SCRATCH_RACE_KEY, label: "Omnium Scratch Race 1/4", stage: "F", outputType: "omnium-scratch-race", requiresAnalysis: false },
+        { converterId: "omnium-tempo-race", key: OMNIUM_TEMPO_RACE_KEY, label: "Omnium Tempo Race 2/4", stage: "F", outputType: "omnium-tempo-race", requiresAnalysis: false },
+        { converterId: "omnium-elimination-race", key: OMNIUM_ELIMINATION_RACE_KEY, label: "Omnium Elimination Race 3/4", stage: "F", outputType: "omnium-elimination-race", requiresAnalysis: false },
+        { converterId: "points-race-final", key: POINTS_RACE_FINAL_KEY, label: "Points Race Final", stage: "F", outputType: "points-race", requiresAnalysis: false },
+        { converterId: "scratch-race-final", key: SCRATCH_RACE_FINAL_KEY, label: "Scratch Race Final", stage: "F", outputType: "scratch-race", requiresAnalysis: false },
+        { converterId: "madison-final", key: MADISON_FINAL_KEY, label: "Madison Final", stage: "F", outputType: "madison", requiresAnalysis: false },
+        { converterId: "elimination-race-final", key: ELIMINATION_RACE_FINAL_KEY, label: "Elimination Race Final", stage: "F", outputType: "elimination-race", requiresAnalysis: false }
+      ];
+
+      const jobs = [];
+      for (const spec of specs) {
+        const matched = files.filter((file) => fileNameLower(file).includes(spec.key));
+        if (!matched.length) {
+          continue;
+        }
+
+        const resultsFile = matched.find((file) => fileNameLower(file).includes("results"));
+        const analysisFile = matched.find((file) => fileNameLower(file).includes("analysis"));
+        if (!resultsFile) {
+          throw new Error(`${spec.label} conversion requires a Results file containing '${spec.key}' in its name.`);
+        }
+
+        if (spec.requiresAnalysis !== false && !analysisFile) {
+          throw new Error(`${spec.label} conversion requires both Results and Analysis files containing '${spec.key}' in their names.`);
+        }
+
+        jobs.push({ ...spec, resultsFile, analysisFile });
+      }
+
+      if (!jobs.length) {
+        throw new Error(
+          "No supported converter found. Supported filename markers: 'team sprint_qualifying', 'team sprint_first round', 'team sprint_finals', 'team pursuit_qualifying', 'team pursuit_first round', 'team pursuit_finals', 'sprint_qualifying' (PDF), 'sp2/sp3/sp4/sp5/sp6' (Sprint match PDFs), '1km time trial_qualifying', '1km time trial_final', 'individual pursuit_qualifying', 'individual pursuit_finals', 'men's keirin_first round', 'men's keirin_first round repechage', 'men's keirin_quarterfinals', 'men's keirin_semifinals', 'men's keirin_finals', 'men's omnium_scratch race 1_4', 'men's omnium_tempo race 2_4', 'men's omnium_elimination race 3_4', 'men's omnium_points race 4_4', 'points race_final', 'scratch race_final', 'madison_final', 'elimination race_final'."
+        );
+      }
+
+      const outputTypes = new Set(jobs.map((job) => job.outputType));
+      if (outputTypes.size > 1) {
+        throw new Error("Please upload only one output type per run: Sprint Qualifying PDF, Sprint Match PDFs, Team Sprint, Team Pursuit, 1Km Time Trial, Individual Pursuit, Keirin, Omnium Scratch Race, Omnium Tempo Race, Omnium Elimination Race, Omnium Overall, Points Race, Scratch Race, Madison, or Elimination Race.");
+      }
+
+      const stageOrder = { Q: 0, R1: 1, "R1 Rep": 2, R2: 3, "R2 Rep": 4, R3: 5, F: 6, Final: 7 };
+      jobs.sort((a, b) => {
+        const byStage = (stageOrder[a.stage] ?? 99) - (stageOrder[b.stage] ?? 99);
+        if (byStage !== 0) {
+          return byStage;
+        }
+        return a.converterId.localeCompare(b.converterId);
+      });
+
+      return {
+        jobs,
+        agesFile,
+        outputType: jobs[0].outputType
+      };
+    }
+
+    function loadFirstRoundResults(resultRows) {
+      const teams = [];
+      let current = null;
+
+      for (const row of resultRows) {
+        const rankRaw = (row.Rank || "").trim();
+        const bibRaw = (row.Bib || "").trim();
+        const nameRaw = (row.Name || "").trim();
+        // Tissot may use Heat, Race, or Round as the column name.
+        const heatRaw = (row.Heat || row.Race || row.Round || "").trim();
+
+        if (rankRaw) {
+          current = {
+            rank: Number.parseInt(rankRaw, 10),
+            country: (row.Nat || "").trim(),
+            riders: [],
+            t1000: parseTimeToSeconds(row["1000m"] || ""),
+            t2000: parseTimeToSeconds(row["2000m"] || ""),
+            t3000: parseTimeToSeconds(row["3000m"] || ""),
+            t4000: parseTimeToSeconds(row.Finish || row.Time || ""),
+            timeText: stripTimeSuffix(row.Time || ""),
+            avgSpeed: Number.parseFloat((row["Av. Speed"] || "0").trim()),
+            csvHeat: heatRaw
+          };
+          teams.push(current);
+          continue;
+        }
+
+        if (current && bibRaw && nameRaw) {
+          current.riders.push(nameRaw);
+        }
+      }
+
+      for (const team of teams) {
+        while (team.riders.length < 4) team.riders.push("");
+      }
+
+      // Group into heats. Use CSV Heat column if present, else consecutive pairs.
+      const hasHeatColumn = teams.some((t) => t.csvHeat !== "");
+      let heatGroups;
+
+      if (hasHeatColumn) {
+        const grouped = {};
+        for (const team of teams) {
+          const key = team.csvHeat || "1";
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(team);
+        }
+        const sortedKeys = Object.keys(grouped).sort((a, b) => {
+          const na = Number.parseInt(a, 10);
+          const nb = Number.parseInt(b, 10);
+          if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb;
+          return a.localeCompare(b);
+        });
+        heatGroups = sortedKeys.map((k, idx) => ({ heatNum: idx + 1, members: grouped[k] }));
+      } else {
+        // No heat column — every two consecutive teams form a heat.
+        heatGroups = [];
+        for (let i = 0; i < teams.length; i += 2) {
+          heatGroups.push({ heatNum: heatGroups.length + 1, members: teams.slice(i, i + 2) });
+        }
+      }
+
+      // Within each heat sort by finish time ascending; winner (faster) gets heatRank 1.
+      const ordered = [];
+      for (const group of heatGroups) {
+        group.members.sort((a, b) => a.t4000 - b.t4000);
+        group.members.forEach((team, idx) => {
+          ordered.push({ ...team, heatNum: group.heatNum, heatRank: idx + 1 });
+        });
+      }
+
+      return ordered;
+    }
+
+    function buildFirstRoundOutputRows(teams, analysis, ages, meta) {
+      const rows = [];
+
+      for (const team of teams) {
+        const cumulative = analysis[team.country] || {};
+        const split125 = compute125Splits(cumulative);
+
+        const firstLap = cumulative[250];
+        const secondK = team.t2000 - team.t1000;
+        const thirdK = team.t3000 - team.t2000;
+        const fourthK = team.t4000 - team.t3000;
+
+        const riders = team.riders.slice(0, 4);
+        const riderAges = riders.map((name) => ages[normalizeName(name)] || "");
+
+        const row = [
+          meta.location,
+          String(meta.year),
+          meta.date,
+          meta.event,
+          "R1",
+          String(team.heatNum),
+          team.country,
+          riders[0] || "",
+          riders[1] || "",
+          riders[2] || "",
+          riders[3] || "",
+          riderAges[0] || "",
+          riderAges[1] || "",
+          riderAges[2] || "",
+          riderAges[3] || "",
+          String(team.heatRank),
+          team.timeText,
+          team.t4000.toFixed(3),
+          typeof firstLap === "number" ? firstLap.toFixed(3) : "",
+          team.t1000.toFixed(3),
+          secondK.toFixed(3),
+          thirdK.toFixed(3),
+          fourthK.toFixed(3)
+        ];
+
+        row.push(...split125);
+        row.push((Number.isFinite(team.avgSpeed) ? team.avgSpeed : 0).toFixed(2));
+        rows.push(row);
+      }
+
+      return rows;
+    }
+
+    // Finals heat label mapping: heatNum 1 = Bronze final (B), heatNum 2 = Gold final (G).
+    const FINALS_HEAT_LABEL = { 1: "B", 2: "G" };
+
+    function buildFinalsOutputRows(teams, analysis, ages, meta) {
+      const rows = [];
+
+      for (const team of teams) {
+        const cumulative = analysis[team.country] || {};
+        const split125 = compute125Splits(cumulative);
+
+        const firstLap = cumulative[250];
+        const secondK = team.t2000 - team.t1000;
+        const thirdK = team.t3000 - team.t2000;
+        const fourthK = team.t4000 - team.t3000;
+
+        const riders = team.riders.slice(0, 4);
+        const riderAges = riders.map((name) => ages[normalizeName(name)] || "");
+        const heatLabel = FINALS_HEAT_LABEL[team.heatNum] || String(team.heatNum);
+
+        const row = [
+          meta.location,
+          String(meta.year),
+          meta.date,
+          meta.event,
+          "F",
+          heatLabel,
+          team.country,
+          riders[0] || "",
+          riders[1] || "",
+          riders[2] || "",
+          riders[3] || "",
+          riderAges[0] || "",
+          riderAges[1] || "",
+          riderAges[2] || "",
+          riderAges[3] || "",
+          String(team.heatRank),
+          team.timeText,
+          team.t4000.toFixed(3),
+          typeof firstLap === "number" ? firstLap.toFixed(3) : "",
+          team.t1000.toFixed(3),
+          secondK.toFixed(3),
+          thirdK.toFixed(3),
+          fourthK.toFixed(3)
+        ];
+
+        row.push(...split125);
+        row.push((Number.isFinite(team.avgSpeed) ? team.avgSpeed : 0).toFixed(2));
+        rows.push(row);
+      }
+
+      return rows;
+    }
+
+    refs.convertBtn.addEventListener("click", async () => {
+      try {
+        setStatus("", "");
+        currentTsv = "";
+        refs.downloadBtn.disabled = true;
+        refs.copyBtn.disabled = true;
+        refs.copyDataBtn.disabled = true;
+        refs.preview.value = "";
+
+        const allFiles = Array.from(refs.sourceFiles.files || []);
+        const detected = detectSupportedConversions(allFiles);
+
+        parseDdMmYyyy(refs.date.value);
+
+        setStatus("Reading files and matching converters...", "");
+
+        const ageRows = detected.agesFile ? await parseCsvFile(detected.agesFile, ",") : [];
+        const agesByName = loadAges(ageRows, refs.date.value);
+
+        const meta = {
+          location: refs.location.value,
+          year: refs.year.value,
+          date: refs.date.value,
+          event: refs.event.value
+        };
+
+        const combinedRows = [];
+        for (const job of detected.jobs) {
+          const resultRows = job.converterId === "sprint-match-pdf"
+            ? []
+            : await parseCsvFile(job.resultsFile, ";");
+          const analysisRows = (job.analysisFile && job.converterId !== "sprint-match-pdf")
+            ? await parseCsvFile(job.analysisFile, ";")
+            : [];
+          const analysisByCountry = analysisRows.length
+            ? loadAnalysis(analysisRows)
+            : null;
+
+          let outputRows;
+          if (job.converterId === "points-race-final") {
+            const riders = loadPointsRaceFinalResults(resultRows);
+            outputRows = buildPointsRaceFinalOutputRows(riders, agesByName, meta);
+          } else if (job.converterId === "sprint-match-pdf") {
+            const stageFiles = job.sprintMatchFiles || {};
+            const parsedByStage = [
+              await parseSprintMatchPdf(stageFiles.R16, "R16"),
+              await parseSprintMatchPdf(stageFiles.R8, "R8"),
+              await parseSprintMatchPdf(stageFiles.QF, "QF"),
+              await parseSprintMatchPdf(stageFiles.SF, "SF"),
+              await parseSprintMatchPdf(stageFiles.F, "F")
+            ];
+            outputRows = buildSprintMatchPdfOutputRows(parsedByStage, agesByName, meta);
+          } else if (job.converterId === "sprint-qualifying-pdf") {
+            const entries = await parseSprintQualifyingPdf(job.resultsFile);
+            outputRows = buildSprintQualifyingPdfOutputRows(entries, agesByName, meta);
+          } else if (job.converterId === "elimination-race-final") {
+            const riders = loadEliminationRaceFinalResults(resultRows);
+            outputRows = buildEliminationRaceFinalOutputRows(riders, agesByName, meta);
+          } else if (job.converterId === "madison-final") {
+            const teams = loadMadisonFinalResults(resultRows);
+            outputRows = buildMadisonFinalOutputRows(teams, agesByName, meta);
+          } else if (job.converterId === "scratch-race-final") {
+            const riders = loadScratchRaceFinalResults(resultRows);
+            outputRows = buildScratchRaceFinalOutputRows(riders, agesByName, meta);
+          } else if (job.converterId === "omnium-scratch-race") {
+            const riders = loadOmniumScratchRaceResults(resultRows);
+            outputRows = buildOmniumScratchRaceOutputRows(riders, agesByName, meta);
+          } else if (job.converterId === "omnium-tempo-race") {
+            const riders = loadOmniumTempoRaceResults(resultRows);
+            outputRows = buildOmniumTempoRaceOutputRows(riders, agesByName, meta);
+          } else if (job.converterId === "omnium-elimination-race") {
+            const riders = loadOmniumEliminationRaceResults(resultRows);
+            outputRows = buildOmniumEliminationRaceOutputRows(riders, agesByName, meta);
+          } else if (job.converterId === "omnium-overall") {
+            const scratchFile = allFiles.find((file) => fileNameLower(file).includes(OMNIUM_SCRATCH_RACE_KEY));
+            const tempoFile = allFiles.find((file) => fileNameLower(file).includes(OMNIUM_TEMPO_RACE_KEY));
+            const eliminationFile = allFiles.find((file) => fileNameLower(file).includes(OMNIUM_ELIMINATION_RACE_KEY));
+            const pointsFile = allFiles.find((file) => fileNameLower(file).includes(OMNIUM_POINTS_RACE_KEY));
+
+            if (!scratchFile || !tempoFile || !eliminationFile || !pointsFile) {
+              throw new Error("Omnium Overall conversion requires all four files: Scratch Race 1/4, Tempo Race 2/4, Elimination Race 3/4, and Points Race 4/4.");
+            }
+
+            const scratchRows = await parseCsvFile(scratchFile, ";");
+            const tempoRows = await parseCsvFile(tempoFile, ";");
+            const eliminationRows = await parseCsvFile(eliminationFile, ";");
+            const pointsRows = await parseCsvFile(pointsFile, ";");
+            outputRows = buildOmniumOverallOutputRows(scratchRows, tempoRows, eliminationRows, pointsRows, agesByName, meta);
+          } else if (job.converterId === "kilo-qualifying" || job.converterId === "kilo-final") {
+            const riders = loadKiloResults(resultRows);
+            const cumulativeByAthlete = loadKiloAnalysis(analysisRows);
+            outputRows = buildKiloOutputRows(riders, cumulativeByAthlete, agesByName, meta, job.stage);
+          } else if (job.converterId === "individual-pursuit-qualifying" || job.converterId === "individual-pursuit-finals") {
+            const riders = job.converterId === "individual-pursuit-finals"
+              ? loadIndividualPursuitFinalsResults(resultRows)
+              : loadIndividualPursuitQualifyingResults(resultRows);
+            const cumulativeByAthlete = loadKiloAnalysis(analysisRows);
+            outputRows = buildIndividualPursuitOutputRows(riders, cumulativeByAthlete, agesByName, meta, job.stage);
+          } else if (job.outputType === "keirin") {
+            const riders = loadKeirinRoundResults(resultRows);
+            outputRows = buildKeirinRoundOutputRows(riders, agesByName, meta, job.roundCode || job.stage);
+          } else if (job.converterId === "team-sprint-finals") {
+            const teams = loadTeamSprintFirstRoundResults(resultRows);
+            teams.sort((a, b) => {
+              const aOrder = a.heatNum === 2 ? 0 : (a.heatNum === 1 ? 1 : 2);
+              const bOrder = b.heatNum === 2 ? 0 : (b.heatNum === 1 ? 1 : 2);
+              if (aOrder !== bOrder) {
+                return aOrder - bOrder;
+              }
+              if (a.rank !== b.rank) {
+                return a.rank - b.rank;
+              }
+              return a.timeSeconds - b.timeSeconds;
+            });
+            outputRows = buildTeamSprintFinalsOutputRows(teams, analysisByCountry, agesByName, meta);
+          } else if (job.converterId === "team-sprint-first-round") {
+            const teams = loadTeamSprintFirstRoundResults(resultRows);
+            outputRows = buildTeamSprintFirstRoundOutputRows(teams, analysisByCountry, agesByName, meta);
+          } else if (job.converterId === "team-sprint-qualifying") {
+            const teams = loadTeamSprintQualifyingResults(resultRows);
+            outputRows = buildTeamSprintQualifyingOutputRows(teams, analysisByCountry, agesByName, meta);
+          } else if (job.converterId === "team-pursuit-finals") {
+            const teams = loadFirstRoundResults(resultRows);
+            outputRows = buildFinalsOutputRows(teams, analysisByCountry, agesByName, meta);
+          } else if (job.converterId === "team-pursuit-first-round") {
+            const teams = loadFirstRoundResults(resultRows);
+            outputRows = buildFirstRoundOutputRows(teams, analysisByCountry, agesByName, meta);
+          } else {
+            const teams = loadResults(resultRows);
+            const stageHeat = inferStageHeat(job.converterId);
+            const qualifiedMeta = { ...meta, stage: stageHeat.stage, heat: stageHeat.heat };
+            outputRows = buildOutputRows(teams, analysisByCountry, agesByName, qualifiedMeta);
+          }
+
+          combinedRows.push(...outputRows);
+        }
+
+        const tsv = (
+          detected.outputType === "team-sprint"
+        )
+          ? writeTeamSprintQualifyingTsv(combinedRows)
+          : detected.outputType === "sprint-match-pdf"
+            ? writeSprintMatchPdfTsv(combinedRows)
+          : detected.outputType === "sprint-qualifying-pdf"
+            ? writeSprintQualifyingPdfTsv(combinedRows)
+          : detected.outputType === "kilo"
+            ? writeKiloTsv(combinedRows)
+          : detected.outputType === "individual-pursuit"
+            ? writeIndividualPursuitTsv(combinedRows)
+          : detected.outputType === "keirin"
+            ? writeKeirinTsv(combinedRows)
+          : detected.outputType === "omnium-scratch-race"
+            ? writeOmniumScratchRaceTsv(combinedRows)
+          : detected.outputType === "omnium-tempo-race"
+            ? writeOmniumTempoRaceTsv(combinedRows)
+          : detected.outputType === "omnium-elimination-race"
+            ? writeOmniumEliminationRaceTsv(combinedRows)
+          : detected.outputType === "omnium-overall"
+            ? writeOmniumOverallTsv(combinedRows)
+          : detected.outputType === "points-race"
+            ? writePointsRaceFinalTsv(combinedRows)
+            : detected.outputType === "elimination-race"
+              ? writeEliminationRaceFinalTsv(combinedRows)
+            : detected.outputType === "madison"
+              ? writeMadisonFinalTsv(combinedRows)
+            : detected.outputType === "scratch-race"
+              ? writeScratchRaceFinalTsv(combinedRows)
+            : writeTsv(combinedRows);
+
+        currentTsv = tsv;
+        refs.preview.value = tsv;
+        refs.downloadBtn.disabled = false;
+        refs.copyBtn.disabled = false;
+        refs.copyDataBtn.disabled = false;
+        const stageSummary = detected.jobs.map((job) => job.stage).join(" -> ");
+        setStatus(`Converted ${combinedRows.length} rows from ${detected.jobs.length} file set(s) in stage order ${stageSummary}. Ready to download.`, "ok");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setStatus(message, "error");
+      }
+    });
+
+    refs.downloadBtn.addEventListener("click", () => {
+      if (!currentTsv) {
+        return;
+      }
+
+      const outputName = safeOutputName(refs.outputName.value);
+      const blob = new Blob(["\uFEFF" + currentTsv], { type: "text/tab-separated-values;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = outputName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    });
+
+    refs.copyDataBtn.addEventListener("click", async () => {
+      if (!currentTsv) {
+        return;
+      }
+      try {
+        const dataOnly = currentTsv.split("\n").slice(1).join("\n");
+        await navigator.clipboard.writeText(dataOnly);
+        setStatus("Data copied to clipboard (no headers).", "ok");
+      } catch (error) {
+        setStatus("Clipboard permission blocked. Use download instead.", "error");
+      }
+    });
+
+    refs.copyBtn.addEventListener("click", async () => {
+      if (!currentTsv) {
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(currentTsv);
+        setStatus("TSV copied to clipboard.", "ok");
+      } catch (error) {
+        setStatus("Clipboard permission blocked. Use download instead.", "error");
+      }
+    });
+  </script>
+</body>
+</html>

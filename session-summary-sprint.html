@@ -1,0 +1,2272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Session Summary</title>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f0f4f8;
+      color: #1a202c;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a3c5e;
+      color: #fff;
+      padding: 1.25rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 600; }
+    header span { font-size: 1.6rem; }
+
+    main { padding: 2rem; margin: 0 auto; }
+
+    /* ── Drop Zone ── */
+    #dropzone {
+      border: 2.5px dashed #a0aec0;
+      border-radius: 12px;
+      background: #fff;
+      padding: 3rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    #dropzone.drag-over { border-color: #2b6cb0; background: #ebf4ff; }
+    #dropzone .icon { font-size: 3rem; display: block; margin-bottom: 0.75rem; }
+    #dropzone p { color: #4a5568; margin-bottom: 0.5rem; }
+    #dropzone small { color: #718096; }
+    #fileInput { display: none; }
+
+    #browseBtn {
+      margin-top: 1rem;
+      padding: 0.55rem 1.4rem;
+      background: #2b6cb0;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #browseBtn:hover { background: #2c5282; }
+
+    /* ── Controls ── */
+    #controls {
+      display: none;
+      justify-content: space-between;
+      align-items: center;
+      margin: 1.5rem 0 1rem;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+    #controls .left { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    #fileCount { font-weight: 600; color: #2b6cb0; }
+    #clearBtn {
+      padding: 0.4rem 1rem;
+      background: #e53e3e;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    #clearBtn:hover { background: #c53030; }
+
+    /* Tab bar */
+    #tabs { display: none; border-bottom: 2px solid #cbd5e0; margin-bottom: 1.5rem; gap: 0.25rem; flex-wrap: wrap; }
+    .tab-btn {
+      padding: 0.45rem 1.1rem;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: #4a5568;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      transition: color 0.15s;
+    }
+    .tab-btn.active { color: #2b6cb0; border-bottom-color: #2b6cb0; font-weight: 600; }
+    .tab-btn:hover:not(.active) { color: #2c5282; }
+
+    /* ── Aggregate panel ── */
+    #aggregatePanel { display: none; }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .stat-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 1rem 1.2rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .stat-card .label { font-size: 0.75rem; color: #718096; text-transform: uppercase; letter-spacing: 0.04em; }
+    .stat-card .value { font-size: 1.7rem; font-weight: 700; color: #2b6cb0; margin: 0.15rem 0; }
+    .stat-card .sub { font-size: 0.8rem; color: #a0aec0; }
+
+    /* ── File card ── */
+    .file-panel { display: none; }
+    .file-panel.active { display: block; }
+
+    .file-header {
+      background: #fff;
+      border-radius: 10px;
+      padding: 1rem 1.4rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.2rem;
+      align-items: flex-start;
+    }
+    .file-header h2 { font-size: 1.05rem; font-weight: 600; color: #1a202c; flex: 1 1 100%; }
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.65rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .badge-blue { background: #bee3f8; color: #2b6cb0; }
+    .badge-green { background: #c6f6d5; color: #276749; }
+    .badge-purple { background: #e9d8fd; color: #6b46c1; }
+
+    /* Sheet tabs inside file */
+    .sheet-tabs { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .sheet-tab {
+      padding: 0.3rem 0.8rem;
+      border: 1.5px solid #cbd5e0;
+      border-radius: 6px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 0.82rem;
+      color: #4a5568;
+      transition: all 0.15s;
+    }
+    .sheet-tab.active { background: #2b6cb0; color: #fff; border-color: #2b6cb0; }
+
+    /* Table */
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      margin-bottom: 1.5rem;
+    }
+    table { width: 100%; border-collapse: collapse; background: #fff; font-size: 0.85rem; }
+    thead { background: #2b6cb0; color: #fff; }
+    thead th { padding: 0.65rem 0.9rem; text-align: left; white-space: nowrap; font-weight: 600; }
+    thead th.sortable { cursor: pointer; user-select: none; }
+    thead th.sortable::after { content: '\00a0\25bf'; opacity: 0.45; font-size: 0.7em; vertical-align: middle; }
+    thead th.sort-asc::after  { content: '\00a0\25b4'; opacity: 1; }
+    thead th.sort-desc::after { content: '\00a0\25be'; opacity: 1; }
+    tbody tr:nth-child(even) { background: #f7fafc; }
+    tbody tr:hover { background: #ebf4ff; }
+    tbody td { padding: 0.5rem 0.9rem; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+    tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+    /* Column stats */
+    .col-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+    .col-stat-card {
+      background: #fff;
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+      border-left: 4px solid #2b6cb0;
+    }
+    .col-stat-card.text-col { border-left-color: #805ad5; }
+    .col-stat-card h4 { font-size: 0.82rem; font-weight: 700; color: #2d3748; margin-bottom: 0.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .col-stat-card .kv { display: flex; justify-content: space-between; font-size: 0.78rem; color: #4a5568; margin: 0.15rem 0; }
+    .col-stat-card .kv span:last-child { font-weight: 600; color: #2d3748; }
+
+    .section-title { font-size: 0.95rem; font-weight: 700; color: #2d3748; margin: 1.25rem 0 0.6rem; }
+
+    /* Loading */
+    #loading { display: none; text-align: center; padding: 2rem; color: #4a5568; }
+    .spinner {
+      display: inline-block; width: 32px; height: 32px;
+      border: 3px solid #bee3f8; border-top-color: #2b6cb0;
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Dual range slider ── */
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .slider-label { font-size: 0.8rem; font-weight: 600; color: #2b6cb0; }
+    .dual-range-wrap {
+      position: relative;
+      height: 6px;
+      border-radius: 3px;
+      background: #e2e8f0;
+      margin: 12px 0 10px;
+    }
+    .dual-range-wrap input[type=range] {
+      position: absolute;
+      width: 100%;
+      top: 50%;
+      transform: translateY(-50%);
+      margin: 0;
+      pointer-events: none;
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      outline: none;
+      height: 20px;
+    }
+    .dual-range-wrap input[type=range]::-webkit-slider-thumb {
+      pointer-events: auto;
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: #2b6cb0;
+      cursor: pointer;
+      border: 2px solid #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    }
+    .dual-range-wrap input[type=range]::-moz-range-thumb {
+      pointer-events: auto;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: #2b6cb0;
+      cursor: pointer;
+      border: 2px solid #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    }
+    .dual-range-wrap input[type=range]::-webkit-slider-runnable-track { background: transparent; height: 6px; }
+    .dual-range-wrap input[type=range]::-moz-range-track { background: transparent; height: 6px; }
+
+    #emptyMsg { text-align: center; color: #a0aec0; padding: 3rem; display: none; }
+
+    /* ── Rep types panel ── */
+    #repTypes {
+      background: #fff;
+      border-radius: 10px;
+      padding: 0.85rem 1.2rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      display: none;
+    }
+    .rep-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.45rem;
+      flex-wrap: wrap;
+    }
+    .rep-row:last-child { margin-bottom: 0; }
+    .rep-type-name {
+      font-weight: 600;
+      font-size: 0.88rem;
+      color: #2d3748;
+      min-width: 150px;
+    }
+    .rep-athletes { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+    .rep-badge {
+      display: inline-block;
+      padding: 0.2rem 0.7rem;
+      background: #ebf4ff;
+      color: #2b6cb0;
+      border: 1px solid #bee3f8;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+    .rider-filter-btn {
+      padding: 0.25rem 0.75rem;
+      border: 1.5px solid #bee3f8;
+      border-radius: 999px;
+      background: #fff;
+      color: #2b6cb0;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 600;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .rider-filter-btn.active {
+      background: #2b6cb0;
+      color: #fff;
+      border-color: #2b6cb0;
+    }
+    .rider-filter-btn:not(.active):hover { background: #ebf4ff; }
+
+    .groupby-btn {
+      padding: 0.18rem 0.55rem;
+      border: 1.5px solid #cbd5e0;
+      border-radius: 5px;
+      background: #fff;
+      color: #4a5568;
+      cursor: pointer;
+      font-size: 0.78rem;
+      font-weight: 600;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .groupby-btn.active { background: #2b6cb0; color: #fff; border-color: #2b6cb0; }
+    .groupby-btn:not(.active):hover { background: #f7fafc; }
+
+    /* ── Chart tabs ── */
+    .chart-tab-btn {
+      padding: 0.55rem 1.25rem;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 0.88rem;
+      color: #4a5568;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      font-weight: 500;
+      white-space: nowrap;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .chart-tab-btn.active { color: #2b6cb0; border-bottom-color: #2b6cb0; font-weight: 700; }
+    .chart-tab-btn:hover:not(.active) { color: #2c5282; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span>📊</span>
+  <h1>Session Summary</h1>
+</header>
+
+<main>
+
+  <!-- Drop zone -->
+  <div id="dropzone">
+    <span class="icon">📂</span>
+    <p><strong>Drag &amp; drop Excel files or a folder here</strong></p>
+    <p>or click to browse — folders with any depth of subfolders are supported</p>
+    <small>Supports .xlsx, .xls, .xlsm, .csv — multiple files or entire folder trees accepted</small>
+    <br/>
+    <button id="browseBtn" onclick="document.getElementById('fileInput').click()">Browse files</button>
+    <button id="browseFolderBtn" style="margin-left:0.5rem;padding:0.55rem 1.4rem;background:#38a169;color:#fff;border:none;border-radius:6px;font-size:0.95rem;cursor:pointer;transition:background 0.15s" onmouseover="this.style.background='#276749'" onmouseout="this.style.background='#38a169'" onclick="openFolderPicker()">Browse folder</button>
+    <input type="file" id="fileInput" multiple accept=".xlsx,.xls,.xlsm,.csv" />
+    <input type="file" id="folderInput" webkitdirectory style="display:none" />
+    <div style="display:flex;align-items:center;gap:1rem;margin-top:1.25rem;width:100%">
+      <div style="flex:1;height:1px;background:#e2e8f0"></div>
+      <span style="font-size:0.82rem;color:#a0aec0;font-weight:600">OR</span>
+      <div style="flex:1;height:1px;background:#e2e8f0"></div>
+    </div>
+    <p style="color:#4a5568;margin-top:0.75rem;margin-bottom:0.25rem"><strong>Upload a pre-built summary spreadsheet</strong></p>
+    <small style="color:#718096;display:block;margin-bottom:0.75rem">One row per rep &mdash; columns: Rider, Date, Start, Structure, Lead, Distance, MaxFullRevPowerOverall, etc.</small>
+    <button style="padding:0.55rem 1.4rem;background:#805ad5;color:#fff;border:none;border-radius:6px;font-size:0.95rem;cursor:pointer;transition:background 0.15s" onmouseover="this.style.background='#6b46c1'" onmouseout="this.style.background='#805ad5'" onclick="event.stopPropagation(); document.getElementById('summaryFileInput').click()">&#128203; Browse summary file</button>
+    <input type="file" id="summaryFileInput" accept=".xlsx,.xls,.xlsm,.csv" style="display:none" />
+    <input type="file" id="gymFileInput" accept=".xlsx,.xls,.xlsm,.csv" style="display:none" />
+  </div>
+
+  <!-- Controls bar -->
+  <div id="controls">
+    <div class="left">
+      <span>Loaded: <span id="fileCount">0</span><span id="fileCountUnit"> file(s)</span></span>
+      <button id="clearBtn" onclick="clearAll()">✕ Clear all</button>
+    </div>
+    <div style="display:flex;gap:0.4rem">
+      <button id="addGymBtn" style="padding:0.4rem 1rem;background:#dd6b20;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;"
+        onclick="document.getElementById('gymFileInput').click()">+ Add Gym data</button>
+    </div>
+  </div>
+
+  <!-- Loading indicator -->
+  <div id="loading"><div class="spinner"></div><p id="loadingMsg" style="margin-top:0.75rem">Reading files…</p></div>
+
+  <!-- Rep types -->
+  <div id="repTypes"></div>
+
+  <!-- Summary panel -->
+  <div id="aggregatePanel">
+    <div id="aggContent"></div>
+  </div>
+
+  <!-- Gym summary modal -->
+  <div id="gymModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1100;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
+    <div style="background:#fff;border-radius:12px;padding:1.5rem 2rem;max-width:95vw;width:95%;max-height:90vh;overflow-y:auto;position:relative;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+      <button onclick="document.getElementById('gymModal').style.display='none'" style="position:absolute;top:0.75rem;right:1rem;background:none;border:none;font-size:1.3rem;cursor:pointer;color:#718096;line-height:1">&#x2715;</button>
+      <div id="gymModalContent"></div>
+    </div>
+  </div>
+
+  <!-- Point summary modal -->
+  <div id="pointModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1000;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
+    <div style="background:#fff;border-radius:12px;padding:1.5rem 2rem;max-width:95vw;width:95%;max-height:90vh;overflow-y:auto;position:relative;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+      <button onclick="document.getElementById('pointModal').style.display='none'" style="position:absolute;top:0.75rem;right:1rem;background:none;border:none;font-size:1.3rem;cursor:pointer;color:#718096;line-height:1">&#x2715;</button>
+      <div id="pointModalContent"></div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  // ─── State ───────────────────────────────────────────────────────────────
+  let allFiles = [];  // { name, sheets: [{ name, data: [[]] }] }
+  let chartInstances = {};  // id -> Chart instance
+  let chartMeta = {};       // id -> { dates, riderData, active }
+  let summaryRows = [];     // rows from pre-built summary spreadsheet
+  const ALLOWED_RIDERS = new Set(['E Andrews', 'O King', 'R Petch', 'S Dakin', 'S Fulton']);
+  let gymRows = [];  // rows from TeamBuildr gym file
+  const GYM_RIDER_MAP = {
+    'Ellesse Andrews': 'E Andrews',
+    'Sam Dakin':       'S Dakin',
+    'Shaane Fulton':   'S Fulton',
+    'Olivia King':     'O King',
+    'Rebecca Petch':   'R Petch',
+  };
+
+  // ─── Drop / input wiring ─────────────────────────────────────────────────
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+  dropzone.addEventListener('drop', async e => {
+    e.preventDefault(); dropzone.classList.remove('drag-over');
+    const items = Array.from(e.dataTransfer.items);
+    // Use File System Entry API for recursive folder support
+    if (items.length && items[0].webkitGetAsEntry) {
+      document.getElementById('loading').style.display = 'block';
+      const files = await collectFilesFromItems(items);
+      if (files.length) processFileArray(files);
+      else { document.getElementById('loading').style.display = 'none'; }
+    } else {
+      handleFiles(e.dataTransfer.files);
+    }
+  });
+  dropzone.addEventListener('click', e => {
+    if (e.target.closest('button, input, a')) return;
+    document.getElementById('fileInput').click();
+  });
+  fileInput.addEventListener('change', () => handleFiles(fileInput.files));
+  document.getElementById('folderInput').addEventListener('change', e => handleFiles(e.target.files));
+  document.getElementById('summaryFileInput').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (file) parseSummaryFile(file);
+  });
+  document.getElementById('gymFileInput').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (file) parseGymFile(file);
+  });
+
+  // ─── Recursive folder traversal (File System Entry API) ───────────────────
+  const ACCEPTED_EXTS = /\.(xlsx|xls|xlsm|csv)$/i;
+
+  async function collectFilesFromItems(items) {
+    const files = [];
+    await Promise.all(items.map(item => {
+      const entry = item.webkitGetAsEntry();
+      return entry ? traverseEntry(entry, files) : Promise.resolve();
+    }));
+    return files;
+  }
+
+  async function traverseEntry(entry, files) {
+    if (entry.isFile) {
+      return new Promise(resolve => {
+        entry.file(file => {
+          if (ACCEPTED_EXTS.test(file.name)) files.push(file);
+          resolve();
+        }, () => resolve());
+      });
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader();
+      // readEntries returns at most 100 items per call — loop until empty
+      const readBatch = () => new Promise((resolve, reject) => {
+        reader.readEntries(async entries => {
+          if (!entries.length) { resolve(); return; }
+          await Promise.all(entries.map(e => traverseEntry(e, files)));
+          resolve(readBatch()); // recurse to get next batch
+        }, reject);
+      });
+      return readBatch();
+    }
+  }
+
+  // Modern folder picker — single dialog, full subfolder support
+  async function openFolderPicker() {
+    if (window.showDirectoryPicker) {
+      try {
+        const dirHandle = await window.showDirectoryPicker({ mode: 'read' });
+        document.getElementById('loading').style.display = 'block';
+        const files = [];
+        await collectFilesFromDirHandle(dirHandle, files);
+        if (files.length) processFileArray(files);
+        else document.getElementById('loading').style.display = 'none';
+      } catch (err) {
+        if (err.name !== 'AbortError') console.warn('Folder picker:', err);
+      }
+    } else {
+      // Fallback for browsers without showDirectoryPicker
+      document.getElementById('folderInput').click();
+    }
+  }
+
+  async function collectFilesFromDirHandle(dirHandle, files) {
+    for await (const entry of dirHandle.values()) {
+      if (entry.kind === 'file') {
+        const file = await entry.getFile();
+        if (ACCEPTED_EXTS.test(file.name)) files.push(file);
+      } else if (entry.kind === 'directory') {
+        await collectFilesFromDirHandle(entry, files);
+      }
+    }
+  }
+
+  // Accepts a plain Array of File objects (used by folder traversal and folder input)
+  function processFileArray(fileArray) {
+    summaryRows = [];
+    const total = fileArray.length;
+    let done = 0;
+    const msgEl = document.getElementById('loadingMsg');
+    if (msgEl) msgEl.textContent = `Reading files\u2026 (0\u00a0/\u00a0${total})`;
+    const readers = fileArray.map(file => new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+          const sheets = wb.SheetNames.map(sn => {
+            const ws = wb.Sheets[sn];
+            const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+            return { name: sn, data };
+          });
+          done++;
+          if (msgEl) msgEl.textContent = `Reading files\u2026 (${done}\u00a0/\u00a0${total})`;
+          resolve({ name: file.name, sheets });
+        } catch(err) {
+          done++;
+          if (msgEl) msgEl.textContent = `Reading files\u2026 (${done}\u00a0/\u00a0${total})`;
+          resolve({ name: file.name, sheets: [], error: err.message });
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }));
+
+    Promise.all(readers).then(results => {
+      results.forEach(r => {
+        if (!allFiles.find(f => f.name === r.name)) allFiles.push(r);
+      });
+      document.getElementById('loading').style.display = 'none';
+      render();
+    });
+  }
+
+  // ─── File reading ─────────────────────────────────────────────────────────
+  function handleFiles(fileList) {
+    const arr = Array.from(fileList).filter(f => ACCEPTED_EXTS.test(f.name));
+    if (!arr.length) return;
+    document.getElementById('loading').style.display = 'block';
+    processFileArray(arr);
+  }
+
+  // ─── Render ──────────────────────────────────────────────────────────────
+  function render() {
+    if (!allFiles.length && !summaryRows.length) {
+      document.getElementById('controls').style.display = 'none';
+      document.getElementById('aggregatePanel').style.display = 'none';
+      document.getElementById('repTypes').style.display = 'none';
+      return;
+    }
+    document.getElementById('dropzone').style.display = 'none';
+    document.getElementById('controls').style.display = 'flex';
+    if (summaryRows.length > 0) {
+      document.getElementById('fileCount').textContent = summaryRows.length;
+      document.getElementById('fileCountUnit').textContent = ' rows (summary)';
+    } else {
+      document.getElementById('fileCount').textContent = allFiles.length;
+      document.getElementById('fileCountUnit').textContent = ' file(s)';
+    }
+    renderRepTypes();
+    renderAggregate();
+  }
+
+  function renderRepTypes() {
+    if (summaryRows.length > 0) { renderRepTypesSummary(); return; }
+    // Build initials → full name map from Overview sheet rider names
+    const initialsMap = {};
+    allFiles.forEach(f => {
+      const sheet = f.sheets.find(s => /^overview$/i.test(s.name));
+      if (!sheet) return;
+      sheet.data.forEach(row => {
+        const colA = String(row[0] ?? '').trim();
+        const colB = String(row[1] ?? '').trim();
+        if (colB.toLowerCase() === 'position' && colA) {
+          const name = colA.split(' - ')[0].trim();
+          const words = name.split(/\s+/);
+          if (words.length >= 2) {
+            const inits = words.map(w => w[0]).join('').toUpperCase();
+            if (!initialsMap[inits]) initialsMap[inits] = name;
+          }
+        }
+      });
+    });
+
+    // Build repData = { date: { repType: { rider: count } } }
+    const repData = {};
+    allFiles.forEach(f => {
+      const date = parseDateFromFilename(f.name);
+      if (!date) return;
+      const base = f.name.replace(/\.[^.]+$/, '');
+      const parts = base.split(' - ');
+      if (parts.length < 2) return;
+      const candidate = parts[1].trim();
+      const isRep = candidate.toLowerCase().startsWith('rep');
+      const repSegment = isRep ? parts[1] : parts[0];
+      const typeIdx    = isRep ? 2 : 1;
+      const athleteIdx = isRep ? 3 : 2;
+      const repType    = normalizeRepType(parts[typeIdx]?.trim() ?? '');
+      const athleteStr = parts[athleteIdx]?.trim();
+      if (!repType) return;
+      const repNums  = repSegment.match(/\d+/g);
+      const repCount = (repNums && repNums.length >= 2) ? parseInt(repNums[repNums.length - 1]) : 1;
+      if (!repData[date]) repData[date] = {};
+      if (!repData[date][repType]) repData[date][repType] = {};
+      if (athleteStr) {
+        athleteStr.split(',').map(s => s.trim()).filter(Boolean).forEach(init => {
+          const resolved = initialsMap[init.toUpperCase()] ?? init;
+          if (ALLOWED_RIDERS.has(resolved)) {
+            repData[date][repType][resolved] = (repData[date][repType][resolved] ?? 0) + repCount;
+          }
+        });
+      }
+    });
+
+    const el = document.getElementById('repTypes');
+    const allDates = Object.keys(repData).sort();
+    if (!allDates.length) { el.style.display = 'none'; return; }
+
+    const allRepTypes = [...new Set(allDates.flatMap(d => Object.keys(repData[d])))]
+      .filter(t => allDates.some(d => Object.keys(repData[d][t] ?? {}).length > 0))
+      .sort();
+    const allRepRiders = [...new Set(
+      allDates.flatMap(d => allRepTypes.flatMap(t => Object.keys(repData[d][t] ?? {})))
+    )].sort();
+    if (!allRepTypes.length || !allRepRiders.length) { el.style.display = 'none'; return; }
+
+    const chartId = 'chartRepTypes';
+    const maxIdx  = allDates.length - 1;
+    const palette = ['#2b6cb0','#e53e3e','#38a169','#d69e2e','#805ad5','#dd6b20','#319795','#d53f8c','#3182ce','#718096'];
+
+    // Preserve slider range from existing DOM elements
+    const prevLoEl = document.getElementById('rangeLo_' + chartId);
+    const prevHiEl = document.getElementById('rangeHi_' + chartId);
+    let sliderLo = 0, sliderHi = maxIdx;
+    if (prevLoEl && prevHiEl) {
+      sliderLo = Math.min(parseInt(prevLoEl.value), maxIdx);
+      sliderHi = Math.min(parseInt(prevHiEl.value), maxIdx);
+    }
+
+    // Preserve selected rider or default to first
+    const prevMeta = chartMeta[chartId];
+    const selectedRider = (prevMeta?.selectedRider && allRepRiders.includes(prevMeta.selectedRider))
+      ? prevMeta.selectedRider : allRepRiders[0];
+
+    let html = '<p class="section-title" style="margin:0 0 0.6rem">Rep Types</p>';
+
+    // Rider selection buttons (radio style — one active at a time)
+    html += '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.75rem">';
+    allRepRiders.forEach(rider => {
+      html += `<button class="rider-filter-btn${rider === selectedRider ? ' active' : ''}" data-rider="${escHtml(rider)}">${escHtml(rider)}</button>`;
+    });
+    html += '</div>';
+
+    // Date range slider
+    html += `
+      <div class="slider-header">
+        <span class="slider-label" id="sliderLo_${chartId}">${allDates[sliderLo]}</span>
+        <span style="font-size:0.78rem;color:#718096;font-weight:500">Date range</span>
+        <span class="slider-label" id="sliderHi_${chartId}">${allDates[sliderHi]}</span>
+      </div>
+      <div class="dual-range-wrap" id="rangeWrap_${chartId}">
+        <input type="range" id="rangeLo_${chartId}" min="0" max="${maxIdx}" value="${sliderLo}" step="1">
+        <input type="range" id="rangeHi_${chartId}" min="0" max="${maxIdx}" value="${sliderHi}" step="1">
+      </div>
+      <canvas id="${chartId}" style="max-height:300px;margin-top:0.5rem"></canvas>`;
+
+    // Diagnostic: all unique parsed rep-type strings with session counts
+    const diagItems = allRepTypes.map(t => {
+      const n = allDates.filter(d => repData[d]?.[t] && Object.keys(repData[d][t]).length > 0).length;
+      return `<span style="display:inline-flex;align-items:center;gap:0.25rem;padding:0.2rem 0.6rem;background:#edf2f7;border:1px solid #e2e8f0;border-radius:4px;font-size:0.8rem;font-family:monospace;color:#2d3748">${escHtml(t)}<span style="color:#a0aec0;font-size:0.75em">(${n})</span></span>`;
+    }).join('');
+    html += `<details style="margin-top:1rem;border-top:1px solid #e2e8f0;padding-top:0.6rem">
+      <summary style="cursor:pointer;font-size:0.8rem;font-weight:600;color:#718096;user-select:none">&#9656; Diagnostic &mdash; ${allRepTypes.length} unique rep type${allRepTypes.length !== 1 ? 's' : ''} (click to expand)</summary>
+      <div style="margin-top:0.5rem;display:flex;flex-wrap:wrap;gap:0.35rem">${diagItems}</div>
+    </details>`;
+
+    el.innerHTML = html;
+    el.style.display = 'block';
+
+    // Create bar chart
+    if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
+    const riderColor = palette[allRepRiders.indexOf(selectedRider) % palette.length];
+
+    chartInstances[chartId] = new Chart(document.getElementById(chartId), {
+      type: 'bar',
+      data: {
+        labels: allRepTypes,
+        datasets: [{
+          label: selectedRider,
+          data: allRepTypes.map(t => {
+            let s = 0;
+            for (let i = sliderLo; i <= sliderHi; i++) s += (repData[allDates[i]]?.[t]?.[selectedRider] ?? 0);
+            return s;
+          }),
+          backgroundColor: riderColor + 'cc',
+          borderColor: riderColor,
+          borderWidth: 1.5,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y} reps` } }
+        },
+        scales: {
+          x: { title: { display: true, text: 'Rep Type', font: { weight: '600' } }, grid: { color: '#e2e8f0' } },
+          y: { title: { display: true, text: 'Total Reps', font: { weight: '600' } }, grid: { color: '#e2e8f0' }, beginAtZero: true, ticks: { precision: 0 } }
+        },
+        onClick: (event, elements) => {
+          if (!elements.length) return;
+          const clickedRepType = chartInstances[chartId].data.labels[elements[0].index];
+          const meta = chartMeta[chartId];
+          const loEl = document.getElementById('rangeLo_' + chartId);
+          const hiEl = document.getElementById('rangeHi_' + chartId);
+          const lo = Math.min(parseInt(loEl.value), parseInt(hiEl.value));
+          const hi = Math.max(parseInt(loEl.value), parseInt(hiEl.value));
+          showRepTypeSummary(clickedRepType, meta.selectedRider, meta.allDates[lo], meta.allDates[hi]);
+        },
+        onHover: (event, elements) => {
+          if (event.native) event.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+        }
+      }
+    });
+
+    chartMeta[chartId] = { allDates, allRepTypes, repData, allRepRiders, palette, selectedRider };
+    updateSliderTrack(chartId, sliderLo, sliderHi, maxIdx);
+
+    // Slider events
+    const loEl = document.getElementById('rangeLo_' + chartId);
+    const hiEl = document.getElementById('rangeHi_' + chartId);
+    const onSlider = () => {
+      let lo = parseInt(loEl.value), hi = parseInt(hiEl.value);
+      if (lo > hi) { const t = lo; lo = hi; hi = t; }
+      document.getElementById('sliderLo_' + chartId).textContent = allDates[lo];
+      document.getElementById('sliderHi_' + chartId).textContent = allDates[hi];
+      updateSliderTrack(chartId, lo, hi, maxIdx);
+      updateRepChart(chartId, lo, hi);
+    };
+    loEl.addEventListener('input', onSlider);
+    hiEl.addEventListener('input', onSlider);
+
+    // Rider button events (radio — one active at a time)
+    el.querySelectorAll('.rider-filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.classList.contains('active')) return;
+        el.querySelectorAll('.rider-filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const newRider = btn.dataset.rider;
+        const meta = chartMeta[chartId];
+        meta.selectedRider = newRider;
+        const newColor = meta.palette[meta.allRepRiders.indexOf(newRider) % meta.palette.length];
+        const chart = chartInstances[chartId];
+        chart.data.datasets[0].label = newRider;
+        chart.data.datasets[0].backgroundColor = newColor + 'cc';
+        chart.data.datasets[0].borderColor = newColor;
+        const lo = Math.min(parseInt(loEl.value), parseInt(hiEl.value));
+        const hi = Math.max(parseInt(loEl.value), parseInt(hiEl.value));
+        updateRepChart(chartId, lo, hi);
+      });
+    });
+  }
+
+  // ─── Helpers ─────────────────────────────────────────────────────────────
+  function parseDateFromFilename(name) {
+    const m = name.match(/(\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : null;
+  }
+
+  // Returns [{ date, rider, laps }] from all "Lead Rider" sheets.
+  // Finds the row where col A = "Rider", locates the "Laps in Lead" column
+  // in that same header row, then reads rider rows below until col A is empty.
+  function parseLeadLaps() {
+    const records = [];
+    allFiles.forEach(f => {
+      const date = parseDateFromFilename(f.name);
+      const leadSheet = f.sheets.find(s => /^lead[\s_]?rider$/i.test(s.name));
+      if (!leadSheet) return;
+
+      const data = leadSheet.data;
+      // Find the header row where col A === "Rider"
+      const headerIdx = data.findIndex(r => String(r[0] ?? '').trim().toLowerCase() === 'rider');
+      if (headerIdx === -1) return;
+
+      const headerRow = data[headerIdx];
+      // Find the "Laps in Lead" column index in that header row
+      const lapsColIdx = headerRow.findIndex(c => String(c ?? '').trim().toLowerCase() === 'laps in lead');
+      if (lapsColIdx === -1) return;
+
+      // Read rider rows below header until col A is empty
+      for (let i = headerIdx + 1; i < data.length; i++) {
+        const row = data[i];
+        const nameCell = String(row[0] ?? '').trim();
+        if (!nameCell) break; // stop at first empty cell
+        const rider = nameCell.split(' - ')[0].trim();
+        const laps = parseFloat(row[lapsColIdx]);
+        if (!isNaN(laps)) records.push({ date, rider, laps });
+      }
+    });
+    return records;
+  }
+
+  // Parses Lead Rider sheet: returns [{date, rider, laps, leadPower, recovery, leadPowerExcl, wCdA}]
+  function parseLeadSheet() {
+    const records = [];
+    allFiles.forEach(f => {
+      const date = parseDateFromFilename(f.name);
+      const leadSheet = f.sheets.find(s => /^lead[\s_]?rider$/i.test(s.name));
+      if (!leadSheet) return;
+      const data = leadSheet.data;
+      const headerIdx = data.findIndex(r => String(r[0] ?? '').trim().toLowerCase() === 'rider');
+      if (headerIdx === -1) return;
+      const headerRow = data[headerIdx];
+
+      const ci = name => headerRow.findIndex(c => String(c ?? '').trim().toLowerCase() === name.toLowerCase());
+      const lapsIdx        = ci('Laps in Lead');
+      const leadPowerIdx   = ci('Lead Power');
+      const recoveryIdx    = ci('Recovery');
+      const exclStartIdx   = ci('Lead Power Excl Start');
+      // W/CdA = col F (index 5) / col N (index 13)
+      const wcdaNumIdx = 5;
+      const wcdaDenIdx = 13;
+
+      for (let i = headerIdx + 1; i < data.length; i++) {
+        const row = data[i];
+        const nameCell = String(row[0] ?? '').trim();
+        if (!nameCell) break;
+        const rider = nameCell.split(' - ')[0].trim();
+        const num = idx => idx !== -1 ? parseFloat(row[idx]) : NaN;
+        const n = parseFloat(row[wcdaNumIdx]);
+        const d2 = parseFloat(row[wcdaDenIdx]);
+        records.push({
+          date, rider,
+          laps:          num(lapsIdx),
+          leadPower:     num(leadPowerIdx),
+          recovery:      num(recoveryIdx),
+          leadPowerExcl: num(exclStartIdx),
+          wCdA:          (!isNaN(n) && !isNaN(d2) && d2 !== 0) ? n / d2 : NaN
+        });
+      }
+    });
+    return records;
+  }
+
+  const METRICS = [
+    { key: 'laps',          title: 'Laps in Lead',          unit: 'laps', agg: 'sum', dec: 0 },
+    { key: 'leadPower',     title: 'Lead Power',            unit: 'W',    agg: 'avg', dec: 0 },
+    { key: 'recovery',      title: 'Recovery',              unit: '',     agg: 'avg', dec: 1 },
+    { key: 'leadPowerExcl', title: 'Lead Power Excl Start', unit: 'W',    agg: 'avg', dec: 0 },
+    { key: 'wCdA',          title: 'W/CdA',                 unit: '',     agg: 'avg', dec: 2 },
+  ];
+
+  // ─── Aggregate ───────────────────────────────────────────────────────────
+  function renderAggregate() {
+    document.getElementById('aggregatePanel').style.display = 'block';
+    let html = '';
+
+    // ── Parse Overview: Max Power, Max Torque, CdA, Max Cadence, Work Done ──
+    const riderBestPower   = {};
+    const riderBestTorque  = {};
+    const riderMinCdA      = {};
+    const riderBestCadence = {};
+    const dateRiderPower   = {};
+    const dateRiderTorque  = {};
+    const dateRiderCadence = {};
+    const dateRiderWork         = {}; // sum per day
+    const dateRiderCadAtMaxPower = {};
+
+    allFiles.forEach(f => {
+      const date = parseDateFromFilename(f.name);
+      const overviewSheet = f.sheets.find(s => /^overview$/i.test(s.name));
+      if (!overviewSheet) return;
+      let currentRider = null;
+      let overallColIdx = -1;
+      overviewSheet.data.forEach(row => {
+        const colA = String(row[0] ?? '').trim();
+        const colB = String(row[1] ?? '').trim();
+        if (colB.toLowerCase() === 'position' && colA) {
+          const rname = colA.split(' - ')[0].trim();
+          currentRider = ALLOWED_RIDERS.has(rname) ? rname : null;
+          overallColIdx = row.findIndex((c, i) => i > 1 && String(c ?? '').trim().toLowerCase() === 'overall');
+        } else if (currentRider) {
+          const label = colB.toLowerCase();
+          if (label === 'max power' || label === 'max torque' || label === 'cda' || label === 'max cadence' || label === 'cadence @ max power') {
+            let bestVal = null;
+            for (let i = 0; i < row.length; i++) {
+              if (i === 1) continue;
+              const v = parseFloat(row[i]);
+              if (!isNaN(v) && (bestVal === null || v > bestVal)) bestVal = v;
+            }
+            if (bestVal !== null) {
+              if (label === 'max power') {
+                riderBestPower[currentRider] = Math.max(riderBestPower[currentRider] ?? -Infinity, bestVal);
+                if (date) {
+                  if (!dateRiderPower[date]) dateRiderPower[date] = {};
+                  dateRiderPower[date][currentRider] = Math.max(dateRiderPower[date][currentRider] ?? -Infinity, bestVal);
+                }
+              } else if (label === 'max torque') {
+                riderBestTorque[currentRider] = Math.max(riderBestTorque[currentRider] ?? -Infinity, bestVal);
+                if (date) {
+                  if (!dateRiderTorque[date]) dateRiderTorque[date] = {};
+                  dateRiderTorque[date][currentRider] = Math.max(dateRiderTorque[date][currentRider] ?? -Infinity, bestVal);
+                }
+              } else if (label === 'cda') {
+                riderMinCdA[currentRider] = Math.min(riderMinCdA[currentRider] ?? Infinity, bestVal);
+              } else if (label === 'max cadence') {
+                riderBestCadence[currentRider] = Math.max(riderBestCadence[currentRider] ?? -Infinity, bestVal);
+                if (date) {
+                  if (!dateRiderCadence[date]) dateRiderCadence[date] = {};
+                  dateRiderCadence[date][currentRider] = Math.max(dateRiderCadence[date][currentRider] ?? -Infinity, bestVal);
+                }
+              } else if (label === 'cadence @ max power') {
+                if (date) {
+                  if (!dateRiderCadAtMaxPower[date]) dateRiderCadAtMaxPower[date] = {};
+                  dateRiderCadAtMaxPower[date][currentRider] = Math.max(dateRiderCadAtMaxPower[date][currentRider] ?? -Infinity, bestVal);
+                }
+              }
+            }
+          } else if (label === 'work done' && overallColIdx !== -1) {
+            const v = parseFloat(row[overallColIdx]);
+            if (!isNaN(v) && date) {
+              if (!dateRiderWork[date]) dateRiderWork[date] = {};
+              dateRiderWork[date][currentRider] = (dateRiderWork[date][currentRider] ?? 0) + v;
+            }
+          }
+        }
+      });
+    });
+
+    // ── Build from summary rows (summary mode) ────────────────────────────
+    summaryRows.forEach(row => {
+      const date  = parseSummaryDate(row.Date);
+      const rider = String(row.Rider ?? '').trim();
+      if (!date || !ALLOWED_RIDERS.has(rider)) return;
+      const fv = key => { const v = parseFloat(row[key]); return isNaN(v) ? null : v; };
+      const maxPower   = fv('MaxFullRevPowerOverall');
+      const maxTorque  = fv('MaxFullRevTorqueOverall');
+      const maxCad     = fv('MaxCadenceOverall');
+      const cadAtPower = fv('CadenceAtMaxFullRevPowerOverall');
+      const workDone   = fv('TotalWorkDoneOverall');
+      const cda        = fv('CdA');
+      if (maxPower != null) {
+        riderBestPower[rider] = Math.max(riderBestPower[rider] ?? -Infinity, maxPower);
+        if (!dateRiderPower[date]) dateRiderPower[date] = {};
+        dateRiderPower[date][rider] = Math.max(dateRiderPower[date][rider] ?? -Infinity, maxPower);
+      }
+      if (maxTorque != null) {
+        riderBestTorque[rider] = Math.max(riderBestTorque[rider] ?? -Infinity, maxTorque);
+        if (!dateRiderTorque[date]) dateRiderTorque[date] = {};
+        dateRiderTorque[date][rider] = Math.max(dateRiderTorque[date][rider] ?? -Infinity, maxTorque);
+      }
+      if (maxCad != null) {
+        riderBestCadence[rider] = Math.max(riderBestCadence[rider] ?? -Infinity, maxCad);
+        if (!dateRiderCadence[date]) dateRiderCadence[date] = {};
+        dateRiderCadence[date][rider] = Math.max(dateRiderCadence[date][rider] ?? -Infinity, maxCad);
+      }
+      if (cadAtPower != null) {
+        if (!dateRiderCadAtMaxPower[date]) dateRiderCadAtMaxPower[date] = {};
+        dateRiderCadAtMaxPower[date][rider] = Math.max(dateRiderCadAtMaxPower[date][rider] ?? -Infinity, cadAtPower);
+      }
+      if (workDone != null) {
+        if (!dateRiderWork[date]) dateRiderWork[date] = {};
+        dateRiderWork[date][rider] = (dateRiderWork[date][rider] ?? 0) + workDone;
+      }
+      if (cda != null) {
+        riderMinCdA[rider] = Math.min(riderMinCdA[rider] ?? Infinity, cda);
+      }
+    });
+
+    const allRiders = [...new Set([
+      ...Object.keys(riderBestPower),
+      ...Object.keys(riderBestTorque),
+      ...Object.keys(riderMinCdA),
+      ...Object.keys(riderBestCadence),
+      ...Object.values(dateRiderWork).flatMap(d => Object.keys(d))
+    ])].sort();
+
+    const palette = ['#2b6cb0','#e53e3e','#38a169','#d69e2e','#805ad5','#dd6b20','#319795','#d53f8c','#3182ce','#718096'];
+
+    // ── Summary table ─────────────────────────────────────────────────────
+    if (allRiders.length) {
+      html += '<p class="section-title">Rider Summary</p>';
+      html += '<div class="table-wrap"><table><thead><tr><th class="sortable" onclick="sortTable(this)">Rider</th><th class="sortable" onclick="sortTable(this)" style="text-align:right">Max Power (W)</th><th class="sortable" onclick="sortTable(this)" style="text-align:right">Max Torque (Nm)</th><th class="sortable" onclick="sortTable(this)" style="text-align:right">Lowest CdA</th><th class="sortable" onclick="sortTable(this)" style="text-align:right">Max Cadence (rpm)</th></tr></thead><tbody>';
+      allRiders.forEach(rider => {
+        const power   = riderBestPower[rider];
+        const torque  = riderBestTorque[rider];
+        const cda     = riderMinCdA[rider];
+        const cadence = riderBestCadence[rider];
+        html += `<tr>
+          <td>${escHtml(rider)}</td>
+          <td class="num">${power   != null && isFinite(power)   ? Math.round(power).toLocaleString()   : '-'}</td>
+          <td class="num">${torque  != null && isFinite(torque)  ? Math.round(torque).toLocaleString()  : '-'}</td>
+          <td class="num">${cda     != null && isFinite(cda)     ? cda.toFixed(4)                       : '-'}</td>
+          <td class="num">${cadence != null && isFinite(cadence) ? Math.round(cadence).toLocaleString() : '-'}</td>
+        </tr>`;
+      });
+      html += '</tbody></table></div>';
+    }
+
+    // ── Build chart entry (markers only + trendline datasets + slider HTML) ─
+    function makeChartEntry(chartId, dateMap, yLabel, riderList, pal, aggType) {
+      const dates = Object.keys(dateMap).sort();
+      if (dates.length < 2) return null;
+      const active = riderList.filter(r => dates.some(d => dateMap[d]?.[r] != null));
+      if (!active.length) return null;
+      const riderData = {};
+      active.forEach(r => { riderData[r] = dates.map(d => dateMap[d]?.[r] ?? null); });
+
+      const markerDs = active.map((rider, ri) => ({
+        label: rider,
+        data: [...riderData[rider]],
+        borderColor: pal[ri % pal.length] + 'bb',
+        backgroundColor: pal[ri % pal.length] + '66',
+        pointBackgroundColor: pal[ri % pal.length] + '99',
+        pointBorderColor: pal[ri % pal.length],
+        pointBorderWidth: 1.5,
+        pointRadius: 4, pointHoverRadius: 6,
+        showLine: false, spanGaps: false,
+        order: 2
+      }));
+
+      const trendDs = active.map((rider, ri) => ({
+        label: '\u200b' + rider,   // zero-width space: hidden from legend
+        data: dates.map(() => null),
+        borderColor: pal[ri % pal.length],
+        backgroundColor: 'transparent',
+        borderDash: [],
+        borderWidth: 2.5,
+        pointRadius: 0, pointHoverRadius: 0,
+        showLine: true, spanGaps: true,
+        order: 1
+      }));
+
+      const maxIdx = dates.length - 1;
+      const sliderHtml = `
+        <div style="display:flex;gap:0.3rem;margin-bottom:0.65rem;align-items:center">
+          <span style="font-size:0.78rem;color:#718096;font-weight:500;margin-right:0.15rem">Group by:</span>
+          <button class="groupby-btn active" data-chartid="${chartId}" data-groupby="day">Day</button>
+          <button class="groupby-btn" data-chartid="${chartId}" data-groupby="week">Week</button>
+          <button class="groupby-btn" data-chartid="${chartId}" data-groupby="month">Month</button>
+        </div>
+        <div class="slider-header">
+          <span class="slider-label" id="sliderLo_${chartId}">${dates[0]}</span>
+          <span style="font-size:0.78rem;color:#718096;font-weight:500">Trendline range</span>
+          <span class="slider-label" id="sliderHi_${chartId}">${dates[maxIdx]}</span>
+        </div>
+        <div class="dual-range-wrap" id="rangeWrap_${chartId}">
+          <input type="range" id="rangeLo_${chartId}" min="0" max="${maxIdx}" value="0" step="1">
+          <input type="range" id="rangeHi_${chartId}" min="0" max="${maxIdx}" value="${maxIdx}" step="1">
+        </div>`;
+
+      return { chartId, dates, yLabel, markerDs, trendDs, riderData, active, sliderHtml, maxIdx, aggType, dateMap };
+    }
+
+    const chartEntries = [
+      { entry: makeChartEntry('chartMaxPower',      dateRiderPower,         'Max Power (W)',             allRiders, palette, 'max'), title: 'Max Power Over Time'          },
+      { entry: makeChartEntry('chartMaxTorque',     dateRiderTorque,        'Max Torque (Nm)',           allRiders, palette, 'max'), title: 'Max Torque Over Time'         },
+      { entry: makeChartEntry('chartMaxCadence',    dateRiderCadence,       'Max Cadence (rpm)',         allRiders, palette, 'max'), title: 'Max Cadence Over Time'        },
+      { entry: makeChartEntry('chartCadAtMaxPower', dateRiderCadAtMaxPower, 'Cadence @ Max Power (rpm)', allRiders, palette, 'max'), title: 'Cadence @ Max Power Over Time' },
+      { entry: makeChartEntry('chartWorkDone',      dateRiderWork,          'Work Done (J)',             allRiders, palette, 'sum'), title: 'Work Done Over Time'          }
+    ];
+
+    const tabShortLabels = {
+      'Max Power Over Time':          'Max Power',
+      'Max Torque Over Time':         'Max Torque',
+      'Max Cadence Over Time':        'Max Cadence',
+      'Cadence @ Max Power Over Time':'Cad @ Max Power',
+      'Work Done Over Time':          'Work Done'
+    };
+    const validEntries = chartEntries.filter(e => e.entry);
+    if (validEntries.length) {
+      // Tab bar
+      let chartContainerHtml = '<div style="background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:1.5rem">';
+      chartContainerHtml += '<div id="chartTabBar" style="display:flex;flex-wrap:wrap;border-bottom:2px solid #e2e8f0;padding:0 0.5rem;background:#f7fafc;border-radius:10px 10px 0 0">';
+      validEntries.forEach(({ entry, title }, i) => {
+        const label = tabShortLabels[title] || title.replace(' Over Time', '');
+        chartContainerHtml += `<button class="chart-tab-btn${i === 0 ? ' active' : ''}" data-chartpanel="chartPanel_${entry.chartId}">${label}</button>`;
+      });
+      chartContainerHtml += '</div>';
+      // Panels
+      validEntries.forEach(({ entry }, i) => {
+        chartContainerHtml += `<div id="chartPanel_${entry.chartId}" style="padding:1.25rem${i !== 0 ? ';display:none' : ''}">`;
+        chartContainerHtml += `<div style="display:flex;gap:1.5rem;align-items:flex-start">`;
+        chartContainerHtml += `<div style="flex:1;min-width:0">${entry.sliderHtml}<canvas id="${entry.chartId}" style="max-height:360px;margin-top:0.5rem"></canvas></div>`;
+        chartContainerHtml += `<div id="avgTable_${entry.chartId}" style="min-width:175px;flex-shrink:0;padding-top:0.25rem"></div>`;
+        chartContainerHtml += '</div></div>';
+      });
+      chartContainerHtml += '</div>';
+      html += chartContainerHtml;
+    }
+
+    document.getElementById('aggContent').innerHTML = html;
+
+    // Init charts, compute initial full-range trendlines, wire sliders
+    chartEntries.forEach(({ entry }) => {
+      if (!entry) return;
+      const { chartId, dates, yLabel, markerDs, trendDs, riderData, active, maxIdx, aggType, dateMap } = entry;
+      chartMeta[chartId] = { dates, riderData, active, dateMap, aggType, groupBy: 'day' };
+      const canvas = document.getElementById(chartId);
+      if (!canvas) return;
+      if (chartInstances[chartId]) chartInstances[chartId].destroy();
+      chartInstances[chartId] = new Chart(canvas, {
+        type: 'line',
+        data: { labels: dates, datasets: [...markerDs, ...trendDs] },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { filter: item => !item.text.startsWith('\u200b') },
+              onClick: (e, legendItem, legend) => {
+                const ri = legendItem.datasetIndex;
+                const chart = legend.chart;
+                const n = active.length;
+                const markerMeta = chart.getDatasetMeta(ri);
+                markerMeta.hidden = markerMeta.hidden === null ? !chart.data.datasets[ri].hidden : null;
+                chart.getDatasetMeta(n + ri).hidden = markerMeta.hidden;
+                chart.update();
+              }
+            },
+            tooltip: {
+              filter: item => !item.dataset.label.startsWith('\u200b'),
+              callbacks: {
+                label: ctx => {
+                  const v = ctx.parsed.y;
+                  if (v == null) return null;
+                  return ` ${ctx.dataset.label}: ${Math.round(v).toLocaleString()}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: { title: { display: true, text: 'Date', font: { weight: '600' } }, grid: { color: '#e2e8f0' } },
+            y: { title: { display: true, text: yLabel, font: { weight: '600' } }, grid: { color: '#e2e8f0' }, beginAtZero: false }
+          },
+          onClick: (event, elements) => {
+            if (!elements.length) return;
+            const el = elements[0];
+            const meta = chartMeta[chartId];
+            if (el.datasetIndex >= meta.active.length) return; // ignore trendline clicks
+            showPointSummary(meta.active[el.datasetIndex], meta.dates[el.index], chartId);
+          },
+          onHover: (event, elements) => {
+            const pt = elements.find(el => el.datasetIndex < active.length);
+            if (event.native) event.native.target.style.cursor = pt ? 'pointer' : 'default';
+          }
+        }
+      });
+
+      updateTrendlines(chartId, 0, maxIdx);
+      updateSliderTrack(chartId, 0, maxIdx, maxIdx);
+      updateAvgTable(chartId, 0, maxIdx);
+
+      const loEl = document.getElementById('rangeLo_' + chartId);
+      const hiEl = document.getElementById('rangeHi_' + chartId);
+      const onSlider = () => {
+        const liveDates = chartMeta[chartId].dates;
+        const liveMax = liveDates.length - 1;
+        let lo = parseInt(loEl.value), hi = parseInt(hiEl.value);
+        if (lo > hi) { const t = lo; lo = hi; hi = t; }
+        document.getElementById('sliderLo_' + chartId).textContent = liveDates[lo];
+        document.getElementById('sliderHi_' + chartId).textContent = liveDates[hi];
+        updateSliderTrack(chartId, lo, hi, liveMax);
+        updateTrendlines(chartId, lo, hi);
+        updateAvgTable(chartId, lo, hi);
+      };
+      loEl.addEventListener('input', onSlider);
+      hiEl.addEventListener('input', onSlider);
+      document.querySelectorAll(`.groupby-btn[data-chartid="${chartId}"]`).forEach(btn => {
+        btn.addEventListener('click', () => {
+          const newGroupBy = btn.dataset.groupby;
+          if (chartMeta[chartId].groupBy === newGroupBy) return;
+          document.querySelectorAll(`.groupby-btn[data-chartid="${chartId}"]`).forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          regroupChart(chartId, newGroupBy);
+        });
+      });
+    });
+
+    // Wire chart tab switching
+    let activeChartTabId = validEntries[0]?.entry.chartId ?? null;
+    document.querySelectorAll('#chartTabBar .chart-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const panelId = btn.dataset.chartpanel;
+        const cId = panelId.replace('chartPanel_', '');
+        if (cId === activeChartTabId) return;
+        syncChartState(activeChartTabId, cId);
+        document.querySelectorAll('#chartTabBar .chart-tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('#aggContent [id^="chartPanel_"]').forEach(p => p.style.display = 'none');
+        document.getElementById(panelId).style.display = 'block';
+        if (chartInstances[cId]) chartInstances[cId].resize();
+        activeChartTabId = cId;
+      });
+    });
+  }
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+  function shortName(name) {
+    return name.length > 22 ? name.slice(0, 20) + '…' : name;
+  }
+
+  function normalizeRepType(raw) {
+    let t = raw.replace(/\d.*$/, '').trim().toUpperCase();
+    if (t === 'MPSH') t = 'MPUSH';
+    return t;
+  }
+
+  function sortTable(th) {
+    const table = th.closest('table');
+    const tbody = table.querySelector('tbody');
+    const ths   = Array.from(th.closest('tr').querySelectorAll('th'));
+    const colIdx = ths.indexOf(th);
+    const asc = !th.classList.contains('sort-asc');
+    ths.forEach(t => t.classList.remove('sort-asc', 'sort-desc'));
+    th.classList.add(asc ? 'sort-asc' : 'sort-desc');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    rows.sort((a, b) => {
+      const aRaw  = a.cells[colIdx]?.dataset.sort;
+      const bRaw  = b.cells[colIdx]?.dataset.sort;
+      const aText = aRaw !== undefined ? aRaw : (a.cells[colIdx]?.textContent ?? '').trim();
+      const bText = bRaw !== undefined ? bRaw : (b.cells[colIdx]?.textContent ?? '').trim();
+      const aNum  = parseFloat(aText.replace(/,/g, ''));
+      const bNum  = parseFloat(bText.replace(/,/g, ''));
+      if (!isNaN(aNum) && !isNaN(bNum)) return asc ? aNum - bNum : bNum - aNum;
+      if (aText === '-' && bText !== '-') return asc ? 1 : -1;
+      if (bText === '-' && aText !== '-') return asc ? -1 : 1;
+      return asc ? aText.localeCompare(bText) : bText.localeCompare(aText);
+    });
+    rows.forEach(r => tbody.appendChild(r));
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ─── Trendline helpers ────────────────────────────────────────────────────
+  function linearRegression(xs, ys) {
+    const n = xs.length;
+    if (n < 2) return null;
+    const sumX  = xs.reduce((a,b) => a+b, 0);
+    const sumY  = ys.reduce((a,b) => a+b, 0);
+    const sumXY = xs.reduce((s,x,i) => s + x * ys[i], 0);
+    const sumX2 = xs.reduce((s,x)   => s + x * x, 0);
+    const denom = n * sumX2 - sumX * sumX;
+    if (Math.abs(denom) < 1e-10) return null;
+    const slope     = (n * sumXY - sumX * sumY) / denom;
+    const intercept = (sumY - slope * sumX) / n;
+    return { slope, intercept };
+  }
+
+  function updateTrendlines(chartId, lo, hi) {
+    const chart = chartInstances[chartId];
+    const meta  = chartMeta[chartId];
+    if (!chart || !meta) return;
+    lo = lo ?? 0;
+    hi = hi ?? meta.dates.length - 1;
+    const n = meta.active.length;
+    meta.active.forEach((rider, ri) => {
+      const values = meta.riderData[rider];
+      const xs = [], ys = [];
+      for (let i = lo; i <= hi; i++) {
+        if (values[i] != null) { xs.push(i); ys.push(values[i]); }
+      }
+      const reg = linearRegression(xs, ys);
+      chart.data.datasets[n + ri].data = meta.dates.map((_, i) => {
+        if (i < lo || i > hi || !reg) return null;
+        return reg.slope * i + reg.intercept;
+      });
+    });
+    chart.update('none');
+  }
+
+  function updateRepChart(chartId, lo, hi) {
+    const chart = chartInstances[chartId];
+    const meta  = chartMeta[chartId];
+    if (!chart || !meta) return;
+    if (meta.summaryMode) {
+      const loDate  = meta.allDates[lo];
+      const hiDate  = meta.allDates[hi];
+      const distLoV = meta.allDistances?.length ? parseFloat(meta.allDistances[meta.distLo ?? 0])                              : -Infinity;
+      const distHiV = meta.allDistances?.length ? parseFloat(meta.allDistances[meta.distHi ?? meta.allDistances.length - 1]) :  Infinity;
+      chart.data.datasets[0].data = meta.allRepTypes.map(t =>
+        meta.summaryRows.filter(r => {
+          const date = parseSummaryDate(r.Date);
+          const dist = parseFloat(r.Distance);
+          return date >= loDate && date <= hiDate &&
+                 (isNaN(dist) || (dist >= distLoV && dist <= distHiV)) &&
+                 summaryRepTypeKey(r) === t &&
+                 String(r.Rider ?? '').trim() === meta.selectedRider;
+        }).length
+      );
+      chart.update();
+      return;
+    }
+    chart.data.datasets[0].data = meta.allRepTypes.map(t => {
+      let s = 0;
+      for (let i = lo; i <= hi; i++) s += (meta.repData[meta.allDates[i]]?.[t]?.[meta.selectedRider] ?? 0);
+      return s;
+    });
+    chart.update();
+  }
+
+  function updateSliderTrack(chartId, lo, hi, max) {
+    const wrap = document.getElementById('rangeWrap_' + chartId);
+    if (!wrap) return;
+    const pLo = max > 0 ? (lo / max) * 100 : 0;
+    const pHi = max > 0 ? (hi / max) * 100 : 100;
+    wrap.style.background = `linear-gradient(to right, #e2e8f0 ${pLo}%, #2b6cb0 ${pLo}%, #2b6cb0 ${pHi}%, #e2e8f0 ${pHi}%)`;
+  }
+
+  function showPointSummary(rider, date, chartId) {
+    const modalWrapper = document.querySelector('#pointModal > div');
+
+    // Summary mode: show per-rep rows for this rider + date/week/month
+    if (summaryRows.length > 0) {
+      const repRows = summaryRows.filter(r => {
+        if (String(r.Rider ?? '').trim() !== rider) return false;
+        const d = parseSummaryDate(r.Date);
+        if (!d) return false;
+        if (date.includes('-W')) return getWeekKey(d) === date;   // week bucket
+        if (date.length === 7)   return d.slice(0, 7) === date;   // month bucket
+        return d === date;                                          // day
+      });
+      let html = `<h3 style="font-size:1rem;font-weight:700;color:#1a202c;margin-bottom:1rem;padding-right:1.5rem">${escHtml(rider)} &mdash; ${date}</h3>`;
+      if (!repRows.length) {
+        html += '<p style="color:#718096">No data found for this session.</p>';
+      } else {
+        const numCols = [
+          { key: 'Distance',                       label: 'Dist (m)'            },
+          { key: 'GearInches',                     label: 'Gear (in)'           },
+          { key: 'MaxFullRevPowerOverall',          label: 'Max Power (W)'       },
+          { key: 'MaxFullRevTorqueOverall',         label: 'Max Torque (Nm)'     },
+          { key: 'MaxCadenceOverall',               label: 'Max Cadence (rpm)'   },
+          { key: 'CadenceAtMaxFullRevPowerOverall', label: 'Cad @ Max Pwr (rpm)' },
+          { key: 'MeanPowerRep',                   label: 'Mean Power (W)'      },
+          { key: 'TotalWorkDoneOverall',            label: 'Work Done (J)'       },
+          { key: 'CdA',                             label: 'CdA'                 },
+        ];
+        // Determine which column to highlight (the one plotted in the chart)
+        const chartMetricMap = {
+          chartMaxPower:      'MaxFullRevPowerOverall',
+          chartMaxTorque:     'MaxFullRevTorqueOverall',
+          chartMaxCadence:    'MaxCadenceOverall',
+          chartCadAtMaxPower: 'CadenceAtMaxFullRevPowerOverall',
+          chartWorkDone:      'TotalWorkDoneOverall',
+        };
+        const highlightKey = chartMetricMap[chartId] ?? null;
+        let highlightVal = null;
+        if (highlightKey) {
+          repRows.forEach(r => {
+            const v = parseFloat(r[highlightKey]);
+            if (!isNaN(v) && (highlightVal === null || v > highlightVal)) highlightVal = v;
+          });
+        }
+        html += '<div class="table-wrap"><table><thead><tr>';
+        html += '<th class="sortable" onclick="sortTable(this)">Rep Type</th>';
+        html += '<th class="sortable" onclick="sortTable(this)">Date</th>';
+        numCols.forEach(c => html += `<th class="sortable" onclick="sortTable(this)" style="text-align:right">${escHtml(c.label)}</th>`);
+        if (gymRows.length > 0) html += '<th style="text-align:center">Gym</th>';
+        html += '</tr></thead><tbody>';
+        repRows.forEach(r => {
+          const rowDate = parseSummaryDate(r.Date) ?? '-';
+          const isHighlight = highlightKey !== null && parseFloat(r[highlightKey]) === highlightVal;
+          html += `<tr${isHighlight ? ' style="background:#fefcbf"' : ''}>`;
+          html += `<td>${escHtml(summaryRepTypeKey(r) || '-')}</td>`;
+          html += `<td data-sort="${rowDate.replace(/-/g, '')}">${escHtml(rowDate)}</td>`;
+          numCols.forEach(c => {
+            const v = parseFloat(r[c.key]);
+            html += `<td class="num">${!isNaN(v) ? v.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '-'}</td>`;
+          });
+          if (gymRows.length > 0) {
+            const hasGym = rowDate !== '-' && gymRows.some(g => g._rider === rider && g._date === rowDate);
+            html += hasGym
+              ? `<td style="text-align:center"><button data-rider="${escHtml(rider)}" data-date="${escHtml(rowDate)}" onclick="showGymSummary(this.dataset.rider,this.dataset.date)" style="background:none;border:none;color:#2b6cb0;cursor:pointer;text-decoration:underline;padding:0;font-size:inherit">Yes</button></td>`
+              : '<td style="text-align:center;color:#718096">-</td>';
+          }
+          html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+      document.getElementById('pointModalContent').innerHTML = html;
+      document.getElementById('pointModal').style.display = 'flex';
+      return;
+    }
+
+    const DISPLAY_METRICS = ['max power', 'max torque', 'cda', 'max cadence', 'cadence @ max power', 'work done'];
+    const METRIC_LABELS   = { 'max power': 'Max Power', 'max torque': 'Max Torque', 'cda': 'CdA', 'max cadence': 'Max Cadence', 'cadence @ max power': 'Cadence @ Max Power', 'work done': 'Work Done' };
+    const METRIC_UNITS    = { 'max power': 'W', 'max torque': 'Nm', 'cda': '', 'max cadence': 'rpm', 'cadence @ max power': 'rpm', 'work done': 'J' };
+    const METRIC_DECIMALS = { 'max power': 0, 'max torque': 0, 'cda': 4, 'max cadence': 0, 'cadence @ max power': 0, 'work done': 0 };
+    const METRIC_IS_MAX   = { 'max power': true, 'max torque': true, 'cda': false, 'max cadence': true, 'cadence @ max power': true, 'work done': true };
+
+    const files = allFiles.filter(f => parseDateFromFilename(f.name) === date);
+    let html = `<h3 style="font-size:1rem;font-weight:700;color:#1a202c;margin-bottom:1rem;padding-right:1.5rem">${escHtml(rider)} &mdash; ${date}</h3>`;
+    let hasContent = false;
+
+    files.forEach(f => {
+      const sheet = f.sheets.find(s => /^overview$/i.test(s.name));
+      if (!sheet) return;
+      let inRider = false;
+      let overallColIdx = -1;
+      const metrics = {};
+      sheet.data.forEach(row => {
+        const colA = String(row[0] ?? '').trim();
+        const colB = String(row[1] ?? '').trim();
+        if (colB.toLowerCase() === 'position' && colA) {
+          const rname = colA.split(' - ')[0].trim();
+          inRider = (rname === rider);
+          if (inRider) {
+            overallColIdx = row.findIndex((c, i) => i > 1 && String(c ?? '').trim().toLowerCase() === 'overall');
+          }
+        } else if (inRider && colB) {
+          const label = colB.toLowerCase();
+          if (!DISPLAY_METRICS.includes(label)) return;
+          if (label === 'work done' && overallColIdx !== -1) {
+            const v = parseFloat(row[overallColIdx]);
+            if (!isNaN(v)) metrics[label] = v;
+          } else {
+            const isMax = METRIC_IS_MAX[label];
+            let best = null;
+            for (let i = 0; i < row.length; i++) {
+              if (i === 1) continue;
+              const v = parseFloat(row[i]);
+              if (!isNaN(v) && (best === null || (isMax ? v > best : v < best))) best = v;
+            }
+            if (best !== null) metrics[label] = best;
+          }
+        }
+      });
+      if (!Object.keys(metrics).length) return;
+      hasContent = true;
+      const basename = f.name.replace(/\.[^.]+$/, '');
+      html += `<p style="font-size:0.78rem;color:#718096;margin-bottom:0.4rem;font-style:italic">${escHtml(basename)}</p>`;
+      html += '<div class="table-wrap" style="margin-bottom:1rem"><table><thead><tr><th class="sortable" onclick="sortTable(this)">Metric</th><th class="sortable" onclick="sortTable(this)" style="text-align:right">Value</th></tr></thead><tbody>';
+      DISPLAY_METRICS.forEach(key => {
+        if (metrics[key] == null) return;
+        const dec = METRIC_DECIMALS[key];
+        const val = dec === 0 ? Math.round(metrics[key]).toLocaleString() : metrics[key].toFixed(dec);
+        const unit = METRIC_UNITS[key];
+        html += `<tr><td>${escHtml(METRIC_LABELS[key])}</td><td class="num">${val}${unit ? '\u00a0' + unit : ''}</td></tr>`;
+      });
+      html += '</tbody></table></div>';
+    });
+
+    if (!hasContent) {
+      html += '<p style="color:#718096;font-size:0.9rem">No overview data found for this session.</p>';
+    }
+    document.getElementById('pointModalContent').innerHTML = html;
+    document.getElementById('pointModal').style.display = 'flex';
+  }
+
+  function updateAvgTable(chartId, lo, hi) {
+    const meta = chartMeta[chartId];
+    const el = document.getElementById('avgTable_' + chartId);
+    if (!meta || !el) return;
+    const palette = ['#2b6cb0','#e53e3e','#38a169','#d69e2e','#805ad5','#dd6b20','#319795','#d53f8c','#3182ce','#718096'];
+    let rows = '';
+    meta.active.forEach((rider, ri) => {
+      const values = meta.riderData[rider];
+      const inRange = [];
+      for (let i = lo; i <= hi; i++) {
+        if (values[i] != null) inRange.push(values[i]);
+      }
+      if (!inRange.length) return;
+      const avg = inRange.reduce((a, b) => a + b, 0) / inRange.length;
+      const color = palette[ri % palette.length];
+      rows += `<tr style="border-bottom:1px solid #e2e8f0">
+        <td style="padding:0.35rem 0.6rem;white-space:nowrap">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:0.3rem;vertical-align:middle"></span><span style="font-size:0.82rem;color:#2d3748">${escHtml(rider)}</span>
+        </td>
+        <td style="padding:0.35rem 0.6rem;text-align:right;font-weight:600;color:#1a202c;font-size:0.82rem;font-variant-numeric:tabular-nums;white-space:nowrap">${Math.round(avg).toLocaleString()}</td>
+      </tr>`;
+    });
+    el.innerHTML = rows
+      ? `<p style="font-size:0.72rem;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.4rem">Period avg</p>
+         <div style="border-radius:6px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.07)"><table style="width:100%;border-collapse:collapse;background:#fff"><tbody>${rows}</tbody></table></div>`
+      : '';
+  }
+
+  // ─── Rep type bar click ────────────────────────────────────────────────────
+  function showRepTypeSummary(repType, selectedRider, loDate, hiDate) {
+    const gearValues = [];
+    const rows = [];
+
+    if (summaryRows.length > 0) {
+      // Summary mode: read directly from summaryRows
+      const meta = chartMeta['chartRepTypes'];
+      const distLoV = meta?.allDistances?.length ? parseFloat(meta.allDistances[meta.distLo ?? 0])                              : -Infinity;
+      const distHiV = meta?.allDistances?.length ? parseFloat(meta.allDistances[meta.distHi ?? meta.allDistances.length - 1]) :  Infinity;
+      summaryRows.filter(r => {
+        const date  = parseSummaryDate(r.Date);
+        const dist  = parseFloat(r.Distance);
+        const rider = String(r.Rider ?? '').trim();
+        return date >= loDate && date <= hiDate &&
+               rider === selectedRider &&
+               summaryRepTypeKey(r) === repType &&
+               (isNaN(dist) || (dist >= distLoV && dist <= distHiV));
+      }).forEach(r => {
+        const date = parseSummaryDate(r.Date);
+        const gear = parseFloat(r.GearInches);
+        const dist = parseFloat(r.Distance);
+        if (!isNaN(gear)) gearValues.push(gear);
+        rows.push({
+          date,
+          session:    String(r.Session ?? '').trim(),
+          gear:       isNaN(gear)                                          ? null : gear,
+          distance:   isNaN(dist)                                          ? null : dist,
+          maxPower:   isNaN(parseFloat(r.MaxFullRevPowerOverall))          ? null : parseFloat(r.MaxFullRevPowerOverall),
+          maxTorque:  isNaN(parseFloat(r.MaxFullRevTorqueOverall))         ? null : parseFloat(r.MaxFullRevTorqueOverall),
+          maxCadence: isNaN(parseFloat(r.MaxCadenceOverall))               ? null : parseFloat(r.MaxCadenceOverall),
+          cda:        isNaN(parseFloat(r.CdA))                             ? null : parseFloat(r.CdA),
+        });
+      });
+    } else {
+      // File-based mode
+      const matchingFiles = allFiles.filter(f => {
+        const date = parseDateFromFilename(f.name);
+        if (!date || date < loDate || date > hiDate) return false;
+        const base = f.name.replace(/\.[^.]+$/, '');
+        const parts = base.split(' - ');
+        if (parts.length < 2) return false;
+        const candidate = parts[1].trim();
+        const isRep = candidate.toLowerCase().startsWith('rep');
+        const typeIdx = isRep ? 2 : 1;
+        const parsed = normalizeRepType(parts[typeIdx]?.trim() ?? '');
+        return parsed === repType;
+      });
+
+      matchingFiles.forEach(f => {
+        const date = parseDateFromFilename(f.name);
+        const diagSheet   = f.sheets.find(s => /^diagnostics$/i.test(s.name));
+        const overviewSheet = f.sheets.find(s => /^overview$/i.test(s.name));
+
+        // Gear from Diagnostics (row 7 = index 6 is header; data from index 7)
+        let gear = null;
+        if (diagSheet && diagSheet.data.length > 6) {
+          const headerRow = diagSheet.data[6];
+          const gearColIdx = headerRow.findIndex(c => /gear\s*inch/i.test(String(c ?? '')));
+          if (gearColIdx !== -1) {
+            for (let i = 7; i < diagSheet.data.length; i++) {
+              const row = diagSheet.data[i];
+              const riderCell = String(row[0] ?? '').trim();
+              if (!riderCell) break;
+              if (riderCell.split(' - ')[0].trim() === selectedRider) {
+                const v = parseFloat(row[gearColIdx]);
+                if (!isNaN(v)) { gear = v; break; }
+              }
+            }
+          }
+        }
+
+        // Max Power, Torque, Cadence from Overview
+        let maxPower = null, maxTorque = null, maxCadence = null;
+        if (overviewSheet) {
+          let inRider = false;
+          overviewSheet.data.forEach(row => {
+            const colA = String(row[0] ?? '').trim();
+            const colB = String(row[1] ?? '').trim();
+            if (colB.toLowerCase() === 'position' && colA) {
+              inRider = (colA.split(' - ')[0].trim() === selectedRider);
+            } else if (inRider) {
+              const label = colB.toLowerCase();
+              let best = null;
+              for (let i = 0; i < row.length; i++) {
+                if (i === 1) continue;
+                const v = parseFloat(row[i]);
+                if (!isNaN(v) && (best === null || v > best)) best = v;
+              }
+              if (best !== null) {
+                if (label === 'max power')          maxPower   = best;
+                else if (label === 'max torque')    maxTorque  = best;
+                else if (label === 'max cadence')   maxCadence = best;
+              }
+            }
+          });
+        }
+
+        if (gear !== null || maxPower !== null) {
+          if (gear !== null) gearValues.push(gear);
+          rows.push({ date, session: f.name.replace(/\.[^.]+$/, ''), gear, distance: null, maxPower, maxTorque, maxCadence, cda: null });
+        }
+      });
+    }
+
+    rows.sort((a, b) => (a.date < b.date ? -1 : 1));
+
+    // Collect distance values
+    const distValues = rows.map(r => r.distance).filter(v => v != null);
+
+    // Build tab HTML
+    const gearCanvasId = 'gearHistCanvas';
+    const distCanvasId = 'distHistCanvas';
+    const binSliderHtml = (sliderId, labelId) =>
+      `<div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.5rem">` +
+      `<span style="font-size:0.8rem;color:#718096;font-weight:600">Bins:</span>` +
+      `<input type="range" id="${sliderId}" min="2" max="20" value="10" step="1" style="width:110px;accent-color:#2b6cb0">` +
+      `<span id="${labelId}" style="font-size:0.8rem;font-weight:700;color:#2d3748;min-width:1.5rem">10</span>` +
+      `</div>`;
+    const gearTabHtml = gearValues.length
+      ? binSliderHtml('gearBinsSlider','gearBinsLabel') + `<div style="position:relative;height:260px"><canvas id="${gearCanvasId}"></canvas></div>`
+      : '<p style="color:#718096;padding:1.5rem 0;text-align:center">No gear data found in the Diagnostics sheet for this selection.</p>';
+    const distTabHtml = distValues.length
+      ? binSliderHtml('distBinsSlider','distBinsLabel') + `<div style="position:relative;height:260px"><canvas id="${distCanvasId}"></canvas></div>`
+      : '<p style="color:#718096;padding:1.5rem 0;text-align:center">No distance data available for this selection.</p>';
+
+    let summaryTabHtml = '';
+    if (rows.length) {
+      summaryTabHtml = '<div class="table-wrap" style="margin-top:0.25rem"><table><thead><tr>' +
+        '<th class="sortable" onclick="sortTable(this)">Session</th>' +
+        '<th class="sortable" onclick="sortTable(this)">Date</th>' +
+        '<th class="sortable" onclick="sortTable(this)" style="text-align:right">Dist (m)</th>' +
+        '<th class="sortable" onclick="sortTable(this)" style="text-align:right">Gear (in)</th>' +
+        '<th class="sortable" onclick="sortTable(this)" style="text-align:right">Max Power (W)</th>' +
+        '<th class="sortable" onclick="sortTable(this)" style="text-align:right">Max Torque (Nm)</th>' +
+        '<th class="sortable" onclick="sortTable(this)" style="text-align:right">Max Cadence (rpm)</th>' +
+        '<th class="sortable" onclick="sortTable(this)" style="text-align:right">CdA</th>' +
+        '</tr></thead><tbody>';
+      rows.forEach(r => {
+        summaryTabHtml += '<tr>' +
+          `<td>${escHtml(r.session || '-')}</td>` +
+          `<td>${escHtml(r.date)}</td>` +
+          `<td class="num">${r.distance != null ? Math.round(r.distance).toLocaleString()  : '-'}</td>` +
+          `<td class="num">${r.gear     != null ? r.gear.toFixed(1)                        : '-'}</td>` +
+          `<td class="num">${r.maxPower != null ? Math.round(r.maxPower).toLocaleString()  : '-'}</td>` +
+          `<td class="num">${r.maxTorque!= null ? Math.round(r.maxTorque).toLocaleString() : '-'}</td>` +
+          `<td class="num">${r.maxCadence!=null ? Math.round(r.maxCadence).toLocaleString(): '-'}</td>` +
+          `<td class="num">${r.cda      != null ? r.cda.toFixed(4)                         : '-'}</td>` +
+          '</tr>';
+      });
+      summaryTabHtml += '</tbody></table></div>';
+    } else {
+      summaryTabHtml = '<p style="color:#718096;padding:1.5rem 0;text-align:center">No session data found for this selection.</p>';
+    }
+
+    const tabBtnBase = 'padding:0.45rem 1.1rem;border:none;background:transparent;cursor:pointer;font-size:0.9rem;margin-bottom:-2px;';
+    const tabBtnOn   = `${tabBtnBase}border-bottom:3px solid #2b6cb0;color:#2b6cb0;font-weight:600`;
+    const tabBtnOff  = `${tabBtnBase}border-bottom:3px solid transparent;color:#718096;font-weight:400`;
+    const modalHtml =
+      `<h3 style="font-size:1rem;font-weight:700;color:#1a202c;margin-bottom:0.75rem;padding-right:1.5rem">` +
+      `${escHtml(repType)} \u2014 ${escHtml(selectedRider)}` +
+      `<span style="font-size:0.8rem;font-weight:400;color:#718096;margin-left:0.5rem">${escHtml(loDate)} to ${escHtml(hiDate)}</span></h3>` +
+      `<div style="display:flex;gap:0;border-bottom:2px solid #e2e8f0;margin-bottom:1rem">` +
+      `<button id="rtTab0" data-tab="0" style="${tabBtnOn}">Gear Distribution</button>` +
+      `<button id="rtTab1" data-tab="1" style="${tabBtnOff}">Distance Distribution</button>` +
+      `<button id="rtTab2" data-tab="2" style="${tabBtnOff}">Session Summary</button>` +
+      `</div>` +
+      `<div id="rtTabContent0">${gearTabHtml}</div>` +
+      `<div id="rtTabContent1" style="display:none">${distTabHtml}</div>` +
+      `<div id="rtTabContent2" style="display:none">${summaryTabHtml}</div>`;
+
+    document.getElementById('pointModalContent').innerHTML = modalHtml;
+    document.getElementById('pointModal').style.display = 'flex';
+
+    // Bin slider state
+    let gearBins = 10;
+    let distBins = 10;
+
+    // Tab switching (3 tabs)
+    const tabIds = ['rtTab0', 'rtTab1', 'rtTab2'];
+    tabIds.forEach(id => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      btn.addEventListener('click', () => {
+        const active = btn.dataset.tab;
+        tabIds.forEach((tid, i) => {
+          const isActive = String(i) === active;
+          const b = document.getElementById(tid);
+          const c = document.getElementById('rtTabContent' + i);
+          if (b) { b.style.borderBottomColor = isActive ? '#2b6cb0' : 'transparent'; b.style.color = isActive ? '#2b6cb0' : '#718096'; b.style.fontWeight = isActive ? '600' : '400'; }
+          if (c) c.style.display = isActive ? 'block' : 'none';
+          if (isActive && i === 1 && distValues.length) requestAnimationFrame(buildDistChart);
+        });
+      });
+    });
+
+    // Gear histogram
+    if (gearValues.length) {
+      buildHistChart(gearCanvasId, 'gearHistChart', gearValues, 'Gear (inches)', 'Frequency', gearBins);
+      const gearBinsSlider = document.getElementById('gearBinsSlider');
+      if (gearBinsSlider) {
+        gearBinsSlider.addEventListener('input', () => {
+          gearBins = parseInt(gearBinsSlider.value);
+          document.getElementById('gearBinsLabel').textContent = gearBins;
+          buildHistChart(gearCanvasId, 'gearHistChart', gearValues, 'Gear (inches)', 'Frequency', gearBins);
+        });
+      }
+    }
+
+    // Distance histogram builder (lazy on first tab-1 open)
+    function buildDistChart() {
+      buildHistChart(distCanvasId, 'distHistChart', distValues, 'Distance (m)', 'Frequency', distBins);
+      const distBinsSlider = document.getElementById('distBinsSlider');
+      if (distBinsSlider && !distBinsSlider.dataset.wired) {
+        distBinsSlider.dataset.wired = '1';
+        distBinsSlider.addEventListener('input', () => {
+          distBins = parseInt(distBinsSlider.value);
+          document.getElementById('distBinsLabel').textContent = distBins;
+          buildHistChart(distCanvasId, 'distHistChart', distValues, 'Distance (m)', 'Frequency', distBins);
+        });
+      }
+    }
+  }
+
+  function buildHistChart(canvasId, instanceKey, values, xLabel, yLabel, nBins = 10) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !values.length) return;
+    if (chartInstances[instanceKey]) { chartInstances[instanceKey].destroy(); delete chartInstances[instanceKey]; }
+    const minV = Math.min(...values);
+    const maxV = Math.max(...values);
+    const bins = minV === maxV ? 1 : Math.max(1, Math.min(nBins, new Set(values).size));
+    const binWidth = minV === maxV ? 1 : (maxV - minV) / bins;
+    const counts = new Array(bins).fill(0);
+    values.forEach(v => {
+      const idx = minV === maxV ? 0 : Math.min(Math.floor((v - minV) / binWidth), bins - 1);
+      counts[idx]++;
+    });
+    const binLabels = Array.from({ length: bins }, (_, i) => {
+      const lo = minV + i * binWidth;
+      return bins === 1 ? String(minV) : (lo.toFixed(1) + '\u2013' + (lo + binWidth).toFixed(1));
+    });
+    chartInstances[instanceKey] = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: binLabels,
+        datasets: [{ label: 'Frequency', data: counts, backgroundColor: '#2b6cb0cc', borderColor: '#2b6cb0', borderWidth: 1.5, borderRadius: 4 }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ' ' + ctx.parsed.y + ' rep' + (ctx.parsed.y !== 1 ? 's' : '') } }
+        },
+        scales: {
+          x: { title: { display: true, text: xLabel, font: { weight: '600' } }, grid: { color: '#e2e8f0' } },
+          y: { title: { display: true, text: yLabel, font: { weight: '600' } }, grid: { color: '#e2e8f0' }, beginAtZero: true, ticks: { precision: 0 } }
+        }
+      }
+    });
+  }
+
+  // ─── Group-by helpers ─────────────────────────────────────────────────────
+  function getWeekKey(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    const day = d.getDay() || 7;
+    d.setDate(d.getDate() + 4 - day); // move to Thursday of this ISO week
+    const yearStart = new Date(d.getFullYear(), 0, 1);
+    const weekNum = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+    return `${d.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+  }
+
+  function aggregateDateMap(dateMap, groupBy, aggType) {
+    if (groupBy === 'day') return dateMap;
+    const grouped = {};
+    Object.keys(dateMap).sort().forEach(date => {
+      const key = groupBy === 'week' ? getWeekKey(date) : date.slice(0, 7);
+      if (!grouped[key]) grouped[key] = {};
+      Object.entries(dateMap[date]).forEach(([rider, val]) => {
+        if (val == null || !isFinite(val)) return;
+        if (grouped[key][rider] == null) {
+          grouped[key][rider] = val;
+        } else {
+          grouped[key][rider] = aggType === 'sum'
+            ? grouped[key][rider] + val
+            : Math.max(grouped[key][rider], val);
+        }
+      });
+    });
+    return grouped;
+  }
+
+  function syncChartState(fromId, toId) {
+    const fromMeta  = chartMeta[fromId];
+    const toMeta    = chartMeta[toId];
+    const fromChart = chartInstances[fromId];
+    const toChart   = chartInstances[toId];
+    if (!fromMeta || !toMeta || !fromChart || !toChart) return;
+
+    // 1. Group-by
+    if (fromMeta.groupBy !== toMeta.groupBy) {
+      document.querySelectorAll(`.groupby-btn[data-chartid="${toId}"]`).forEach(b => b.classList.remove('active'));
+      document.querySelector(`.groupby-btn[data-chartid="${toId}"][data-groupby="${fromMeta.groupBy}"]`)?.classList.add('active');
+      regroupChart(toId, fromMeta.groupBy); // updates toMeta.dates in place
+    }
+
+    // 2. Date range — map source dates to closest in target
+    const fromLoEl = document.getElementById('rangeLo_' + fromId);
+    const fromHiEl = document.getElementById('rangeHi_' + fromId);
+    const lo = Math.min(parseInt(fromLoEl.value), parseInt(fromHiEl.value));
+    const hi = Math.max(parseInt(fromLoEl.value), parseInt(fromHiEl.value));
+    const loDate = fromMeta.dates[lo];
+    const hiDate = fromMeta.dates[hi];
+
+    const toDates = toMeta.dates;
+    const toMax   = toDates.length - 1;
+    const findIdx = date => {
+      let best = 0, bestDiff = Infinity;
+      toDates.forEach((d, i) => {
+        const diff = Math.abs(Date.parse(d) - Date.parse(date));
+        if (diff < bestDiff) { bestDiff = diff; best = i; }
+      });
+      return Math.min(best, toMax);
+    };
+    const newLo = findIdx(loDate);
+    const newHi = findIdx(hiDate);
+    const toLoEl = document.getElementById('rangeLo_' + toId);
+    const toHiEl = document.getElementById('rangeHi_' + toId);
+    toLoEl.max = toMax; toHiEl.max = toMax;
+    toLoEl.value = newLo; toHiEl.value = newHi;
+    document.getElementById('sliderLo_' + toId).textContent = toDates[newLo];
+    document.getElementById('sliderHi_' + toId).textContent = toDates[newHi];
+    updateSliderTrack(toId, newLo, newHi, toMax);
+    updateTrendlines(toId, newLo, newHi);
+    updateAvgTable(toId, newLo, newHi);
+
+    // 3. Rider visibility
+    const n = toMeta.active.length;
+    toMeta.active.forEach((rider, toRi) => {
+      const fromRi = fromMeta.active.indexOf(rider);
+      if (fromRi === -1) return;
+      const visible = fromChart.isDatasetVisible(fromRi);
+      toChart.getDatasetMeta(toRi).hidden      = visible ? null : true;
+      toChart.getDatasetMeta(n + toRi).hidden  = visible ? null : true;
+    });
+    toChart.update('none');
+  }
+
+  function regroupChart(chartId, newGroupBy) {
+    const meta = chartMeta[chartId];
+    const chart = chartInstances[chartId];
+    if (!meta || !chart) return;
+    meta.groupBy = newGroupBy;
+    const grouped = aggregateDateMap(meta.dateMap, newGroupBy, meta.aggType);
+    const dates = Object.keys(grouped).sort();
+    if (!dates.length) return;
+    const riderData = {};
+    meta.active.forEach(r => { riderData[r] = dates.map(d => grouped[d]?.[r] ?? null); });
+    meta.dates = dates;
+    meta.riderData = riderData;
+    const n = meta.active.length;
+    meta.active.forEach((rider, ri) => {
+      chart.data.datasets[ri].data = [...riderData[rider]];
+      chart.data.datasets[n + ri].data = dates.map(() => null);
+    });
+    chart.data.labels = dates;
+    const maxIdx = dates.length - 1;
+    const loEl = document.getElementById('rangeLo_' + chartId);
+    const hiEl = document.getElementById('rangeHi_' + chartId);
+    if (loEl && hiEl) {
+      loEl.max = maxIdx; hiEl.max = maxIdx;
+      loEl.value = 0;    hiEl.value = maxIdx;
+      document.getElementById('sliderLo_' + chartId).textContent = dates[0];
+      document.getElementById('sliderHi_' + chartId).textContent = dates[maxIdx];
+    }
+    chart.update('none');
+    updateTrendlines(chartId, 0, maxIdx);
+    updateSliderTrack(chartId, 0, maxIdx, maxIdx);
+    updateAvgTable(chartId, 0, maxIdx);
+  }
+
+  // ─── Summary spreadsheet mode ─────────────────────────────────────────────
+
+  function parseSummaryDate(raw) {
+    if (!raw) return null;
+    if (raw instanceof Date) {
+      const y = raw.getFullYear(), m = raw.getMonth() + 1, d = raw.getDate();
+      return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    }
+    if (typeof raw === 'number') {
+      const d = new Date(Math.round((raw - 25569) * 86400 * 1000));
+      return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+    }
+    const s = String(raw);
+    const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (dmy) return `${dmy[3]}-${dmy[2].padStart(2,'0')}-${dmy[1].padStart(2,'0')}`;
+    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) return iso[0];
+    return null;
+  }
+
+  function summaryRepTypeKey(row) {
+    const startMap  = { 'STANDING': 'ST', 'ROLLING': 'R', 'FLYING': 'F' };
+    const structMap = { 'MISCELLANEOUS': 'MISC' };
+    const start     = String(row.Start     ?? '').trim().toUpperCase();
+    const structure = String(row.Structure ?? '').trim().toUpperCase();
+    const lead      = String(row.Lead      ?? '').trim().toUpperCase();
+    return [startMap[start] ?? start, structMap[structure] ?? structure, lead]
+      .filter(Boolean).join(' / ');
+  }
+
+  function parseGymFile(file) {
+    document.getElementById('loading').style.display = 'block';
+    const msgEl = document.getElementById('loadingMsg');
+    if (msgEl) msgEl.textContent = 'Reading gym file\u2026';
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+        const ws = wb.Sheets['TeamBuildr'] ?? wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        gymRows = rows.map(r => {
+          const first = String(r['First Name'] ?? '').trim();
+          const last  = String(r['Last Name']  ?? '').trim();
+          const rider = GYM_RIDER_MAP[`${first} ${last}`] ?? null;
+          const date  = parseSummaryDate(r['Completed Date']);
+          return { ...r, _rider: rider, _date: date };
+        }).filter(r => r._rider && r._date);
+        document.getElementById('loading').style.display = 'none';
+        const btn = document.getElementById('addGymBtn');
+        if (btn) btn.textContent = `\u2713 Gym (${gymRows.length} rows)`;
+      } catch(err) {
+        document.getElementById('loading').style.display = 'none';
+        console.error('Gym parse error:', err);
+        alert('Failed to parse gym file: ' + err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function parseSummaryFile(file) {
+    allFiles = [];
+    document.getElementById('loading').style.display = 'block';
+    const msgEl = document.getElementById('loadingMsg');
+    if (msgEl) msgEl.textContent = 'Reading summary file\u2026';
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        summaryRows = rows.filter(r => ALLOWED_RIDERS.has(String(r.Rider ?? '').trim()));
+        document.getElementById('loading').style.display = 'none';
+        render();
+      } catch(err) {
+        document.getElementById('loading').style.display = 'none';
+        console.error('Summary parse error:', err);
+        alert('Failed to parse summary file: ' + err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function updateDistTrack(chartId, lo, hi, max) {
+    const wrap = document.getElementById('distRangeWrap_' + chartId);
+    if (!wrap) return;
+    const pLo = max > 0 ? (lo / max) * 100 : 0;
+    const pHi = max > 0 ? (hi / max) * 100 : 100;
+    wrap.style.background = `linear-gradient(to right, #e2e8f0 ${pLo}%, #2b6cb0 ${pLo}%, #2b6cb0 ${pHi}%, #e2e8f0 ${pHi}%)`;
+  }
+
+  function renderRepTypesSummary() {
+    const el = document.getElementById('repTypes');
+
+    // Build repData from summaryRows
+    const repData = {};
+    summaryRows.forEach(r => {
+      const date  = parseSummaryDate(r.Date);
+      const rider = String(r.Rider ?? '').trim();
+      if (!date || !ALLOWED_RIDERS.has(rider)) return;
+      const repType = summaryRepTypeKey(r);
+      if (!repType) return;
+      if (!repData[date]) repData[date] = {};
+      if (!repData[date][repType]) repData[date][repType] = {};
+      repData[date][repType][rider] = (repData[date][repType][rider] ?? 0) + 1;
+    });
+
+    const allDates = Object.keys(repData).sort();
+    if (!allDates.length) { el.style.display = 'none'; return; }
+
+    const allRepTypes = [...new Set(allDates.flatMap(d => Object.keys(repData[d])))]
+      .filter(t => allDates.some(d => Object.keys(repData[d][t] ?? {}).length > 0))
+      .sort();
+    const allRepRiders = [...new Set(
+      allDates.flatMap(d => allRepTypes.flatMap(t => Object.keys(repData[d][t] ?? {})))
+    )].sort();
+    if (!allRepTypes.length || !allRepRiders.length) { el.style.display = 'none'; return; }
+
+    // Distinct sorted distances
+    const allDistances = [...new Set(
+      summaryRows.map(r => parseFloat(r.Distance)).filter(v => !isNaN(v))
+    )].sort((a, b) => a - b);
+
+    const chartId = 'chartRepTypes';
+    const maxIdx  = allDates.length - 1;
+    const distMax = Math.max(allDistances.length - 1, 0);
+    const palette = ['#2b6cb0','#e53e3e','#38a169','#d69e2e','#805ad5','#dd6b20','#319795','#d53f8c','#3182ce','#718096'];
+
+    // Preserve existing slider / rider state
+    const prevLoEl = document.getElementById('rangeLo_' + chartId);
+    const prevHiEl = document.getElementById('rangeHi_' + chartId);
+    let sliderLo = 0, sliderHi = maxIdx;
+    if (prevLoEl && prevHiEl) {
+      sliderLo = Math.min(Math.max(parseInt(prevLoEl.value), 0), maxIdx);
+      sliderHi = Math.min(Math.max(parseInt(prevHiEl.value), 0), maxIdx);
+    }
+    const prevMeta = chartMeta[chartId];
+    const selectedRider = (prevMeta?.selectedRider && allRepRiders.includes(prevMeta.selectedRider))
+      ? prevMeta.selectedRider : allRepRiders[0];
+    let distLo = Math.min(prevMeta?.distLo ?? 0, distMax);
+    let distHi = Math.min(prevMeta?.distHi ?? distMax, distMax);
+
+    let html = '<p class="section-title" style="margin:0 0 0.6rem">Rep Types</p>';
+
+    // Rider buttons
+    html += '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.75rem">';
+    allRepRiders.forEach(rider => {
+      html += `<button class="rider-filter-btn${rider === selectedRider ? ' active' : ''}" data-rider="${escHtml(rider)}">${escHtml(rider)}</button>`;
+    });
+    html += '</div>';
+
+    // Date slider
+    html += `
+      <div class="slider-header">
+        <span class="slider-label" id="sliderLo_${chartId}">${allDates[sliderLo]}</span>
+        <span style="font-size:0.78rem;color:#718096;font-weight:500">Date range</span>
+        <span class="slider-label" id="sliderHi_${chartId}">${allDates[sliderHi]}</span>
+      </div>
+      <div class="dual-range-wrap" id="rangeWrap_${chartId}">
+        <input type="range" id="rangeLo_${chartId}" min="0" max="${maxIdx}" value="${sliderLo}" step="1">
+        <input type="range" id="rangeHi_${chartId}" min="0" max="${maxIdx}" value="${sliderHi}" step="1">
+      </div>`;
+
+    // Distance slider (summary mode only, when more than 1 distinct distance)
+    if (allDistances.length > 1) {
+      html += `
+      <div class="slider-header" style="margin-top:0.5rem">
+        <span class="slider-label" id="distLo_${chartId}">${allDistances[distLo]}m</span>
+        <span style="font-size:0.78rem;color:#718096;font-weight:500">Distance range</span>
+        <span class="slider-label" id="distHi_${chartId}">${allDistances[distHi]}m</span>
+      </div>
+      <div class="dual-range-wrap" id="distRangeWrap_${chartId}">
+        <input type="range" id="distRangeLo_${chartId}" min="0" max="${distMax}" value="${distLo}" step="1">
+        <input type="range" id="distRangeHi_${chartId}" min="0" max="${distMax}" value="${distHi}" step="1">
+      </div>`;
+    }
+
+    html += `<canvas id="${chartId}" style="max-height:300px;margin-top:0.5rem"></canvas>`;
+
+    // Diagnostic
+    const diagItems = allRepTypes.map(t => {
+      const n = allDates.filter(d => repData[d]?.[t] && Object.keys(repData[d][t]).length > 0).length;
+      return `<span style="display:inline-flex;align-items:center;gap:0.25rem;padding:0.2rem 0.6rem;background:#edf2f7;border:1px solid #e2e8f0;border-radius:4px;font-size:0.8rem;font-family:monospace;color:#2d3748">${escHtml(t)}<span style="color:#a0aec0;font-size:0.75em">(${n})</span></span>`;
+    }).join('');
+    html += `<details style="margin-top:1rem;border-top:1px solid #e2e8f0;padding-top:0.6rem">
+      <summary style="cursor:pointer;font-size:0.8rem;font-weight:600;color:#718096;user-select:none">&#9656; Diagnostic &mdash; ${allRepTypes.length} unique rep type${allRepTypes.length !== 1 ? 's' : ''} (click to expand)</summary>
+      <div style="margin-top:0.5rem;display:flex;flex-wrap:wrap;gap:0.35rem">${diagItems}</div>
+    </details>`;
+
+    el.innerHTML = html;
+    el.style.display = 'block';
+
+    // Destroy old chart
+    if (chartInstances[chartId]) { chartInstances[chartId].destroy(); delete chartInstances[chartId]; }
+
+    const riderColor = palette[allRepRiders.indexOf(selectedRider) % palette.length];
+
+    const getInitialData = () => {
+      const loDate = allDates[sliderLo], hiDate = allDates[sliderHi];
+      const dLoV = allDistances.length ? parseFloat(allDistances[distLo]) : -Infinity;
+      const dHiV = allDistances.length ? parseFloat(allDistances[distHi]) :  Infinity;
+      return allRepTypes.map(t =>
+        summaryRows.filter(r => {
+          const date = parseSummaryDate(r.Date);
+          const dist = parseFloat(r.Distance);
+          return date >= loDate && date <= hiDate &&
+                 (isNaN(dist) || (dist >= dLoV && dist <= dHiV)) &&
+                 summaryRepTypeKey(r) === t &&
+                 String(r.Rider ?? '').trim() === selectedRider;
+        }).length
+      );
+    };
+
+    chartInstances[chartId] = new Chart(document.getElementById(chartId), {
+      type: 'bar',
+      data: {
+        labels: allRepTypes,
+        datasets: [{
+          label: selectedRider,
+          data: getInitialData(),
+          backgroundColor: riderColor + 'cc',
+          borderColor: riderColor,
+          borderWidth: 1.5,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y} reps` } }
+        },
+        scales: {
+          x: { title: { display: true, text: 'Rep Type', font: { weight: '600' } }, grid: { color: '#e2e8f0' } },
+          y: { title: { display: true, text: 'Total Reps', font: { weight: '600' } }, grid: { color: '#e2e8f0' }, beginAtZero: true, ticks: { precision: 0 } }
+        },
+        onClick: (event, elements) => {
+          if (!elements.length) return;
+          const clickedType = chartInstances[chartId].data.labels[elements[0].index];
+          const meta = chartMeta[chartId];
+          const loEl2 = document.getElementById('rangeLo_' + chartId);
+          const hiEl2 = document.getElementById('rangeHi_' + chartId);
+          const lo2 = Math.min(parseInt(loEl2.value), parseInt(hiEl2.value));
+          const hi2 = Math.max(parseInt(loEl2.value), parseInt(hiEl2.value));
+          showRepTypeSummary(clickedType, meta.selectedRider, meta.allDates[lo2], meta.allDates[hi2]);
+        },
+        onHover: (event, elements) => {
+          if (event.native) event.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+        }
+      }
+    });
+
+    chartMeta[chartId] = {
+      allDates, allRepTypes, repData, allRepRiders, palette, selectedRider,
+      summaryMode: true, summaryRows, allDistances, distLo, distHi
+    };
+
+    updateSliderTrack(chartId, sliderLo, sliderHi, maxIdx);
+    if (allDistances.length > 1) updateDistTrack(chartId, distLo, distHi, distMax);
+
+    // Date slider events
+    const loEl = document.getElementById('rangeLo_' + chartId);
+    const hiEl = document.getElementById('rangeHi_' + chartId);
+    const onDateSlider = () => {
+      let lo = parseInt(loEl.value), hi = parseInt(hiEl.value);
+      if (lo > hi) { const t = lo; lo = hi; hi = t; }
+      document.getElementById('sliderLo_' + chartId).textContent = allDates[lo];
+      document.getElementById('sliderHi_' + chartId).textContent = allDates[hi];
+      updateSliderTrack(chartId, lo, hi, maxIdx);
+      updateRepChart(chartId, lo, hi);
+    };
+    loEl.addEventListener('input', onDateSlider);
+    hiEl.addEventListener('input', onDateSlider);
+
+    // Distance slider events
+    if (allDistances.length > 1) {
+      const dLoEl = document.getElementById('distRangeLo_' + chartId);
+      const dHiEl = document.getElementById('distRangeHi_' + chartId);
+      const onDistSlider = () => {
+        let dlo = parseInt(dLoEl.value), dhi = parseInt(dHiEl.value);
+        if (dlo > dhi) { const t = dlo; dlo = dhi; dhi = t; }
+        chartMeta[chartId].distLo = dlo;
+        chartMeta[chartId].distHi = dhi;
+        document.getElementById('distLo_' + chartId).textContent = allDistances[dlo] + 'm';
+        document.getElementById('distHi_' + chartId).textContent = allDistances[dhi] + 'm';
+        updateDistTrack(chartId, dlo, dhi, distMax);
+        const lo2 = Math.min(parseInt(loEl.value), parseInt(hiEl.value));
+        const hi2 = Math.max(parseInt(loEl.value), parseInt(hiEl.value));
+        updateRepChart(chartId, lo2, hi2);
+      };
+      dLoEl.addEventListener('input', onDistSlider);
+      dHiEl.addEventListener('input', onDistSlider);
+    }
+
+    // Rider button events
+    el.querySelectorAll('.rider-filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.classList.contains('active')) return;
+        el.querySelectorAll('.rider-filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const newRider = btn.dataset.rider;
+        const meta = chartMeta[chartId];
+        meta.selectedRider = newRider;
+        const newColor = meta.palette[meta.allRepRiders.indexOf(newRider) % meta.palette.length];
+        const chart = chartInstances[chartId];
+        chart.data.datasets[0].label = newRider;
+        chart.data.datasets[0].backgroundColor = newColor + 'cc';
+        chart.data.datasets[0].borderColor = newColor;
+        const lo2 = Math.min(parseInt(loEl.value), parseInt(hiEl.value));
+        const hi2 = Math.max(parseInt(loEl.value), parseInt(hiEl.value));
+        updateRepChart(chartId, lo2, hi2);
+      });
+    });
+  }
+
+  // ─── End summary mode ──────────────────────────────────────────────────────
+
+  function showGymSummary(rider, date) {
+    const dayRows = gymRows.filter(g => g._rider === rider && g._date === date);
+    let html = `<h3 style="font-size:1rem;font-weight:700;color:#1a202c;margin-bottom:1rem;padding-right:1.5rem">${escHtml(rider)} \u2014 Gym \u2014 ${escHtml(date)}</h3>`;
+    if (!dayRows.length) {
+      html += '<p style="color:#718096">No gym data found for this date.</p>';
+    } else {
+      const cols = [
+        { key: 'Exercise Name', label: 'Exercise',    num: false },
+        { key: 'Sets',          label: 'Sets',         num: true  },
+        { key: 'Reps/Time',     label: 'Reps/Time',    num: false },
+        { key: 'Highest Max',   label: 'Highest Max',  num: true  },
+        { key: 'Volume Load',   label: 'Volume Load',  num: true  },
+        { key: 'Highest Load',  label: 'Highest Load', num: true  },  
+        { key: 'Average Load',  label: 'Avg Load',     num: true  },
+      ];
+      html += '<div class="table-wrap"><table><thead><tr>';
+      cols.forEach(c => html += `<th class="sortable" onclick="sortTable(this)"${c.num ? ' style="text-align:right"' : ''}>${escHtml(c.label)}</th>`);
+      html += '</tr></thead><tbody>';
+      dayRows.forEach(r => {
+        html += '<tr>';
+        cols.forEach(c => {
+          const raw = r[c.key];
+          const v   = c.num ? parseFloat(raw) : null;
+          if (c.num) {
+            html += `<td class="num">${!isNaN(v) && raw !== '' ? v.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '-'}</td>`;
+          } else {
+            html += `<td>${escHtml(String(raw ?? '-'))}</td>`;
+          }
+        });
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+    document.getElementById('gymModalContent').innerHTML = html;
+    document.getElementById('gymModal').style.display = 'flex';
+  }
+
+  function clearAll() {
+    allFiles = [];
+    summaryRows = [];
+    gymRows = [];
+    Object.values(chartInstances).forEach(c => c.destroy());
+    chartInstances = {};
+    chartMeta = {};
+    document.getElementById('fileInput').value = '';
+    document.getElementById('summaryFileInput').value = '';
+    document.getElementById('gymFileInput').value = '';
+    document.getElementById('fileCountUnit').textContent = ' file(s)';
+    document.getElementById('repTypes').style.display = 'none';
+    document.getElementById('aggContent').innerHTML = '';
+    document.getElementById('aggregatePanel').style.display = 'none';
+    document.getElementById('controls').style.display = 'none';
+    document.getElementById('dropzone').style.display = 'block';
+    const btn = document.getElementById('addGymBtn');
+    if (btn) btn.textContent = '+ Add Gym data';
+  }
+</script>
+
+</body>
+</html>

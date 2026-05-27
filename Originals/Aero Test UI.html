@@ -1,0 +1,305 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>latest Aero Testing Visualizer</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <style>
+    body {
+      font-family: Arial;
+      font-size: 12px;
+      margin: 10px;
+      display: flex;
+      flex-direction: row;
+    }
+    #controls {
+      flex: 1;
+      padding-right: 10px;
+    }
+    #charts {
+      flex: 2;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+    table {
+      font-size: 12px;
+      border-collapse: collapse;
+      width: 100%;
+    }
+    th, td {
+      padding: 4px 6px;
+      border: 1px solid #ccc;
+      text-align: center;
+      cursor: pointer;
+    }
+    th:hover {
+      background-color: #f0f0f0;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <h3>Aero Testing Visualizer</h3>
+    <label for="titleInput">Change Tab Title:</label>
+    <input type="text" id="titleInput" placeholder="Enter new title" />
+    <button onclick="changeTitle()">Update Title</button>
+    <br><br>
+    <input type="file" id="fileInput" multiple />
+    <h4>Summary Table</h4>
+    <table id="summaryTable">
+      <thead>
+        <tr>
+          <th onclick="sortTable(0)">Run</th>
+          <th onclick="sortTable(1)">Mean CdA</th>
+          <th onclick="sortTable(2)">Mean Power</th>
+          <th onclick="sortTable(3)">Mean Speed</th>
+          <th onclick="sortTable(4)">Watts/CdA</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <button onclick="exportTableToExcel()">Export to Excel</button>
+  </div>
+  <div id="charts">
+    <canvas id="cdaChart"></canvas>
+    <canvas id="powerChart"></canvas>
+    <canvas id="speedChart"></canvas>
+    <canvas id="wattsPerCdAChart"></canvas>
+  </div>
+
+  <script>
+    function changeTitle() {
+      const newTitle = document.getElementById('titleInput').value;
+      if (newTitle.trim() !== "") {
+        document.title = newTitle;
+      }
+    }
+
+    const cdaChart = new Chart(document.getElementById('cdaChart'), {
+      type: 'line',
+      data: { labels: [], datasets: [] },
+      options: {
+        plugins: {
+          title: {
+            display: true,
+            text: 'CdA per Segment',
+            font: { size: 14 }
+          }
+        },
+        scales: {
+          x: {
+            ticks: {
+              autoSkip: false
+            }
+          }
+        }
+      }
+    });
+
+    const powerChart = new Chart(document.getElementById('powerChart'), {
+      type: 'line',
+      data: { labels: [], datasets: [] },
+      options: {
+        plugins: {
+          title: {
+            display: true,
+            text: 'Power per Segment',
+            font: { size: 14 }
+          }
+        },
+        scales: {
+          x: {
+            ticks: {
+              autoSkip: false
+            }
+          }
+        }
+      }
+    });
+
+    const speedChart = new Chart(document.getElementById('speedChart'), {
+      type: 'line',
+      data: { labels: [], datasets: [] },
+      options: {
+        plugins: {
+          title: {
+            display: true,
+            text: 'Speed per Segment',
+            font: { size: 14 }
+          }
+        },
+        scales: {
+          x: {
+            ticks: {
+              autoSkip: false
+            }
+          }
+        }
+      }
+    });
+
+      const wattsPerCdAChart = new Chart(document.getElementById('wattsPerCdAChart'), {
+      type: 'scatter',
+      data: { datasets: [] },
+      options: {
+        plugins: {
+          title: {
+            display: true,
+            text: 'Watts/CdA vs Speed',
+            font: { size: 14 }
+          }
+        },
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: 'Watts/CdA'
+            }
+          },
+          y: {
+            title: {
+              display: true,
+              text: 'Speed'
+            }
+          }
+        }
+      }
+    });
+
+
+    let colorIndex = 0;
+    function getColor(index) {
+      const colors = [
+        '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
+        '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
+        '#bcbd22', '#17becf'
+      ];
+      return colors[index % colors.length];
+    }
+
+    function mean(arr) {
+      const numeric = arr.map(x => parseFloat(x)).filter(x => !isNaN(x));
+      return numeric.reduce((a, b) => a + b, 0) / numeric.length;
+    }
+
+
+    function addSummaryRow(label, cda, power, speed, wattsPerCdA) {
+      const mean = arr => arr.reduce((a, b) => a + parseFloat(b), 0) / arr.length;
+      const wattsPerCdAArray = power.map((p, i) => parseFloat(p) / parseFloat(cda[i]));
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${label}</td>
+        <td>${mean(cda).toFixed(3)}</td>
+        <td>${mean(power).toFixed(1)}</td>
+        <td>${mean(speed).toFixed(1)}</td>
+        <td>${mean(wattsPerCdAArray).toFixed(1)}</td>
+      `;
+      document.querySelector('#summaryTable tbody').appendChild(row);
+    }
+
+    function exportTableToExcel() {
+      const table = document.getElementById("summaryTable");
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.table_to_sheet(table);
+      XLSX.utils.book_append_sheet(wb, ws, "Summary");
+      XLSX.writeFile(wb, "summary_table.xlsx");
+    }
+
+    function sortTable(colIndex) {
+      const table = document.getElementById("summaryTable");
+      const tbody = table.tBodies[0];
+      const rows = Array.from(tbody.rows);
+      const sorted = rows.sort((a, b) => {
+        const valA = a.cells[colIndex].innerText;
+        const valB = b.cells[colIndex].innerText;
+        return isNaN(valA) ? valA.localeCompare(valB) : parseFloat(valA) - parseFloat(valB);
+      });
+      tbody.innerHTML = "";
+      sorted.forEach(row => tbody.appendChild(row));
+    }
+
+
+
+
+    document.getElementById('fileInput').addEventListener('change', function (e) {
+      const files = e.target.files;
+      for (let i = 0; i < files.length; i++) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheet = workbook.Sheets['Overview'];
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+          const label = files[i].name.replace('.xlsx', '');
+          const segments = rows[1].slice(2).filter(x => x !== undefined && x !== "");
+          const cda = rows[22].slice(2, 2 + segments.length);
+          const power = rows[11].slice(2, 2 + segments.length);
+          const speed = rows[4].slice(2, 2 + segments.length);
+
+          // Element-wise division for Watts/CdA
+          const wattsPerCdA = power.map((p, i) => p / cda[i]);
+
+          const color = getColor(colorIndex++);
+
+          cdaChart.data.datasets.push({
+            label: label,
+            data: cda,
+            borderColor: color,
+            backgroundColor: color,
+            fill: false
+          });
+          powerChart.data.datasets.push({
+            label: label,
+            data: power,
+            borderColor: color,
+            backgroundColor: color,
+            fill: false
+          });
+          speedChart.data.datasets.push({
+            label: label,
+            data: speed,
+            borderColor: color,
+            backgroundColor: color,
+            fill: false
+          });
+
+          const avgWattsPerCdA = mean(wattsPerCdA);
+          const avgSpeed = mean(speed);
+
+          wattsPerCdAChart.data.datasets.push({
+            label: label + ' (avg)',
+            data: [{ x: avgWattsPerCdA, y: avgSpeed }],
+            borderColor: color,
+            backgroundColor: color,
+            showLine: false
+          });
+
+
+          cdaChart.data.labels = segments;
+          powerChart.data.labels = segments;
+          speedChart.data.labels = segments;
+
+          cdaChart.update();
+          powerChart.update();
+          speedChart.update();
+          wattsPerCdAChart.update();
+
+          addSummaryRow(label, cda, power, speed, wattsPerCdA);
+        };
+        reader.readAsArrayBuffer(files[i]);
+      }
+    });
+</script>
+
+
+</body>
+</html>
+
+
