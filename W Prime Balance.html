@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>W′ Balance Analyser</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0d1117;--bg2:#161b22;--bg3:#21262d;--border:#30363d;
+  --accent:#4493f8;--text:#e6edf3;--dim:#7d8590;
+  --danger:#f85149;--warn:#d29922;--success:#3fb950;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;line-height:1.5}
+.wrap{padding:20px 24px}
+header{padding:18px 0 14px;border-bottom:1px solid var(--border);margin-bottom:20px}
+header h1{font-size:22px;font-weight:700;color:var(--accent)}
+header p{color:var(--dim);font-size:12px;margin-top:2px}
+
+/* collapsible cards */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:11px 18px;cursor:pointer;user-select:none}
+.card-head h2{font-size:13px;font-weight:600;letter-spacing:.02em}
+.card-head .chev{color:var(--dim);transition:transform .2s;font-style:normal}
+.card-head.open .chev{transform:rotate(180deg)}
+.card-body{padding:14px 18px;border-top:1px solid var(--border)}
+.card-body.hidden{display:none}
+
+/* rider grid */
+.rider-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:8px}
+.rcrd{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px;position:relative}
+.rcrd::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:8px 8px 0 0}
+.rcrd.r0::before{background:#4493f8}.rcrd.r1::before{background:#f0883e}
+.rcrd.r2::before{background:#3fb950}.rcrd.r3::before{background:#bc8cff}
+.rcrd h3{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;margin-bottom:11px}
+.rcrd.r0 h3{color:#4493f8}.rcrd.r1 h3{color:#f0883e}
+.rcrd.r2 h3{color:#3fb950}.rcrd.r3 h3{color:#bc8cff}
+
+/* fields */
+.field{margin-bottom:8px}
+.field label{display:block;font-size:11px;color:var(--dim);margin-bottom:3px;letter-spacing:.03em;text-transform:uppercase}
+input[type=number],input[type=text],select{
+  width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:5px;
+  color:var(--text);padding:5px 8px;font-size:13px;outline:none;transition:border-color .15s}
+input:focus,select:focus{border-color:var(--accent)}
+input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;background:none;border:none;padding:0}
+
+/* FIT drop zone */
+.fit-zone{border:1px dashed var(--border);border-radius:6px;background:var(--bg3);
+  padding:9px 8px;text-align:center;cursor:pointer;transition:border-color .15s,color .15s;
+  font-size:11px;color:var(--dim);line-height:1.4;user-select:none}
+.fit-zone:hover,.fit-zone.over{border-color:var(--accent);color:var(--text)}
+.fit-zone.loaded{border-color:var(--success);color:var(--success)}
+.fit-zone.err{border-color:var(--danger);color:var(--danger)}
+
+/* trace canvas area */
+.trace-wrap{margin:8px 0 4px;display:none}
+.trace-canvas{display:block;width:100%;border-radius:4px;background:var(--bg3);margin-bottom:6px}
+.marker-row{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.marker-row .mlbl{font-size:10px;min-width:46px;letter-spacing:.03em;text-transform:uppercase;flex-shrink:0}
+.marker-row input[type=range]{flex:1;min-width:0}
+.marker-row .mval{font-size:11px;color:var(--text);min-width:34px;text-align:right;font-variant-numeric:tabular-nums;flex-shrink:0}
+
+/* slider row */
+.sl-row{display:flex;align-items:center;gap:8px;margin-top:2px}
+.sl-row input[type=range]{flex:1}
+.sl-val{font-size:12px;color:var(--text);min-width:46px;text-align:right;font-variant-numeric:tabular-nums}
+.sl-lbl strong{color:var(--text)}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:4px;padding:6px 14px;border:none;border-radius:5px;
+  font-size:13px;font-weight:600;cursor:pointer;transition:opacity .15s;white-space:nowrap}
+.btn:hover{opacity:.82}
+.btn-ghost{background:var(--bg3);color:var(--text);border:1px solid var(--border)}
+.btn-sm{padding:3px 8px;font-size:11px}
+.btn-run{background:var(--success);color:#0d1117;padding:8px 24px;font-size:14px;border-radius:7px}
+.run-row{text-align:center;padding:14px 0}
+.err-msg{color:var(--danger);font-size:13px;margin-bottom:10px;min-height:18px}
+
+/* results */
+#results{display:none}
+.res-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:18px;margin-bottom:14px}
+.res-card h3{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);margin-bottom:12px}
+.chart-wrap{position:relative;height:380px}
+.chart-wrap-tall{position:relative;height:440px}
+
+/* result tabs */
+.res-tabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px}
+.rtab{padding:5px 16px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;
+  background:var(--bg3);color:var(--dim);border:1px solid var(--border);transition:all .15s}
+.rtab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.rtab-pane{display:none}
+.rtab-pane.active{display:block}
+
+/* stats table */
+.dtable{width:100%;border-collapse:collapse;font-size:12px}
+.dtable th{background:var(--bg3);padding:7px 10px;text-align:left;font-size:11px;
+  text-transform:uppercase;letter-spacing:.04em;color:var(--dim);font-weight:500;
+  border-bottom:1px solid var(--border);white-space:nowrap}
+.dtable th.r,.dtable td.r{text-align:right;font-variant-numeric:tabular-nums}
+.dtable td{padding:6px 10px;border-bottom:1px solid rgba(48,54,61,.4);white-space:nowrap}
+.dtable tr:hover td{background:rgba(68,147,248,.04)}
+.wp-low{color:var(--warn);font-weight:600}.wp-crit{color:var(--danger);font-weight:700}
+
+@media(max-width:960px){.rider-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){.rider-grid{grid-template-columns:1fr}}
+
+/* Expand modal */
+#expand-modal{position:fixed;inset:0;z-index:1000;background:rgba(13,17,23,0.96);overflow-y:auto;display:none}
+.expand-inner{max-width:1400px;margin:0 auto;padding:22px 24px}
+.expand-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.expand-info{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--dim);margin-bottom:10px}
+.expand-info strong{color:var(--text)}
+.expand-canvas{display:block;width:100%;border-radius:8px;background:var(--bg3);margin-bottom:14px}
+.expand-sliders{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px}
+.expand-btn{background:var(--bg3);border:1px solid var(--border);border-radius:4px;
+  color:var(--dim);padding:2px 7px;font-size:11px;cursor:pointer;line-height:1.6;white-space:nowrap}
+.expand-btn:hover{color:var(--text);border-color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>W′ Balance Analyser</h1>
+  <p>Load FIT files · Mark race start &amp; end on each trace · Tune recovery τ per rider · See W′ balance</p>
+</header>
+
+<!-- Rider cards -->
+<div class="rider-grid" id="rider-cards"></div>
+
+<!-- Options -->
+<div class="card" id="sec-opts">
+  <div class="card-head open" onclick="toggleCard('sec-opts')">
+    <h2>Options</h2><i class="chev">▼</i>
+  </div>
+  <div class="card-body">
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
+      <div class="field" style="min-width:240px">
+        <label>Recovery Model</label>
+        <select id="opt-model" onchange="onModelChange()">
+          <option value="fixed">Fixed τ (slider sets τ directly in seconds)</option>
+          <option value="skiba12">Skiba 2012 (slider scales τ formula)</option>
+        </select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <div class="err-msg" id="run-err"></div>
+        <button class="btn btn-run" onclick="runAnalysis()">▶ Analyse</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Results -->
+<div id="results">
+  <div class="res-tabs" id="res-tabs">
+    <button class="rtab active" data-tab="summary" onclick="switchResTab('summary')">Summary</button>
+    <button class="rtab" data-tab="r0" id="rtab-btn0" style="display:none" onclick="switchResTab('r0')">—</button>
+    <button class="rtab" data-tab="r1" id="rtab-btn1" style="display:none" onclick="switchResTab('r1')">—</button>
+    <button class="rtab" data-tab="r2" id="rtab-btn2" style="display:none" onclick="switchResTab('r2')">—</button>
+    <button class="rtab" data-tab="r3" id="rtab-btn3" style="display:none" onclick="switchResTab('r3')">—</button>
+  </div>
+
+  <!-- Summary pane -->
+  <div id="rtab-summary" class="rtab-pane active">
+    <div class="res-card">
+      <h3>W′ Balance — All Riders</h3>
+      <div id="chart-legend" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px;font-size:12px"></div>
+      <div class="chart-wrap"><canvas id="chart-main"></canvas></div>
+      <p id="chart-note" style="font-size:11px;color:var(--dim);margin-top:8px;text-align:center"></p>
+    </div>
+    <div class="res-card">
+      <h3>Rider Statistics</h3>
+      <div style="overflow-x:auto"><table class="dtable" id="stats-tbl"></table></div>
+    </div>
+  </div>
+
+  <!-- Per-rider panes -->
+  <div id="rtab-r0" class="rtab-pane">
+    <div class="res-card">
+      <h3 id="rpane0-title">Rider 1 — Power &amp; W′ Balance</h3>
+      <div class="chart-wrap-tall"><canvas id="rchart0"></canvas></div>
+    </div>
+  </div>
+  <div id="rtab-r1" class="rtab-pane">
+    <div class="res-card">
+      <h3 id="rpane1-title">Rider 2 — Power &amp; W′ Balance</h3>
+      <div class="chart-wrap-tall"><canvas id="rchart1"></canvas></div>
+    </div>
+  </div>
+  <div id="rtab-r2" class="rtab-pane">
+    <div class="res-card">
+      <h3 id="rpane2-title">Rider 3 — Power &amp; W′ Balance</h3>
+      <div class="chart-wrap-tall"><canvas id="rchart2"></canvas></div>
+    </div>
+  </div>
+  <div id="rtab-r3" class="rtab-pane">
+    <div class="res-card">
+      <h3 id="rpane3-title">Rider 4 — Power &amp; W′ Balance</h3>
+      <div class="chart-wrap-tall"><canvas id="rchart3"></canvas></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /wrap -->
+
+<!-- Expand modal -->
+<div id="expand-modal">
+  <div class="expand-inner">
+    <div class="expand-hdr">
+      <h2 id="expand-title" style="font-size:18px;font-weight:700"></h2>
+      <button class="btn btn-ghost" onclick="closeExpand()">✕ Close</button>
+    </div>
+    <div class="expand-info" id="expand-info"></div>
+    <canvas id="trace-expand" class="expand-canvas" height="300"></canvas>
+    <div class="expand-sliders">
+      <div class="marker-row">
+        <span class="mlbl" style="color:#3fb950">▶ Start</span>
+        <input type="range" id="expand-start" min="0" max="3600" step="1" value="0"
+          oninput="onExpandMarker('start',this.value)" style="flex:1;accent-color:#3fb950">
+        <span class="mval" id="expand-start-val">0s</span>
+      </div>
+      <div class="marker-row">
+        <span class="mlbl" style="color:#f85149">⏹ End</span>
+        <input type="range" id="expand-end" min="0" max="3600" step="1" value="3600"
+          oninput="onExpandMarker('end',this.value)" style="flex:1;accent-color:#f85149">
+        <span class="mval" id="expand-end-val">—</span>
+      </div>
+    </div>
+    <p style="font-size:11px;color:var(--dim)">Drag sliders to mark race window · Changes sync to card · <kbd style="background:var(--bg3);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:10px">Esc</kbd> to close</p>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ─── constants & state ───────────────────────────────── */
+const NR     = 4;
+const COLORS = ['#4493f8','#f0883e','#3fb950','#bc8cff'];
+const RIDER_DEFAULTS = [
+  { name: 'Tom',      cp: 385, wp: 30,   tau: 340 },
+  { name: 'Campbell', cp: 390, wp: 32,   tau: 330 },
+  { name: 'Gatey',    cp: 435, wp: 28.5, tau: 330 },
+  { name: 'Keegan',   cp: 370, wp: 27.6, tau: 330 },
+];
+const riderCharts = [null, null, null, null];
+let mainChart    = null;
+let FitParserCls = null;
+
+const RS = Array.from({length: NR}, (_, i) => ({
+  rawSeries:  null,   // [{ts, power, speed}] sorted by ts
+  wbalSeries: null,   // [{t, wbal, power}] t = seconds from race start
+  tau:        RIDER_DEFAULTS[i].tau,    // fixed-τ: seconds; skiba: scale factor
+  startS:     0,      // seconds into FIT recording where race starts
+  endS:       0,      // seconds into FIT recording where race ends
+}));
+
+function rgba(i, a) {
+  const h = COLORS[i].slice(1);
+  const [r,g,b] = [parseInt(h,16)>>16, (parseInt(h,16)>>8)&0xff, parseInt(h,16)&0xff];
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+/* ════════════════════════════════════════════════════════
+   FIT PARSING
+   ════════════════════════════════════════════════════════ */
+async function ensureFitParser() {
+  if (FitParserCls) return FitParserCls;
+  for (const url of [
+    'https://cdn.jsdelivr.net/npm/fit-file-parser@2.3.3/+esm',
+    'https://esm.sh/fit-file-parser@2.3.3',
+  ]) {
+    try {
+      const mod = await import(url);
+      FitParserCls = mod.default || mod.FitParser;
+      if (FitParserCls) return FitParserCls;
+    } catch {}
+  }
+  throw new Error('Could not load FIT parser library. Check your internet connection.');
+}
+
+async function parseFitBuf(buffer) {
+  const Parser = await ensureFitParser();
+  return new Promise((resolve, reject) => {
+    new Parser({ force:true, speedUnit:'m/s', lengthUnit:'m',
+      temperatureUnit:'celsius', elapsedRecordField:true, mode:'both' })
+      .parse(new Uint8Array(buffer), (err, data) => err ? reject(err) : resolve(data || {}));
+  });
+}
+
+function toTs(v) {
+  if (v instanceof Date) return v.getTime() / 1000;
+  if (typeof v === 'string') { const p = Date.parse(v); if (isFinite(p)) return p / 1000; }
+  const n = Number(v);
+  if (!isFinite(n)) return NaN;
+  return n > 1e12 ? n / 1000 : n;
+}
+function toNum(v) { const n = Number(v); return isFinite(n) ? n : null; }
+
+function extractSeries(fitData) {
+  const records = [];
+  const collect = obj => {
+    if (!obj || typeof obj !== 'object') return;
+    if (Array.isArray(obj.records)) records.push(...obj.records);
+    if (Array.isArray(obj.sessions)) obj.sessions.forEach(s => { collect(s); (s.laps||[]).forEach(l => collect(l)); });
+    if (Array.isArray(obj.laps))     obj.laps.forEach(l => collect(l));
+  };
+  if (Array.isArray(fitData.records) && fitData.records.length > 0) {
+    records.push(...fitData.records);
+  } else {
+    collect(fitData.activity);
+    collect(fitData);
+  }
+  const out = [];
+  for (const r of records) {
+    const ts = toTs(r.timestamp ?? r.enhanced_timestamp ?? r.local_timestamp ?? r.time);
+    if (!isFinite(ts)) continue;
+    out.push({ ts, power: toNum(r.power) ?? 0, speed: toNum(r.speed) ?? 0 });
+  }
+  out.sort((a,b) => a.ts - b.ts);
+  return out;
+}
+
+/* ════════════════════════════════════════════════════════
+   TRACE CANVAS
+   ════════════════════════════════════════════════════════ */
+function drawTrace(ri) {
+  const canvas = document.getElementById(`trace${ri}`);
+  if (!canvas) return;
+  const series = RS[ri].rawSeries;
+  if (!series?.length) return;
+
+  const W = canvas.parentElement.clientWidth || 280;
+  const H = 80;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#21262d';
+  ctx.fillRect(0, 0, W, H);
+
+  const t0   = series[0].ts;
+  const tMax = Math.max(series[series.length-1].ts - t0, 1);
+  const maxP = Math.max(...series.map(p => p.power), 1);
+
+  const xT = t => (t / tMax) * W;
+  const yP = p => H - 4 - (p / maxP) * (H - 14);
+
+  const startS = RS[ri].startS ?? 0;
+  const endS   = RS[ri].endS   ?? tMax;
+
+  // Power area fill
+  ctx.beginPath();
+  ctx.moveTo(xT(series[0].ts - t0), H);
+  for (const pt of series) ctx.lineTo(xT(pt.ts - t0), yP(pt.power));
+  ctx.lineTo(xT(series[series.length-1].ts - t0), H);
+  ctx.closePath();
+  ctx.fillStyle = rgba(ri, 0.22);
+  ctx.fill();
+
+  // Power line
+  ctx.beginPath();
+  for (let i = 0; i < series.length; i++) {
+    const x = xT(series[i].ts - t0), y = yP(series[i].power);
+    i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  }
+  ctx.strokeStyle = COLORS[ri];
+  ctx.lineWidth = 1;
+  ctx.setLineDash([]);
+  ctx.stroke();
+
+  // Excluded region overlay
+  ctx.fillStyle = 'rgba(0,0,0,0.52)';
+  ctx.fillRect(0, 0, xT(startS), H);
+  ctx.fillRect(xT(endS), 0, W - xT(endS), H);
+
+  // Start marker (green)
+  const sx = xT(startS);
+  ctx.strokeStyle = '#3fb950';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, H); ctx.stroke();
+  ctx.fillStyle = '#3fb950';
+  ctx.font = 'bold 10px sans-serif';
+  ctx.textBaseline = 'top';
+  ctx.fillText('▶', Math.min(sx + 3, W - 14), 3);
+
+  // End marker (red)
+  const ex = xT(endS);
+  ctx.strokeStyle = '#f85149';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(ex, 0); ctx.lineTo(ex, H); ctx.stroke();
+  ctx.fillStyle = '#f85149';
+  ctx.fillText('⏹', Math.max(ex - 14, 2), 3);
+
+  // Time axis labels
+  ctx.fillStyle = '#7d8590';
+  ctx.font = '9px sans-serif';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(formatS(0), 2, H - 1);
+  ctx.textAlign = 'right';
+  ctx.fillText(formatS(tMax), W - 2, H - 1);
+  ctx.textAlign = 'left';
+}
+
+function formatS(s) {
+  s = Math.round(s);
+  const m = Math.floor(s / 60), sec = (s % 60).toString().padStart(2,'0');
+  return m > 0 ? `${m}:${sec}` : `${s}s`;
+}
+
+function updateMarkerLabels(ri) {
+  document.getElementById(`r${ri}-start-val`).textContent = formatS(RS[ri].startS ?? 0);
+  document.getElementById(`r${ri}-end-val`).textContent   = formatS(RS[ri].endS   ?? 0);
+}
+
+/* ════════════════════════════════════════════════════════
+   W′ MODELS
+   ════════════════════════════════════════════════════════ */
+function computeFixedTau(series, startS, endS, cp, wp, tau) {
+  if (!series || series.length < 2) return [];
+  const t0 = series[0].ts;
+  const raceStart = t0 + startS;
+  const raceEnd   = endS > 0 ? t0 + endS : Infinity;
+  let wbal = wp;
+  const out = [];
+  let prevTs = null;
+  for (const pt of series) {
+    if (pt.ts < raceStart - 0.5) continue;
+    if (pt.ts > raceEnd   + 0.5) break;
+    const dt = prevTs === null ? 1 : Math.min(Math.max(pt.ts - prevTs, 0.01), 30);
+    prevTs = pt.ts;
+    const P = pt.power;
+    wbal = P > cp
+      ? Math.max(0, wbal - (P - cp) * dt)
+      : wp - (wp - wbal) * Math.exp(-dt / tau);
+    out.push({ t: Math.max(0, pt.ts - raceStart), wbal, power: P });
+  }
+  return out;
+}
+
+function computeSkiba12(series, startS, endS, cp, wp, scale) {
+  if (!series || series.length < 2) return [];
+  const t0 = series[0].ts;
+  const raceStart = t0 + startS;
+  const raceEnd   = endS > 0 ? t0 + endS : Infinity;
+  let wbal = wp;
+  const out = [];
+  let prevTs = null;
+  for (const pt of series) {
+    if (pt.ts < raceStart - 0.5) continue;
+    if (pt.ts > raceEnd   + 0.5) break;
+    const dt = prevTs === null ? 1 : Math.min(Math.max(pt.ts - prevTs, 0.01), 30);
+    prevTs = pt.ts;
+    const P = pt.power;
+    if (P > cp) {
+      wbal = Math.max(0, wbal - (P - cp) * dt);
+    } else {
+      const tau = scale * (546 * Math.exp(-0.01 * (cp - P)) + 316);
+      wbal = wp - (wp - wbal) * Math.exp(-dt / tau);
+    }
+    out.push({ t: Math.max(0, pt.ts - raceStart), wbal, power: P });
+  }
+  return out;
+}
+
+function computeWbal(ri) {
+  const rs    = RS[ri];
+  if (!rs.rawSeries) return;
+  const cp    = getCp(ri);
+  const wp    = getWp(ri);
+  const model = document.getElementById('opt-model').value;
+  rs.wbalSeries = model === 'skiba12'
+    ? computeSkiba12(rs.rawSeries, rs.startS ?? 0, rs.endS ?? 0, cp, wp, rs.tau)
+    : computeFixedTau(rs.rawSeries, rs.startS ?? 0, rs.endS ?? 0, cp, wp, rs.tau);
+}
+
+/* ════════════════════════════════════════════════════════
+   UI BUILD
+   ════════════════════════════════════════════════════════ */
+const TAU_MIN = 50, TAU_MAX = 2000, TAU_DEF = 700;
+const SCALE_MIN = 0.10, SCALE_MAX = 3.00, SCALE_DEF = 1.00;
+
+function sliderConfig() {
+  const model = document.getElementById('opt-model')?.value || 'fixed';
+  if (model === 'skiba12') {
+    return {
+      min: SCALE_MIN, max: SCALE_MAX, step: 0.05, def: SCALE_DEF,
+      label: ri => {
+        const s = RS[ri].tau;
+        return `τ scale: <strong>${s.toFixed(2)}×</strong> <span style="color:var(--dim);font-size:10px">(${(s*316).toFixed(0)}–${(s*862).toFixed(0)}s)</span>`;
+      },
+      valFmt: v => `${parseFloat(v).toFixed(2)}×`,
+    };
+  }
+  return {
+    min: TAU_MIN, max: TAU_MAX, step: 10, def: TAU_DEF,
+    label: ri => `Recovery τ: <strong>${RS[ri].tau}s</strong>`,
+    valFmt: v => `${Math.round(v)}s`,
+  };
+}
+
+function buildRiderCards() {
+  const cfg = sliderConfig();
+  document.getElementById('rider-cards').innerHTML = Array.from({length: NR}, (_, i) => `
+  <div class="rcrd r${i}">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px">
+      <h3 style="margin-bottom:0">Rider ${i+1}</h3>
+      <button class="expand-btn" onclick="openExpand(${i})" title="Expand trace to full screen">⤢ Expand</button>
+    </div>
+    <div class="field"><label>Name</label>
+      <input type="text" id="r${i}-name" placeholder="Rider ${i+1}" value="${RIDER_DEFAULTS[i].name}"></div>
+    <div class="field"><label>CP (W)</label>
+      <input type="number" id="r${i}-cp" placeholder="e.g. 380" min="50" max="1000" value="${RIDER_DEFAULTS[i].cp}"></div>
+    <div class="field"><label>W′ (kJ)</label>
+      <input type="number" id="r${i}-wp" placeholder="e.g. 28" step="0.1" min="1" max="200" value="${RIDER_DEFAULTS[i].wp}"></div>
+    <div class="field"><label>FIT File</label>
+      <div class="fit-zone" id="fitzone${i}"
+        onclick="document.getElementById('fitinput${i}').click()"
+        ondragover="event.preventDefault();this.classList.add('over')"
+        ondragleave="this.classList.remove('over')"
+        ondrop="handleDrop(event,${i})">Click or drop .fit file</div>
+      <input type="file" id="fitinput${i}" accept=".fit,application/octet-stream" style="display:none"
+        onchange="loadFitFile(this.files[0],${i})">
+    </div>
+    <div class="trace-wrap" id="tracewrap${i}">
+      <canvas id="trace${i}" class="trace-canvas" height="80"></canvas>
+      <div class="marker-row">
+        <span class="mlbl" style="color:#3fb950">▶ Start</span>
+        <input type="range" id="r${i}-start" min="0" max="3600" step="1" value="0"
+          oninput="onMarker(${i},'start',this.value)" style="accent-color:#3fb950">
+        <span class="mval" id="r${i}-start-val">0s</span>
+        <button class="btn btn-ghost btn-sm" onclick="autoStart(${i})" title="Snap to first power > 10 W">Auto</button>
+      </div>
+      <div class="marker-row">
+        <span class="mlbl" style="color:#f85149">⏹ End</span>
+        <input type="range" id="r${i}-end" min="0" max="3600" step="1" value="3600"
+          oninput="onMarker(${i},'end',this.value)" style="accent-color:#f85149">
+        <span class="mval" id="r${i}-end-val">—</span>
+      </div>
+    </div>
+    <div class="field" style="margin-top:4px">
+      <label class="sl-lbl" id="r${i}-tau-lbl">${cfg.label(i)}</label>
+      <div class="sl-row">
+        <input type="range" id="r${i}-tau"
+          min="${cfg.min}" max="${cfg.max}" step="${cfg.step}" value="${RIDER_DEFAULTS[i].tau}"
+          oninput="onTauSlider(${i},this.value)">
+        <span class="sl-val" id="r${i}-tau-val">${cfg.valFmt(RIDER_DEFAULTS[i].tau)}</span>
+      </div>
+    </div>
+  </div>`).join('');
+}
+
+function toggleCard(id) {
+  const c = document.getElementById(id);
+  c.querySelector('.card-head').classList.toggle('open');
+  c.querySelector('.card-body').classList.toggle('hidden');
+}
+
+function onModelChange() {
+  const cfg = sliderConfig();
+  for (let i = 0; i < NR; i++) {
+    const sl = document.getElementById(`r${i}-tau`);
+    sl.min = cfg.min; sl.max = cfg.max; sl.step = cfg.step; sl.value = cfg.def;
+    RS[i].tau = cfg.def;
+    document.getElementById(`r${i}-tau-val`).textContent = cfg.valFmt(cfg.def);
+    document.getElementById(`r${i}-tau-lbl`).innerHTML   = cfg.label(i);
+  }
+}
+
+/* ════════════════════════════════════════════════════════
+   FIT FILE HANDLING
+   ════════════════════════════════════════════════════════ */
+async function loadFitFile(file, ri) {
+  if (!file) return;
+  const zone = document.getElementById(`fitzone${ri}`);
+  zone.textContent = `Loading ${file.name}…`;
+  zone.className = 'fit-zone';
+  try {
+    const series = extractSeries(await parseFitBuf(await file.arrayBuffer()));
+    if (series.length < 2) throw new Error('No readable power records found.');
+
+    RS[ri].rawSeries  = series;
+    RS[ri].wbalSeries = null;
+    const totalS = series[series.length-1].ts - series[0].ts;
+    RS[ri].startS = 0;
+    RS[ri].endS   = totalS;
+
+    ['start','end'].forEach(which => {
+      const el = document.getElementById(`r${ri}-${which}`);
+      el.max   = Math.ceil(totalS);
+      el.value = which === 'start' ? 0 : Math.ceil(totalS);
+    });
+    updateMarkerLabels(ri);
+
+    zone.textContent = `✓ ${file.name} · ${series.length} records · ${formatS(totalS)}`;
+    zone.className = 'fit-zone loaded';
+    document.getElementById(`tracewrap${ri}`).style.display = 'block';
+    requestAnimationFrame(() => drawTrace(ri));
+  } catch (err) {
+    zone.textContent = `✗ ${err.message}`;
+    zone.className = 'fit-zone err';
+    RS[ri].rawSeries = null;
+    document.getElementById(`tracewrap${ri}`).style.display = 'none';
+  }
+}
+
+function handleDrop(ev, ri) {
+  ev.preventDefault();
+  document.getElementById(`fitzone${ri}`).classList.remove('over');
+  const file = ev.dataTransfer.files[0];
+  if (file) loadFitFile(file, ri);
+}
+
+function autoStart(ri) {
+  const s = RS[ri].rawSeries;
+  if (!s?.length) { alert('Load a FIT file first.'); return; }
+  const idx = s.findIndex(p => p.power > 10);
+  if (idx < 0) { alert('No power > 10 W found in this FIT file.'); return; }
+  const startS = Math.max(0, Math.round(s[idx].ts - s[0].ts - 2));
+  RS[ri].startS = startS;
+  document.getElementById(`r${ri}-start`).value = startS;
+  updateMarkerLabels(ri);
+  drawTrace(ri);
+}
+
+/* ════════════════════════════════════════════════════════
+   MARKER SLIDERS
+   ════════════════════════════════════════════════════════ */
+function onMarker(ri, which, rawVal) {
+  const val = parseFloat(rawVal);
+  const rs  = RS[ri];
+  if (which === 'start') {
+    rs.startS = Math.min(val, (rs.endS ?? Infinity) - 1);
+    document.getElementById(`r${ri}-start`).value = rs.startS;
+  } else {
+    rs.endS = Math.max(val, (rs.startS ?? 0) + 1);
+    document.getElementById(`r${ri}-end`).value = rs.endS;
+  }
+  updateMarkerLabels(ri);
+  drawTrace(ri);
+  if (rs.rawSeries && getCp(ri) > 0 && getWp(ri) > 0) {
+    computeWbal(ri);
+    if (mainChart) { updateChart(); renderStats(); }
+    if (riderCharts[ri]) { updateRiderChart(ri); }
+  }
+}
+
+/* ════════════════════════════════════════════════════════
+   τ SLIDER
+   ════════════════════════════════════════════════════════ */
+function onTauSlider(ri, rawVal) {
+  const model = document.getElementById('opt-model').value;
+  const val   = model === 'skiba12' ? parseFloat(rawVal) : parseInt(rawVal);
+  const cfg   = sliderConfig();
+  RS[ri].tau  = val;
+  document.getElementById(`r${ri}-tau-val`).textContent = cfg.valFmt(rawVal);
+  document.getElementById(`r${ri}-tau-lbl`).innerHTML   = cfg.label(ri);
+  if (RS[ri].rawSeries && getCp(ri) > 0 && getWp(ri) > 0) {
+    computeWbal(ri);
+    if (mainChart)       { updateChart(); renderStats(); }
+    if (riderCharts[ri]) { updateRiderChart(ri); }
+  }
+}
+
+/* ════════════════════════════════════════════════════════
+   INPUT HELPERS
+   ════════════════════════════════════════════════════════ */
+function getName(ri) { return document.getElementById(`r${ri}-name`).value.trim() || `Rider ${ri+1}`; }
+function getCp(ri)   { return parseFloat(document.getElementById(`r${ri}-cp`).value) || 0; }
+function getWp(ri)   { return (parseFloat(document.getElementById(`r${ri}-wp`).value) || 0) * 1000; }
+
+/* ════════════════════════════════════════════════════════
+   RUN ANALYSIS
+   ════════════════════════════════════════════════════════ */
+function runAnalysis() {
+  const errEl = document.getElementById('run-err');
+  errEl.textContent = '';
+  let anyActive = false;
+  for (let ri = 0; ri < NR; ri++) {
+    if (!RS[ri].rawSeries) continue;
+    if (getCp(ri) <= 0) { errEl.textContent = `${getName(ri)}: CP must be > 0.`; return; }
+    if (getWp(ri) <= 0) { errEl.textContent = `${getName(ri)}: W′ must be > 0.`; return; }
+    computeWbal(ri);
+    anyActive = true;
+  }
+  if (!anyActive) { errEl.textContent = 'Load at least one FIT file and set CP + W′.'; return; }
+
+  // Reset rider charts (will rebuild on tab visit)
+  riderCharts.forEach((c, ri) => { if (c) { c.destroy(); riderCharts[ri] = null; } });
+
+  // Update tab buttons and pane titles
+  for (let ri = 0; ri < NR; ri++) {
+    const btn = document.getElementById(`rtab-btn${ri}`);
+    if (RS[ri].wbalSeries?.length) {
+      btn.style.display = '';
+      btn.textContent   = getName(ri);
+      // Colour active state for rider tabs
+      btn.style.setProperty('--rider-color', COLORS[ri]);
+    } else {
+      btn.style.display = 'none';
+    }
+    document.getElementById(`rpane${ri}-title`).textContent =
+      `${getName(ri)} — Power & W′ Balance`;
+  }
+
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('results').scrollIntoView({ behavior:'smooth' });
+  switchResTab('summary');
+  buildChart();
+  renderStats();
+}
+
+/* ════════════════════════════════════════════════════════
+   SUMMARY CHART
+   ════════════════════════════════════════════════════════ */
+function makeDatasets() {
+  const ds = [];
+  let maxT = 300;
+  for (let ri = 0; ri < NR; ri++) {
+    const rs = RS[ri];
+    if (!rs.wbalSeries?.length) continue;
+    const t = rs.wbalSeries[rs.wbalSeries.length-1].t;
+    if (t > maxT) maxT = t;
+    ds.push({
+      label: `${getName(ri)} W′`,
+      data: rs.wbalSeries.map(p => ({x:p.t, y:p.wbal/1000})),
+      borderColor: COLORS[ri],
+      backgroundColor: rgba(ri, 0.07),
+      fill: false,
+      borderWidth: 2.5,
+      pointRadius: 0,
+      tension: 0.2,
+      yAxisID: 'yW',
+    });
+  }
+  ds.push({
+    label:'_danger',
+    data:[{x:0,y:10},{x:maxT+5,y:10}],
+    borderColor:'rgba(248,81,73,0.45)',
+    borderDash:[4,4],
+    borderWidth:1,
+    backgroundColor:'rgba(248,81,73,0.18)',
+    fill:'origin',
+    pointRadius:0,
+    yAxisID:'yW',
+  });
+  ds.push({
+    label:'_zero',
+    data:[{x:0,y:0},{x:maxT+5,y:0}],
+    borderColor:'rgba(248,81,73,0.35)',
+    borderDash:[5,4],
+    borderWidth:1,
+    pointRadius:0,
+    yAxisID:'yW',
+  });
+  return ds;
+}
+
+function buildChart() {
+  const ctx = document.getElementById('chart-main').getContext('2d');
+  if (mainChart) mainChart.destroy();
+  let maxT = 300;
+  for (let ri = 0; ri < NR; ri++) {
+    const rs = RS[ri];
+    if (!rs.wbalSeries?.length) continue;
+    const t = rs.wbalSeries[rs.wbalSeries.length-1].t;
+    if (t > maxT) maxT = t;
+  }
+  mainChart = new Chart(ctx, {
+    type:'line',
+    data:{ datasets: makeDatasets() },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      animation:{ duration:200 },
+      plugins:{
+        legend:{ display:false },
+        tooltip:{
+          mode:'index', intersect:false,
+          filter: item => item.dataset.label !== '_zero' && item.dataset.label !== '_danger',
+          callbacks:{ label: c => `${c.dataset.label}: ${c.parsed.y.toFixed(2)} kJ` }
+        }
+      },
+      scales:{
+        x:{
+          type:'linear', min:0, max: maxT,
+          ticks:{ color:'#7d8590', callback: v => `${v}s` },
+          grid:{ color:'rgba(48,54,61,0.6)' },
+          title:{ display:true, text:'Time from Race Start (s)', color:'#7d8590', font:{size:11} },
+        },
+        yW:{
+          type:'linear', position:'left', min:0,
+          ticks:{ color:'#7d8590', callback: v => v.toFixed(1)+' kJ' },
+          grid:{ color:'rgba(48,54,61,0.6)' },
+          title:{ display:true, text:"W′ Balance (kJ)", color:'#7d8590', font:{size:11} },
+        },
+      }
+    }
+  });
+  buildLegend();
+  updateChartNote();
+}
+
+function updateChart() {
+  if (!mainChart) return;
+  mainChart.data.datasets = makeDatasets();
+  mainChart.update('none');
+  buildLegend();
+}
+
+function updateRiderChart(ri) {
+  const chart = riderCharts[ri];
+  if (!chart) return;
+  const rs   = RS[ri];
+  if (!rs.wbalSeries?.length) return;
+  const cp   = getCp(ri);
+  const maxT = rs.wbalSeries[rs.wbalSeries.length-1].t;
+  chart.data.datasets[0].data = [{x:0,y:10},{x:maxT,y:10}];
+  chart.data.datasets[1].data = rs.wbalSeries.map(p => ({x:p.t, y:p.power}));
+  chart.data.datasets[2].data = [{x:0,y:cp},{x:maxT,y:cp}];
+  chart.data.datasets[3].data = rs.wbalSeries.map(p => ({x:p.t, y:p.wbal/1000}));
+  chart.data.datasets[4].data = [{x:0,y:0},{x:maxT,y:0}];
+  chart.options.scales.x.max = maxT;
+  chart.update('none');
+}
+
+function buildLegend() {
+  document.getElementById('chart-legend').innerHTML =
+    RS.map((rs, ri) => !rs.wbalSeries?.length ? '' :
+      `<span style="display:inline-flex;align-items:center;gap:6px;color:${COLORS[ri]}">
+         <span style="width:18px;height:2.5px;background:${COLORS[ri]};display:inline-block;border-radius:2px"></span>
+         ${getName(ri)}
+       </span>`
+    ).join('');
+}
+
+function updateChartNote() {
+  const model = document.getElementById('opt-model').value;
+  const notes = [];
+  for (let ri = 0; ri < NR; ri++) {
+    if (!RS[ri].wbalSeries?.length) continue;
+    notes.push(model === 'skiba12'
+      ? `${getName(ri)}: τ×${RS[ri].tau.toFixed(2)}`
+      : `${getName(ri)}: τ=${RS[ri].tau}s`);
+  }
+  document.getElementById('chart-note').textContent = notes.join(' · ');
+}
+
+/* ════════════════════════════════════════════════════════
+   PER-RIDER CHART  (power + W′ balance, two y-axes)
+   ════════════════════════════════════════════════════════ */
+function buildRiderChart(ri) {
+  const rs = RS[ri];
+  if (!rs.wbalSeries?.length) return;
+  const cp   = getCp(ri);
+  const wp   = getWp(ri);
+  const maxT = rs.wbalSeries[rs.wbalSeries.length-1].t;
+
+  const ctx = document.getElementById(`rchart${ri}`).getContext('2d');
+  if (riderCharts[ri]) riderCharts[ri].destroy();
+
+  riderCharts[ri] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: [
+        // Danger zone — red band 0–10 kJ on W' axis
+        {
+          label: '_danger',
+          data: [{x:0,y:10},{x:maxT,y:10}],
+          borderColor: 'rgba(248,81,73,0.45)',
+          borderDash: [4,4],
+          borderWidth: 1,
+          backgroundColor: 'rgba(248,81,73,0.18)',
+          fill: 'origin',
+          pointRadius: 0,
+          yAxisID: 'yW',
+          order: 10,
+        },
+        // Power — filled area, LEFT axis
+        {
+          label: `${getName(ri)} Power`,
+          data: rs.wbalSeries.map(p => ({x:p.t, y:p.power})),
+          borderColor: rgba(ri, 0.55),
+          backgroundColor: rgba(ri, 0.07),
+          fill: true,
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0.1,
+          yAxisID: 'yP',
+          order: 3,
+        },
+        // CP reference — dashed yellow line on power axis
+        {
+          label: `CP (${cp} W)`,
+          data: [{x:0,y:cp},{x:maxT,y:cp}],
+          borderColor: 'rgba(255,210,50,0.65)',
+          borderDash: [7,4],
+          borderWidth: 1.5,
+          pointRadius: 0,
+          fill: false,
+          yAxisID: 'yP',
+          order: 1,
+        },
+        // W′ balance — filled, RIGHT axis
+        {
+          label: `${getName(ri)} W′`,
+          data: rs.wbalSeries.map(p => ({x:p.t, y:p.wbal/1000})),
+          borderColor: COLORS[ri],
+          backgroundColor: rgba(ri, 0.18),
+          fill: true,
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.2,
+          yAxisID: 'yW',
+          order: 2,
+        },
+        // W′=0 reference
+        {
+          label: '_zero',
+          data: [{x:0,y:0},{x:maxT,y:0}],
+          borderColor: 'rgba(248,81,73,0.4)',
+          borderDash: [5,4],
+          borderWidth: 1,
+          pointRadius: 0,
+          fill: false,
+          yAxisID: 'yW',
+          order: 4,
+        },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: { duration: 200 },
+      plugins: {
+        legend: {
+          labels: {
+            color:'#7d8590', font:{size:11},
+            filter: item => item.text !== '_zero' && item.text !== '_danger',
+          }
+        },
+        tooltip: {
+          mode:'index', intersect:false,
+          filter: item => item.dataset.label !== '_zero' && item.dataset.label !== '_danger',
+          callbacks: {
+            label: c => {
+              if (c.dataset.yAxisID === 'yP') return `${c.dataset.label}: ${c.parsed.y.toFixed(0)} W`;
+              return `${c.dataset.label}: ${c.parsed.y.toFixed(2)} kJ`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          type:'linear', min:0, max: maxT,
+          ticks:{ color:'#7d8590', callback: v => `${v}s` },
+          grid:{ color:'rgba(48,54,61,0.6)' },
+          title:{ display:true, text:'Time from Race Start (s)', color:'#7d8590', font:{size:11} },
+        },
+        yP: {
+          type:'linear', position:'left', min:0,
+          ticks:{ color:'rgba(125,133,144,0.75)', callback: v => v+'W' },
+          grid:{ color:'rgba(48,54,61,0.6)' },
+          title:{ display:true, text:'Power (W)', color:'rgba(125,133,144,0.75)', font:{size:11} },
+        },
+        yW: {
+          type:'linear', position:'right', min:0,
+          max: Math.ceil(wp / 1000 * 1.06),
+          ticks:{ color: COLORS[ri], callback: v => v.toFixed(1)+' kJ' },
+          grid:{ drawOnChartArea:false },
+          title:{ display:true, text:"W′ Balance (kJ)", color: COLORS[ri], font:{size:11} },
+        },
+      }
+    }
+  });
+}
+
+/* ════════════════════════════════════════════════════════
+   STATS TABLE
+   ════════════════════════════════════════════════════════ */
+function renderStats() {
+  const model = document.getElementById('opt-model').value;
+  const rows  = [];
+  for (let ri = 0; ri < NR; ri++) {
+    const rs = RS[ri];
+    if (!rs.wbalSeries?.length) continue;
+    const cp  = getCp(ri), wp = getWp(ri), ser = rs.wbalSeries;
+    const wMin   = Math.min(...ser.map(p => p.wbal));
+    const wFin   = ser[ser.length-1].wbal;
+    const dur    = ser[ser.length-1].t;
+    const nAbove = ser.filter(p => p.power > cp).length;
+    const avgPow = ser.reduce((s,p) => s+p.power, 0) / ser.length;
+    const pkPow  = Math.max(...ser.map(p => p.power));
+    const wMinCls = wMin/1000 < 2 ? 'wp-crit' : wMin/1000 < 5 ? 'wp-low' : '';
+    const wFinCls = wFin/1000 < 2 ? 'wp-crit' : wFin/1000 < 5 ? 'wp-low' : '';
+    const tauDisp = model === 'skiba12'
+      ? `${rs.tau.toFixed(2)}× (${(rs.tau*316).toFixed(0)}–${(rs.tau*862).toFixed(0)}s)`
+      : `${rs.tau}s`;
+    rows.push(`<tr>
+      <td style="color:${COLORS[ri]};font-weight:600">${getName(ri)}</td>
+      <td class="r">${cp}</td>
+      <td class="r">${(wp/1000).toFixed(1)}</td>
+      <td class="r">${tauDisp}</td>
+      <td class="r ${wMinCls}">${(wMin/1000).toFixed(2)}</td>
+      <td class="r ${wFinCls}">${(wFin/1000).toFixed(2)}</td>
+      <td class="r">${((wMin-wp)/1000).toFixed(2)}</td>
+      <td class="r">${nAbove}</td>
+      <td class="r">${avgPow.toFixed(0)}</td>
+      <td class="r">${pkPow.toFixed(0)}</td>
+      <td class="r">${dur.toFixed(1)}</td>
+    </tr>`);
+  }
+  document.getElementById('stats-tbl').innerHTML = `
+  <thead><tr>
+    <th>Rider</th><th class="r">CP (W)</th><th class="r">W′ (kJ)</th><th class="r">τ</th>
+    <th class="r">Min W′ (kJ)</th><th class="r">Final W′ (kJ)</th><th class="r">ΔW′ (kJ)</th>
+    <th class="r">Time &gt;CP (s)</th><th class="r">Avg Power (W)</th>
+    <th class="r">Peak Power (W)</th><th class="r">Duration (s)</th>
+  </tr></thead><tbody>${rows.join('')}</tbody>`;
+  updateChartNote();
+}
+
+/* ════════════════════════════════════════════════════════
+   TAB SWITCHING
+   ════════════════════════════════════════════════════════ */
+function switchResTab(tab) {
+  document.querySelectorAll('.rtab').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.rtab[data-tab="${tab}"]`).classList.add('active');
+  document.querySelectorAll('.rtab-pane').forEach(p => p.classList.remove('active'));
+  document.getElementById(`rtab-${tab}`).classList.add('active');
+
+  // Build rider chart lazily on first visit
+  if (tab.startsWith('r')) {
+    const ri = parseInt(tab.slice(1));
+    if (RS[ri].wbalSeries?.length && !riderCharts[ri]) {
+      requestAnimationFrame(() => buildRiderChart(ri));
+    }
+  }
+}
+
+/* ════════════════════════════════════════════════════════
+   EXPAND MODAL
+   ════════════════════════════════════════════════════════ */
+let expandRi = null;
+
+function openExpand(ri) {
+  if (!RS[ri].rawSeries) { alert('Load a FIT file first.'); return; }
+  expandRi = ri;
+  const rs     = RS[ri];
+  const series = rs.rawSeries;
+  const totalS = series[series.length-1].ts - series[0].ts;
+
+  const title = document.getElementById('expand-title');
+  title.textContent = `${getName(ri)} — FIT Power Trace`;
+  title.style.color = COLORS[ri];
+
+  ['expand-start','expand-end'].forEach((id, k) => {
+    const el = document.getElementById(id);
+    el.max   = Math.ceil(totalS);
+    el.value = k === 0 ? (rs.startS ?? 0) : (rs.endS ?? totalS);
+  });
+  updateExpandLabels();
+  updateExpandInfo();
+  document.getElementById('expand-modal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+  requestAnimationFrame(drawExpandTrace);
+}
+
+function closeExpand() {
+  document.getElementById('expand-modal').style.display = 'none';
+  document.body.style.overflow = '';
+  expandRi = null;
+}
+
+function onExpandMarker(which, rawVal) {
+  if (expandRi === null) return;
+  const ri  = expandRi;
+  const val = parseFloat(rawVal);
+  const rs  = RS[ri];
+  if (which === 'start') {
+    rs.startS = Math.min(val, (rs.endS ?? Infinity) - 1);
+    document.getElementById('expand-start').value = rs.startS;
+  } else {
+    rs.endS = Math.max(val, (rs.startS ?? 0) + 1);
+    document.getElementById('expand-end').value = rs.endS;
+  }
+  // Sync small card sliders + labels
+  document.getElementById(`r${ri}-start`).value = rs.startS;
+  document.getElementById(`r${ri}-end`).value   = rs.endS;
+  updateMarkerLabels(ri);
+  updateExpandLabels();
+  updateExpandInfo();
+  drawExpandTrace();
+  drawTrace(ri);
+  if (getCp(ri) > 0 && getWp(ri) > 0) {
+    computeWbal(ri);
+    if (mainChart)       { updateChart(); renderStats(); }
+    if (riderCharts[ri]) { updateRiderChart(ri); }
+  }
+}
+
+function updateExpandLabels() {
+  if (expandRi === null) return;
+  document.getElementById('expand-start-val').textContent = formatS(RS[expandRi].startS ?? 0);
+  document.getElementById('expand-end-val').textContent   = formatS(RS[expandRi].endS   ?? 0);
+}
+
+function updateExpandInfo() {
+  if (expandRi === null) return;
+  const ri  = expandRi;
+  const rs  = RS[ri];
+  const s   = rs.rawSeries;
+  const totalS = s[s.length-1].ts - s[0].ts;
+  const dur    = Math.max(0, (rs.endS ?? 0) - (rs.startS ?? 0));
+  const cp     = getCp(ri);
+  document.getElementById('expand-info').innerHTML = [
+    `Recording: <strong>${formatS(totalS)}</strong>`,
+    `Start: <strong>${formatS(rs.startS ?? 0)}</strong>`,
+    `End: <strong>${formatS(rs.endS ?? 0)}</strong>`,
+    `Race window: <strong>${formatS(dur)}</strong>`,
+    cp > 0 ? `CP: <strong>${cp} W</strong>` : '',
+  ].filter(Boolean).join(' &nbsp;·&nbsp; ');
+}
+
+function drawExpandTrace() {
+  if (expandRi === null) return;
+  const ri     = expandRi;
+  const canvas = document.getElementById('trace-expand');
+  const series = RS[ri].rawSeries;
+  if (!series?.length) return;
+
+  const W = canvas.parentElement.clientWidth || 900;
+  const H = 300;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#21262d';
+  ctx.fillRect(0, 0, W, H);
+
+  const t0   = series[0].ts;
+  const tMax = Math.max(series[series.length-1].ts - t0, 1);
+  const maxP = Math.max(...series.map(p => p.power), 1);
+  const cp   = getCp(ri);
+
+  const PL = 50, PR = 14, PT = 16, PB = 26;
+  const pW = W - PL - PR, pH = H - PT - PB;
+  const xT = t => PL + (t / tMax) * pW;
+  const yP = p => PT + pH - (p / maxP) * pH;
+
+  const startS = RS[ri].startS ?? 0;
+  const endS   = RS[ri].endS   ?? tMax;
+
+  // Horizontal grid + Y labels
+  ctx.font = '10px sans-serif';
+  for (let k = 0; k <= 4; k++) {
+    const y   = PT + (pH * k) / 4;
+    const val = Math.round(maxP * (1 - k/4));
+    ctx.strokeStyle = 'rgba(48,54,61,0.7)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(PL, y); ctx.lineTo(W-PR, y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#7d8590';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(val+'W', PL-4, y);
+  }
+
+  // CP reference line
+  if (cp > 0 && cp <= maxP) {
+    const cpY = yP(cp);
+    ctx.strokeStyle = 'rgba(255,210,50,0.55)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([8,5]);
+    ctx.beginPath(); ctx.moveTo(PL, cpY); ctx.lineTo(W-PR, cpY); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(255,210,50,0.75)';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(`CP ${cp}W`, PL+6, cpY-3);
+  }
+
+  // Power area fill
+  ctx.beginPath();
+  ctx.moveTo(xT(series[0].ts-t0), PT+pH);
+  for (const pt of series) ctx.lineTo(xT(pt.ts-t0), yP(pt.power));
+  ctx.lineTo(xT(series[series.length-1].ts-t0), PT+pH);
+  ctx.closePath();
+  ctx.fillStyle = rgba(ri, 0.2);
+  ctx.fill();
+
+  // Power line
+  ctx.beginPath();
+  ctx.setLineDash([]);
+  for (let k = 0; k < series.length; k++) {
+    const x = xT(series[k].ts-t0), y = yP(series[k].power);
+    k === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  }
+  ctx.strokeStyle = COLORS[ri];
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Excluded region shading
+  ctx.fillStyle = 'rgba(0,0,0,0.50)';
+  ctx.fillRect(PL, PT, xT(startS)-PL, pH);
+  ctx.fillRect(xT(endS), PT, (W-PR)-xT(endS), pH);
+
+  // Start marker
+  const sx = xT(startS);
+  ctx.strokeStyle = '#3fb950'; ctx.lineWidth = 2.5; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(sx,PT); ctx.lineTo(sx,PT+pH); ctx.stroke();
+  ctx.fillStyle = '#3fb950'; ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText('▶ '+formatS(startS), Math.min(sx+4, W-PR-80), PT+4);
+
+  // End marker
+  const ex = xT(endS);
+  ctx.strokeStyle = '#f85149'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(ex,PT); ctx.lineTo(ex,PT+pH); ctx.stroke();
+  ctx.fillStyle = '#f85149';
+  ctx.textAlign = 'right';
+  ctx.fillText('⏹ '+formatS(endS), Math.max(ex-4, PL+80), PT+4);
+
+  // Axes
+  ctx.strokeStyle = 'rgba(48,54,61,0.9)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(PL,PT); ctx.lineTo(PL,PT+pH); ctx.lineTo(W-PR,PT+pH);
+  ctx.stroke();
+
+  // Time axis labels
+  ctx.fillStyle = '#7d8590'; ctx.font = '10px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  const nTicks = Math.min(20, Math.max(8, Math.floor(tMax/30)));
+  for (let k = 0; k <= nTicks; k++) {
+    const t = (tMax*k)/nTicks;
+    ctx.fillText(formatS(t), xT(t), PT+pH+5);
+  }
+}
+
+// Close on backdrop click or Escape
+document.getElementById('expand-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeExpand();
+});
+window.addEventListener('keydown', e => { if (e.key === 'Escape' && expandRi !== null) closeExpand(); });
+window.addEventListener('resize', () => { if (expandRi !== null) requestAnimationFrame(drawExpandTrace); });
+
+/* ─── boot ───────────────────────────────────────────── */
+buildRiderCards();
+
+window.addEventListener('resize', () => {
+  for (let ri = 0; ri < NR; ri++) {
+    if (RS[ri].rawSeries) requestAnimationFrame(() => drawTrace(ri));
+  }
+});
+</script>
+</body>
+</html>
