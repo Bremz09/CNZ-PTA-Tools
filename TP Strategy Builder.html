@@ -186,7 +186,7 @@ details.step-wrap .inner{margin-top:12px;overflow-x:auto}
       <div class="field"><label>Drivetrain Efficiency (η)</label>
         <input type="number" id="g-eta" value="0.9974" step="0.001" min="0.9" max="1.0"></div>
       <div class="field"><label>Air Density ρ (kg/m³)</label>
-        <input type="number" id="g-rho" value="1.14" step="0.005" min="0.8" max="1.3"></div>
+        <input type="number" id="g-rho" value="1.168" step="0.005" min="0.8" max="1.3"></div>
     </div>
   </div>
 </div>
@@ -311,16 +311,16 @@ const MODELS = [
     note:'Exponential reconstitution below CP; τ = 546·e^(−0.01·DCP) + 316 s (Skiba et al., 2012).' },
   { id:'skiba15',   label:'Skiba 2015',
     note:'Integral accumulation method; same τ formula as 2012. Differences emerge with alternating hard/easy efforts (Skiba et al., 2015).' },
-  { id:'fc',        label:'Froncioni–Clarke',
-    note:'Fixed reconstitution τ = 377 s regardless of DCP. Typically faster recovery than Skiba at moderate DCP (Froncioni, 2006).' },
+  { id:'fc',        label:'Fixed Tau',
+    note:'Fixed reconstitution τ set per rider. Uses each rider’s own tau value in the FC model.' },
 ];
 
 /* ─── Defaults ───────────────────────────────────────────────────────── */
 const DEFAULTS = [
-  { name:'Tom',      cp:385, wp:30000, rm:75, bm:8, cda:0.156, st:20, sp:1000 },
-  { name:'Campbell', cp:375, wp:32000, rm:80, bm:8, cda:0.185, st:20, sp:875  },
-  { name:'Gatey',    cp:420, wp:27000, rm:70, bm:8, cda:0.170, st:20, sp:850  },
-  { name:'Keegan',   cp:340, wp:27000, rm:70, bm:8, cda:0.149, st:20, sp:800  },
+  { name:'Tom',      cp:385, wp:30000, rm:75, bm:8, cda:0.156, st:20, sp:1000, tau:377 },
+  { name:'Campbell', cp:375, wp:32000, rm:80, bm:8, cda:0.185, st:20, sp:875,  tau:377 },
+  { name:'Gatey',    cp:420, wp:27000, rm:70, bm:8, cda:0.170, st:20, sp:850,  tau:377 },
+  { name:'Keegan',   cp:340, wp:27000, rm:70, bm:8, cda:0.149, st:20, sp:800,  tau:377 },
 ];
 
 /* ─── Rotation state ─────────────────────────────────────────────────── */
@@ -336,8 +336,8 @@ let simData = null;
 function init() {
   buildRiderCards();
   loadDefaultRotation();
-  buildModelTabs('wp-tabs',  'wpModel',  'skiba12', updateWpChart);
-  buildModelTabs('lap-tabs', 'lapModel', 'skiba12', renderLapTable);
+  buildModelTabs('wp-tabs',  'wpModel',  'fc', updateWpChart);
+  buildModelTabs('lap-tabs', 'lapModel', 'fc', renderLapTable);
 }
 
 function loadDefaultRotation() {
@@ -378,6 +378,8 @@ function buildRiderCards() {
       <input type="number" id="r${i}-st" value="${d.st}" step="0.1" min="10" max="40"></div>
     <div class="field"><label>Start Lap Power (W)</label>
       <input type="number" id="r${i}-sp" value="${d.sp}" step="5" min="100" max="2000"></div>
+    <div class="field"><label>Fixed Tau (s)</label>
+      <input type="number" id="r${i}-tau" value="${d.tau}" step="1" min="1" max="5000"></div>
   </div>`).join('');
 }
 
@@ -539,6 +541,7 @@ function readRiders() {
     cda:  +document.getElementById(`r${i}-cda`).value,
     st:   +document.getElementById(`r${i}-st`).value,
     sp:   +document.getElementById(`r${i}-sp`).value,
+    tau:  +document.getElementById(`r${i}-tau`).value,
   }));
 }
 
@@ -572,7 +575,7 @@ function calcPower(rider, pos, v, g) {
  * @param {number} dt     - time step (s)
  * @returns {number} new W'bal (J)
  */
-function stepW(modelId, state, w0, cp, P, dt) {
+function stepW(modelId, state, w0, cp, P, dt, tauFc = 377) {
   switch (modelId) {
 
     /* ── Simple Integral: no reconstitution ─── */
@@ -623,8 +626,7 @@ function stepW(modelId, state, w0, cp, P, dt) {
       if (P > cp) {
         state.wbal = Math.max(0, state.wbal - (P - cp) * dt);
       } else {
-        const tau_fc = 377;
-        state.wbal = w0 - (w0 - state.wbal) * Math.exp(-dt / tau_fc);
+        state.wbal = w0 - (w0 - state.wbal) * Math.exp(-dt / tauFc);
       }
       return state.wbal;
     }
@@ -700,6 +702,7 @@ function saveConfig() {
     cda:  document.getElementById(`r${i}-cda`).value,
     st:   document.getElementById(`r${i}-st`).value,
     sp:   document.getElementById(`r${i}-sp`).value,
+    tau:  document.getElementById(`r${i}-tau`).value,
   }));
   const rotation = rows.map(r => ({ positions: [...r.positions], dist: r.dist }));
   const config = { version: 1, global: g, riders, rotation };
@@ -743,6 +746,7 @@ function loadConfig(input) {
         document.getElementById(`r${i}-cda`).value  = r.cda  ?? '';
         document.getElementById(`r${i}-st`).value   = r.st   ?? '';
         document.getElementById(`r${i}-sp`).value   = r.sp   ?? '';
+        document.getElementById(`r${i}-tau`).value  = r.tau  ?? 377;
       });
 
       // Apply rotation schedule
@@ -776,6 +780,7 @@ function validate() {
   riders.forEach((r, i) => {
     if (!r.cp || r.cp <= 0) errs.push(`Rider ${i+1}: CP must be > 0.`);
     if (!r.wp || r.wp <= 0) errs.push(`Rider ${i+1}: W′ must be > 0.`);
+    if (!r.tau || r.tau <= 0) errs.push(`Rider ${i+1}: Fixed Tau must be > 0.`);
   });
   return errs;
 }
@@ -908,7 +913,7 @@ function runSim() {
 
       // W' update for all models
       MODELS.forEach((m, mi) => {
-        stepW(m.id, wState[mi][ri], rider.wp, rider.cp, P, dt);
+        stepW(m.id, wState[mi][ri], rider.wp, rider.cp, P, dt, rider.tau);
       });
     });
 
@@ -1117,11 +1122,11 @@ function renderLapTable() {
   const modelId = modelState['lapModel'];
 
   // τ for a given model/rider/avgPow
-  function tauStr(cp, avgPow) {
+  function tauStr(modelId, riderTau, cp, avgPow) {
     const dcp = Math.max(0, cp - avgPow);
     if (modelId === 'skiba12' || modelId === 'skiba15')
       return (546 * Math.exp(-0.01 * dcp) + 316).toFixed(0);
-    if (modelId === 'fc') return '377';
+    if (modelId === 'fc') return Number(riderTau).toFixed(0);
     return null;
   }
   const showTau = (modelId !== 'simple');
@@ -1188,7 +1193,7 @@ function renderLapTable() {
         <td class="r">${avgW.toFixed(0)}</td><td class="r">${rider.cp}</td>
         <td class="r ${netCls}">${net>0?'+':''}${net.toFixed(0)}</td>
         <td class="r">${dcp.toFixed(0)}</td>
-        ${showTau ? `<td class="r">${tauStr(rider.cp, avgW)}</td>` : ''}
+        ${showTau ? `<td class="r">${tauStr(modelId, rider.tau, rider.cp, avgW)}</td>` : ''}
         <td class="r">${wSkJ}</td>
         <td class="r ${weCls}">${wEkJ}</td>
         <td class="r ${netCls}">${dWkJ}</td>
@@ -1226,7 +1231,7 @@ function renderLapTable() {
       }
 
       const avgW = iv.avgPow[ri].toFixed(0);
-      const tau  = showTau ? tauStr(r.cp, iv.avgPow[ri]) : null;
+      const tau  = showTau ? tauStr(modelId, r.tau, r.cp, iv.avgPow[ri]) : null;
       const wkJ  = (iv.wbalEnd[mi][ri] / 1000).toFixed(1);
       const wCls = +wkJ < 2 ? 'wp-crit' : +wkJ < 5 ? 'wp-low' : 'wp-ok';
       return `<td class="${pos === 0 ? 'pos-lead' : ''}" style="color:${COLORS[ri]}">${posLbl}</td>
