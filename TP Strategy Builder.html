@@ -230,7 +230,12 @@ details.step-wrap .inner{margin-top:12px;overflow-x:auto}
 <!-- ═══════════════════════════════ RUN ══════════════════════════════════ -->
 <div class="run-row">
   <div class="err-box" id="run-errs"></div>
-  <button class="btn btn-run" onclick="runSim()">▶ Run Simulation</button>
+  <div style="display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap">
+    <button class="btn btn-ghost" onclick="saveConfig()">💾 Save Config</button>
+    <button class="btn btn-run" onclick="runSim()">▶ Run Simulation</button>
+    <button class="btn btn-ghost" onclick="document.getElementById('load-config-input').click()">📂 Load Config</button>
+    <input type="file" id="load-config-input" accept=".json" style="display:none" onchange="loadConfig(this)">
+  </div>
 </div>
 
 <!-- ═══════════════════════════════ RESULTS ══════════════════════════════ -->
@@ -672,6 +677,89 @@ function findSeg(segs, d) {
     if (d >= s.startDist && d < s.endDist) return s;
   }
   return segs[segs.length - 1];
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   SAVE / LOAD CONFIG
+   ════════════════════════════════════════════════════════════════════════ */
+function saveConfig() {
+  const g = {
+    lapTime: document.getElementById('g-laptime').value,
+    w2load:  document.getElementById('g-w2load').value,
+    w34load: document.getElementById('g-w34load').value,
+    crr:     document.getElementById('g-crr').value,
+    eta:     document.getElementById('g-eta').value,
+    rho:     document.getElementById('g-rho').value,
+  };
+  const riders = Array.from({length: NR}, (_, i) => ({
+    name: document.getElementById(`r${i}-name`).value,
+    cp:   document.getElementById(`r${i}-cp`).value,
+    wp:   document.getElementById(`r${i}-wp`).value,
+    rm:   document.getElementById(`r${i}-rm`).value,
+    bm:   document.getElementById(`r${i}-bm`).value,
+    cda:  document.getElementById(`r${i}-cda`).value,
+    st:   document.getElementById(`r${i}-st`).value,
+    sp:   document.getElementById(`r${i}-sp`).value,
+  }));
+  const rotation = rows.map(r => ({ positions: [...r.positions], dist: r.dist }));
+  const config = { version: 1, global: g, riders, rotation };
+  const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'tp-strategy-config.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function loadConfig(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const config = JSON.parse(e.target.result);
+      if (!config.global || !config.riders || !config.rotation)
+        throw new Error('Invalid config file format.');
+
+      // Apply global settings
+      const gMap = { laptime: 'lapTime', w2load: 'w2load', w34load: 'w34load',
+                     crr: 'crr', eta: 'eta', rho: 'rho' };
+      document.getElementById('g-laptime').value = config.global.lapTime ?? config.global.laptime ?? '';
+      document.getElementById('g-w2load').value  = config.global.w2load  ?? '';
+      document.getElementById('g-w34load').value = config.global.w34load ?? '';
+      document.getElementById('g-crr').value     = config.global.crr     ?? '';
+      document.getElementById('g-eta').value     = config.global.eta     ?? '';
+      document.getElementById('g-rho').value     = config.global.rho     ?? '';
+
+      // Apply rider settings
+      config.riders.forEach((r, i) => {
+        if (i >= NR) return;
+        document.getElementById(`r${i}-name`).value = r.name ?? '';
+        document.getElementById(`r${i}-cp`).value   = r.cp   ?? '';
+        document.getElementById(`r${i}-wp`).value   = r.wp   ?? '';
+        document.getElementById(`r${i}-rm`).value   = r.rm   ?? '';
+        document.getElementById(`r${i}-bm`).value   = r.bm   ?? '';
+        document.getElementById(`r${i}-cda`).value  = r.cda  ?? '';
+        document.getElementById(`r${i}-st`).value   = r.st   ?? '';
+        document.getElementById(`r${i}-sp`).value   = r.sp   ?? '';
+      });
+
+      // Apply rotation schedule
+      rows  = [];
+      rowId = 0;
+      config.rotation.forEach(r => {
+        rows.push({ id: rowId++, positions: r.positions, dist: r.dist });
+      });
+      renderRot();
+      refreshRotSelects();
+    } catch (err) {
+      alert('Failed to load config: ' + err.message);
+    }
+    // Reset file input so the same file can be reloaded if needed
+    input.value = '';
+  };
+  reader.readAsText(file);
 }
 
 /* ════════════════════════════════════════════════════════════════════════
