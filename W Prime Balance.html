@@ -146,7 +146,12 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;backgroun
       </div>
       <div style="display:flex;flex-direction:column;gap:4px">
         <div class="err-msg" id="run-err"></div>
-        <button class="btn btn-run" onclick="runAnalysis()">▶ Analyse</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-ghost" onclick="saveConfig()">💾 Save Config</button>
+          <button class="btn btn-run" onclick="runAnalysis()">▶ Analyse</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('load-config-input').click()">📂 Load Config</button>
+          <input type="file" id="load-config-input" accept=".json" style="display:none" onchange="loadConfig(this)">
+        </div>
       </div>
     </div>
   </div>
@@ -483,8 +488,8 @@ function computeWbal(ri) {
 /* ════════════════════════════════════════════════════════
    UI BUILD
    ════════════════════════════════════════════════════════ */
-const TAU_MIN = 50, TAU_MAX = 2000, TAU_DEF = 700;
-const SCALE_MIN = 0.10, SCALE_MAX = 3.00, SCALE_DEF = 1.00;
+const TAU_MIN = 0, TAU_MAX = 2000, TAU_DEF = 1000;
+const SCALE_MIN = 0.10, SCALE_MAX = 5.00, SCALE_DEF = 1.00;
 
 function sliderConfig() {
   const model = document.getElementById('opt-model')?.value || 'fixed';
@@ -587,6 +592,7 @@ async function loadFitFile(file, ri) {
 
     RS[ri].rawSeries  = series;
     RS[ri].wbalSeries = null;
+    RS[ri].fileName   = file.name;
     const totalS = series[series.length-1].ts - series[0].ts;
     RS[ri].startS = 0;
     RS[ri].endS   = totalS;
@@ -674,6 +680,107 @@ function onTauSlider(ri, rawVal) {
 function getName(ri) { return document.getElementById(`r${ri}-name`).value.trim() || `Rider ${ri+1}`; }
 function getCp(ri)   { return parseFloat(document.getElementById(`r${ri}-cp`).value) || 0; }
 function getWp(ri)   { return (parseFloat(document.getElementById(`r${ri}-wp`).value) || 0) * 1000; }
+
+/* ════════════════════════════════════════════════════════
+   SAVE / LOAD CONFIG
+   ════════════════════════════════════════════════════════ */
+function saveConfig() {
+  const riders = Array.from({length: NR}, (_, i) => ({
+    name:      document.getElementById(`r${i}-name`).value,
+    cp:        document.getElementById(`r${i}-cp`).value,
+    wp:        document.getElementById(`r${i}-wp`).value,
+    tau:       RS[i].tau,
+    startS:    RS[i].startS ?? 0,
+    endS:      RS[i].endS   ?? 0,
+    fileName:  RS[i].fileName ?? null,
+    rawSeries: RS[i].rawSeries ?? null,
+  }));
+  const config = {
+    version: 1,
+    model:   document.getElementById('opt-model').value,
+    riders,
+  };
+  const blob = new Blob([JSON.stringify(config)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'wprime-config.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function loadConfig(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const config = JSON.parse(e.target.result);
+      if (!config.riders) throw new Error('Invalid config file format.');
+
+      // Apply model first so slider config is correct
+      if (config.model) {
+        document.getElementById('opt-model').value = config.model;
+      }
+      onModelChange();
+
+      config.riders.forEach((r, i) => {
+        if (i >= NR) return;
+        document.getElementById(`r${i}-name`).value = r.name ?? '';
+        document.getElementById(`r${i}-cp`).value   = r.cp   ?? '';
+        document.getElementById(`r${i}-wp`).value   = r.wp   ?? '';
+
+        // Restore tau / slider
+        if (r.tau != null) {
+          RS[i].tau = r.tau;
+          const sl = document.getElementById(`r${i}-tau`);
+          sl.value = r.tau;
+          const cfg = sliderConfig();
+          document.getElementById(`r${i}-tau-val`).textContent = cfg.valFmt(r.tau);
+          document.getElementById(`r${i}-tau-lbl`).innerHTML   = cfg.label(i);
+        }
+
+        // Restore FIT data
+        const zone = document.getElementById(`fitzone${i}`);
+        if (r.rawSeries && r.rawSeries.length > 1) {
+          RS[i].rawSeries  = r.rawSeries;
+          RS[i].wbalSeries = null;
+          RS[i].fileName   = r.fileName ?? null;
+          const totalS = r.rawSeries[r.rawSeries.length-1].ts - r.rawSeries[0].ts;
+          RS[i].startS = Math.min(r.startS ?? 0, totalS);
+          RS[i].endS   = Math.min(r.endS   ?? totalS, totalS);
+
+          ['start','end'].forEach(which => {
+            const el = document.getElementById(`r${i}-${which}`);
+            el.max   = Math.ceil(totalS);
+            el.value = which === 'start' ? RS[i].startS : RS[i].endS;
+          });
+          updateMarkerLabels(i);
+
+          const label = r.fileName || `rider ${i+1}`;
+          zone.textContent = `✓ ${label} · ${r.rawSeries.length} records · ${formatS(totalS)}`;
+          zone.className = 'fit-zone loaded';
+          document.getElementById(`tracewrap${i}`).style.display = 'block';
+          requestAnimationFrame(() => drawTrace(i));
+        } else {
+          // No FIT data in saved config — reset
+          RS[i].rawSeries  = null;
+          RS[i].wbalSeries = null;
+          RS[i].fileName   = null;
+          RS[i].startS = 0;
+          RS[i].endS   = 0;
+          zone.textContent = 'Click or drop .fit file';
+          zone.className = 'fit-zone';
+          document.getElementById(`tracewrap${i}`).style.display = 'none';
+        }
+      });
+    } catch (err) {
+      alert('Failed to load config: ' + err.message);
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
 
 /* ════════════════════════════════════════════════════════
    RUN ANALYSIS
