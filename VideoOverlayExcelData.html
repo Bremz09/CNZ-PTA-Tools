@@ -164,6 +164,32 @@
 			flex-wrap: wrap;
 		}
 
+		.tuning {
+			padding: 10px 0 0;
+			display: grid;
+			grid-template-columns: repeat(2, minmax(220px, 1fr));
+			gap: 14px;
+		}
+
+		.tuning-field {
+			display: grid;
+			gap: 4px;
+		}
+
+		.tuning-field label {
+			font-size: 0.82rem;
+			color: var(--muted);
+			font-weight: 600;
+			display: flex;
+			justify-content: space-between;
+			gap: 8px;
+		}
+
+		.tuning-field input[type="range"] {
+			width: 100%;
+			accent-color: var(--accent);
+		}
+
 		.chip {
 			padding: 6px 10px;
 			border-radius: 999px;
@@ -450,8 +476,8 @@
 			</div>
 
 			<div class="field">
-				<label for="xlsxInput">Excel file (.xlsx)</label>
-				<input id="xlsxInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+				<label for="xlsxInput">Excel or CSV file (.xlsx, .csv)</label>
+				<input id="xlsxInput" type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" />
 			</div>
 
 			<div class="field">
@@ -490,7 +516,17 @@
 					</div>
 				</div>
 				<canvas id="plot" class="plot-canvas"></canvas>
-				<div id="status" class="status">Load a video and an XLSX file to start.</div>
+				<div id="status" class="status">Load a video and an XLSX or CSV file to start.</div>
+				<div class="tuning">
+					<div class="tuning-field">
+						<label for="dragSensitivity">Drag sensitivity <strong id="dragSensitivityValue">0.20</strong></label>
+						<input id="dragSensitivity" type="range" min="0.05" max="1" step="0.05" value="0.2" />
+					</div>
+					<div class="tuning-field">
+						<label for="windowWidth">Window width <strong id="windowWidthValue">full</strong></label>
+						<input id="windowWidth" type="range" min="1" max="60" step="0.5" value="60" />
+					</div>
+				</div>
 			</div>
 
 			<div class="record-panel">
@@ -522,9 +558,13 @@
 			summaryCalculated: false,
 			dragLastX: 0,
 			dragSensitivity: 0.2,
+			windowWidth: null,
+			dataSpan: null,
 			pointerMode: "none",
 			fpsFrameSamples: [],
 			fpsEstimatorActive: false,
+			lastFrameMediaTime: null,
+			frameTrackerActive: false,
 			drawingData: null,
 			recordingState: "idle",
 			recordStartVideoTime: null,
@@ -550,7 +590,11 @@
 			btnRecord: document.getElementById("btnRecord"),
 			btnCalculate: document.getElementById("btnCalculate"),
 			recordIndicator: document.getElementById("recordIndicator"),
-			summaryGrid: document.getElementById("summaryGrid")
+			summaryGrid: document.getElementById("summaryGrid"),
+			dragSensitivity: document.getElementById("dragSensitivity"),
+			dragSensitivityValue: document.getElementById("dragSensitivityValue"),
+			windowWidth: document.getElementById("windowWidth"),
+			windowWidthValue: document.getElementById("windowWidthValue")
 		};
 
 		const ctx = els.plot.getContext("2d");
@@ -799,10 +843,14 @@
 					continue;
 				}
 
+				// Normalize so the first datapoint sits at t = 0, regardless of
+				// the absolute value in the sheet's Time column.
+				const t0 = points[0].t;
+
 				series.push({
 					sheetName: sheet.sheetName,
 					color: getSeriesColor(i),
-					times: points.map((point) => point.t),
+					times: points.map((point) => point.t - t0),
 					metricValues: points.map((point) => point.y)
 				});
 			}
@@ -906,12 +954,20 @@
 			let maxDisplayTime = -Infinity;
 			for (const series of state.series) {
 				if (series.times.length < 2 || series.metricValues.length < 2) continue;
-				allValues.push(...series.metricValues);
+				for (let i = 0; i < series.metricValues.length; i += 1) {
+					allValues.push(series.metricValues[i]);
+				}
 				minDisplayTime = Math.min(minDisplayTime, series.times[0] + state.traceOffsetTime);
 				maxDisplayTime = Math.max(maxDisplayTime, series.times[series.times.length - 1] + state.traceOffsetTime);
 			}
 
-			const visibleSpan = Math.max(0.01, maxDisplayTime - minDisplayTime);
+			const dataSpan = Math.max(0.01, maxDisplayTime - minDisplayTime);
+			if (state.dataSpan !== dataSpan) {
+				state.dataSpan = dataSpan;
+				syncWindowSliderToData();
+			}
+			const requestedWindow = Number.isFinite(state.windowWidth) ? state.windowWidth : dataSpan;
+			const visibleSpan = Math.max(0.01, Math.min(requestedWindow, dataSpan));
 			const viewCenterT = Number.isFinite(els.video.currentTime) ? els.video.currentTime : 0;
 			const viewMinT = viewCenterT - visibleSpan / 2;
 			const viewMaxT = viewCenterT + visibleSpan / 2;
@@ -1051,6 +1107,34 @@
 			els.video.requestVideoFrameCallback(step);
 		}
 
+		function trackVideoFrames() {
+			if (!els.video.requestVideoFrameCallback || state.frameTrackerActive) return;
+			state.frameTrackerActive = true;
+			const cb = (_, meta) => {
+				state.lastFrameMediaTime = meta.mediaTime;
+				els.video.requestVideoFrameCallback(cb);
+			};
+			els.video.requestVideoFrameCallback(cb);
+		}
+
+		function stepFrame(direction) {
+			if (!els.video.src) return;
+			if (!els.video.paused) els.video.pause();
+			const fps = state.estimatedVideoFps && state.estimatedVideoFps > 0 ? state.estimatedVideoFps : 30;
+			const frameDur = 1 / fps;
+			const base = Number.isFinite(state.lastFrameMediaTime) ? state.lastFrameMediaTime : els.video.currentTime;
+			// Bias slightly past the frame boundary so the decoder lands on the next/previous frame
+			// even with small fps-estimate or floating-point error.
+			const target = base + direction * frameDur * 1.01;
+			const duration = Number.isFinite(els.video.duration) ? els.video.duration : Infinity;
+			const clamped = Math.max(0, Math.min(target, duration));
+			els.video.currentTime = clamped;
+			// Optimistically advance our base so rapid presses keep stepping even if
+			// requestVideoFrameCallback hasn't fired yet for the previous seek.
+			// The frame tracker will correct this to the true mediaTime once the frame is presented.
+			state.lastFrameMediaTime = clamped;
+		}
+
 		els.videoInput.addEventListener("change", async (event) => {
 			const file = event.target.files?.[0];
 			if (!file) return;
@@ -1073,7 +1157,7 @@
 				loadWorkbookFromArrayBuffer(buffer);
 			} catch (err) {
 				console.error(err);
-				setStatus("Failed to read XLSX file.");
+				setStatus("Failed to read spreadsheet file.");
 			}
 		});
 
@@ -1085,11 +1169,71 @@
 			setMetric(event.target.value);
 		});
 
+		function updateDragSensitivityLabel() {
+			els.dragSensitivityValue.textContent = state.dragSensitivity.toFixed(2);
+		}
+
+		function updateWindowWidthLabel() {
+			if (state.windowWidth === null || (state.dataSpan && state.windowWidth >= state.dataSpan - 1e-6)) {
+				els.windowWidthValue.textContent = "full";
+			} else {
+				els.windowWidthValue.textContent = `${formatNum(state.windowWidth, 2)}s`;
+			}
+		}
+
+		function syncWindowSliderToData() {
+			const span = state.dataSpan;
+			if (!Number.isFinite(span) || span <= 0) {
+				els.windowWidth.max = "60";
+				els.windowWidth.value = String(state.windowWidth ?? 60);
+				updateWindowWidthLabel();
+				return;
+			}
+			els.windowWidth.max = String(Math.max(1, span));
+			if (state.windowWidth === null || state.windowWidth > span) {
+				state.windowWidth = span;
+			}
+			els.windowWidth.value = String(state.windowWidth);
+			updateWindowWidthLabel();
+		}
+
+		els.dragSensitivity.addEventListener("input", (event) => {
+			const v = Number(event.target.value);
+			if (Number.isFinite(v) && v > 0) {
+				state.dragSensitivity = v;
+				updateDragSensitivityLabel();
+			}
+		});
+
+		els.windowWidth.addEventListener("input", (event) => {
+			const v = Number(event.target.value);
+			if (!Number.isFinite(v) || v <= 0) return;
+			const span = state.dataSpan;
+			const maxAllowed = Number.isFinite(span) && span > 0 ? span : v;
+			state.windowWidth = v >= maxAllowed - 1e-6 ? maxAllowed : v;
+			updateWindowWidthLabel();
+			drawPlot();
+		});
+
+		updateDragSensitivityLabel();
+		updateWindowWidthLabel();
+
 		els.video.addEventListener("loadedmetadata", () => {
 			estimateVideoFps();
+			trackVideoFrames();
 			updateStats();
 			drawPlot();
 		});
+
+		window.addEventListener("keydown", (evt) => {
+			if (evt.key !== "ArrowLeft" && evt.key !== "ArrowRight") return;
+			if (evt.altKey || evt.ctrlKey || evt.metaKey) return;
+			const ae = document.activeElement;
+			if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.tagName === "SELECT" || ae.isContentEditable)) return;
+			if (!els.video.src) return;
+			evt.preventDefault();
+			stepFrame(evt.key === "ArrowRight" ? 1 : -1);
+		}, { capture: true });
 
 		els.video.addEventListener("play", () => {
 			estimateVideoFps();
@@ -1181,8 +1325,13 @@
 			const n = values.length;
 			if (n === 0) return null;
 			const mean = values.reduce((a, b) => a + b, 0) / n;
-			const min = Math.min(...values);
-			const max = Math.max(...values);
+			let min = Infinity;
+			let max = -Infinity;
+			for (let i = 0; i < n; i += 1) {
+				const v = values[i];
+				if (v < min) min = v;
+				if (v > max) max = v;
+			}
 			const variance = values.reduce((a, b) => a + (b - mean) ** 2, 0) / n;
 			const std = Math.sqrt(variance);
 			const duration = videoEnd - videoStart;
