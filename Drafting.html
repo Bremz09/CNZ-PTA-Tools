@@ -1,0 +1,1077 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Drafting Benefit Dashboard</title>
+  <link rel="stylesheet" href="theme.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <style>
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+    }
+    .rider-card {
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid var(--color-border);
+      background: var(--color-surface-alt);
+    }
+    .rider-name {
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .rider-power {
+      margin-top: 6px;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--color-brand-blue);
+    }
+    .rider-meta {
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+    .chart-card {
+      padding: 16px;
+      border: 1px solid var(--color-border);
+      border-radius: 14px;
+      background: var(--color-surface);
+      box-shadow: 0 10px 24px rgba(14, 65, 116, 0.06);
+    }
+    .chart-card h3 {
+      margin: 0 0 10px;
+      font-size: 16px;
+    }
+    .chart-card .panel-copy {
+      margin: 0 0 14px;
+      font-size: 13px;
+    }
+    .chart-host {
+      position: relative;
+      height: 320px;
+    }
+    .chart-host.tall {
+      height: 380px;
+    }
+    .grid-two-charts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+      gap: 18px;
+    }
+    table.draft-table th,
+    table.draft-table td {
+      text-align: center;
+      font-size: 13px;
+      padding: 8px 10px;
+    }
+    table.draft-table td.name {
+      text-align: left;
+      font-weight: 700;
+    }
+    .ratio-cell {
+      font-weight: 700;
+    }
+    .matrix-table th.diag,
+    .matrix-table td.diag {
+      background: rgba(0, 0, 0, 0.04);
+      color: var(--color-text-muted);
+    }
+    .file-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .file-row label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--color-text-secondary);
+    }
+    .source-tag {
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+    .selector-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: center;
+    }
+    .selector-row select {
+      padding: 8px 12px;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      background: var(--color-surface);
+      font-weight: 700;
+      min-width: 220px;
+    }
+    .timeline-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin: -4px 0 12px;
+    }
+    .seg-toggle {
+      display: inline-flex;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .seg-toggle button {
+      appearance: none;
+      border: none;
+      background: var(--color-surface);
+      color: var(--color-text-secondary);
+      padding: 7px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background-color 0.15s ease, color 0.15s ease;
+    }
+    .seg-toggle button + button {
+      border-left: 1px solid var(--color-border);
+    }
+    .seg-toggle button.active {
+      background: var(--color-brand-blue);
+      color: #fff;
+    }
+    .seg-toggle button:hover:not(.active) {
+      background: var(--color-surface-alt);
+    }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <section class="page-frame">
+      <header class="page-header">
+        <span class="page-kicker">Team Pursuit · Drafting</span>
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">Drafting Benefit Dashboard</h1>
+            <p class="page-subtitle">
+              Power as a fraction of each rider's own average lead power, by position and by rider in front.
+              Lower ratio = more drafting benefit.
+            </p>
+          </div>
+          <div class="page-actions">
+            <a class="btn btn-ghost" href="index.html">&larr; All tools</a>
+          </div>
+        </div>
+      </header>
+
+      <div class="page-body grid-stack">
+
+        <section class="panel">
+          <h3 class="panel-title">Data source &amp; view</h3>
+          <p class="panel-copy">
+            Built-in datasets are <code>Nilai Q</code> and <code>Nilai R1</code> from <code>Drafting.xlsx</code>.
+            Upload another xlsx with the same column layout (rider names in cols 1–4, powers in
+            <code>power 1–4</code>, optional <code>Start</code>/<code>Finish</code>) to replace.
+            <strong>Overall</strong> averages each metric across the per-sheet results.
+          </p>
+          <div class="selector-row" style="margin-top:12px;">
+            <label for="viewSelect">Summary:</label>
+            <select id="viewSelect"></select>
+            <label for="fileInput">Replace data:</label>
+            <input type="file" id="fileInput" accept=".xlsx,.xls" />
+            <span class="source-tag" id="sourceTag"></span>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h3 class="panel-title">Average lead power per rider</h3>
+          <p class="panel-copy">Each rider's baseline = simple mean of their power while in position 1 (per sheet; in Overall, averaged across sheets that had them lead).</p>
+          <div class="summary-grid" id="riderSummary"></div>
+        </section>
+
+        <div class="grid-two-charts">
+          <div class="chart-card">
+            <h3>Benefit by position — overall</h3>
+            <p class="panel-copy">Mean ratio of <em>power in position</em> ÷ <em>own average lead power</em>. Position 1 is by definition ~1.00.</p>
+            <div class="chart-host"><canvas id="chartByPosition"></canvas></div>
+          </div>
+
+          <div class="chart-card">
+            <h3>Benefit by position — per rider</h3>
+            <p class="panel-copy">Same metric, broken down for each rider individually.</p>
+            <div class="chart-host"><canvas id="chartByPositionRider"></canvas></div>
+          </div>
+        </div>
+
+        <section class="chart-card">
+          <h3>Drafting matrix — by rider in front</h3>
+          <p class="panel-copy">
+            Rows = drafting rider. Columns = rider directly ahead (position N&minus;1). Cell = mean power ratio
+            of the drafting rider when sitting behind that rider, regardless of position. Lower = bigger draft.
+          </p>
+          <div class="table-wrap">
+            <table class="draft-table matrix-table" id="draftMatrix"></table>
+          </div>
+        </section>
+
+        <section class="chart-card">
+          <h3>Per-segment timeline</h3>
+          <p class="panel-copy" id="timelineCopy">
+            Power ratio per rider for each segment.
+          </p>
+          <div class="timeline-toolbar">
+            <span style="font-size:13px;font-weight:700;color:var(--color-text-secondary);">X axis:</span>
+            <div class="seg-toggle" id="timelineMode" role="group" aria-label="Timeline x-axis mode">
+              <button type="button" data-mode="time" class="active">By time</button>
+              <button type="button" data-mode="position">By position</button>
+            </div>
+          </div>
+          <div class="chart-host tall"><canvas id="chartTimeline"></canvas></div>
+        </section>
+
+        <section class="chart-card">
+          <h3>Raw segments with computed ratios</h3>
+          <p class="panel-copy">Power values shown with their ratio vs the rider's own average lead power (computed within each sheet).</p>
+          <div class="table-wrap">
+            <table class="draft-table" id="rawTable"></table>
+          </div>
+        </section>
+
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ---------- Built-in default data (from Drafting.xlsx) ----------
+    const DEFAULT_SHEETS = {
+      'Nilai Q': [
+        { positions: ['Tom',      'Marshall', 'George',   'Dan'     ], powers: [588, 530, 441, 424], start: 38.820,  finish: 47.82  },
+        { positions: ['Marshall', 'George',   'Dan',      'Tom'     ], powers: [618, 472, 394, 366], start: 52.709,  finish: 75.66  },
+        { positions: ['George',   'Dan',      'Tom',      'Marshall'], powers: [587, 431, 348, 397], start: 80.540,  finish: 103.70 },
+        { positions: ['Dan',      'Tom',      'Marshall', 'George'  ], powers: [562, 405, 396, 384], start: 107.796, finish: 131.70 },
+        { positions: ['Tom',      'Marshall', 'George',   'Dan'     ], powers: [538, 484, 396, 370], start: 136.700, finish: 161.32 },
+        { positions: ['Marshall', 'George',   'Dan',      null      ], powers: [567, 459, 380, null], start: 162.800, finish: 180.20 },
+        { positions: ['George',   'Dan',      'Marshall', null      ], powers: [566, 425, 390, null], start: 184.000, finish: 215.80 },
+        { positions: ['Dan',      'Marshall', 'George',   null      ], powers: [594, 474, 433, null], start: 219.620, finish: 237.44 },
+      ],
+      'Nilai R1': [
+        { positions: ['Dan',      'Marshall', 'Tom',      'Kergy'   ], powers: [567,   430, 345, 393 ], start: 56.28,  finish: 73.00  },
+        { positions: ['Marshall', 'Tom',      'Kergy',    'Dan'     ], powers: [617,   402, 391, 388 ], start: 77.58,  finish: 107.14 },
+        { positions: ['Tom',      'Kergy',    'Dan',      'Marshall'], powers: [543,   425, 385, 432 ], start: 111.86, finish: 134.74 },
+        { positions: ['Dan',      'Marshall', 'Tom',      null      ], powers: [498,   367, 318, null], start: 143.09, finish: 156.78 },
+        { positions: ['Marshall', 'Tom',      'Dan',      null      ], powers: [618,   417, 433, null], start: 165.77, finish: 183.74 },
+        { positions: ['Tom',      'Dan',      'Marshall', null      ], powers: [468,   353, 386, null], start: 187.78, finish: 203.26 },
+        { positions: ['Dan',      'Marshall', 'Tom',      null      ], powers: [494.5, 348, 341, null], start: 208.32, finish: 219.80 },
+      ],
+    };
+
+    // Brand palette
+    const BRAND = {
+      blue:   '#0E4174',
+      orange: '#DB6B30',
+      aqua:   '#00AEC7',
+      red:    '#EE5340',
+      green:  '#79BE70',
+      silver: '#BBBCBC',
+      black:  '#1A1A1A',
+    };
+    const POSITION_COLOURS = [BRAND.blue, BRAND.aqua, BRAND.orange, BRAND.red];
+    const RIDER_COLOUR_POOL = [BRAND.blue, BRAND.orange, BRAND.aqua, BRAND.green, BRAND.red, BRAND.silver, BRAND.black];
+
+    // App state
+    let SHEETS = {};         // sheetName -> rows
+    let SHEET_MODELS = {};   // sheetName -> per-sheet analysis model
+    let currentView = null;  // 'OVERALL' or sheet name
+    let timelineMode = 'time'; // 'time' or 'position'
+    let sourceLabel = '';
+    let chartByPosition = null;
+    let chartByPositionRider = null;
+    let chartTimeline = null;
+
+    // ---------- Per-sheet analysis ----------
+    function analyseSheet(rows) {
+      const riders = [];
+      const leadPowers = {};
+      const observations = [];
+
+      rows.forEach((row, segIdx) => {
+        const midTime = (row.start != null && row.finish != null) ? (row.start + row.finish) / 2 : null;
+        for (let p = 0; p < 4; p++) {
+          const rider = row.positions[p];
+          const power = row.powers[p];
+          if (!rider || power == null || isNaN(power)) continue;
+          if (!riders.includes(rider)) riders.push(rider);
+          if (p === 0) (leadPowers[rider] = leadPowers[rider] || []).push(power);
+          observations.push({
+            rider,
+            position: p + 1,
+            power,
+            riderInFront: p === 0 ? null : row.positions[p - 1],
+            segIdx,
+            midTime,
+          });
+        }
+      });
+
+      const avgLead = {};
+      riders.forEach(r => {
+        const arr = leadPowers[r] || [];
+        avgLead[r] = arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+      });
+      observations.forEach(o => {
+        o.ratio = (avgLead[o.rider] && avgLead[o.rider] > 0) ? o.power / avgLead[o.rider] : null;
+      });
+      return { riders, avgLead, observations, rows };
+    }
+
+    function meanOf(arr) {
+      const valid = arr.filter(v => v != null && !isNaN(v));
+      if (!valid.length) return null;
+      return valid.reduce((a, b) => a + b, 0) / valid.length;
+    }
+
+    // Aggregates that 'Overall' will average across.
+    function sheetAggregates(model) {
+      const positions = [1, 2, 3, 4];
+      const byPosition = positions.map(p => {
+        const r = model.observations.filter(o => o.position === p && o.ratio != null).map(o => o.ratio);
+        return r.length ? meanOf(r) : null;
+      });
+      const byPositionRider = {};
+      model.riders.forEach(r => {
+        byPositionRider[r] = positions.map(p => {
+          const ratios = model.observations.filter(o => o.rider === r && o.position === p && o.ratio != null).map(o => o.ratio);
+          return ratios.length ? meanOf(ratios) : null;
+        });
+      });
+      const matrix = {};
+      model.riders.forEach(d => {
+        matrix[d] = {};
+        model.riders.forEach(l => {
+          if (l === d) return;
+          const ratios = model.observations
+            .filter(o => o.rider === d && o.riderInFront === l && o.ratio != null)
+            .map(o => o.ratio);
+          matrix[d][l] = ratios.length ? { ratio: meanOf(ratios), count: ratios.length } : null;
+        });
+      });
+      const overallDraft = {};
+      model.riders.forEach(d => {
+        const ratios = model.observations.filter(o => o.rider === d && o.position > 1 && o.ratio != null).map(o => o.ratio);
+        overallDraft[d] = ratios.length ? meanOf(ratios) : null;
+      });
+      return { byPosition, byPositionRider, matrix, overallDraft, avgLead: model.avgLead, riders: model.riders };
+    }
+
+    // ---------- Display-model builders ----------
+    function buildPositionTimeline(turnsMeta, observationsBySheet) {
+      // turnsMeta: chronologically ordered [{sheetName, segIdx, segNum, turnNumber}]
+      // observationsBySheet: { sheetName: model.observations[] }
+      // Layout: x-axis columns are "T1 P1, T1 P2, T1 P3, T1 P4, T2 P1, ...".
+      // Each rider plots their n-th time in position p at column (n-1)*4 + (p-1),
+      // so column k = "every rider's (floor(k/4)+1)-th time in P{(k%4)+1}".
+
+      // Per-rider chronological list of observations grouped by position
+      const riders = [];
+      const byRiderPos = {}; // rider -> { 1: [...], 2: [...], 3: [...], 4: [...] }
+
+      turnsMeta.forEach(t => {
+        const obs = (observationsBySheet[t.sheetName] || [])
+          .filter(o => o.segIdx === t.segIdx && o.ratio != null);
+        obs.forEach(o => {
+          if (!riders.includes(o.rider)) {
+            riders.push(o.rider);
+            byRiderPos[o.rider] = { 1: [], 2: [], 3: [], 4: [] };
+          }
+          byRiderPos[o.rider][o.position].push({
+            ratio: o.ratio,
+            sourceTurn: t.turnNumber,
+            sheetName: t.sheetName,
+            segNum: t.segNum,
+          });
+        });
+      });
+
+      let nCycles = 0;
+      riders.forEach(r => {
+        for (let p = 1; p <= 4; p++) {
+          nCycles = Math.max(nCycles, byRiderPos[r][p].length);
+        }
+      });
+      if (nCycles === 0) nCycles = 1;
+
+      const labels = [];
+      const slotMeta = []; // per-column: { rep, position }
+      for (let rep = 0; rep < nCycles; rep++) {
+        for (let p = 1; p <= 4; p++) {
+          labels.push(`T${rep + 1} P${p}`);
+          slotMeta.push({ rep: rep + 1, position: p });
+        }
+      }
+
+      const series = riders.map(r => {
+        const data = [];
+        const sourceMeta = []; // per-column: { sourceTurn, sheetName, segNum, rep, position } | null
+        for (let rep = 0; rep < nCycles; rep++) {
+          for (let p = 1; p <= 4; p++) {
+            const hit = byRiderPos[r][p][rep];
+            if (hit) {
+              data.push(+(hit.ratio.toFixed(4)));
+              sourceMeta.push({
+                sourceTurn: hit.sourceTurn,
+                sheetName: hit.sheetName,
+                segNum: hit.segNum,
+                rep: rep + 1,
+                position: p,
+              });
+            } else {
+              data.push(null);
+              sourceMeta.push(null);
+            }
+          }
+        }
+        return { rider: r, data, sourceMeta };
+      });
+
+      return { labels, slotMeta, series };
+    }
+
+    function buildDisplayForSheet(name) {
+      const model = SHEET_MODELS[name];
+      const agg = sheetAggregates(model);
+
+      const timelineTime = {
+        series: model.riders.map(r => ({
+          rider: r,
+          points: model.observations
+            .filter(o => o.rider === r && o.ratio != null && o.midTime != null)
+            .sort((a, b) => a.midTime - b.midTime)
+            .map(o => ({ x: o.midTime, y: o.ratio, position: o.position, sheet: name, segNum: o.segIdx + 1 })),
+        })),
+        xType: 'linear',
+        xTitle: 'Segment mid-time (s)',
+        copy: 'Each segment plotted at its mid-time (midway between Start and Finish). Position is shown in the tooltip.',
+      };
+
+      const turnsMeta = model.rows.map((_, segIdx) => ({
+        sheetName: name, segIdx, segNum: segIdx + 1, turnNumber: segIdx + 1,
+      }));
+      const tlPos = buildPositionTimeline(turnsMeta, { [name]: model.observations });
+      const timelinePosition = {
+        labels: tlPos.labels,
+        slotMeta: tlPos.slotMeta,
+        series: tlPos.series,
+        xTitle: 'Cycle through positions (T{n} P{1–4})',
+        copy: 'Each rider plots their n-th time in each position. Column 1 = every rider\'s first P1 turn, column 2 = every rider\'s first P2 turn, etc. So a rider who started in P2 has their first datapoint at column 2 (their P1 turn comes later, at column 1\'s slot once they cycle through).',
+      };
+
+      const leadCounts = {};
+      model.riders.forEach(r => {
+        leadCounts[r] = model.observations.filter(o => o.rider === r && o.position === 1).length;
+      });
+
+      const rawRows = model.rows.map((row, segIdx) => ({
+        sheet: name,
+        segNum: segIdx + 1,
+        positions: row.positions,
+        powers: row.powers,
+        start: row.start,
+        finish: row.finish,
+        avgLeadBySheet: model.avgLead,
+      }));
+
+      return {
+        viewName: name,
+        riders: model.riders,
+        avgLead: { ...model.avgLead },
+        leadCounts,
+        leadCountLabel: (n) => `${n} lead turn${n === 1 ? '' : 's'}`,
+        byPosition: agg.byPosition,
+        byPositionRider: agg.byPositionRider,
+        matrix: agg.matrix,
+        overallDraft: agg.overallDraft,
+        timelineModes: { time: timelineTime, position: timelinePosition },
+        rawRows,
+      };
+    }
+
+    function buildOverall() {
+      const sheetNames = Object.keys(SHEET_MODELS);
+      if (!sheetNames.length) return null;
+
+      const aggs = sheetNames.map(n => ({ name: n, agg: sheetAggregates(SHEET_MODELS[n]) }));
+      const allRiders = [];
+      aggs.forEach(({ agg }) => agg.riders.forEach(r => { if (!allRiders.includes(r)) allRiders.push(r); }));
+
+      const avgLead = {};
+      const leadSheetCount = {};
+      allRiders.forEach(r => {
+        const vals = aggs.map(a => a.agg.avgLead[r]).filter(v => v != null);
+        avgLead[r] = vals.length ? meanOf(vals) : null;
+        leadSheetCount[r] = vals.length;
+      });
+
+      const byPosition = [0, 1, 2, 3].map(i => {
+        const vals = aggs.map(a => a.agg.byPosition[i]).filter(v => v != null);
+        return vals.length ? meanOf(vals) : null;
+      });
+
+      const byPositionRider = {};
+      allRiders.forEach(r => {
+        byPositionRider[r] = [0, 1, 2, 3].map(i => {
+          const vals = aggs.map(a => (a.agg.byPositionRider[r] ? a.agg.byPositionRider[r][i] : null)).filter(v => v != null);
+          return vals.length ? meanOf(vals) : null;
+        });
+      });
+
+      const matrix = {};
+      allRiders.forEach(d => {
+        matrix[d] = {};
+        allRiders.forEach(l => {
+          if (l === d) return;
+          const vals = aggs.map(a => (a.agg.matrix[d] && a.agg.matrix[d][l] ? a.agg.matrix[d][l].ratio : null)).filter(v => v != null);
+          matrix[d][l] = vals.length ? { ratio: meanOf(vals), sheets: vals.length } : null;
+        });
+      });
+
+      const overallDraft = {};
+      allRiders.forEach(r => {
+        const vals = aggs.map(a => a.agg.overallDraft[r]).filter(v => v != null);
+        overallDraft[r] = vals.length ? meanOf(vals) : null;
+      });
+
+      // Time-mode timeline: concatenate per-sheet observations on a sequential segment index.
+      const sheetSegOffset = {};
+      let cursor = 0;
+      sheetNames.forEach(n => {
+        sheetSegOffset[n] = cursor;
+        cursor += SHEET_MODELS[n].rows.length;
+      });
+      const timelineTimeSeries = allRiders.map(r => {
+        const points = [];
+        sheetNames.forEach((n, sIdx) => {
+          const m = SHEET_MODELS[n];
+          const seg = m.observations
+            .filter(o => o.rider === r && o.ratio != null)
+            .sort((a, b) => a.segIdx - b.segIdx)
+            .map(o => ({
+              x: sheetSegOffset[n] + o.segIdx + 1,
+              y: o.ratio,
+              position: o.position,
+              sheet: n,
+              segNum: o.segIdx + 1,
+            }));
+          if (seg.length) {
+            if (sIdx > 0 && points.length) {
+              points.push({ x: sheetSegOffset[n] + 0.5, y: null, position: null, sheet: n, segNum: null });
+            }
+            points.push(...seg);
+          }
+        });
+        return { rider: r, points };
+      });
+      const timelineTime = {
+        series: timelineTimeSeries,
+        xType: 'linear',
+        xTitle: 'Segment number (across sheets)',
+        copy: 'In Overall, segments from each sheet are concatenated on a sequential index (with a break between sheets). Tooltip shows the originating sheet and within-sheet segment number.',
+      };
+
+      // Position-mode timeline: turns concatenated across sheets, sequentially numbered.
+      const turnsMeta = [];
+      let turnCounter = 0;
+      const obsBySheet = {};
+      sheetNames.forEach(n => {
+        const m = SHEET_MODELS[n];
+        obsBySheet[n] = m.observations;
+        m.rows.forEach((_, segIdx) => {
+          turnCounter += 1;
+          turnsMeta.push({ sheetName: n, segIdx, segNum: segIdx + 1, turnNumber: turnCounter });
+        });
+      });
+      const tlPos = buildPositionTimeline(turnsMeta, obsBySheet);
+      const timelinePosition = {
+        labels: tlPos.labels,
+        slotMeta: tlPos.slotMeta,
+        series: tlPos.series,
+        xTitle: 'Cycle through positions (T{n} P{1–4})',
+        copy: 'Each rider plots their n-th time in each position. Curves align so column 1 = each rider\'s first P1 turn, column 2 = first P2 turn, etc. In Overall, P-turns are counted across both sheets.',
+      };
+
+      const rawRows = [];
+      sheetNames.forEach(n => {
+        const m = SHEET_MODELS[n];
+        m.rows.forEach((row, segIdx) => {
+          rawRows.push({
+            sheet: n,
+            segNum: segIdx + 1,
+            positions: row.positions,
+            powers: row.powers,
+            start: row.start,
+            finish: row.finish,
+            avgLeadBySheet: m.avgLead,
+          });
+        });
+      });
+
+      const leadCounts = {};
+      allRiders.forEach(r => {
+        leadCounts[r] = sheetNames.reduce((sum, n) =>
+          sum + SHEET_MODELS[n].observations.filter(o => o.rider === r && o.position === 1).length, 0);
+      });
+
+      return {
+        viewName: 'Overall',
+        riders: allRiders,
+        avgLead,
+        leadCounts,
+        leadCountLabel: (n, r) => {
+          const sc = leadSheetCount[r] || 0;
+          return `${n} lead turn${n === 1 ? '' : 's'} · avg of ${sc} sheet${sc === 1 ? '' : 's'}`;
+        },
+        byPosition,
+        byPositionRider,
+        matrix,
+        overallDraft,
+        timelineModes: { time: timelineTime, position: timelinePosition },
+        rawRows,
+      };
+    }
+
+    function buildDisplay() {
+      if (currentView === 'OVERALL') return buildOverall();
+      return buildDisplayForSheet(currentView);
+    }
+
+    // ---------- Renderers ----------
+    function renderRiderSummary(d) {
+      const host = document.getElementById('riderSummary');
+      host.innerHTML = '';
+      d.riders.forEach(r => {
+        const lead = d.avgLead[r];
+        const count = d.leadCounts[r] || 0;
+        const meta = d.leadCountLabel ? d.leadCountLabel(count, r) : `${count} lead turn${count === 1 ? '' : 's'}`;
+        const card = document.createElement('div');
+        card.className = 'rider-card';
+        card.innerHTML = `
+          <div class="rider-name">${r}</div>
+          <div class="rider-power">${lead != null ? lead.toFixed(0) : '—'} W</div>
+          <div class="rider-meta">${meta}</div>
+        `;
+        host.appendChild(card);
+      });
+    }
+
+    function renderByPositionChart(d) {
+      const positions = [1, 2, 3, 4];
+      const ctx = document.getElementById('chartByPosition');
+      if (chartByPosition) chartByPosition.destroy();
+      chartByPosition = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: positions.map(p => `Position ${p}`),
+          datasets: [{
+            label: 'Mean power ratio',
+            data: d.byPosition.map(v => v == null ? null : +(v.toFixed(4))),
+            backgroundColor: positions.map((_, i) => POSITION_COLOURS[i] + 'CC'),
+            borderColor: positions.map((_, i) => POSITION_COLOURS[i]),
+            borderWidth: 1,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => ctx.parsed.y == null ? 'no data' : `Ratio ${ctx.parsed.y.toFixed(3)}`,
+              },
+            },
+          },
+          scales: { y: { title: { display: true, text: 'Power ÷ own avg lead power' }, suggestedMin: 0.5, suggestedMax: 1.1 } },
+        },
+      });
+    }
+
+    function renderByPositionRiderChart(d) {
+      const positions = [1, 2, 3, 4];
+      const datasets = d.riders.map((r, i) => ({
+        label: r,
+        data: positions.map((_, j) => {
+          const v = d.byPositionRider[r] ? d.byPositionRider[r][j] : null;
+          return v == null ? null : +(v.toFixed(4));
+        }),
+        backgroundColor: RIDER_COLOUR_POOL[i % RIDER_COLOUR_POOL.length] + 'CC',
+        borderColor: RIDER_COLOUR_POOL[i % RIDER_COLOUR_POOL.length],
+        borderWidth: 1,
+      }));
+
+      const ctx = document.getElementById('chartByPositionRider');
+      if (chartByPositionRider) chartByPositionRider.destroy();
+      chartByPositionRider = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: positions.map(p => `Pos ${p}`), datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom' },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => ctx.parsed.y == null
+                  ? `${ctx.dataset.label}: no data`
+                  : `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(3)}`,
+              },
+            },
+          },
+          scales: { y: { title: { display: true, text: 'Power ÷ own avg lead power' }, suggestedMin: 0.5, suggestedMax: 1.1 } },
+        },
+      });
+    }
+
+    function ratioColour(r) {
+      if (r == null) return 'transparent';
+      const lo = 0.5, hi = 1.05;
+      const t = Math.max(0, Math.min(1, (r - lo) / (hi - lo)));
+      const g = { r: 121, g: 190, b: 112 };
+      const y = { r: 240, g: 200, b: 90  };
+      const rd = { r: 238, g: 83,  b: 64  };
+      let c;
+      if (t < 0.5) {
+        const k = t / 0.5;
+        c = { r: g.r + (y.r - g.r) * k, g: g.g + (y.g - g.g) * k, b: g.b + (y.b - g.b) * k };
+      } else {
+        const k = (t - 0.5) / 0.5;
+        c = { r: y.r + (rd.r - y.r) * k, g: y.g + (rd.g - y.g) * k, b: y.b + (rd.b - y.b) * k };
+      }
+      return `rgba(${c.r|0}, ${c.g|0}, ${c.b|0}, 0.55)`;
+    }
+
+    function renderDraftMatrix(d) {
+      const riders = d.riders;
+      const table = document.getElementById('draftMatrix');
+      table.innerHTML = '';
+
+      const thead = document.createElement('thead');
+      const headRow = document.createElement('tr');
+      headRow.innerHTML = '<th>Drafting rider \\ In front</th>' +
+        riders.map(r => `<th>${r}</th>`).join('') + '<th>Overall draft</th>';
+      thead.appendChild(headRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      riders.forEach(drafter => {
+        const tr = document.createElement('tr');
+        let cells = `<td class="name">${drafter}</td>`;
+        riders.forEach(leader => {
+          if (leader === drafter) { cells += '<td class="diag">—</td>'; return; }
+          const cell = d.matrix[drafter] ? d.matrix[drafter][leader] : null;
+          if (!cell) { cells += '<td>—</td>'; return; }
+          const bg = ratioColour(cell.ratio);
+          const title = cell.sheets != null
+            ? `avg of ${cell.sheets} sheet${cell.sheets === 1 ? '' : 's'}`
+            : `${cell.count} obs`;
+          cells += `<td class="ratio-cell" style="background:${bg};" title="${title}">${cell.ratio.toFixed(3)}</td>`;
+        });
+        const overall = d.overallDraft[drafter];
+        if (overall == null) {
+          cells += '<td>—</td>';
+        } else {
+          const bg = ratioColour(overall);
+          cells += `<td class="ratio-cell" style="background:${bg};font-weight:800;">${overall.toFixed(3)}</td>`;
+        }
+        tr.innerHTML = cells;
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+    }
+
+    function renderRawTable(d) {
+      const table = document.getElementById('rawTable');
+      table.innerHTML = '';
+      const thead = document.createElement('thead');
+      const showSheet = currentView === 'OVERALL';
+      thead.innerHTML = `
+        <tr>
+          ${showSheet ? '<th>Sheet</th>' : ''}
+          <th>Seg</th>
+          <th>Start</th>
+          <th>Finish</th>
+          <th>Pos 1</th>
+          <th>Pos 2</th>
+          <th>Pos 3</th>
+          <th>Pos 4</th>
+        </tr>`;
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      d.rawRows.forEach(row => {
+        const tr = document.createElement('tr');
+        let html = '';
+        if (showSheet) html += `<td>${row.sheet}</td>`;
+        html += `<td>${row.segNum}</td>` +
+          `<td>${row.start != null ? row.start.toFixed(2) : '—'}</td>` +
+          `<td>${row.finish != null ? row.finish.toFixed(2) : '—'}</td>`;
+        for (let p = 0; p < 4; p++) {
+          const rider = row.positions[p];
+          const power = row.powers[p];
+          if (!rider || power == null || isNaN(power)) { html += '<td>—</td>'; continue; }
+          const lead = row.avgLeadBySheet[rider];
+          const ratio = (lead && lead > 0) ? power / lead : null;
+          const bg = ratio != null ? ratioColour(ratio) : 'transparent';
+          html += `<td style="background:${bg}"><strong>${rider}</strong> · ${power} W · ${ratio != null ? ratio.toFixed(3) : '—'}</td>`;
+        }
+        tr.innerHTML = html;
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+    }
+
+    function renderTimeline(d) {
+      const mode = d.timelineModes[timelineMode] ? timelineMode : 'time';
+      const m = d.timelineModes[mode];
+      document.getElementById('timelineCopy').textContent = m.copy;
+
+      const ctx = document.getElementById('chartTimeline');
+      if (chartTimeline) chartTimeline.destroy();
+
+      if (mode === 'time') {
+        const datasets = m.series.map((s, i) => ({
+          label: s.rider,
+          data: s.points.map(p => ({
+            x: p.x,
+            y: p.y == null ? null : +(p.y.toFixed(4)),
+            position: p.position, sheet: p.sheet, segNum: p.segNum,
+          })),
+          borderColor: RIDER_COLOUR_POOL[i % RIDER_COLOUR_POOL.length],
+          backgroundColor: RIDER_COLOUR_POOL[i % RIDER_COLOUR_POOL.length] + '33',
+          borderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          tension: 0.2,
+          spanGaps: false,
+        }));
+
+        chartTimeline = new Chart(ctx, {
+          type: 'line',
+          data: { datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            parsing: false,
+            plugins: {
+              legend: { position: 'bottom' },
+              tooltip: {
+                callbacks: {
+                  label: (ctx) => {
+                    const p = ctx.raw;
+                    if (p == null || p.y == null) return '';
+                    const sheetTag = (currentView === 'OVERALL' && p.sheet) ? ` · ${p.sheet} seg ${p.segNum}` : '';
+                    return `${ctx.dataset.label} · pos ${p.position} · ratio ${p.y.toFixed(3)}${sheetTag}`;
+                  },
+                },
+              },
+            },
+            scales: {
+              x: { type: m.xType, title: { display: true, text: m.xTitle } },
+              y: { title: { display: true, text: 'Power ÷ own avg lead power' }, suggestedMin: 0.5, suggestedMax: 1.1 },
+            },
+          },
+        });
+      } else {
+        // Position mode: category x-axis with explicit "T{n} P{p}" labels.
+        const slotMeta = m.slotMeta;
+        const datasets = m.series.map((s, i) => ({
+          label: s.rider,
+          data: s.data,
+          sourceMeta: s.sourceMeta, // per-point: { sourceTurn, sheetName, segNum, rep, position }
+          borderColor: RIDER_COLOUR_POOL[i % RIDER_COLOUR_POOL.length],
+          backgroundColor: RIDER_COLOUR_POOL[i % RIDER_COLOUR_POOL.length] + '33',
+          borderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          tension: 0.2,
+          spanGaps: true,
+        }));
+
+        const isOverall = currentView === 'OVERALL';
+
+        chartTimeline = new Chart(ctx, {
+          type: 'line',
+          data: { labels: m.labels, datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom' },
+              tooltip: {
+                callbacks: {
+                  title: (ctxs) => {
+                    const meta = slotMeta[ctxs[0].dataIndex];
+                    return meta ? `Column: ${meta.rep === 1 ? '1st' : meta.rep === 2 ? '2nd' : meta.rep === 3 ? '3rd' : meta.rep + 'th'} P${meta.position} turn` : '';
+                  },
+                  label: (ctx) => {
+                    if (ctx.parsed.y == null) return '';
+                    const ds = ctx.dataset;
+                    const src = ds.sourceMeta ? ds.sourceMeta[ctx.dataIndex] : null;
+                    if (!src) return `${ds.label}: ${ctx.parsed.y.toFixed(3)}`;
+                    const turnTag = isOverall ? `${src.sheetName} seg ${src.segNum}` : `turn ${src.sourceTurn}`;
+                    return `${ds.label}: ${ctx.parsed.y.toFixed(3)} (from ${turnTag})`;
+                  },
+                },
+              },
+            },
+            scales: {
+              x: {
+                type: 'category',
+                title: { display: true, text: m.xTitle },
+                ticks: {
+                  autoSkip: false,
+                  maxRotation: 0,
+                  font: { size: 10 },
+                },
+                grid: {
+                  color: (ctx) => {
+                    const meta = slotMeta[ctx.index];
+                    if (meta && meta.position === 1 && ctx.index > 0) return 'rgba(0,0,0,0.18)';
+                    return 'rgba(0,0,0,0.06)';
+                  },
+                },
+              },
+              y: { title: { display: true, text: 'Power ÷ own avg lead power' }, suggestedMin: 0.5, suggestedMax: 1.1 },
+            },
+          },
+        });
+      }
+    }
+
+    function renderAll() {
+      const d = buildDisplay();
+      if (!d) return;
+      renderRiderSummary(d);
+      renderByPositionChart(d);
+      renderByPositionRiderChart(d);
+      renderDraftMatrix(d);
+      renderTimeline(d);
+      renderRawTable(d);
+
+      const sheetCount = Object.keys(SHEETS).length;
+      const segTotal = Object.values(SHEETS).reduce((a, rows) => a + rows.length, 0);
+      const tag = currentView === 'OVERALL'
+        ? `Source: ${sourceLabel} · Overall (avg of ${sheetCount} sheets, ${segTotal} segments)`
+        : `Source: ${sourceLabel} · Sheet "${currentView}" · ${SHEETS[currentView].length} segments`;
+      document.getElementById('sourceTag').textContent = tag;
+    }
+
+    function rebuildSelector() {
+      const sel = document.getElementById('viewSelect');
+      const prev = currentView;
+      sel.innerHTML = '';
+      const sheetNames = Object.keys(SHEETS);
+      const optOverall = document.createElement('option');
+      optOverall.value = 'OVERALL';
+      optOverall.textContent = `Overall (avg of ${sheetNames.length} sheets)`;
+      sel.appendChild(optOverall);
+      sheetNames.forEach(n => {
+        const o = document.createElement('option');
+        o.value = n;
+        o.textContent = n;
+        sel.appendChild(o);
+      });
+      if (prev && (prev === 'OVERALL' || sheetNames.includes(prev))) {
+        sel.value = prev;
+        currentView = prev;
+      } else {
+        sel.value = 'OVERALL';
+        currentView = 'OVERALL';
+      }
+    }
+
+    function loadSheets(sheets, label) {
+      SHEETS = sheets;
+      SHEET_MODELS = {};
+      Object.keys(sheets).forEach(n => { SHEET_MODELS[n] = analyseSheet(sheets[n]); });
+      sourceLabel = label;
+      rebuildSelector();
+      renderAll();
+    }
+
+    // ---------- xlsx upload ----------
+    function parseSheetRows(aoa) {
+      if (!aoa.length) return [];
+      const header = aoa[0].map(h => (h == null ? '' : String(h).trim().toLowerCase()));
+      const idxOf = (name) => header.findIndex(h => h === name);
+      const posIdx = ['1', '2', '3', '4'].map(idxOf);
+      const powIdx = ['power 1', 'power 2', 'power 3', 'power 4'].map(idxOf);
+      const startIdx = idxOf('start');
+      const finishIdx = idxOf('finish');
+
+      const rows = [];
+      for (let r = 1; r < aoa.length; r++) {
+        const row = aoa[r];
+        if (!row || row.every(v => v == null || v === '')) continue;
+        const positions = posIdx.map(i => i >= 0 ? (row[i] != null && row[i] !== '' ? String(row[i]).trim() : null) : null);
+        const powers = powIdx.map(i => {
+          if (i < 0) return null;
+          const v = row[i];
+          if (v == null || v === '') return null;
+          const num = Number(v);
+          return isNaN(num) ? null : num;
+        });
+        const start  = startIdx  >= 0 && row[startIdx]  != null && row[startIdx]  !== '' ? Number(row[startIdx])  : null;
+        const finish = finishIdx >= 0 && row[finishIdx] != null && row[finishIdx] !== '' ? Number(row[finishIdx]) : null;
+        if (!positions[0] || powers[0] == null) continue;
+        rows.push({ positions, powers, start, finish });
+      }
+      return rows;
+    }
+
+    document.getElementById('fileInput').addEventListener('change', async (ev) => {
+      const file = ev.target.files && ev.target.files[0];
+      if (!file) return;
+      try {
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type: 'array' });
+        const sheets = {};
+        wb.SheetNames.forEach(name => {
+          const aoa = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: null });
+          const rows = parseSheetRows(aoa);
+          if (rows.length) sheets[name] = rows;
+        });
+        if (!Object.keys(sheets).length) {
+          alert('No usable sheets found in ' + file.name);
+          return;
+        }
+        loadSheets(sheets, file.name);
+      } catch (err) {
+        console.error(err);
+        alert('Failed to read xlsx: ' + err.message);
+      }
+    });
+
+    document.getElementById('viewSelect').addEventListener('change', (ev) => {
+      currentView = ev.target.value;
+      renderAll();
+    });
+
+    document.getElementById('timelineMode').addEventListener('click', (ev) => {
+      const btn = ev.target.closest('button[data-mode]');
+      if (!btn) return;
+      const mode = btn.dataset.mode;
+      if (mode === timelineMode) return;
+      timelineMode = mode;
+      document.querySelectorAll('#timelineMode button').forEach(b => {
+        b.classList.toggle('active', b.dataset.mode === mode);
+      });
+      const d = buildDisplay();
+      if (d) renderTimeline(d);
+    });
+
+    // ---------- Initial render ----------
+    loadSheets(DEFAULT_SHEETS, 'built-in sample (Drafting.xlsx)');
+  </script>
+</body>
+</html>

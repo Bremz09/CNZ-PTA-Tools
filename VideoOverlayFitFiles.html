@@ -501,6 +501,7 @@
 						<span id="seriesLegend" class="legend-group"><span class="swatch"><i style="background:#0f766e"></i>metric</span></span>
 						<span class="swatch"><i style="background:#dc2626"></i>video-linked playhead</span>
 					</div>
+					<button id="snapBtn" type="button" class="target-btn">Snap to playhead</button>
 				</div>
 				<canvas id="plot" class="plot-canvas"></canvas>
 				<div id="currentValueDisplay" class="current-value-readout">values @ playhead: -</div>
@@ -508,7 +509,7 @@
 					<div class="control-group">
 						<label for="scaleControl">Trace window scale</label>
 						<div class="control-row">
-							<input id="scaleControl" type="range" min="2" max="100" step="5" value="100" />
+							<input id="scaleControl" type="range" min="1" max="100" step="5" value="100" />
 							<span id="scaleValue" class="control-value">100%</span>
 						</div>
 					</div>
@@ -561,6 +562,8 @@
 			pointerMode: "none",
 			fpsFrameSamples: [],
 			fpsEstimatorActive: false,
+			lastFrameMediaTime: null,
+			frameTrackerActive: false,
 			drawingData: null,
 			recordingState: "idle",
 			recordStartVideoTime: null,
@@ -591,7 +594,8 @@
 			btnRecord: document.getElementById("btnRecord"),
 			btnCalculate: document.getElementById("btnCalculate"),
 			recordIndicator: document.getElementById("recordIndicator"),
-			summaryGrid: document.getElementById("summaryGrid")
+			summaryGrid: document.getElementById("summaryGrid"),
+			snapBtn: document.getElementById("snapBtn")
 		};
 
 		const ctx = els.plot.getContext("2d");
@@ -652,8 +656,9 @@
 		function deriveLabelFromFileName(fileName) {
 			const withoutExt = String(fileName || "").replace(/\.fit$/i, "");
 			const withoutPrefix = withoutExt.replace(/^\d{8}-\d{6}-\d+-/, "");
-			const normalized = withoutPrefix.replace(/[._-]+/g, " ").trim();
-			return formatDisplayName(normalized || withoutExt);
+			const idx = withoutPrefix.lastIndexOf(" - ");
+			const tail = idx >= 0 ? withoutPrefix.slice(idx + 3) : withoutPrefix;
+			return tail.trim() || "Stream";
 		}
 
 		function deriveStreamDisplayName(fileName, fitData) {
@@ -668,7 +673,7 @@
 
 			for (const candidate of candidates) {
 				if (typeof candidate === "string" && candidate.trim()) {
-					return formatDisplayName(candidate);
+					return candidate.trim();
 				}
 			}
 
@@ -1351,6 +1356,29 @@
 			els.video.requestVideoFrameCallback(step);
 		}
 
+		function trackVideoFrames() {
+			if (!els.video.requestVideoFrameCallback || state.frameTrackerActive) return;
+			state.frameTrackerActive = true;
+			const cb = (_, meta) => {
+				state.lastFrameMediaTime = meta.mediaTime;
+				els.video.requestVideoFrameCallback(cb);
+			};
+			els.video.requestVideoFrameCallback(cb);
+		}
+
+		function stepFrame(direction) {
+			if (!els.video.src) return;
+			if (!els.video.paused) els.video.pause();
+			const fps = state.estimatedVideoFps && state.estimatedVideoFps > 0 ? state.estimatedVideoFps : 30;
+			const frameDur = 1 / fps;
+			const base = Number.isFinite(state.lastFrameMediaTime) ? state.lastFrameMediaTime : els.video.currentTime;
+			const target = base + direction * frameDur * 1.01;
+			const duration = Number.isFinite(els.video.duration) ? els.video.duration : Infinity;
+			const clamped = Math.max(0, Math.min(target, duration));
+			els.video.currentTime = clamped;
+			state.lastFrameMediaTime = clamped;
+		}
+
 		els.videoInput.addEventListener("change", async (event) => {
 			const file = event.target.files?.[0];
 			if (!file) return;
@@ -1402,6 +1430,7 @@
 
 		els.video.addEventListener("loadedmetadata", () => {
 			estimateVideoFps();
+			trackVideoFrames();
 			updateStats();
 			drawPlot();
 		});
@@ -1501,6 +1530,57 @@
 		els.plot.addEventListener("pointerup", releasePointer);
 		els.plot.addEventListener("pointercancel", releasePointer);
 		window.addEventListener("resize", drawPlot);
+
+		window.addEventListener("keydown", (evt) => {
+			if (evt.key !== "ArrowLeft" && evt.key !== "ArrowRight") return;
+			if (evt.altKey || evt.ctrlKey || evt.metaKey) return;
+			const ae = document.activeElement;
+			if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.tagName === "SELECT" || ae.isContentEditable)) return;
+			if (!els.video.src) return;
+			evt.preventDefault();
+			stepFrame(evt.key === "ArrowRight" ? 1 : -1);
+		}, { capture: true });
+
+		function snapFitSeriesToPlayhead() {
+			if (state.series.length === 0) {
+				setStatus("Load FIT streams and select a metric before snapping.");
+				return;
+			}
+			const playhead = Number.isFinite(els.video.currentTime) ? els.video.currentTime : 0;
+			const selectedSet = getSelectedSyncSheetNameSet();
+			let snappedCount = 0;
+			let skippedCount = 0;
+			for (const series of state.series) {
+				if (!selectedSet.has(series.sheetName)) continue;
+				const metricT = playhead - (series.offset || 0);
+				let targetIdx = -1;
+				for (let i = 0; i < series.times.length; i += 1) {
+					if (series.times[i] < metricT) continue;
+					if (Math.abs(series.metricValues[i]) <= 1e-9) continue;
+					targetIdx = i;
+					break;
+				}
+				if (targetIdx < 0) {
+					skippedCount += 1;
+					continue;
+				}
+				const newOffset = playhead - series.times[targetIdx];
+				series.offset = newOffset;
+				state.streamOffsets[series.sheetName] = newOffset;
+				snappedCount += 1;
+			}
+			updateStats();
+			drawPlot();
+			if (snappedCount === 0) {
+				setStatus("No non-zero values were found to the right of the playhead in the selected streams.");
+			} else if (skippedCount > 0) {
+				setStatus(`Snapped ${snappedCount} stream(s). ${skippedCount} stream(s) had no non-zero value right of playhead.`, "ok");
+			} else {
+				setStatus(`Snapped ${snappedCount} stream(s) to the playhead.`, "ok");
+			}
+		}
+
+		els.snapBtn.addEventListener("click", snapFitSeriesToPlayhead);
 
 		// ── Recording helpers ────────────────────────────────────────────
 
