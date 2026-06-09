@@ -757,6 +757,7 @@
 							<label><input id="ovShowPlayhead" type="checkbox" checked /> Vertical playhead</label>
 							<label><input id="ovShowValue" type="checkbox" checked /> Current value label</label>
 							<label><input id="ovShowLabel" type="checkbox" checked /> Metric name label</label>
+							<label title="Encodes via WebCodecs as fast as your CPU/GPU allows. No audio in the output."><input id="ovFast" type="checkbox" /> Fast export (no audio)</label>
 						</div>
 						<div class="export-control-row">
 							<div class="export-control">
@@ -894,7 +895,8 @@
 			ovOpacityValue: document.getElementById("ovOpacityValue"),
 			ovBgOpacityValue: document.getElementById("ovBgOpacityValue"),
 			ovLineWidthValue: document.getElementById("ovLineWidthValue"),
-			ovBitrateValue: document.getElementById("ovBitrateValue")
+			ovBitrateValue: document.getElementById("ovBitrateValue"),
+			ovFast: document.getElementById("ovFast")
 		};
 
 		const ctx = els.plot.getContext("2d");
@@ -2106,7 +2108,162 @@
 			await startExport();
 		});
 
+		let _mp4MuxerModule = null;
+		async function loadMp4Muxer() {
+			if (_mp4MuxerModule) return _mp4MuxerModule;
+			const urls = [
+				"https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/+esm",
+				"https://esm.sh/mp4-muxer@5.2.2"
+			];
+			let lastErr = null;
+			for (const u of urls) {
+				try { _mp4MuxerModule = await import(u); return _mp4MuxerModule; }
+				catch (e) { lastErr = e; }
+			}
+			throw lastErr || new Error("mp4-muxer failed to load");
+		}
+
+		function seekAndPresent(t) {
+			return new Promise((resolve) => {
+				let done = false;
+				const finish = () => { if (done) return; done = true; resolve(); };
+				const onSeeked = () => {
+					els.video.removeEventListener("seeked", onSeeked);
+					if (typeof els.video.requestVideoFrameCallback === "function") {
+						els.video.requestVideoFrameCallback(() => finish());
+						setTimeout(finish, 250);
+					} else {
+						requestAnimationFrame(() => finish());
+					}
+				};
+				els.video.addEventListener("seeked", onSeeked);
+				try { els.video.currentTime = t; }
+				catch (e) { els.video.removeEventListener("seeked", onSeeked); finish(); }
+			});
+		}
+
+		async function startFastExport() {
+			const vw = els.video.videoWidth;
+			const vh = els.video.videoHeight;
+			if (!vw || !vh) { setExportStatus("Video has no playable dimensions yet — wait for it to load.", "error"); return; }
+			if (state.series.length === 0) { setExportStatus("Select a metric first.", "error"); return; }
+			if (typeof window.VideoEncoder !== "function") {
+				setExportStatus("This browser doesn't support WebCodecs. Untick 'Fast export' to use the real-time path.", "error");
+				return;
+			}
+
+			let mod;
+			try { setExportStatus("Loading fast encoder…", "info"); mod = await loadMp4Muxer(); }
+			catch (e) { setExportStatus(`Could not load mp4-muxer: ${e.message}`, "error"); return; }
+			const Muxer = mod.Muxer || mod.default?.Muxer;
+			const ArrayBufferTarget = mod.ArrayBufferTarget || mod.default?.ArrayBufferTarget;
+			if (!Muxer || !ArrayBufferTarget) { setExportStatus("Unexpected mp4-muxer module shape.", "error"); return; }
+
+			const fpsEst = state.estimatedVideoFps && state.estimatedVideoFps > 0 ? state.estimatedVideoFps : 30;
+			const fps = Math.max(1, Math.min(120, Math.round(fpsEst)));
+			const duration = Number.isFinite(els.video.duration) ? els.video.duration : 0;
+			if (duration <= 0) { setExportStatus("Video duration not known yet.", "error"); return; }
+			const totalFrames = Math.max(1, Math.ceil(duration * fps));
+
+			const cv = document.createElement("canvas");
+			cv.width = vw; cv.height = vh;
+			const cctx = cv.getContext("2d", { alpha: false });
+
+			const muxer = new Muxer({
+				target: new ArrayBufferTarget(),
+				video: { codec: "avc", width: vw, height: vh, frameRate: fps },
+				fastStart: "in-memory"
+			});
+
+			let encoderError = null;
+			const encoder = new VideoEncoder({
+				output: (chunk, meta) => {
+					try { muxer.addVideoChunk(chunk, meta); } catch (e) { encoderError = e; }
+				},
+				error: (e) => { encoderError = e; }
+			});
+
+			const codecCandidates = ["avc1.42E01F", "avc1.42E028", "avc1.4D401F", "avc1.640028"];
+			let configured = false;
+			for (const codec of codecCandidates) {
+				const cfg = { codec, width: vw, height: vh, bitrate: overlay.bitrateMbps * 1_000_000, framerate: fps, avc: { format: "avc" } };
+				try {
+					const support = await VideoEncoder.isConfigSupported(cfg);
+					if (support && support.supported) { encoder.configure(cfg); configured = true; break; }
+				} catch (e) { /* try next */ }
+			}
+			if (!configured) { setExportStatus("No supported H.264 encoder configuration found in this browser.", "error"); return; }
+
+			exportState.running = true;
+			exportState.pickedExtension = "mp4";
+			exportState.pickedMime = "video/mp4";
+			progressPct = 0;
+			els.btnExport.classList.add("exporting");
+			els.btnExport.textContent = "■ Stop export";
+			setExportStatus(`Fast-encoding ${totalFrames} frames at ${fps} fps…`, "info");
+
+			try { els.video.pause(); } catch (e) { /* ignore */ }
+			const prevMuted = els.video.muted;
+			els.video.muted = true;
+
+			const t0 = performance.now();
+			try {
+				for (let i = 0; i < totalFrames; i++) {
+					if (!exportState.running) break;
+					const t = Math.min(i / fps, duration - 1e-3);
+					await seekAndPresent(t);
+					if (!exportState.running) break;
+					compositeFrame(cv, cctx);
+					const tsUs = Math.round(i * 1_000_000 / fps);
+					const durUs = Math.round(1_000_000 / fps);
+					const frame = new VideoFrame(cv, { timestamp: tsUs, duration: durUs });
+					const keyFrame = i % (fps * 2) === 0;
+					try { encoder.encode(frame, { keyFrame }); }
+					finally { frame.close(); }
+					if (encoder.encodeQueueSize > 8) await new Promise(r => setTimeout(r, 0));
+					setProgress(100 * (i + 1) / totalFrames);
+					if (encoderError) throw encoderError;
+				}
+				if (exportState.running) {
+					await encoder.flush();
+					muxer.finalize();
+					const buffer = muxer.target.buffer;
+					const blob = new Blob([buffer], { type: "video/mp4" });
+					const baseName = (els.videoInput.files?.[0]?.name || "video").replace(/\.[^.]+$/, "");
+					const fileName = `${baseName}_with_${(state.metricColumnKey || "metric").replace(/[^\w-]+/g, "_")}_fast.mp4`;
+					const url = URL.createObjectURL(blob);
+					const a = document.createElement("a");
+					a.href = url; a.download = fileName;
+					document.body.appendChild(a); a.click(); document.body.removeChild(a);
+					setTimeout(() => URL.revokeObjectURL(url), 60_000);
+
+					const sizeMB = (blob.size / (1024 * 1024)).toFixed(1);
+					const elapsedS = (performance.now() - t0) / 1000;
+					const speedX = duration > 0 ? (duration / elapsedS).toFixed(1) : "—";
+					setExportStatus(`Exported ${fileName} (${sizeMB} MB) in ${elapsedS.toFixed(1)}s — ${speedX}× real time.`, "ok");
+					setProgress(100);
+				} else {
+					try { encoder.close(); } catch (e) { /* ignore */ }
+					setExportStatus("Export cancelled.", "error");
+				}
+			} catch (err) {
+				console.error(err);
+				try { encoder.close(); } catch (e) { /* ignore */ }
+				setExportStatus(`Fast export failed: ${err.message || err}.`, "error");
+			} finally {
+				els.video.muted = prevMuted;
+				exportState.running = false;
+				els.btnExport.classList.remove("exporting");
+				els.btnExport.textContent = "▶ Export with overlay";
+				updateExportEnabled();
+			}
+		}
+
 		async function startExport() {
+			if (els.ovFast?.checked) {
+				await startFastExport();
+				return;
+			}
 			const vw = els.video.videoWidth;
 			const vh = els.video.videoHeight;
 			if (!vw || !vh) { setExportStatus("Video has no playable dimensions yet — wait for it to load.", "error"); return; }

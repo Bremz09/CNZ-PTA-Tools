@@ -420,6 +420,165 @@
 			color: #0f766e;
 		}
 
+		.export-panel {
+			border: 1px solid rgba(31, 41, 55, 0.16);
+			border-radius: 12px;
+			background: #fff;
+			overflow: hidden;
+		}
+
+		.export-explainer {
+			margin: 0;
+			padding: 10px 14px;
+			font-size: 0.85rem;
+			color: var(--muted);
+			border-bottom: 1px solid rgba(31, 41, 55, 0.1);
+			background: #f0f9ff;
+		}
+
+		.export-grid {
+			display: grid;
+			grid-template-columns: minmax(280px, 360px) 1fr;
+			gap: 14px;
+			padding: 14px;
+		}
+
+		.export-controls {
+			display: grid;
+			gap: 10px;
+			align-content: start;
+		}
+
+		.export-control {
+			display: grid;
+			gap: 4px;
+		}
+
+		.export-control label {
+			font-size: 0.82rem;
+			color: var(--muted);
+			font-weight: 600;
+			display: flex;
+			justify-content: space-between;
+			gap: 8px;
+		}
+
+		.export-control input[type="range"] {
+			width: 100%;
+			accent-color: var(--accent);
+		}
+
+		.export-control-row {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 8px;
+		}
+
+		.export-control select,
+		.export-control input[type="color"] {
+			width: 100%;
+			border: 1px solid rgba(31, 41, 55, 0.2);
+			border-radius: 9px;
+			background: #fff;
+			color: var(--ink);
+			padding: 6px;
+			font-size: 0.9rem;
+		}
+
+		.export-control input[type="color"] {
+			padding: 2px;
+			height: 32px;
+			cursor: pointer;
+		}
+
+		.export-control-toggles {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 12px;
+			padding: 4px 0 2px;
+		}
+
+		.export-control-toggles label {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			font-size: 0.85rem;
+			color: var(--muted);
+			cursor: pointer;
+			font-weight: 500;
+		}
+
+		.export-preview-wrap {
+			background: #111;
+			border-radius: 10px;
+			overflow: hidden;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			min-height: 220px;
+			position: relative;
+		}
+
+		#exportPreview {
+			width: 100%;
+			height: auto;
+			display: block;
+		}
+
+		.export-preview-empty {
+			color: rgba(255, 255, 255, 0.7);
+			font-size: 0.9rem;
+			padding: 24px;
+			text-align: center;
+		}
+
+		.export-actions {
+			display: flex;
+			align-items: center;
+			gap: 12px;
+			padding: 12px 14px;
+			border-top: 1px solid rgba(31, 41, 55, 0.1);
+			background: linear-gradient(180deg, #fff, #fafafa);
+			flex-wrap: wrap;
+		}
+
+		.btn-export {
+			background: var(--accent);
+			color: #fff;
+		}
+
+		.btn-export.exporting {
+			background: #7f1d1d;
+		}
+
+		.export-status {
+			font-size: 0.85rem;
+			color: var(--muted);
+			flex: 1;
+			min-width: 200px;
+		}
+
+		.export-progress {
+			width: 100%;
+			height: 6px;
+			background: rgba(31, 41, 55, 0.12);
+			border-radius: 999px;
+			overflow: hidden;
+			margin-top: 6px;
+			display: none;
+		}
+
+		.export-progress.active {
+			display: block;
+		}
+
+		.export-progress-bar {
+			height: 100%;
+			width: 0%;
+			background: var(--accent);
+			transition: width 0.2s ease;
+		}
+
 		@media (max-width: 900px) {
 			.controls {
 				grid-template-columns: 1fr 1fr;
@@ -430,6 +589,10 @@
 			}
 
 			.plot-controls {
+				grid-template-columns: 1fr;
+			}
+
+			.export-grid {
 				grid-template-columns: 1fr;
 			}
 		}
@@ -534,6 +697,108 @@
 				</div>
 				<div id="summaryGrid" class="summary-grid"></div>
 			</div>
+
+			<div class="export-panel">
+				<p class="export-explainer">Bake the data trace onto a copy of the video. Adjust the overlay using the controls; the preview shows the current frame as it will look in the export. The recorder runs in real-time, so a 4&nbsp;min clip takes ~4&nbsp;min to render.</p>
+				<div class="export-grid">
+					<div class="export-controls">
+						<div class="export-control-row">
+							<div class="export-control">
+								<label>X position <strong id="ovxValue">2%</strong></label>
+								<input id="ovx" type="range" min="0" max="100" step="1" value="2" />
+							</div>
+							<div class="export-control">
+								<label>Y position <strong id="ovyValue">75%</strong></label>
+								<input id="ovy" type="range" min="0" max="100" step="1" value="75" />
+							</div>
+						</div>
+						<div class="export-control-row">
+							<div class="export-control">
+								<label>Width <strong id="ovwValue">96%</strong></label>
+								<input id="ovw" type="range" min="10" max="100" step="1" value="96" />
+							</div>
+							<div class="export-control">
+								<label>Height <strong id="ovhValue">22%</strong></label>
+								<input id="ovh" type="range" min="5" max="60" step="1" value="22" />
+							</div>
+						</div>
+						<div class="export-control-row">
+							<div class="export-control">
+								<label>Trace opacity <strong id="ovOpacityValue">100%</strong></label>
+								<input id="ovOpacity" type="range" min="10" max="100" step="5" value="100" />
+							</div>
+							<div class="export-control">
+								<label>Backdrop opacity <strong id="ovBgOpacityValue">0%</strong></label>
+								<input id="ovBgOpacity" type="range" min="0" max="100" step="5" value="0" />
+							</div>
+						</div>
+						<div class="export-control-row">
+							<div class="export-control">
+								<label>Trace colour</label>
+								<input id="ovColor" type="color" value="#ffffff" />
+							</div>
+							<div class="export-control">
+								<label>Colour mode</label>
+								<select id="ovColorMode">
+									<option value="single" selected>Single colour</option>
+									<option value="series">Per-stream (legend)</option>
+								</select>
+							</div>
+						</div>
+						<div class="export-control">
+							<label>Line width <strong id="ovLineWidthValue">2.0 px</strong></label>
+							<input id="ovLineWidth" type="range" min="0.5" max="6" step="0.5" value="2" />
+						</div>
+						<div class="export-control-toggles">
+							<label><input id="ovShowPlayhead" type="checkbox" checked /> Vertical playhead</label>
+							<label><input id="ovShowValue" type="checkbox" checked /> Current value label</label>
+							<label><input id="ovShowLabel" type="checkbox" checked /> Metric name label</label>
+							<label title="Encodes via WebCodecs as fast as your CPU/GPU allows. No audio in the output."><input id="ovFast" type="checkbox" /> Fast export (no audio)</label>
+						</div>
+						<div class="export-control-row">
+							<div class="export-control">
+								<label>Label X <strong id="ovLabelXValue">2%</strong></label>
+								<input id="ovLabelX" type="range" min="0" max="100" step="1" value="2" />
+							</div>
+							<div class="export-control">
+								<label>Label Y <strong id="ovLabelYValue">4%</strong></label>
+								<input id="ovLabelY" type="range" min="0" max="100" step="1" value="4" />
+							</div>
+						</div>
+						<div class="export-control-row">
+							<div class="export-control">
+								<label>Label size <strong id="ovLabelSizeValue">5%</strong></label>
+								<input id="ovLabelSize" type="range" min="2" max="15" step="0.5" value="5" />
+							</div>
+							<div class="export-control">
+								<label>Label backdrop <strong id="ovLabelBgValue">40%</strong></label>
+								<input id="ovLabelBg" type="range" min="0" max="100" step="5" value="40" />
+							</div>
+						</div>
+						<div class="export-control-row">
+							<div class="export-control">
+								<label>Output format</label>
+								<select id="ovFormat">
+									<option value="auto" selected>Auto (best supported)</option>
+								</select>
+							</div>
+							<div class="export-control">
+								<label>Bitrate <strong id="ovBitrateValue">8 Mbps</strong></label>
+								<input id="ovBitrate" type="range" min="2" max="20" step="1" value="8" />
+							</div>
+						</div>
+					</div>
+
+					<div class="export-preview-wrap">
+						<canvas id="exportPreview"></canvas>
+						<div id="exportPreviewEmpty" class="export-preview-empty">Load a video and a metric to preview the export.</div>
+					</div>
+				</div>
+				<div class="export-actions">
+					<button id="btnExport" class="btn btn-export" disabled>&#9210; Export with overlay</button>
+					<div class="export-status" id="exportStatus">Load a video and select a metric to enable export.<div class="export-progress" id="exportProgressWrap"><div class="export-progress-bar" id="exportProgressBar"></div></div></div>
+				</div>
+			</div>
 		</section>
 	</main>
 
@@ -595,7 +860,44 @@
 			btnCalculate: document.getElementById("btnCalculate"),
 			recordIndicator: document.getElementById("recordIndicator"),
 			summaryGrid: document.getElementById("summaryGrid"),
-			snapBtn: document.getElementById("snapBtn")
+			snapBtn: document.getElementById("snapBtn"),
+			exportPreview: document.getElementById("exportPreview"),
+			exportPreviewEmpty: document.getElementById("exportPreviewEmpty"),
+			btnExport: document.getElementById("btnExport"),
+			exportStatus: document.getElementById("exportStatus"),
+			exportProgressWrap: document.getElementById("exportProgressWrap"),
+			exportProgressBar: document.getElementById("exportProgressBar"),
+			ovx: document.getElementById("ovx"),
+			ovy: document.getElementById("ovy"),
+			ovw: document.getElementById("ovw"),
+			ovh: document.getElementById("ovh"),
+			ovOpacity: document.getElementById("ovOpacity"),
+			ovBgOpacity: document.getElementById("ovBgOpacity"),
+			ovColor: document.getElementById("ovColor"),
+			ovColorMode: document.getElementById("ovColorMode"),
+			ovLineWidth: document.getElementById("ovLineWidth"),
+			ovShowPlayhead: document.getElementById("ovShowPlayhead"),
+			ovShowValue: document.getElementById("ovShowValue"),
+			ovShowLabel: document.getElementById("ovShowLabel"),
+			ovLabelX: document.getElementById("ovLabelX"),
+			ovLabelY: document.getElementById("ovLabelY"),
+			ovLabelSize: document.getElementById("ovLabelSize"),
+			ovLabelBg: document.getElementById("ovLabelBg"),
+			ovLabelXValue: document.getElementById("ovLabelXValue"),
+			ovLabelYValue: document.getElementById("ovLabelYValue"),
+			ovLabelSizeValue: document.getElementById("ovLabelSizeValue"),
+			ovLabelBgValue: document.getElementById("ovLabelBgValue"),
+			ovFormat: document.getElementById("ovFormat"),
+			ovBitrate: document.getElementById("ovBitrate"),
+			ovxValue: document.getElementById("ovxValue"),
+			ovyValue: document.getElementById("ovyValue"),
+			ovwValue: document.getElementById("ovwValue"),
+			ovhValue: document.getElementById("ovhValue"),
+			ovOpacityValue: document.getElementById("ovOpacityValue"),
+			ovBgOpacityValue: document.getElementById("ovBgOpacityValue"),
+			ovLineWidthValue: document.getElementById("ovLineWidthValue"),
+			ovBitrateValue: document.getElementById("ovBitrateValue"),
+			ovFast: document.getElementById("ovFast")
 		};
 
 		const ctx = els.plot.getContext("2d");
@@ -1728,6 +2030,680 @@
 			state.summaryCalculated = true;
 			showSummary(state.recordSummary);
 		});
+
+		// ── Export overlay ───────────────────────────────────────────────
+
+		const overlay = {
+			x: 2, y: 75, w: 96, h: 22,
+			opacity: 1.0, bgOpacity: 0,
+			color: "#ffffff", colorMode: "single",
+			lineWidth: 2,
+			showPlayhead: true, showValue: true, showLabel: true,
+			labelX: 2, labelY: 4, labelSize: 5, labelBg: 0.4,
+			format: "auto", bitrateMbps: 8
+		};
+
+		const exportState = {
+			running: false,
+			recorder: null,
+			chunks: [],
+			canvas: null,
+			canvasCtx: null,
+			outStream: null,
+			audioTracks: [],
+			videoTrack: null,
+			rvfcId: null,
+			startedAt: 0,
+			pickedMime: "",
+			pickedExtension: "webm"
+		};
+
+		const previewCtx = els.exportPreview.getContext("2d");
+
+		const MIME_CANDIDATES = [
+			{ mime: 'video/mp4;codecs=avc1.42E01E,mp4a.40.2', ext: 'mp4',  label: 'MP4 (H.264 + AAC)' },
+			{ mime: 'video/mp4;codecs=avc1,mp4a.40.2',          ext: 'mp4',  label: 'MP4 (H.264 + AAC)' },
+			{ mime: 'video/mp4;codecs=avc1',                    ext: 'mp4',  label: 'MP4 (H.264, no audio)' },
+			{ mime: 'video/mp4',                                ext: 'mp4',  label: 'MP4' },
+			{ mime: 'video/webm;codecs=vp9,opus',               ext: 'webm', label: 'WebM (VP9 + Opus)' },
+			{ mime: 'video/webm;codecs=vp8,opus',               ext: 'webm', label: 'WebM (VP8 + Opus)' },
+			{ mime: 'video/webm',                               ext: 'webm', label: 'WebM' }
+		];
+
+		function getSupportedFormats() {
+			if (typeof MediaRecorder === "undefined" || !MediaRecorder.isTypeSupported) return [];
+			return MIME_CANDIDATES.filter(c => MediaRecorder.isTypeSupported(c.mime));
+		}
+
+		function populateFormatSelect() {
+			const supported = getSupportedFormats();
+			els.ovFormat.innerHTML = '<option value="auto">Auto (best supported)</option>';
+			for (const c of supported) {
+				const opt = document.createElement("option");
+				opt.value = c.mime;
+				opt.dataset.ext = c.ext;
+				opt.textContent = c.label;
+				els.ovFormat.appendChild(opt);
+			}
+			if (supported.length === 0) {
+				const opt = document.createElement("option");
+				opt.value = "";
+				opt.textContent = "No supported MediaRecorder format";
+				els.ovFormat.appendChild(opt);
+				els.ovFormat.disabled = true;
+			}
+		}
+
+		function pickMimeForExport() {
+			const supported = getSupportedFormats();
+			if (supported.length === 0) return null;
+			const requested = els.ovFormat.value;
+			if (requested && requested !== "auto") {
+				const match = supported.find(c => c.mime === requested);
+				if (match) return match;
+			}
+			return supported[0];
+		}
+
+		function setExportStatus(message, level = "info") {
+			els.exportStatus.innerHTML = `${message}<div class="export-progress${exportState.running ? ' active' : ''}" id="exportProgressWrap"><div class="export-progress-bar" id="exportProgressBar" style="width:${getProgressPct()}%"></div></div>`;
+			els.exportProgressWrap = document.getElementById("exportProgressWrap");
+			els.exportProgressBar = document.getElementById("exportProgressBar");
+			els.exportStatus.style.color = level === "error" ? "#b91c1c" : level === "ok" ? "#166534" : "var(--muted)";
+		}
+
+		let progressPct = 0;
+		function getProgressPct() { return progressPct; }
+		function setProgress(pct) {
+			progressPct = Math.max(0, Math.min(100, pct));
+			if (els.exportProgressBar) els.exportProgressBar.style.width = `${progressPct}%`;
+		}
+
+		function updateExportEnabled() {
+			const hasVideo = !!els.video.src && Number.isFinite(els.video.duration) && els.video.duration > 0;
+			const hasMetric = state.series.length > 0;
+			const hasRecorder = getSupportedFormats().length > 0;
+			els.btnExport.disabled = exportState.running || !hasVideo || !hasMetric || !hasRecorder;
+			if (!exportState.running) {
+				if (!hasRecorder) setExportStatus("This browser does not expose a supported MediaRecorder codec. Try latest Chrome or Edge.", "error");
+				else if (!hasVideo) setExportStatus("Load a video to enable export.");
+				else if (!hasMetric) setExportStatus("Select a metric to enable export.");
+				else setExportStatus("Ready. Press Export to bake the overlay onto a copy of the video (real-time).");
+			}
+		}
+
+		function overlayRect(W, H) {
+			return {
+				x: Math.round(W * (overlay.x / 100)),
+				y: Math.round(H * (overlay.y / 100)),
+				w: Math.round(W * (overlay.w / 100)),
+				h: Math.round(H * (overlay.h / 100))
+			};
+		}
+
+		function drawOverlayOn(targetCtx, rect, videoW, videoH) {
+			if (state.series.length === 0) return;
+
+			const allValues = [];
+			let dataMinT = Infinity;
+			let dataMaxT = -Infinity;
+			for (const series of state.series) {
+				if (series.times.length < 2) continue;
+				for (let i = 0; i < series.metricValues.length; i++) allValues.push(series.metricValues[i]);
+				const off = series.offset || 0;
+				dataMinT = Math.min(dataMinT, series.times[0] + off);
+				dataMaxT = Math.max(dataMaxT, series.times[series.times.length - 1] + off);
+			}
+			if (allValues.length === 0) return;
+
+			const baseSpan = Math.max(0.01, dataMaxT - dataMinT);
+			const visibleSpan = Math.max(0.01, baseSpan * state.viewScale);
+			const viewCenterT = Number.isFinite(els.video.currentTime) ? els.video.currentTime : 0;
+			const viewMinT = viewCenterT - visibleSpan / 2;
+			const viewMaxT = viewCenterT + visibleSpan / 2;
+			const [yMin, yMax] = findBounds(allValues);
+
+			const xFromT = (t) => rect.x + ((t - viewMinT) / (viewMaxT - viewMinT || 1)) * rect.w;
+			const yFromV = (v) => rect.y + (1 - (v - yMin) / (yMax - yMin || 1)) * rect.h;
+
+			targetCtx.save();
+
+			if (overlay.bgOpacity > 0) {
+				targetCtx.fillStyle = `rgba(0, 0, 0, ${overlay.bgOpacity})`;
+				targetCtx.fillRect(rect.x, rect.y, rect.w, rect.h);
+			}
+
+			targetCtx.globalAlpha = overlay.opacity;
+			targetCtx.lineWidth = overlay.lineWidth * (videoH / 720);
+			targetCtx.lineJoin = "round";
+			targetCtx.lineCap = "round";
+			for (const series of state.series) {
+				targetCtx.strokeStyle = overlay.colorMode === "single" ? overlay.color : series.color;
+				targetCtx.beginPath();
+				let started = false;
+				const off = series.offset || 0;
+				for (let i = 0; i < series.times.length; i++) {
+					const t = series.times[i] + off;
+					if (t < viewMinT - 1 || t > viewMaxT + 1) continue;
+					const x = xFromT(t);
+					const y = yFromV(series.metricValues[i]);
+					if (!started) { targetCtx.moveTo(x, y); started = true; }
+					else { targetCtx.lineTo(x, y); }
+				}
+				targetCtx.stroke();
+			}
+
+			targetCtx.globalAlpha = 1;
+
+			if (overlay.showPlayhead) {
+				const px = rect.x + rect.w * 0.5;
+				targetCtx.strokeStyle = overlay.colorMode === "single" ? overlay.color : "#79BE70";
+				targetCtx.lineWidth = Math.max(1.5, overlay.lineWidth * 0.7 * (videoH / 720));
+				targetCtx.beginPath();
+				targetCtx.moveTo(px, rect.y);
+				targetCtx.lineTo(px, rect.y + rect.h);
+				targetCtx.stroke();
+			}
+
+			if (overlay.showValue) {
+				const fontPx = Math.max(12, Math.round(rect.h * 0.18));
+				targetCtx.font = `700 ${fontPx}px Arial, Helvetica, sans-serif`;
+				targetCtx.textBaseline = "top";
+
+				const playheadEntries = state.series.map(s => ({
+					sheetName: s.label || s.sheetName,
+					color: s.color,
+					value: getSeriesValueAtVideoTime(s, viewCenterT)
+				})).filter(e => e.value !== null);
+				if (playheadEntries.length > 0) {
+					const isMulti = playheadEntries.length > 1 || overlay.colorMode === "series";
+					const lines = playheadEntries.map(e => isMulti ? `${e.sheetName}: ${formatNum(e.value, 1)}` : `${formatNum(e.value, 1)}`);
+					const lineH = fontPx * 1.15;
+					const padX = fontPx * 0.4;
+					const padY = fontPx * 0.25;
+					let maxW = 0;
+					for (const l of lines) maxW = Math.max(maxW, targetCtx.measureText(l).width);
+					const boxW = maxW + padX * 2;
+					const boxH = lines.length * lineH + padY * 2;
+					const boxX = rect.x + rect.w / 2 - boxW / 2;
+					const boxY = rect.y - boxH - padY * 0.5;
+					const drawY = boxY < 0 ? rect.y + padY : boxY;
+					targetCtx.fillStyle = "rgba(17, 24, 39, 0.78)";
+					targetCtx.fillRect(boxX, drawY, boxW, boxH);
+					for (let i = 0; i < lines.length; i++) {
+						targetCtx.fillStyle = isMulti ? playheadEntries[i].color : (overlay.colorMode === "single" ? overlay.color : "#ffffff");
+						targetCtx.fillText(lines[i], boxX + padX, drawY + padY + i * lineH);
+					}
+				}
+			}
+
+			if (overlay.showLabel && state.metricColumnKey) {
+				const labelFont = Math.max(12, Math.round(videoH * (overlay.labelSize / 100)));
+				targetCtx.font = `700 ${labelFont}px Arial, Helvetica, sans-serif`;
+				targetCtx.textBaseline = "top";
+				const padX = labelFont * 0.45;
+				const padY = labelFont * 0.25;
+				const text = state.metricColumnKey;
+				const tw = targetCtx.measureText(text).width;
+				const boxW = tw + padX * 2;
+				const boxH = labelFont * 1.15 + padY * 2;
+				let bx = Math.round(videoW * (overlay.labelX / 100));
+				let by = Math.round(videoH * (overlay.labelY / 100));
+				bx = Math.max(0, Math.min(bx, videoW - boxW));
+				by = Math.max(0, Math.min(by, videoH - boxH));
+				if (overlay.labelBg > 0) {
+					targetCtx.fillStyle = `rgba(17, 24, 39, ${overlay.labelBg})`;
+					targetCtx.fillRect(bx, by, boxW, boxH);
+				}
+				targetCtx.globalAlpha = overlay.opacity;
+				targetCtx.fillStyle = overlay.colorMode === "single" ? overlay.color : "#ffffff";
+				targetCtx.fillText(text, bx + padX, by + padY);
+				targetCtx.globalAlpha = 1;
+			}
+
+			targetCtx.restore();
+		}
+
+		function compositeFrame(targetCanvas, targetCtx) {
+			const W = targetCanvas.width;
+			const H = targetCanvas.height;
+			targetCtx.fillStyle = "#000";
+			targetCtx.fillRect(0, 0, W, H);
+			try {
+				targetCtx.drawImage(els.video, 0, 0, W, H);
+			} catch (err) { /* video not ready */ }
+			drawOverlayOn(targetCtx, overlayRect(W, H), W, H);
+		}
+
+		function renderPreview() {
+			const vw = els.video.videoWidth || 0;
+			const vh = els.video.videoHeight || 0;
+			if (vw === 0 || vh === 0) {
+				els.exportPreview.style.display = "none";
+				els.exportPreviewEmpty.style.display = "block";
+				if (state.series.length === 0) {
+					els.exportPreviewEmpty.textContent = "Load a video and a metric to preview the export.";
+				} else {
+					els.exportPreviewEmpty.textContent = "Load a video to preview the export.";
+				}
+				return;
+			}
+			els.exportPreview.style.display = "block";
+			els.exportPreviewEmpty.style.display = "none";
+
+			const maxW = 720;
+			const scale = vw > maxW ? maxW / vw : 1;
+			const W = Math.round(vw * scale);
+			const H = Math.round(vh * scale);
+			if (els.exportPreview.width !== W || els.exportPreview.height !== H) {
+				els.exportPreview.width = W;
+				els.exportPreview.height = H;
+			}
+			compositeFrame(els.exportPreview, previewCtx);
+		}
+
+		function updateOverlayLabels() {
+			els.ovxValue.textContent = `${overlay.x}%`;
+			els.ovyValue.textContent = `${overlay.y}%`;
+			els.ovwValue.textContent = `${overlay.w}%`;
+			els.ovhValue.textContent = `${overlay.h}%`;
+			els.ovOpacityValue.textContent = `${Math.round(overlay.opacity * 100)}%`;
+			els.ovBgOpacityValue.textContent = `${Math.round(overlay.bgOpacity * 100)}%`;
+			els.ovLineWidthValue.textContent = `${overlay.lineWidth.toFixed(1)} px`;
+			els.ovBitrateValue.textContent = `${overlay.bitrateMbps} Mbps`;
+			els.ovLabelXValue.textContent = `${overlay.labelX}%`;
+			els.ovLabelYValue.textContent = `${overlay.labelY}%`;
+			els.ovLabelSizeValue.textContent = `${overlay.labelSize}%`;
+			els.ovLabelBgValue.textContent = `${Math.round(overlay.labelBg * 100)}%`;
+		}
+
+		function bindOverlayControl(input, key, transform) {
+			input.addEventListener("input", (evt) => {
+				const v = Number(evt.target.value);
+				overlay[key] = transform ? transform(v) : v;
+				updateOverlayLabels();
+				renderPreview();
+			});
+		}
+
+		bindOverlayControl(els.ovx, "x");
+		bindOverlayControl(els.ovy, "y");
+		bindOverlayControl(els.ovw, "w");
+		bindOverlayControl(els.ovh, "h");
+		bindOverlayControl(els.ovOpacity, "opacity", v => v / 100);
+		bindOverlayControl(els.ovBgOpacity, "bgOpacity", v => v / 100);
+		bindOverlayControl(els.ovLineWidth, "lineWidth");
+		bindOverlayControl(els.ovBitrate, "bitrateMbps");
+		bindOverlayControl(els.ovLabelX, "labelX");
+		bindOverlayControl(els.ovLabelY, "labelY");
+		bindOverlayControl(els.ovLabelSize, "labelSize");
+		bindOverlayControl(els.ovLabelBg, "labelBg", v => v / 100);
+
+		els.ovColor.addEventListener("input", (evt) => {
+			overlay.color = evt.target.value;
+			if (overlay.colorMode !== "single") {
+				overlay.colorMode = "single";
+				els.ovColorMode.value = "single";
+			}
+			renderPreview();
+		});
+		els.ovColorMode.addEventListener("change", (evt) => { overlay.colorMode = evt.target.value; renderPreview(); });
+		els.ovShowPlayhead.addEventListener("change", (evt) => { overlay.showPlayhead = evt.target.checked; renderPreview(); });
+		els.ovShowValue.addEventListener("change", (evt) => { overlay.showValue = evt.target.checked; renderPreview(); });
+		els.ovShowLabel.addEventListener("change", (evt) => { overlay.showLabel = evt.target.checked; renderPreview(); });
+		els.ovFormat.addEventListener("change", () => { /* no preview impact */ });
+
+		updateOverlayLabels();
+		populateFormatSelect();
+
+		els.video.addEventListener("loadedmetadata", () => {
+			updateExportEnabled();
+			renderPreview();
+		});
+		els.video.addEventListener("seeked", renderPreview);
+		els.video.addEventListener("timeupdate", () => { renderPreview(); });
+
+		els.btnExport.addEventListener("click", async () => {
+			if (exportState.running) {
+				stopExport(true);
+				return;
+			}
+			await startExport();
+		});
+
+		let _mp4MuxerModule = null;
+		async function loadMp4Muxer() {
+			if (_mp4MuxerModule) return _mp4MuxerModule;
+			const urls = [
+				"https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/+esm",
+				"https://esm.sh/mp4-muxer@5.2.2"
+			];
+			let lastErr = null;
+			for (const u of urls) {
+				try { _mp4MuxerModule = await import(u); return _mp4MuxerModule; }
+				catch (e) { lastErr = e; }
+			}
+			throw lastErr || new Error("mp4-muxer failed to load");
+		}
+
+		function seekAndPresent(t) {
+			return new Promise((resolve) => {
+				let done = false;
+				const finish = () => { if (done) return; done = true; resolve(); };
+				const onSeeked = () => {
+					els.video.removeEventListener("seeked", onSeeked);
+					if (typeof els.video.requestVideoFrameCallback === "function") {
+						els.video.requestVideoFrameCallback(() => finish());
+						setTimeout(finish, 250);
+					} else {
+						requestAnimationFrame(() => finish());
+					}
+				};
+				els.video.addEventListener("seeked", onSeeked);
+				try { els.video.currentTime = t; }
+				catch (e) { els.video.removeEventListener("seeked", onSeeked); finish(); }
+			});
+		}
+
+		async function startFastExport() {
+			const vw = els.video.videoWidth;
+			const vh = els.video.videoHeight;
+			if (!vw || !vh) { setExportStatus("Video has no playable dimensions yet — wait for it to load.", "error"); return; }
+			if (state.series.length === 0) { setExportStatus("Select a metric first.", "error"); return; }
+			if (typeof window.VideoEncoder !== "function") {
+				setExportStatus("This browser doesn't support WebCodecs. Untick 'Fast export' to use the real-time path.", "error");
+				return;
+			}
+
+			let mod;
+			try { setExportStatus("Loading fast encoder…", "info"); mod = await loadMp4Muxer(); }
+			catch (e) { setExportStatus(`Could not load mp4-muxer: ${e.message}`, "error"); return; }
+			const Muxer = mod.Muxer || mod.default?.Muxer;
+			const ArrayBufferTarget = mod.ArrayBufferTarget || mod.default?.ArrayBufferTarget;
+			if (!Muxer || !ArrayBufferTarget) { setExportStatus("Unexpected mp4-muxer module shape.", "error"); return; }
+
+			const fpsEst = state.estimatedVideoFps && state.estimatedVideoFps > 0 ? state.estimatedVideoFps : 30;
+			const fps = Math.max(1, Math.min(120, Math.round(fpsEst)));
+			const duration = Number.isFinite(els.video.duration) ? els.video.duration : 0;
+			if (duration <= 0) { setExportStatus("Video duration not known yet.", "error"); return; }
+			const totalFrames = Math.max(1, Math.ceil(duration * fps));
+
+			const cv = document.createElement("canvas");
+			cv.width = vw; cv.height = vh;
+			const cctx = cv.getContext("2d", { alpha: false });
+
+			const muxer = new Muxer({
+				target: new ArrayBufferTarget(),
+				video: { codec: "avc", width: vw, height: vh, frameRate: fps },
+				fastStart: "in-memory"
+			});
+
+			let encoderError = null;
+			const encoder = new VideoEncoder({
+				output: (chunk, meta) => {
+					try { muxer.addVideoChunk(chunk, meta); } catch (e) { encoderError = e; }
+				},
+				error: (e) => { encoderError = e; }
+			});
+
+			const codecCandidates = ["avc1.42E01F", "avc1.42E028", "avc1.4D401F", "avc1.640028"];
+			let configured = false;
+			for (const codec of codecCandidates) {
+				const cfg = { codec, width: vw, height: vh, bitrate: overlay.bitrateMbps * 1_000_000, framerate: fps, avc: { format: "avc" } };
+				try {
+					const support = await VideoEncoder.isConfigSupported(cfg);
+					if (support && support.supported) { encoder.configure(cfg); configured = true; break; }
+				} catch (e) { /* try next */ }
+			}
+			if (!configured) { setExportStatus("No supported H.264 encoder configuration found in this browser.", "error"); return; }
+
+			exportState.running = true;
+			exportState.pickedExtension = "mp4";
+			exportState.pickedMime = "video/mp4";
+			progressPct = 0;
+			els.btnExport.classList.add("exporting");
+			els.btnExport.textContent = "■ Stop export";
+			setExportStatus(`Fast-encoding ${totalFrames} frames at ${fps} fps…`, "info");
+
+			try { els.video.pause(); } catch (e) { /* ignore */ }
+			const prevMuted = els.video.muted;
+			els.video.muted = true;
+
+			const t0 = performance.now();
+			try {
+				for (let i = 0; i < totalFrames; i++) {
+					if (!exportState.running) break;
+					const t = Math.min(i / fps, duration - 1e-3);
+					await seekAndPresent(t);
+					if (!exportState.running) break;
+					compositeFrame(cv, cctx);
+					const tsUs = Math.round(i * 1_000_000 / fps);
+					const durUs = Math.round(1_000_000 / fps);
+					const frame = new VideoFrame(cv, { timestamp: tsUs, duration: durUs });
+					const keyFrame = i % (fps * 2) === 0;
+					try { encoder.encode(frame, { keyFrame }); }
+					finally { frame.close(); }
+					if (encoder.encodeQueueSize > 8) await new Promise(r => setTimeout(r, 0));
+					setProgress(100 * (i + 1) / totalFrames);
+					if (encoderError) throw encoderError;
+				}
+				if (exportState.running) {
+					await encoder.flush();
+					muxer.finalize();
+					const buffer = muxer.target.buffer;
+					const blob = new Blob([buffer], { type: "video/mp4" });
+					const baseName = (els.videoInput.files?.[0]?.name || "video").replace(/\.[^.]+$/, "");
+					const fileName = `${baseName}_with_${(state.metricColumnKey || "metric").replace(/[^\w-]+/g, "_")}_fast.mp4`;
+					const url = URL.createObjectURL(blob);
+					const a = document.createElement("a");
+					a.href = url; a.download = fileName;
+					document.body.appendChild(a); a.click(); document.body.removeChild(a);
+					setTimeout(() => URL.revokeObjectURL(url), 60_000);
+
+					const sizeMB = (blob.size / (1024 * 1024)).toFixed(1);
+					const elapsedS = (performance.now() - t0) / 1000;
+					const speedX = duration > 0 ? (duration / elapsedS).toFixed(1) : "—";
+					setExportStatus(`Exported ${fileName} (${sizeMB} MB) in ${elapsedS.toFixed(1)}s — ${speedX}× real time.`, "ok");
+					setProgress(100);
+				} else {
+					try { encoder.close(); } catch (e) { /* ignore */ }
+					setExportStatus("Export cancelled.", "error");
+				}
+			} catch (err) {
+				console.error(err);
+				try { encoder.close(); } catch (e) { /* ignore */ }
+				setExportStatus(`Fast export failed: ${err.message || err}.`, "error");
+			} finally {
+				els.video.muted = prevMuted;
+				exportState.running = false;
+				els.btnExport.classList.remove("exporting");
+				els.btnExport.textContent = "▶ Export with overlay";
+				updateExportEnabled();
+			}
+		}
+
+		async function startExport() {
+			if (els.ovFast?.checked) {
+				await startFastExport();
+				return;
+			}
+			const vw = els.video.videoWidth;
+			const vh = els.video.videoHeight;
+			if (!vw || !vh) { setExportStatus("Video has no playable dimensions yet — wait for it to load.", "error"); return; }
+			if (state.series.length === 0) { setExportStatus("Select a metric first.", "error"); return; }
+
+			const picked = pickMimeForExport();
+			if (!picked) { setExportStatus("No supported MediaRecorder MIME type in this browser.", "error"); return; }
+			exportState.pickedMime = picked.mime;
+			exportState.pickedExtension = picked.ext;
+
+			const cv = document.createElement("canvas");
+			cv.width = vw;
+			cv.height = vh;
+			const cctx = cv.getContext("2d", { alpha: false });
+			exportState.canvas = cv;
+			exportState.canvasCtx = cctx;
+
+			const fps = state.estimatedVideoFps && state.estimatedVideoFps > 0 ? state.estimatedVideoFps : 30;
+			const canvasStream = cv.captureStream(fps);
+			exportState.videoTrack = canvasStream.getVideoTracks()[0];
+
+			let audioTracks = [];
+			try {
+				if (typeof els.video.captureStream === "function") {
+					const vidStream = els.video.captureStream();
+					audioTracks = vidStream.getAudioTracks();
+				} else if (typeof els.video.mozCaptureStream === "function") {
+					const vidStream = els.video.mozCaptureStream();
+					audioTracks = vidStream.getAudioTracks();
+				}
+			} catch (err) {
+				console.warn("Could not capture audio from video", err);
+				audioTracks = [];
+			}
+			exportState.audioTracks = audioTracks;
+
+			const outStream = new MediaStream();
+			outStream.addTrack(exportState.videoTrack);
+			for (const t of audioTracks) outStream.addTrack(t);
+			exportState.outStream = outStream;
+
+			const recorderOptions = {
+				mimeType: picked.mime,
+				videoBitsPerSecond: overlay.bitrateMbps * 1_000_000,
+				audioBitsPerSecond: 128_000
+			};
+
+			let recorder;
+			try {
+				recorder = new MediaRecorder(outStream, recorderOptions);
+			} catch (err) {
+				setExportStatus(`Could not create recorder: ${err.message}`, "error");
+				return;
+			}
+			exportState.recorder = recorder;
+			exportState.chunks = [];
+
+			recorder.ondataavailable = (evt) => { if (evt.data && evt.data.size > 0) exportState.chunks.push(evt.data); };
+			recorder.onstop = () => finalizeExport();
+			recorder.onerror = (evt) => {
+				console.error("MediaRecorder error", evt);
+				setExportStatus(`Recorder error: ${evt.error?.name || evt.error || "unknown"}.`, "error");
+				stopExport(true);
+			};
+
+			exportState.running = true;
+			progressPct = 0;
+			els.btnExport.classList.add("exporting");
+			els.btnExport.textContent = "■ Stop export";
+			setExportStatus(`Recording with ${picked.label}… leave this tab focused.`, "info");
+
+			try {
+				els.video.pause();
+				els.video.currentTime = 0;
+				await new Promise(r => {
+					if (els.video.readyState >= 2) return r();
+					const onSeeked = () => { els.video.removeEventListener("seeked", onSeeked); r(); };
+					els.video.addEventListener("seeked", onSeeked);
+				});
+			} catch (err) { /* ignore */ }
+
+			const drawLoop = () => {
+				if (!exportState.running) return;
+				compositeFrame(cv, cctx);
+				const dur = Number.isFinite(els.video.duration) ? els.video.duration : 0;
+				if (dur > 0) setProgress(100 * (els.video.currentTime / dur));
+				if (typeof els.video.requestVideoFrameCallback === "function") {
+					exportState.rvfcId = els.video.requestVideoFrameCallback(drawLoop);
+				} else {
+					exportState.rvfcId = requestAnimationFrame(drawLoop);
+				}
+			};
+
+			recorder.start(1000);
+			exportState.startedAt = performance.now();
+
+			els.video.addEventListener("ended", onVideoEndedDuringExport, { once: true });
+			try {
+				await els.video.play();
+			} catch (err) {
+				setExportStatus(`Could not play video for export: ${err.message}. Click somewhere on the page first, then try again.`, "error");
+				stopExport(true);
+				return;
+			}
+
+			drawLoop();
+			updateExportEnabled();
+		}
+
+		function onVideoEndedDuringExport() {
+			if (exportState.running) stopExport(false);
+		}
+
+		function stopExport(cancelled) {
+			if (!exportState.running) return;
+			exportState.running = false;
+			els.btnExport.classList.remove("exporting");
+			els.btnExport.textContent = "▶ Export with overlay";
+
+			els.video.removeEventListener("ended", onVideoEndedDuringExport);
+			if (exportState.rvfcId != null) {
+				if (typeof els.video.cancelVideoFrameCallback === "function") {
+					try { els.video.cancelVideoFrameCallback(exportState.rvfcId); } catch (e) { /* ignore */ }
+				} else {
+					cancelAnimationFrame(exportState.rvfcId);
+				}
+				exportState.rvfcId = null;
+			}
+			try { els.video.pause(); } catch (e) { /* ignore */ }
+
+			if (cancelled) {
+				try { exportState.recorder?.stop(); } catch (e) { /* ignore */ }
+				setExportStatus("Export cancelled.", "error");
+				exportState.chunks = [];
+				updateExportEnabled();
+				return;
+			}
+
+			try {
+				if (exportState.recorder && exportState.recorder.state !== "inactive") exportState.recorder.stop();
+			} catch (e) { /* ignore */ }
+		}
+
+		function finalizeExport() {
+			const chunks = exportState.chunks;
+			exportState.chunks = [];
+			if (chunks.length === 0) {
+				setExportStatus("Export produced no data. Try a different format.", "error");
+				updateExportEnabled();
+				return;
+			}
+			const blob = new Blob(chunks, { type: exportState.pickedMime.split(";")[0] });
+
+			const baseName = (els.videoInput.files?.[0]?.name || "video").replace(/\.[^.]+$/, "");
+			const fileName = `${baseName}_with_${(state.metricColumnKey || "metric").replace(/[^\w-]+/g, "_")}.${exportState.pickedExtension}`;
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = fileName;
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			setTimeout(() => URL.revokeObjectURL(url), 60_000);
+
+			const sizeMB = (blob.size / (1024 * 1024)).toFixed(1);
+			setExportStatus(`Exported ${fileName} (${sizeMB} MB).`, "ok");
+			setProgress(100);
+			updateExportEnabled();
+		}
+
+		const _origSetMetric = setMetric;
+		setMetric = function (k) { _origSetMetric(k); updateExportEnabled(); renderPreview(); };
+		const _origDrawPlot = drawPlot;
+		drawPlot = function () { _origDrawPlot(); renderPreview(); };
+
+		updateExportEnabled();
+		renderPreview();
 
 		drawPlot();
 		updateStats();
