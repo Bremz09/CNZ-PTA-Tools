@@ -157,6 +157,89 @@
 			padding: 4px;
 		}
 
+		.sheet-list {
+			width: 100%;
+			border: 1px solid #E0E0E0;
+			border-radius: 6px;
+			background: #fff;
+			color: var(--ink);
+			padding: 4px;
+			min-height: 132px;
+			max-height: 132px;
+			overflow-y: auto;
+			font-size: 0.94rem;
+			display: flex;
+			flex-direction: column;
+			gap: 2px;
+		}
+
+		.sheet-list[data-disabled="true"] {
+			opacity: 0.55;
+			pointer-events: none;
+			background: rgba(0, 0, 0, 0.03);
+		}
+
+		.sheet-list-empty {
+			padding: 8px;
+			color: var(--muted);
+			font-style: italic;
+			font-size: 0.85rem;
+		}
+
+		.sheet-list-item {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			padding: 5px 6px;
+			border-radius: 5px;
+			border: 1px solid transparent;
+			background: transparent;
+			cursor: grab;
+			user-select: none;
+		}
+
+		.sheet-list-item:hover {
+			background: rgba(14, 65, 116, 0.06);
+		}
+
+		.sheet-list-item.dragging {
+			opacity: 0.4;
+			cursor: grabbing;
+		}
+
+		.sheet-list-item.drag-over-top {
+			border-top-color: var(--accent);
+		}
+
+		.sheet-list-item.drag-over-bottom {
+			border-bottom-color: var(--accent);
+		}
+
+		.sheet-list-handle {
+			color: var(--muted);
+			font-size: 0.95rem;
+			line-height: 1;
+			padding: 0 2px;
+			cursor: grab;
+			letter-spacing: -1px;
+		}
+
+		.sheet-list-item input[type="checkbox"] {
+			width: auto;
+			margin: 0;
+			padding: 0;
+			flex-shrink: 0;
+			accent-color: var(--accent);
+			cursor: pointer;
+		}
+
+		.sheet-list-label {
+			flex: 1;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
 		.stats {
 			padding: 8px 18px 14px;
 			display: flex;
@@ -644,9 +727,8 @@
 			</div>
 
 			<div class="field">
-				<label for="sheetSelect">Sheets (Ctrl/Shift for multiple)</label>
-				<select id="sheetSelect" multiple size="6" disabled>
-				</select>
+				<label for="sheetSelect">Sheets (drag to reorder)</label>
+				<div id="sheetSelect" class="sheet-list" data-disabled="true" role="listbox" aria-multiselectable="true" aria-label="Sheets"></div>
 			</div>
 
 			<div class="field">
@@ -899,6 +981,8 @@
 			ovFast: document.getElementById("ovFast")
 		};
 
+		const sheetList = createSheetList(els.sheetSelect);
+
 		const ctx = els.plot.getContext("2d");
 
 		function setStatus(message, level = "warn") {
@@ -931,6 +1015,142 @@
 			return Array.from(select.selectedOptions || [])
 				.map((option) => option.value)
 				.filter(Boolean);
+		}
+
+		function createSheetList(container) {
+			let items = [];
+			let defaultOrder = [];
+			let dragSrcValue = null;
+
+			function indexOfValue(v) {
+				return items.findIndex((it) => it.value === v);
+			}
+
+			function emitChange() {
+				container.dispatchEvent(new Event("change"));
+			}
+
+			function clearDragMarkers() {
+				container.querySelectorAll(".drag-over-top, .drag-over-bottom").forEach((el) => {
+					el.classList.remove("drag-over-top", "drag-over-bottom");
+				});
+			}
+
+			function resetToDefaultOrder() {
+				items.sort((a, b) => defaultOrder.indexOf(a.value) - defaultOrder.indexOf(b.value));
+			}
+
+			function render() {
+				container.innerHTML = "";
+				if (items.length === 0) {
+					const empty = document.createElement("div");
+					empty.className = "sheet-list-empty";
+					empty.textContent = "No items loaded.";
+					container.appendChild(empty);
+					return;
+				}
+				for (const item of items) {
+					const row = document.createElement("div");
+					row.className = "sheet-list-item";
+					row.dataset.value = item.value;
+					row.draggable = true;
+					row.setAttribute("role", "option");
+					row.setAttribute("aria-selected", item.selected ? "true" : "false");
+
+					const handle = document.createElement("span");
+					handle.className = "sheet-list-handle";
+					handle.textContent = "\u2630";
+					handle.title = "Drag to reorder";
+					handle.setAttribute("aria-hidden", "true");
+
+					const checkbox = document.createElement("input");
+					checkbox.type = "checkbox";
+					checkbox.checked = item.selected;
+					checkbox.addEventListener("click", (e) => e.stopPropagation());
+					checkbox.addEventListener("change", () => {
+						item.selected = checkbox.checked;
+						resetToDefaultOrder();
+						render();
+						emitChange();
+					});
+
+					const label = document.createElement("span");
+					label.className = "sheet-list-label";
+					label.textContent = item.label;
+					label.title = item.label;
+
+					row.append(handle, checkbox, label);
+
+					row.addEventListener("dragstart", (e) => {
+						dragSrcValue = item.value;
+						e.dataTransfer.effectAllowed = "move";
+						try { e.dataTransfer.setData("text/plain", item.value); } catch (_) { /* noop */ }
+						row.classList.add("dragging");
+					});
+					row.addEventListener("dragend", () => {
+						row.classList.remove("dragging");
+						clearDragMarkers();
+						dragSrcValue = null;
+					});
+					row.addEventListener("dragover", (e) => {
+						if (!dragSrcValue || dragSrcValue === item.value) return;
+						e.preventDefault();
+						e.dataTransfer.dropEffect = "move";
+						const rect = row.getBoundingClientRect();
+						const before = (e.clientY - rect.top) < rect.height / 2;
+						row.classList.remove("drag-over-top", "drag-over-bottom");
+						row.classList.add(before ? "drag-over-top" : "drag-over-bottom");
+					});
+					row.addEventListener("dragleave", () => {
+						row.classList.remove("drag-over-top", "drag-over-bottom");
+					});
+					row.addEventListener("drop", (e) => {
+						if (!dragSrcValue || dragSrcValue === item.value) return;
+						e.preventDefault();
+						const rect = row.getBoundingClientRect();
+						const before = (e.clientY - rect.top) < rect.height / 2;
+						const fromIdx = indexOfValue(dragSrcValue);
+						let toIdx = indexOfValue(item.value);
+						if (fromIdx < 0 || toIdx < 0) return;
+						const [moved] = items.splice(fromIdx, 1);
+						if (fromIdx < toIdx) toIdx -= 1;
+						const insertAt = before ? toIdx : toIdx + 1;
+						items.splice(insertAt, 0, moved);
+						clearDragMarkers();
+						render();
+						emitChange();
+					});
+
+					row.addEventListener("click", (e) => {
+						if (e.target === checkbox || e.target === handle) return;
+						checkbox.checked = !checkbox.checked;
+						checkbox.dispatchEvent(new Event("change"));
+					});
+
+					container.appendChild(row);
+				}
+			}
+
+			function setItems(list) {
+				items = list.map((it) => ({
+					value: it.value,
+					label: it.label !== undefined ? it.label : it.value,
+					selected: !!it.selected
+				}));
+				defaultOrder = items.map((it) => it.value);
+				render();
+			}
+
+			function getSelectedValues() {
+				return items.filter((it) => it.selected).map((it) => it.value);
+			}
+
+			function setEnabled(value) {
+				container.dataset.disabled = value ? "false" : "true";
+			}
+
+			render();
+			return { setItems, getSelectedValues, setEnabled, container };
 		}
 
 		function getSeriesColor(index) {
@@ -1016,14 +1236,8 @@
 			resetMetricAndPlot();
 
 			const sheets = state.workbook.SheetNames || [];
-			els.sheetSelect.innerHTML = "";
-			for (const name of sheets) {
-				const option = document.createElement("option");
-				option.value = name;
-				option.textContent = name;
-				els.sheetSelect.appendChild(option);
-			}
-			els.sheetSelect.disabled = sheets.length === 0;
+			sheetList.setItems(sheets.map((name) => ({ value: name, label: name, selected: false })));
+			sheetList.setEnabled(sheets.length > 0);
 
 			if (sheets.length > 0) {
 				setStatus("Workbook loaded. Choose one or more sheets.", "ok");
@@ -1035,7 +1249,7 @@
 		function parseSelectedSheets() {
 			if (!state.workbook) return;
 
-			const selectedNames = getSelectedValues(els.sheetSelect);
+			const selectedNames = sheetList.getSelectedValues();
 			state.selectedSheetNames = selectedNames;
 			state.selectedSheets = [];
 			state.samplingDisplay = "-";

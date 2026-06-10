@@ -171,7 +171,8 @@
         <section class="panel">
           <h3 class="panel-title">Data source &amp; view</h3>
           <p class="panel-copy">
-            Built-in datasets are <code>Nilai Q</code> and <code>Nilai R1</code> from <code>Drafting.xlsx</code>.
+            Built-in datasets are <code>Nilai Q</code>, <code>HongKong Q</code>, <code>HongKong R1</code>,
+            <code>HongKong F</code> and <code>Nilai R1</code> from <code>Drafting.xlsx</code>.
             Upload another xlsx with the same column layout (rider names in cols 1–4, powers in
             <code>power 1–4</code>, optional <code>Start</code>/<code>Finish</code>) to replace.
             <strong>Overall</strong> averages each metric across the per-sheet results.
@@ -217,6 +218,18 @@
         </section>
 
         <section class="chart-card">
+          <h3>Draft given by leader — by leader's position</h3>
+          <p class="panel-copy">
+            Rows = the rider in front. Columns = the position that rider is in (so the follower is one
+            position back). Cell = mean power ratio of whichever rider was directly behind them, expressed
+            against that follower's own average lead power. Lower = the leader gave a bigger draft.
+          </p>
+          <div class="table-wrap">
+            <table class="draft-table matrix-table" id="leaderGiveTable"></table>
+          </div>
+        </section>
+
+        <section class="chart-card">
           <h3>Per-segment timeline</h3>
           <p class="panel-copy" id="timelineCopy">
             Power ratio per rider for each segment.
@@ -247,14 +260,39 @@
     // ---------- Built-in default data (from Drafting.xlsx) ----------
     const DEFAULT_SHEETS = {
       'Nilai Q': [
-        { positions: ['Tom',      'Marshall', 'George',   'Dan'     ], powers: [588, 530, 441, 424], start: 38.820,  finish: 47.82  },
-        { positions: ['Marshall', 'George',   'Dan',      'Tom'     ], powers: [618, 472, 394, 366], start: 52.709,  finish: 75.66  },
-        { positions: ['George',   'Dan',      'Tom',      'Marshall'], powers: [587, 431, 348, 397], start: 80.540,  finish: 103.70 },
-        { positions: ['Dan',      'Tom',      'Marshall', 'George'  ], powers: [562, 405, 396, 384], start: 107.796, finish: 131.70 },
-        { positions: ['Tom',      'Marshall', 'George',   'Dan'     ], powers: [538, 484, 396, 370], start: 136.700, finish: 161.32 },
+        { positions: ['Marshall', 'George',   'Dan',      'Tom'     ], powers: [639, 450, 377, 362], start: 52.709,  finish: 75.66  },
+        { positions: ['George',   'Dan',      'Tom',      'Marshall'], powers: [599, 420, 342, 424], start: 80.540,  finish: 103.70 },
+        { positions: ['Dan',      'Tom',      'Marshall', 'George'  ], powers: [579, 390, 389, 393], start: 107.796, finish: 131.70 },
+        { positions: ['Tom',      'Marshall', 'George',   'Dan'     ], powers: [588, 479, 408, 407], start: 136.700, finish: 161.32 },
         { positions: ['Marshall', 'George',   'Dan',      null      ], powers: [567, 459, 380, null], start: 162.800, finish: 180.20 },
         { positions: ['George',   'Dan',      'Marshall', null      ], powers: [566, 425, 390, null], start: 184.000, finish: 215.80 },
         { positions: ['Dan',      'Marshall', 'George',   null      ], powers: [594, 474, 433, null], start: 219.620, finish: 237.44 },
+      ],
+      'HongKong Q': [
+        { positions: ['Dan',      'George',   'Marshall', 'Keegan'  ], powers: [538, 393, 355, 305], start: 55.82,  finish: 73.38  },
+        { positions: ['George',   'Marshall', 'Keegan',   'Dan'     ], powers: [567, 423, 327, 381], start: 79.04,  finish: 108.34 },
+        { positions: ['Marshall', 'Keegan',   'Dan',      'George'  ], powers: [649, 429, 424, 433], start: 112.94, finish: 143.28 },
+        { positions: ['Keegan',   'Dan',      'George',   'Marshall'], powers: [514, 417, 357, 418], start: 146.94, finish: 157.14 },
+        { positions: ['Dan',      'George',   'Marshall', 'Keegan'  ], powers: [567, 408, 359, 327], start: 161.56, finish: 178.98 },
+        { positions: ['George',   'Marshall', 'Keegan',   'Dan'     ], powers: [563, 430, 332, 367], start: 183.30, finish: 206.26 },
+        { positions: ['Marshall', 'Keegan',   'Dan',      'George'  ], powers: [647, 427, 433, 427], start: 210.72, finish: 241.18 },
+      ],
+      'HongKong R1': [
+        { positions: ['Marshall', 'George',   'Keegan',   'Kergy'   ], powers: [637, 470, 366, 430], start: 61.58,  finish: 84.76  },
+        { positions: ['George',   'Keegan',   'Kergy',    'Marshall'], powers: [602, 397, 390, 387], start: 89.53,  finish: 112.56 },
+        { positions: ['Keegan',   'Kergy',    'Marshall', 'George'  ], powers: [524, 448, 397, 406], start: 117.40, finish: 150.52 },
+        { positions: ['Marshall', 'George',   'Keegan',   null      ], powers: [590, 431, 334, null], start: 148.40, finish: 175.02 },
+        { positions: ['George',   'Keegan',   'Marshall', null      ], powers: [574, 385, 408, null], start: 179.32, finish: 202.90 },
+        { positions: ['Keegan',   'Marshall', 'George',   null      ], powers: [456, 398, 363, null], start: 207.25, finish: 245.84 },
+      ],
+      'HongKong F': [
+        { positions: ['Dan',      'George',   'Marshall', 'Kergy'   ], powers: [562, 408, 346, 368], start: 56.42,  finish: 73.26  },
+        { positions: ['George',   'Marshall', 'Kergy',    'Dan'     ], powers: [581, 431, 380, 392], start: 78.82,  finish: 100.60 },
+        { positions: ['Marshall', 'Kergy',    'Dan',      'George'  ], powers: [594, 424, 388, 400], start: 106.64, finish: 135.58 },
+        { positions: ['Kergy',    'Dan',      'George',   'Marshall'], powers: [610, 451, 415, 463], start: 139.85, finish: 149.52 },
+        { positions: ['Dan',      'George',   'Marshall', null      ], powers: [583, 411, 359, null], start: 150.68, finish: 171.00 },
+        { positions: ['George',   'Marshall', 'Dan',      null      ], powers: [584, 452, 392, null], start: 182.68, finish: 204.98 },
+        { positions: ['Marshall', 'Dan',      'George',   null      ], powers: [651, 497, 462, null], start: 209.14, finish: 230.02 },
       ],
       'Nilai R1': [
         { positions: ['Dan',      'Marshall', 'Tom',      'Kergy'   ], powers: [567,   430, 345, 393 ], start: 56.28,  finish: 73.00  },
@@ -362,7 +400,25 @@
         const ratios = model.observations.filter(o => o.rider === d && o.position > 1 && o.ratio != null).map(o => o.ratio);
         overallDraft[d] = ratios.length ? meanOf(ratios) : null;
       });
-      return { byPosition, byPositionRider, matrix, overallDraft, avgLead: model.avgLead, riders: model.riders };
+      // Draft given by leader: for each rider L in position p (1..3), the mean ratio of
+      // whichever rider sat directly behind them in that segment.
+      const leaderGiveByPos = {};
+      const leaderGiveOverall = {};
+      model.riders.forEach(L => {
+        leaderGiveByPos[L] = [null, null, null]; // p = 1, 2, 3
+        const allFollowerRatios = [];
+        for (let p = 1; p <= 3; p++) {
+          const ratios = model.observations
+            .filter(o => o.position === p + 1 && o.riderInFront === L && o.ratio != null)
+            .map(o => o.ratio);
+          if (ratios.length) {
+            leaderGiveByPos[L][p - 1] = meanOf(ratios);
+            allFollowerRatios.push(...ratios);
+          }
+        }
+        leaderGiveOverall[L] = allFollowerRatios.length ? meanOf(allFollowerRatios) : null;
+      });
+      return { byPosition, byPositionRider, matrix, overallDraft, leaderGiveByPos, leaderGiveOverall, avgLead: model.avgLead, riders: model.riders };
     }
 
     // ---------- Display-model builders ----------
@@ -492,6 +548,8 @@
         byPositionRider: agg.byPositionRider,
         matrix: agg.matrix,
         overallDraft: agg.overallDraft,
+        leaderGiveByPos: agg.leaderGiveByPos,
+        leaderGiveOverall: agg.leaderGiveOverall,
         timelineModes: { time: timelineTime, position: timelinePosition },
         rawRows,
       };
@@ -540,6 +598,17 @@
       allRiders.forEach(r => {
         const vals = aggs.map(a => a.agg.overallDraft[r]).filter(v => v != null);
         overallDraft[r] = vals.length ? meanOf(vals) : null;
+      });
+
+      const leaderGiveByPos = {};
+      const leaderGiveOverall = {};
+      allRiders.forEach(L => {
+        leaderGiveByPos[L] = [0, 1, 2].map(i => {
+          const vals = aggs.map(a => (a.agg.leaderGiveByPos[L] ? a.agg.leaderGiveByPos[L][i] : null)).filter(v => v != null);
+          return vals.length ? meanOf(vals) : null;
+        });
+        const vals = aggs.map(a => a.agg.leaderGiveOverall[L]).filter(v => v != null);
+        leaderGiveOverall[L] = vals.length ? meanOf(vals) : null;
       });
 
       // Time-mode timeline: concatenate per-sheet observations on a sequential segment index.
@@ -635,6 +704,8 @@
         byPositionRider,
         matrix,
         overallDraft,
+        leaderGiveByPos,
+        leaderGiveOverall,
         timelineModes: { time: timelineTime, position: timelinePosition },
         rawRows,
       };
@@ -777,6 +848,45 @@
           cells += `<td class="ratio-cell" style="background:${bg};" title="${title}">${cell.ratio.toFixed(3)}</td>`;
         });
         const overall = d.overallDraft[drafter];
+        if (overall == null) {
+          cells += '<td>—</td>';
+        } else {
+          const bg = ratioColour(overall);
+          cells += `<td class="ratio-cell" style="background:${bg};font-weight:800;">${overall.toFixed(3)}</td>`;
+        }
+        tr.innerHTML = cells;
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+    }
+
+    function renderLeaderGiveTable(d) {
+      const riders = d.riders;
+      const table = document.getElementById('leaderGiveTable');
+      table.innerHTML = '';
+
+      const thead = document.createElement('thead');
+      const headRow = document.createElement('tr');
+      headRow.innerHTML = '<th>Rider in front \\ Their position</th>' +
+        '<th>P1 (follower in P2)</th>' +
+        '<th>P2 (follower in P3)</th>' +
+        '<th>P3 (follower in P4)</th>' +
+        '<th>Overall</th>';
+      thead.appendChild(headRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      riders.forEach(leader => {
+        const tr = document.createElement('tr');
+        let cells = `<td class="name">${leader}</td>`;
+        const row = d.leaderGiveByPos[leader] || [null, null, null];
+        for (let i = 0; i < 3; i++) {
+          const v = row[i];
+          if (v == null) { cells += '<td>—</td>'; continue; }
+          const bg = ratioColour(v);
+          cells += `<td class="ratio-cell" style="background:${bg};">${v.toFixed(3)}</td>`;
+        }
+        const overall = d.leaderGiveOverall ? d.leaderGiveOverall[leader] : null;
         if (overall == null) {
           cells += '<td>—</td>';
         } else {
@@ -955,6 +1065,7 @@
       renderByPositionChart(d);
       renderByPositionRiderChart(d);
       renderDraftMatrix(d);
+      renderLeaderGiveTable(d);
       renderTimeline(d);
       renderRawTable(d);
 
