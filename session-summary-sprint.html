@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -421,6 +421,10 @@
   let chartInstances = {};  // id -> Chart instance
   let chartMeta = {};       // id -> { dates, riderData, active }
   let summaryRows = [];     // rows from pre-built summary spreadsheet
+  let selectedChartRepTypes = new Set();  // rep-type filter for the trend charts; empty = show all
+  let chartDistLo = null, chartDistHi = null;  // index into sorted unique distances
+  let chartGearLo = null, chartGearHi = null;  // index into sorted unique gear inches
+  const hiddenRiders = new Set();  // rider names hidden via legend; persists across re-renders
   const ALLOWED_RIDERS = new Set(['E Andrews', 'O King', 'R Petch', 'S Dakin', 'S Fulton']);
   let gymRows = [];  // rows from TeamBuildr gym file
   const GYM_RIDER_MAP = {
@@ -891,6 +895,27 @@
     document.getElementById('aggregatePanel').style.display = 'block';
     let html = '';
 
+    // ── Available rep types for the chart filter dropdown ───────────────────
+    const isSummaryMode = summaryRows.length > 0;
+    // File-mode: cache rep type per file name so we don't re-parse each filter check.
+    const fileRepTypeMap = new Map();
+    if (!isSummaryMode) {
+      allFiles.forEach(f => fileRepTypeMap.set(f, fileRepTypeKey(f.name)));
+    }
+    const allChartRepTypes = isSummaryMode
+      ? [...new Set(summaryRows.map(r => summaryRepTypeKey(r)).filter(Boolean))].sort()
+      : [...new Set([...fileRepTypeMap.values()].filter(Boolean))].sort();
+    // Drop any selected rep types that are no longer in the dataset.
+    [...selectedChartRepTypes].forEach(rt => {
+      if (!allChartRepTypes.includes(rt)) selectedChartRepTypes.delete(rt);
+    });
+    const repTypeFilterActive = selectedChartRepTypes.size > 0;
+    const fileMatchesRepType = f => !repTypeFilterActive
+      || selectedChartRepTypes.has(fileRepTypeMap.get(f));
+    const filteredFileCount = isSummaryMode
+      ? 0
+      : allFiles.filter(fileMatchesRepType).length;
+
     // ── Parse Overview: Max Power, Max Torque, CdA, Max Cadence, Work Done ──
     const riderBestPower   = {};
     const riderBestTorque  = {};
@@ -903,6 +928,7 @@
     const dateRiderCadAtMaxPower = {};
 
     allFiles.forEach(f => {
+      if (!fileMatchesRepType(f)) return;
       const date = parseDateFromFilename(f.name);
       const overviewSheet = f.sheets.find(s => /^overview$/i.test(s.name));
       if (!overviewSheet) return;
@@ -964,7 +990,43 @@
     });
 
     // ── Build from summary rows (summary mode) ────────────────────────────
-    summaryRows.forEach(row => {
+    // Available distance / gear values (sorted unique numerics) for the sliders.
+    // Bounds come from all summaryRows so the slider range is stable as the user
+    // changes the rep-type filter.
+    const allChartDistances = [...new Set(
+      summaryRows.map(r => parseFloat(r.Distance)).filter(v => !isNaN(v))
+    )].sort((a, b) => a - b);
+    const allChartGears = [...new Set(
+      summaryRows.map(r => parseFloat(r.GearInches)).filter(v => !isNaN(v))
+    )].sort((a, b) => a - b);
+    const distMaxIdx = Math.max(allChartDistances.length - 1, 0);
+    const gearMaxIdx = Math.max(allChartGears.length - 1, 0);
+    if (chartDistLo == null || chartDistLo < 0 || chartDistLo > distMaxIdx) chartDistLo = 0;
+    if (chartDistHi == null || chartDistHi < 0 || chartDistHi > distMaxIdx) chartDistHi = distMaxIdx;
+    if (chartGearLo == null || chartGearLo < 0 || chartGearLo > gearMaxIdx) chartGearLo = 0;
+    if (chartGearHi == null || chartGearHi < 0 || chartGearHi > gearMaxIdx) chartGearHi = gearMaxIdx;
+    if (chartDistLo > chartDistHi) { const t = chartDistLo; chartDistLo = chartDistHi; chartDistHi = t; }
+    if (chartGearLo > chartGearHi) { const t = chartGearLo; chartGearLo = chartGearHi; chartGearHi = t; }
+    const distLoVal = allChartDistances.length ? allChartDistances[chartDistLo] : -Infinity;
+    const distHiVal = allChartDistances.length ? allChartDistances[chartDistHi] :  Infinity;
+    const gearLoVal = allChartGears.length     ? allChartGears[chartGearLo]     : -Infinity;
+    const gearHiVal = allChartGears.length     ? allChartGears[chartGearHi]     :  Infinity;
+    const distActive = allChartDistances.length > 1 && (chartDistLo > 0 || chartDistHi < distMaxIdx);
+    const gearActive = allChartGears.length > 1     && (chartGearLo > 0 || chartGearHi < gearMaxIdx);
+
+    const filteredSummaryRows = summaryRows.filter(r => {
+      if (repTypeFilterActive && !selectedChartRepTypes.has(summaryRepTypeKey(r))) return false;
+      if (distActive) {
+        const d = parseFloat(r.Distance);
+        if (isNaN(d) || d < distLoVal || d > distHiVal) return false;
+      }
+      if (gearActive) {
+        const g = parseFloat(r.GearInches);
+        if (isNaN(g) || g < gearLoVal || g > gearHiVal) return false;
+      }
+      return true;
+    });
+    filteredSummaryRows.forEach(row => {
       const date  = parseSummaryDate(row.Date);
       const rider = String(row.Rider ?? '').trim();
       if (!date || !ALLOWED_RIDERS.has(rider)) return;
@@ -1104,10 +1166,75 @@
       'Work Done Over Time':          'Work Done'
     };
     const validEntries = chartEntries.filter(e => e.entry);
-    if (validEntries.length) {
+    // Render the chart container whenever we have either valid charts or rep-type filters
+    // available. This ensures the filter dropdown stays visible (and clearable) even when
+    // the current filter selection produces no chartable data.
+    if (validEntries.length || allChartRepTypes.length) {
       // Tab bar
       let chartContainerHtml = '<div style="background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:1.5rem">';
-      chartContainerHtml += '<div id="chartTabBar" style="display:flex;flex-wrap:wrap;border-bottom:2px solid #e2e8f0;padding:0 0.5rem;background:#f7fafc;border-radius:10px 10px 0 0">';
+      // Rep-type multi-select dropdown (summary or file/folder mode)
+      if (allChartRepTypes.length) {
+        const totalCount = isSummaryMode ? summaryRows.length : allFiles.length;
+        const filteredCount = isSummaryMode ? filteredSummaryRows.length : filteredFileCount;
+        const unitLabel = isSummaryMode ? 'reps' : 'files';
+        const summaryText = !repTypeFilterActive
+          ? `All rep types (${totalCount})`
+          : selectedChartRepTypes.size === 1
+            ? [...selectedChartRepTypes][0]
+            : `${selectedChartRepTypes.size} rep types selected`;
+        chartContainerHtml += '<div style="display:flex;align-items:flex-start;gap:1rem;padding:0.75rem 1rem;border-bottom:1px solid #e2e8f0;background:#f7fafc;border-radius:10px 10px 0 0;flex-wrap:wrap">';
+        chartContainerHtml += '<div style="display:flex;align-items:center;gap:0.5rem">';
+        chartContainerHtml += '<label style="font-size:0.82rem;font-weight:600;color:#2d3748">Rep type:</label>';
+        chartContainerHtml += '<div id="chartRepTypeDropdown" style="position:relative">';
+        chartContainerHtml += `<button type="button" id="chartRepTypeBtn" style="padding:0.35rem 2rem 0.35rem 0.7rem;border:1.5px solid #cbd5e0;border-radius:6px;background:#fff;font-size:0.85rem;color:#2d3748;cursor:pointer;min-width:200px;text-align:left;position:relative">${escHtml(summaryText)}<span style="position:absolute;right:0.6rem;top:50%;transform:translateY(-50%);font-size:0.7rem;color:#718096">\u25BC</span></button>`;
+        chartContainerHtml += '<div id="chartRepTypePanel" style="display:none;position:absolute;z-index:50;top:calc(100% + 4px);left:0;min-width:240px;max-height:280px;overflow-y:auto;background:#fff;border:1px solid #cbd5e0;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.12);padding:0.4rem 0">';
+        chartContainerHtml += `<button type="button" id="chartRepTypeClear" style="display:block;width:100%;text-align:left;padding:0.4rem 0.75rem;border:none;background:#fff;cursor:pointer;font-size:0.83rem;color:#2b6cb0;font-weight:600;border-bottom:1px solid #edf2f7">Clear selection (show all)</button>`;
+        allChartRepTypes.forEach(rt => {
+          const count = isSummaryMode
+            ? summaryRows.filter(r => summaryRepTypeKey(r) === rt).length
+            : allFiles.filter(f => fileRepTypeMap.get(f) === rt).length;
+          const checked = selectedChartRepTypes.has(rt) ? ' checked' : '';
+          chartContainerHtml += `<label style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0.75rem;cursor:pointer;font-size:0.83rem;color:#2d3748;user-select:none" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='#fff'"><input type="checkbox" class="chartRepTypeChk" data-reptype="${escHtml(rt)}" value="${escHtml(rt)}"${checked} style="margin:0;cursor:pointer"><span style="flex:1">${escHtml(rt)}</span><span style="color:#a0aec0;font-size:0.78rem">${count}</span></label>`;
+        });
+        chartContainerHtml += '</div></div></div>';
+
+        // Distance dual-range slider (summary mode only)
+        if (isSummaryMode && allChartDistances.length > 1) {
+          chartContainerHtml += `
+            <div style="display:flex;flex-direction:column;min-width:200px;flex:1 1 200px;max-width:280px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:0.78rem;color:#2d3748">
+                <span style="font-weight:600">Distance</span>
+                <span style="color:#2b6cb0;font-weight:600"><span id="chartDistLoLbl">${distLoVal}</span> – <span id="chartDistHiLbl">${distHiVal}</span> m</span>
+              </div>
+              <div class="dual-range-wrap" id="chartDistWrap" style="margin:10px 0 4px">
+                <input type="range" id="chartDistLo" min="0" max="${distMaxIdx}" value="${chartDistLo}" step="1">
+                <input type="range" id="chartDistHi" min="0" max="${distMaxIdx}" value="${chartDistHi}" step="1">
+              </div>
+            </div>`;
+        }
+
+        // Gear dual-range slider (summary mode only)
+        if (isSummaryMode && allChartGears.length > 1) {
+          chartContainerHtml += `
+            <div style="display:flex;flex-direction:column;min-width:200px;flex:1 1 200px;max-width:280px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:0.78rem;color:#2d3748">
+                <span style="font-weight:600">Gear</span>
+                <span style="color:#2b6cb0;font-weight:600"><span id="chartGearLoLbl">${gearLoVal.toFixed(2)}</span> – <span id="chartGearHiLbl">${gearHiVal.toFixed(2)}</span> in</span>
+              </div>
+              <div class="dual-range-wrap" id="chartGearWrap" style="margin:10px 0 4px">
+                <input type="range" id="chartGearLo" min="0" max="${gearMaxIdx}" value="${chartGearLo}" step="1">
+                <input type="range" id="chartGearHi" min="0" max="${gearMaxIdx}" value="${chartGearHi}" step="1">
+              </div>
+            </div>`;
+        }
+
+        if (repTypeFilterActive || (isSummaryMode && (distActive || gearActive))) {
+          chartContainerHtml += `<span style="font-size:0.78rem;color:#718096;align-self:center">Showing ${filteredCount} of ${totalCount} ${unitLabel}</span>`;
+        }
+        chartContainerHtml += '</div>';
+      }
+      if (validEntries.length) {
+        chartContainerHtml += '<div id="chartTabBar" style="display:flex;flex-wrap:wrap;border-bottom:2px solid #e2e8f0;padding:0 0.5rem;background:#f7fafc">';
       validEntries.forEach(({ entry, title }, i) => {
         const label = tabShortLabels[title] || title.replace(' Over Time', '');
         chartContainerHtml += `<button class="chart-tab-btn${i === 0 ? ' active' : ''}" data-chartpanel="chartPanel_${entry.chartId}">${label}</button>`;
@@ -1121,6 +1248,10 @@
         chartContainerHtml += `<div id="avgTable_${entry.chartId}" style="min-width:175px;flex-shrink:0;padding-top:0.25rem"></div>`;
         chartContainerHtml += '</div></div>';
       });
+      } else {
+        // Filter active but produced no chartable data
+        chartContainerHtml += '<div style="padding:2rem;text-align:center;color:#718096;font-size:0.9rem">No data matches the current rep-type filter. Choose different rep types or clear the selection.</div>';
+      }
       chartContainerHtml += '</div>';
       html += chartContainerHtml;
     }
@@ -1151,6 +1282,9 @@
                 const markerMeta = chart.getDatasetMeta(ri);
                 markerMeta.hidden = markerMeta.hidden === null ? !chart.data.datasets[ri].hidden : null;
                 chart.getDatasetMeta(n + ri).hidden = markerMeta.hidden;
+                const riderName = active[ri];
+                if (markerMeta.hidden) hiddenRiders.add(riderName);
+                else                   hiddenRiders.delete(riderName);
                 chart.update();
               }
             },
@@ -1180,6 +1314,15 @@
             const pt = elements.find(el => el.datasetIndex < active.length);
             if (event.native) event.native.target.style.cursor = pt ? 'pointer' : 'default';
           }
+        }
+      });
+
+      // Reapply persisted rider visibility (riders hidden via legend stay hidden across re-renders)
+      const nActive = active.length;
+      active.forEach((rider, ri) => {
+        if (hiddenRiders.has(rider)) {
+          chartInstances[chartId].getDatasetMeta(ri).hidden = true;
+          chartInstances[chartId].getDatasetMeta(nActive + ri).hidden = true;
         }
       });
 
@@ -1229,6 +1372,90 @@
         activeChartTabId = cId;
       });
     });
+
+    // Wire rep-type multi-select dropdown
+    const repTypeBtnEl   = document.getElementById('chartRepTypeBtn');
+    const repTypePanelEl = document.getElementById('chartRepTypePanel');
+    if (repTypeBtnEl && repTypePanelEl) {
+      const closePanel = () => {
+        if (repTypePanelEl.style.display === 'none') return;
+        repTypePanelEl.style.display = 'none';
+        document.removeEventListener('mousedown', onDocMouseDown, true);
+      };
+      const onDocMouseDown = (e) => {
+        if (!repTypePanelEl.contains(e.target) && !repTypeBtnEl.contains(e.target)) closePanel();
+      };
+      repTypeBtnEl.addEventListener('click', e => {
+        e.stopPropagation();
+        const open = repTypePanelEl.style.display === 'none';
+        if (open) {
+          repTypePanelEl.style.display = 'block';
+          document.addEventListener('mousedown', onDocMouseDown, true);
+        } else {
+          closePanel();
+        }
+      });
+      repTypePanelEl.addEventListener('change', e => {
+        const chk = e.target.closest('input.chartRepTypeChk');
+        if (!chk) return;
+        const rt = chk.dataset.reptype;
+        if (chk.checked) selectedChartRepTypes.add(rt);
+        else             selectedChartRepTypes.delete(rt);
+        renderAggregate();
+      });
+      const clearBtn = document.getElementById('chartRepTypeClear');
+      if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+          if (selectedChartRepTypes.size === 0) return;
+          selectedChartRepTypes.clear();
+          renderAggregate();
+        });
+      }
+    }
+
+    // Wire distance / gear dual-range sliders
+    function wireChartRangeSlider(loId, hiId, wrapId, loLblId, hiLblId, values, applyState, formatVal) {
+      const fmt = formatVal || (v => v);
+      const loEl = document.getElementById(loId);
+      const hiEl = document.getElementById(hiId);
+      if (!loEl || !hiEl) return;
+      const wrapEl  = document.getElementById(wrapId);
+      const loLblEl = document.getElementById(loLblId);
+      const hiLblEl = document.getElementById(hiLblId);
+      const max     = values.length - 1;
+      const paint = (lo, hi) => {
+        if (!wrapEl) return;
+        const pLo = max > 0 ? (lo / max) * 100 : 0;
+        const pHi = max > 0 ? (hi / max) * 100 : 100;
+        wrapEl.style.background = `linear-gradient(to right, #e2e8f0 ${pLo}%, #2b6cb0 ${pLo}%, #2b6cb0 ${pHi}%, #e2e8f0 ${pHi}%)`;
+      };
+      paint(parseInt(loEl.value), parseInt(hiEl.value));
+      const onInput = () => {
+        let lo = parseInt(loEl.value), hi = parseInt(hiEl.value);
+        if (lo > hi) { const t = lo; lo = hi; hi = t; }
+        loLblEl.textContent = fmt(values[lo]);
+        hiLblEl.textContent = fmt(values[hi]);
+        paint(lo, hi);
+      };
+      const onCommit = () => {
+        let lo = parseInt(loEl.value), hi = parseInt(hiEl.value);
+        if (lo > hi) { const t = lo; lo = hi; hi = t; }
+        applyState(lo, hi);
+        renderAggregate();
+      };
+      loEl.addEventListener('input', onInput);
+      hiEl.addEventListener('input', onInput);
+      loEl.addEventListener('change', onCommit);
+      hiEl.addEventListener('change', onCommit);
+    }
+    if (isSummaryMode && allChartDistances.length > 1) {
+      wireChartRangeSlider('chartDistLo', 'chartDistHi', 'chartDistWrap', 'chartDistLoLbl', 'chartDistHiLbl', allChartDistances,
+        (lo, hi) => { chartDistLo = lo; chartDistHi = hi; });
+    }
+    if (isSummaryMode && allChartGears.length > 1) {
+      wireChartRangeSlider('chartGearLo', 'chartGearHi', 'chartGearWrap', 'chartGearLoLbl', 'chartGearHiLbl', allChartGears,
+        (lo, hi) => { chartGearLo = lo; chartGearHi = hi; }, v => v.toFixed(2));
+    }
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -1924,6 +2151,17 @@
       .filter(Boolean).join(' / ');
   }
 
+  // Extract the normalized rep-type token from a session filename (file/folder upload mode).
+  function fileRepTypeKey(filename) {
+    const base = String(filename ?? '').replace(/\.[^.]+$/, '');
+    const parts = base.split(' - ');
+    if (parts.length < 2) return '';
+    const candidate = parts[1].trim();
+    const isRep = candidate.toLowerCase().startsWith('rep');
+    const typeIdx = isRep ? 2 : 1;
+    return normalizeRepType(parts[typeIdx]?.trim() ?? '');
+  }
+
   function parseGymFile(file) {
     document.getElementById('loading').style.display = 'block';
     const msgEl = document.getElementById('loadingMsg');
@@ -2251,6 +2489,10 @@
     allFiles = [];
     summaryRows = [];
     gymRows = [];
+    selectedChartRepTypes.clear();
+    chartDistLo = null; chartDistHi = null;
+    chartGearLo = null; chartGearHi = null;
+    hiddenRiders.clear();
     Object.values(chartInstances).forEach(c => c.destroy());
     chartInstances = {};
     chartMeta = {};

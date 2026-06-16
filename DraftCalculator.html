@@ -1,0 +1,4546 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Draft Calculator</title>
+	<style>
+		:root {
+			--bg-1: #f3efe4;
+			--bg-2: #f8d9ae;
+			--card: rgba(255, 255, 255, 0.85);
+			--ink: #1f2937;
+			--muted: #6b7280;
+			--accent: #d9480f;
+			--accent-soft: #fb923c;
+			--line: #0f766e;
+			--grid: rgba(31, 41, 55, 0.15);
+			--ok: #166534;
+			--warn: #b45309;
+		}
+
+		* {
+			box-sizing: border-box;
+		}
+
+		body {
+			margin: 0;
+			min-height: 100vh;
+			color: var(--ink);
+			font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+			background:
+				radial-gradient(circle at 8% 10%, rgba(208, 42, 172, 0.7), transparent 30%),
+				radial-gradient(circle at 88% 20%, rgba(18, 210, 210, 0.1), transparent 32%),
+				linear-gradient(145deg, var(--bg-1), var(--bg-2));
+			padding: 18px;
+		}
+
+		.shell {
+			max-width: 1150px;
+			margin: 0 auto;
+			background: var(--card);
+			border: 1px solid rgba(31, 41, 55, 0.1);
+			border-radius: 16px;
+			backdrop-filter: blur(6px);
+			box-shadow: 0 18px 35px rgba(15, 23, 42, 0.15);
+			overflow: hidden;
+		}
+
+		.topbar {
+			padding: 16px 18px;
+			border-bottom: 1px solid rgba(31, 41, 55, 0.1);
+			background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.65));
+			display: grid;
+			gap: 8px;
+		}
+
+		.title {
+			margin: 0;
+			font-size: 1.25rem;
+			letter-spacing: 0.01em;
+			font-weight: 700;
+		}
+
+		.subtitle {
+			margin: 0;
+			color: var(--muted);
+			font-size: 0.94rem;
+		}
+
+		.controls {
+			padding: 14px 18px;
+			display: grid;
+			grid-template-columns: repeat(3, minmax(180px, 1fr));
+			gap: 10px;
+			border-bottom: 1px solid rgba(31, 41, 55, 0.1);
+			background: rgba(255, 255, 255, 0.72);
+		}
+
+		.field {
+			display: grid;
+			gap: 6px;
+			align-content: start;
+		}
+
+		.field label {
+			font-size: 0.82rem;
+			color: var(--muted);
+			font-weight: 600;
+		}
+
+		.field input,
+		.field select {
+			width: 100%;
+			border: 1px solid rgba(31, 41, 55, 0.2);
+			border-radius: 9px;
+			background: #fff;
+			color: var(--ink);
+			padding: 8px;
+			font-size: 0.94rem;
+		}
+
+		.field select[multiple] {
+			min-height: 132px;
+			padding: 4px;
+		}
+
+		.sheet-list {
+			width: 100%;
+			border: 1px solid rgba(31, 41, 55, 0.2);
+			border-radius: 9px;
+			background: #fff;
+			color: var(--ink);
+			padding: 4px;
+			min-height: 132px;
+			max-height: 132px;
+			overflow-y: auto;
+			font-size: 0.94rem;
+			display: flex;
+			flex-direction: column;
+			gap: 2px;
+		}
+
+		.sheet-list[data-disabled="true"] {
+			opacity: 0.55;
+			pointer-events: none;
+			background: rgba(0, 0, 0, 0.03);
+		}
+
+		.sheet-list-empty {
+			padding: 8px;
+			color: var(--muted);
+			font-style: italic;
+			font-size: 0.85rem;
+		}
+
+		.sheet-list-item {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			padding: 5px 6px;
+			border-radius: 5px;
+			border: 1px solid transparent;
+			background: transparent;
+			cursor: grab;
+			user-select: none;
+		}
+
+		.sheet-list-item:hover {
+			background: rgba(217, 72, 15, 0.08);
+		}
+
+		.sheet-list-item.dragging {
+			opacity: 0.4;
+			cursor: grabbing;
+		}
+
+		.sheet-list-item.drag-over-top {
+			border-top-color: var(--accent);
+		}
+
+		.sheet-list-item.drag-over-bottom {
+			border-bottom-color: var(--accent);
+		}
+
+		.sheet-list-handle {
+			color: var(--muted);
+			font-size: 0.95rem;
+			line-height: 1;
+			padding: 0 2px;
+			cursor: grab;
+			letter-spacing: -1px;
+		}
+
+		.sheet-list-item input[type="checkbox"] {
+			width: auto;
+			margin: 0;
+			padding: 0;
+			flex-shrink: 0;
+			accent-color: var(--accent);
+			cursor: pointer;
+		}
+
+		.sheet-list-label {
+			flex: 1;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.stats {
+			padding: 8px 18px 14px;
+			display: flex;
+			gap: 10px;
+			flex-wrap: wrap;
+		}
+
+		.chip {
+			padding: 6px 10px;
+			border-radius: 999px;
+			border: 1px solid rgba(31, 41, 55, 0.16);
+			font-size: 0.82rem;
+			background: #fff;
+		}
+
+		.chip strong {
+			color: var(--ok);
+		}
+
+		.stage {
+			padding: 0 18px 18px;
+			display: grid;
+			gap: 12px;
+		}
+
+		.video-wrap {
+			border-radius: 12px;
+			overflow: hidden;
+			border: 1px solid rgba(31, 41, 55, 0.12);
+			background: #111;
+		}
+
+		video {
+			display: block;
+			width: 100%;
+			max-height: 62vh;
+			background: #000;
+		}
+
+		.plot-wrap {
+			border: 1px solid rgba(31, 41, 55, 0.16);
+			border-radius: 12px;
+			background: #fff;
+			overflow: hidden;
+		}
+
+		.plot-head {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			gap: 12px;
+			padding: 10px 12px;
+			border-bottom: 1px solid rgba(31, 41, 55, 0.12);
+			background: linear-gradient(180deg, #fff, #fafafa);
+		}
+
+		.legend {
+			color: var(--muted);
+			font-size: 0.82rem;
+			display: flex;
+			gap: 14px;
+			flex-wrap: wrap;
+		}
+
+		.legend-group {
+			display: inline-flex;
+			gap: 14px;
+			flex-wrap: wrap;
+		}
+
+		.swatch {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+		}
+
+		.swatch i {
+			width: 14px;
+			height: 3px;
+			display: inline-block;
+			border-radius: 10px;
+		}
+
+		.plot-canvas {
+			width: 100%;
+			height: 240px;
+			display: block;
+			cursor: crosshair;
+			touch-action: none;
+			user-select: none;
+		}
+
+		.plot-controls {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(180px, 1fr));
+			gap: 10px;
+			padding: 10px 12px;
+			border-top: 1px solid rgba(31, 41, 55, 0.08);
+			background: #fff;
+		}
+
+		.control-group {
+			display: grid;
+			gap: 4px;
+		}
+
+		.control-group label {
+			font-size: 0.8rem;
+			color: var(--muted);
+			font-weight: 600;
+		}
+
+		.control-row {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+
+		.control-row input[type="range"] {
+			width: 100%;
+		}
+
+		.y-limit-input {
+			width: 90px;
+			padding: 4px 6px;
+			border: 1px solid rgba(31, 41, 55, 0.18);
+			border-radius: 6px;
+			font: inherit;
+		}
+
+		.control-value {
+			font-size: 0.8rem;
+			color: var(--ink);
+			font-weight: 600;
+			min-width: 64px;
+			text-align: right;
+		}
+
+		.current-value-readout {
+			padding: 8px 12px 0;
+			font-size: 0.86rem;
+			color: var(--muted);
+			background: #fff;
+		}
+
+		.sync-targets {
+			padding: 0 12px 10px;
+			display: flex;
+			gap: 8px;
+			flex-wrap: wrap;
+			background: #fff;
+		}
+
+		.sync-targets .target-btn {
+			padding: 5px 10px;
+			border: 1px solid rgba(31, 41, 55, 0.2);
+			border-radius: 999px;
+			font-size: 0.78rem;
+			background: #f8fafc;
+			cursor: pointer;
+			color: var(--ink);
+		}
+
+		.sync-targets .target-btn.active {
+			background: #0f766e;
+			color: #fff;
+			border-color: #0f766e;
+		}
+
+		.metric-panel {
+			padding: 10px 12px;
+			background: #fff;
+			border-bottom: 1px solid rgba(31, 41, 55, 0.08);
+			display: grid;
+			gap: 8px;
+		}
+
+		.gear-inputs-head {
+			font-size: 0.78rem;
+			color: var(--muted);
+			font-weight: 600;
+			text-transform: uppercase;
+			letter-spacing: 0.04em;
+		}
+
+		.gear-inputs {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+		}
+
+		.gear-input-item {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			font-size: 0.82rem;
+			color: var(--ink);
+			border: 1px solid rgba(31, 41, 55, 0.16);
+			border-radius: 999px;
+			padding: 4px 10px;
+			background: #f9fafb;
+		}
+
+		.gear-input-item input {
+			width: 60px;
+			border: 1px solid rgba(31, 41, 55, 0.2);
+			border-radius: 6px;
+			padding: 3px 6px;
+			font-size: 0.86rem;
+			color: var(--ink);
+			background: #fff;
+		}
+
+		.gear-input-empty {
+			font-size: 0.82rem;
+			color: var(--muted);
+			font-style: italic;
+		}
+
+		.metric-select-row {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+		}
+
+		.metric-select-row label {
+			font-size: 0.82rem;
+			color: var(--muted);
+			font-weight: 600;
+			white-space: nowrap;
+		}
+
+		.metric-select-row select {
+			flex: 1;
+			border: 1px solid rgba(31, 41, 55, 0.2);
+			border-radius: 9px;
+			background: #fff;
+			color: var(--ink);
+			padding: 6px 8px;
+			font-size: 0.94rem;
+		}
+
+		.metric-smoothing {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			font-size: 0.82rem;
+			color: var(--muted);
+			font-weight: 600;
+			white-space: nowrap;
+		}
+
+		.metric-smoothing input[type="range"] {
+			width: 130px;
+		}
+
+		.metric-smoothing .control-value {
+			min-width: 3.4em;
+			text-align: right;
+			color: var(--ink);
+		}
+
+		.status {
+			padding: 10px 12px;
+			border-top: 1px solid rgba(31, 41, 55, 0.12);
+			color: var(--warn);
+			font-size: 0.86rem;
+			min-height: 2.3em;
+			background: #fff7ed;
+		}
+
+		.cda-panel {
+			border: 1px solid rgba(31, 41, 55, 0.16);
+			border-radius: 12px;
+			background: #fff;
+			overflow: hidden;
+		}
+
+		.panel-head {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 10px;
+			padding: 10px 14px;
+			background: #f1f5f9;
+			border-bottom: 1px solid rgba(31, 41, 55, 0.12);
+			cursor: pointer;
+			user-select: none;
+		}
+
+		.panel-head-title {
+			font-weight: 700;
+			color: var(--ink);
+		}
+
+		.panel-head-chevron {
+			transition: transform 0.15s ease;
+			color: var(--muted);
+			font-size: 0.9rem;
+		}
+
+		.panel-head.collapsed .panel-head-chevron {
+			transform: rotate(-90deg);
+		}
+
+		.panel-body.collapsed {
+			display: none;
+		}
+
+		.cda-explainer {
+			margin: 0;
+			padding: 10px 14px;
+			font-size: 0.85rem;
+			color: var(--muted);
+			border-bottom: 1px solid rgba(31, 41, 55, 0.1);
+			background: #f0f9ff;
+		}
+
+		.cda-globals {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+			gap: 10px;
+			padding: 12px 14px;
+			border-bottom: 1px solid rgba(31, 41, 55, 0.1);
+			background: linear-gradient(180deg, #fff, #fafafa);
+		}
+
+		.cda-globals label {
+			display: grid;
+			gap: 4px;
+			font-size: 0.82rem;
+			color: var(--muted);
+			font-weight: 600;
+		}
+
+		.cda-globals input {
+			width: 100%;
+			border: 1px solid rgba(31, 41, 55, 0.2);
+			border-radius: 8px;
+			background: #fff;
+			color: var(--ink);
+			padding: 6px 8px;
+			font-size: 0.9rem;
+		}
+
+		.cda-riders {
+			display: grid;
+			gap: 10px;
+			padding: 12px 14px;
+		}
+
+		.cda-riders-empty {
+			font-size: 0.85rem;
+			color: var(--muted);
+			font-style: italic;
+		}
+
+		.cda-rider {
+			border: 1px solid rgba(31, 41, 55, 0.14);
+			border-radius: 12px;
+			background: #f9fafb;
+			display: grid;
+			gap: 10px;
+			padding: 12px;
+		}
+
+		.cda-rider-head {
+			display: flex;
+			align-items: center;
+			flex-wrap: wrap;
+			gap: 10px;
+		}
+
+		.cda-rider-stream {
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+			font-weight: 700;
+			color: var(--ink);
+		}
+
+		.cda-rider-stream i {
+			width: 12px;
+			height: 12px;
+			border-radius: 999px;
+			display: inline-block;
+		}
+
+		.cda-rider-head label {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			font-size: 0.82rem;
+			color: var(--muted);
+			font-weight: 600;
+		}
+
+		.cda-rider-head input[type="text"],
+		.cda-rider-head input[type="number"] {
+			border: 1px solid rgba(31, 41, 55, 0.2);
+			border-radius: 8px;
+			background: #fff;
+			color: var(--ink);
+			padding: 5px 8px;
+			font-size: 0.88rem;
+		}
+
+		.cda-rider-head input[type="text"] {
+			min-width: 140px;
+		}
+
+		.cda-rider-head input[type="number"] {
+			width: 80px;
+		}
+
+		.cda-rider-range {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 8px;
+		}
+
+		.cda-range-field {
+			display: inline-flex;
+			align-items: center;
+			gap: 4px;
+			font-size: 0.82rem;
+			color: var(--muted);
+			font-weight: 600;
+		}
+
+		.cda-range-field input {
+			width: 96px;
+			border: 1px solid rgba(31, 41, 55, 0.2);
+			border-radius: 8px;
+			background: #fff;
+			color: var(--ink);
+			padding: 5px 8px;
+			font-size: 0.88rem;
+		}
+
+		.cda-range-field button,
+		.cda-rider-calc {
+			padding: 5px 10px;
+			border: 1px solid rgba(31, 41, 55, 0.2);
+			border-radius: 999px;
+			background: #f8fafc;
+			color: var(--ink);
+			font-size: 0.78rem;
+			font-weight: 600;
+			cursor: pointer;
+		}
+
+		.cda-rider-calc {
+			background: #0f766e;
+			color: #fff;
+			border-color: #0f766e;
+		}
+
+		.cda-rider-calc:disabled {
+			opacity: 0.45;
+			cursor: not-allowed;
+		}
+
+		.cda-rider-add-data {
+			padding: 5px 10px;
+			border: 1px solid #1d4ed8;
+			border-radius: 999px;
+			background: #1d4ed8;
+			color: #fff;
+			font-size: 0.78rem;
+			font-weight: 600;
+			cursor: pointer;
+		}
+
+		.cda-rider-extra-ranges {
+			display: grid;
+			gap: 6px;
+		}
+
+		.cda-rider-extra-range {
+			padding-left: 8px;
+			border-left: 3px solid rgba(29, 78, 216, 0.35);
+		}
+
+		.cda-rider-extra-label {
+			font-size: 0.78rem;
+			color: var(--muted);
+			font-weight: 600;
+			min-width: 64px;
+		}
+
+		.cda-rider-extra-remove {
+			padding: 4px 8px;
+			border: 1px solid rgba(220, 38, 38, 0.35);
+			border-radius: 999px;
+			background: #fff;
+			color: #b91c1c;
+			font-size: 0.74rem;
+			font-weight: 600;
+			cursor: pointer;
+		}
+
+		.cda-rider-result {
+			display: grid;
+			grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+			gap: 8px;
+		}
+
+		.cda-rider-result-empty {
+			font-size: 0.82rem;
+			color: var(--muted);
+			font-style: italic;
+		}
+
+		.cda-rider-error {
+			font-size: 0.82rem;
+			color: #b45309;
+		}
+
+		.sections-panel {
+			border: 1px solid rgba(31, 41, 55, 0.16);
+			border-radius: 12px;
+			background: #fff;
+			overflow: hidden;
+			margin-top: 12px;
+		}
+
+		.sections-list {
+			display: grid;
+			gap: 12px;
+			padding: 12px 14px;
+		}
+
+		.section-tile {
+			border: 1px solid rgba(31, 41, 55, 0.14);
+			border-radius: 12px;
+			background: #f9fafb;
+			padding: 12px;
+			display: grid;
+			gap: 10px;
+		}
+
+		.section-tile-head {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 10px;
+		}
+
+		.section-tile-title {
+			font-weight: 700;
+			color: var(--ink);
+		}
+
+		.section-tile-remove {
+			padding: 4px 10px;
+			border: 1px solid rgba(220, 38, 38, 0.4);
+			border-radius: 999px;
+			background: #fff;
+			color: #b91c1c;
+			font-size: 0.78rem;
+			font-weight: 600;
+			cursor: pointer;
+		}
+
+		.section-time-row {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 8px;
+		}
+
+		.rider-order-label {
+			font-size: 0.82rem;
+			color: var(--muted);
+			font-weight: 600;
+		}
+
+		.rider-order {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 6px;
+			align-items: center;
+			padding: 6px;
+			border: 1px dashed rgba(31, 41, 55, 0.18);
+			border-radius: 10px;
+			background: #fff;
+			min-height: 40px;
+		}
+
+		.rider-chip {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			padding: 4px 10px;
+			border-radius: 999px;
+			border: 1px solid rgba(31, 41, 55, 0.14);
+			background: #f8fafc;
+			font-size: 0.84rem;
+			font-weight: 600;
+			color: var(--ink);
+			cursor: grab;
+			user-select: none;
+		}
+
+		.rider-chip:active { cursor: grabbing; }
+
+		.rider-chip.dragging {
+			opacity: 0.4;
+		}
+
+		.rider-chip.drop-target {
+			box-shadow: inset 2px 0 0 #0f766e;
+		}
+
+		.rider-chip i {
+			width: 10px;
+			height: 10px;
+			border-radius: 999px;
+			display: inline-block;
+		}
+
+		.rider-chip-pos {
+			font-size: 0.74rem;
+			color: var(--muted);
+			font-weight: 700;
+		}
+
+		.rider-chip-remove {
+			margin-left: 2px;
+			width: 18px;
+			height: 18px;
+			line-height: 1;
+			font-size: 0.95rem;
+			font-weight: 700;
+			border-radius: 999px;
+			border: 1px solid rgba(220, 38, 38, 0.35);
+			background: #fff;
+			color: #b91c1c;
+			cursor: pointer;
+			padding: 0;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.rider-chip-remove:hover {
+			background: #fee2e2;
+		}
+
+		.rider-add-wrap {
+			display: inline-flex;
+			align-items: center;
+		}
+
+		.rider-add-select {
+			padding: 4px 8px;
+			border: 1px dashed rgba(31, 41, 55, 0.25);
+			border-radius: 999px;
+			background: #fff;
+			color: var(--muted);
+			font-size: 0.78rem;
+			font-weight: 600;
+			cursor: pointer;
+		}
+
+		.section-results {
+			display: grid;
+			grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+			gap: 8px;
+		}
+
+		.section-result-card {
+			border: 1px solid rgba(31, 41, 55, 0.14);
+			border-radius: 10px;
+			padding: 8px 10px;
+			background: #fff;
+		}
+
+		.section-result-card .label {
+			font-size: 0.74rem;
+			color: var(--muted);
+			display: flex;
+			align-items: center;
+			gap: 5px;
+		}
+
+		.section-result-card .label i {
+			width: 9px;
+			height: 9px;
+			border-radius: 999px;
+			display: inline-block;
+		}
+
+		.section-result-card .value {
+			font-size: 1rem;
+			font-weight: 700;
+			color: var(--ink);
+			margin-top: 2px;
+		}
+
+		.section-result-card .sub {
+			font-size: 0.72rem;
+			color: var(--muted);
+		}
+
+		.section-result-card.leader .value {
+			color: #0f766e;
+		}
+
+		.section-result-empty {
+			font-size: 0.82rem;
+			color: var(--muted);
+			font-style: italic;
+		}
+
+		.section-motion-summary {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 14px;
+			padding: 6px 10px;
+			margin-bottom: 8px;
+			border-radius: 8px;
+			background: rgba(15, 118, 110, 0.06);
+			border: 1px solid rgba(15, 118, 110, 0.15);
+			font-size: 0.78rem;
+			color: var(--ink);
+			grid-column: 1 / -1;
+		}
+
+		.section-motion-summary span.label {
+			color: var(--muted);
+			font-weight: 600;
+			margin-right: 4px;
+		}
+
+		.section-motion-summary span.value {
+			font-weight: 700;
+		}
+
+		.section-result-error {
+			font-size: 0.78rem;
+			color: #b45309;
+		}
+
+		.section-add-bar {
+			padding: 10px 14px;
+			display: flex;
+			justify-content: flex-start;
+			border-top: 1px solid rgba(31, 41, 55, 0.1);
+			background: linear-gradient(180deg, #fff, #fafafa);
+		}
+
+		.btn-add-section {
+			padding: 7px 14px;
+			border-radius: 999px;
+			border: 1px solid #0f766e;
+			background: #0f766e;
+			color: #fff;
+			font-weight: 600;
+			font-size: 0.85rem;
+			cursor: pointer;
+		}
+
+		.btn-add-section:disabled {
+			opacity: 0.45;
+			cursor: not-allowed;
+		}
+
+		.btn-create-summary {
+			background: #1d4ed8;
+			border-color: #1d4ed8;
+			margin-left: 8px;
+		}
+
+		.sections-summary {
+			padding: 0 14px 14px;
+			display: grid;
+			gap: 14px;
+		}
+
+		.summary-block {
+			border: 1px solid rgba(31, 41, 55, 0.14);
+			border-radius: 10px;
+			background: #fff;
+			overflow: hidden;
+		}
+
+		.summary-block-head {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 10px;
+			padding: 8px 12px;
+			font-weight: 600;
+			color: var(--ink);
+			background: linear-gradient(180deg, #fff, #f3f4f6);
+			border-bottom: 1px solid rgba(31, 41, 55, 0.08);
+		}
+
+		.summary-block-note {
+			font-weight: 400;
+			font-size: 0.78rem;
+			color: var(--muted);
+		}
+
+		.summary-table-wrap {
+			overflow-x: auto;
+		}
+
+		.summary-table {
+			border-collapse: collapse;
+			width: 100%;
+			font-size: 0.85rem;
+		}
+
+		.summary-table th,
+		.summary-table td {
+			padding: 6px 10px;
+			border-bottom: 1px solid rgba(31, 41, 55, 0.08);
+			border-right: 1px solid rgba(31, 41, 55, 0.06);
+			text-align: center;
+			white-space: nowrap;
+		}
+
+		.summary-table th {
+			background: #f9fafb;
+			font-weight: 600;
+			color: var(--muted);
+		}
+
+		.summary-table td.row-label,
+		.summary-table th.row-label {
+			text-align: left;
+			position: sticky;
+			left: 0;
+			background: #f9fafb;
+			z-index: 1;
+		}
+
+		.summary-table tr.summary-avg-row td {
+			background: #eef2ff;
+			font-weight: 600;
+		}
+
+		.summary-cell-empty {
+			color: rgba(31, 41, 55, 0.35);
+		}
+
+		.summary-cell-count {
+			display: block;
+			font-size: 0.7rem;
+			color: var(--muted);
+			font-weight: 400;
+		}
+
+		.summary-empty {
+			padding: 14px;
+			color: var(--muted);
+			font-size: 0.88rem;
+		}
+
+		.stat-card {
+			border: 1px solid rgba(31, 41, 55, 0.14);
+			border-radius: 10px;
+			padding: 10px 12px;
+			background: #fff;
+		}
+
+		.stat-card .label {
+			font-size: 0.78rem;
+			color: var(--muted);
+			margin-bottom: 4px;
+		}
+
+		.stat-card .value {
+			font-size: 1.05rem;
+			font-weight: 700;
+			color: var(--ink);
+		}
+
+		.stat-card.highlight .value {
+			color: #0f766e;
+		}
+
+		.btn {
+			padding: 8px 20px;
+			border-radius: 8px;
+			border: none;
+			font-size: 0.92rem;
+			font-weight: 600;
+			cursor: pointer;
+			transition: opacity 0.15s, box-shadow 0.15s;
+		}
+
+		.btn:disabled {
+			opacity: 0.35;
+			cursor: not-allowed;
+		}
+
+		@media (max-width: 900px) {
+			.controls {
+				grid-template-columns: 1fr 1fr;
+			}
+
+			.plot-canvas {
+				height: 220px;
+			}
+
+			.plot-controls {
+				grid-template-columns: 1fr;
+			}
+		}
+
+		@media (max-width: 560px) {
+			body {
+				padding: 10px;
+			}
+
+			.controls {
+				grid-template-columns: 1fr;
+			}
+
+			.plot-head {
+				align-items: flex-start;
+				flex-direction: column;
+			}
+		}
+	</style>
+</head>
+<body>
+	<main class="shell">
+		<header class="topbar">
+			<h1 class="title">Draft Calculator</h1>
+			<p class="subtitle">Choose a video file, one or more FIT files, and a shared metric to start. Left click + drag to go to point of interest in video, right click + drag to sync datastream.</p>
+		</header>
+
+		<section class="controls">
+			<div class="field">
+				<label for="videoInput">Video file</label>
+				<input id="videoInput" type="file" accept="video/*" />
+			</div>
+
+			<div class="field">
+				<label for="fitInput">FIT files (.fit)</label>
+				<input id="fitInput" type="file" accept=".fit,application/octet-stream" multiple />
+				<button id="loadSyncBtn" type="button" class="target-btn" style="margin-top:6px;align-self:start;">Load synced file</button>
+				<input id="loadSyncInput" type="file" accept=".dcsync,.json" style="display:none;" />
+			</div>
+
+			<div class="field">
+				<label for="sheetSelect">Streams (drag to reorder)</label>
+				<div id="sheetSelect" class="sheet-list" data-disabled="true" role="listbox" aria-multiselectable="true" aria-label="Streams"></div>
+			</div>
+		</section>
+
+		<section class="stats">
+			<span class="chip">Sampling frequency: <strong id="samplingHz">-</strong></span>
+			<span class="chip">Video frame rate: <strong id="videoFps">-</strong></span>
+			<span class="chip">Trace offset: <strong id="traceOffset">0.000s</strong></span>
+			<span class="chip">Video time: <strong id="videoTime">0.000s</strong></span>
+		</section>
+
+		<section class="stage">
+			<div class="video-wrap">
+				<video id="video" controls preload="metadata"></video>
+			</div>
+
+			<div class="plot-wrap">
+				<div class="plot-head">
+					<strong id="plotTitle">Metric trace</strong>
+					<div class="legend">
+						<span id="seriesLegend" class="legend-group"><span class="swatch"><i style="background:#0f766e"></i>metric</span></span>
+						<span class="swatch"><i style="background:#dc2626"></i>video-linked playhead</span>
+					</div>
+					<button id="snapBtn" type="button" class="target-btn">Snap to playhead</button>
+					<button id="trimLeftBtn" type="button" class="target-btn" disabled>Trim left</button>
+					<button id="trimRightBtn" type="button" class="target-btn" disabled>Trim right</button>
+					<button id="saveSyncBtn" type="button" class="target-btn" disabled>Save sync</button>
+				</div>
+				<div class="metric-panel">
+					<div class="gear-inputs-head">Gear inches (per stream) — enables Speed metric</div>
+					<div id="gearInputs" class="gear-inputs"><span class="gear-input-empty">Load FIT file(s) to set gear inches.</span></div>
+					<div class="metric-select-row">
+						<label for="metricSelect">Metric (not Time)</label>
+						<select id="metricSelect" disabled>
+							<option value="">Select metric</option>
+						</select>
+						<span class="metric-smoothing">
+							<label for="smoothingControl">Smoothing</label>
+							<input id="smoothingControl" type="range" min="1" max="200" step="2" value="1" />
+							<span id="smoothingValue" class="control-value">off</span>
+						</span>
+					</div>
+				</div>
+				<canvas id="plot" class="plot-canvas"></canvas>
+				<div id="currentValueDisplay" class="current-value-readout">values @ playhead: -</div>
+				<div class="plot-controls">
+					<div class="control-group">
+						<label for="scaleControl">Trace window scale</label>
+						<div class="control-row">
+							<input id="scaleControl" type="range" min="1" max="100" step="5" value="100" />
+							<span id="scaleValue" class="control-value">100%</span>
+						</div>
+					</div>
+					<div class="control-group">
+						<label for="sensitivityControl">Drag sensitivity</label>
+						<div class="control-row">
+							<input id="sensitivityControl" type="range" min="0.1" max="10" step="0.1" value="0.2" />
+							<span id="sensitivityValue" class="control-value">0.20x</span>
+						</div>
+					</div>
+					<div class="control-group">
+						<label>Y-axis limits</label>
+						<div class="control-row">
+							<input id="yMinInput" type="number" step="any" placeholder="min (auto)" class="y-limit-input" />
+							<input id="yMaxInput" type="number" step="any" placeholder="max (auto)" class="y-limit-input" />
+							<button id="yLimitResetBtn" type="button" class="target-btn">Auto</button>
+						</div>
+					</div>
+				</div>
+				<div id="syncTargets" class="sync-targets"></div>
+				<div id="status" class="status">Load a video and one or more FIT files to start.</div>
+			</div>
+
+			<div class="cda-panel">
+				<div id="cdaPanelHead" class="panel-head" data-target="cdaPanelBody">
+					<span class="panel-head-title">Set CdA</span>
+					<span class="panel-head-chevron">▾</span>
+				</div>
+				<div id="cdaPanelBody" class="panel-body">
+					<p class="cda-explainer">Set per-rider mass and the section each rider is leading. Lead CdA is calculated from each rider's power and the speed derived from their gear inches and cadence over the section.</p>
+					<div class="cda-globals">
+						<label>Air density &rho; (kg/m³)<input id="cdaAirDensity" type="number" step="0.001" min="0" value="1.168" /></label>
+						<label>Rolling resistance C<sub>rr</sub><input id="cdaCrr" type="number" step="0.0001" min="0" value="0.0024" /></label>
+						<label>Drivetrain efficiency &eta;<input id="cdaDriveEff" type="number" step="0.001" min="0" max="1" value="0.9974" /></label>
+						<label>Wheel inertia factor (m<sub>eff</sub>/m)<input id="cdaInertiaFactor" type="number" step="0.001" min="1" value="1.03" /></label>
+						<label>CdA window (samples)<input id="cdaWindowSize" type="number" step="1" min="2" value="5" /></label>
+					</div>
+					<div id="cdaRiders" class="cda-riders"><span class="cda-riders-empty">Load FIT file(s) to configure rider CdA inputs.</span></div>
+				</div>
+			</div>
+
+			<div class="sections-panel">
+				<div id="sectionsPanelHead" class="panel-head" data-target="sectionsPanelBody">
+					<span class="panel-head-title">Ride Sections</span>
+					<span class="panel-head-chevron">▾</span>
+				</div>
+				<div id="sectionsPanelBody" class="panel-body">
+					<div id="sectionsList" class="sections-list"></div>
+					<div class="section-add-bar">
+						<button id="btnAddSection" type="button" class="btn-add-section">+ Add section</button>
+						<button id="btnCreateSummary" type="button" class="btn-add-section btn-create-summary">Create summary</button>
+					</div>
+					<div id="sectionsSummary" class="sections-summary" hidden></div>
+				</div>
+			</div>
+		</section>
+	</main>
+
+	<script>
+
+		const SERIES_COLORS = ["#0f766e", "#1d4ed8", "#dc2626", "#d97706", "#7c3aed", "#0891b2", "#65a30d", "#be185d"];
+		const SPEED_METRIC_LABEL = "Speed (km/h)";
+		const LEAD_POWER_METRIC_LABEL = "Lead Power (W)";
+		const DRAFT_EFFECT_METRIC_LABEL = "Draft Effect";
+		const HIGH_RATE_PREFIX = "__200hz__::";
+
+		function isHighRateMetric(key) {
+			return typeof key === "string" && key.startsWith(HIGH_RATE_PREFIX);
+		}
+
+		function highRateColumnFromKey(key) {
+			return isHighRateMetric(key) ? key.slice(HIGH_RATE_PREFIX.length) : key;
+		}
+
+		function metricDisplayLabel(key) {
+			if (!key) return "";
+			if (isHighRateMetric(key)) return `${highRateColumnFromKey(key)} (200Hz)`;
+			return key;
+		}
+
+		function logicalMetricName(column) {
+			return String(column || "").trim().toLowerCase().replace(/_200hz$/, "").replace(/_raw$/, "").trim();
+		}
+		// gear_inches uses the 27" datum; actual wheel circumference is fixed at 2.096 m.
+		// ratio              = gear_inches / 27
+		// distance/rev (m)   = ratio × WHEEL_CIRCUMFERENCE_M
+		// speed (km/h)       = cadence_rpm × distance/rev × 60 / 1000
+		const WHEEL_CIRCUMFERENCE_M = 2.096;
+		const SPEED_KMH_PER_GEARINCH_RPM = (WHEEL_CIRCUMFERENCE_M / 27) * 60 / 1000;
+		let FitParserClass = null;
+
+		const state = {
+			fitStreams: [],
+			selectedSheetNames: [],
+			selectedSheets: [],
+			streamOffsets: {},
+			streamGearInches: {},
+			syncTargetSheetNames: [],
+			metricColumnKey: "",
+			samplingDisplay: "-",
+			series: [],
+			times: [],
+			metricValues: [],
+			estimatedVideoFps: null,
+			traceOffsetTime: 0,
+			viewScale: 1,
+			yMinOverride: null,
+			yMaxOverride: null,
+			smoothingWindow: 1,
+			dragLastX: 0,
+			dragSensitivity: 0.2,
+			pointerMode: "none",
+			fpsFrameSamples: [],
+			fpsEstimatorActive: false,
+			lastFrameMediaTime: null,
+			frameTrackerActive: false,
+			drawingData: null,
+			cdaRiders: {},
+			cdaGlobals: { rho: 1.168, crr: 0.0024, eta: 0.9974, inertiaFactor: 1.03, windowSize: 5 },
+			rideSections: []
+		};
+
+		const els = {
+			videoInput: document.getElementById("videoInput"),
+			fitInput: document.getElementById("fitInput"),
+			sheetSelect: document.getElementById("sheetSelect"),
+			metricSelect: document.getElementById("metricSelect"),
+			seriesLegend: document.getElementById("seriesLegend"),
+			syncTargets: document.getElementById("syncTargets"),
+			samplingHz: document.getElementById("samplingHz"),
+			videoFps: document.getElementById("videoFps"),
+			traceOffset: document.getElementById("traceOffset"),
+			videoTime: document.getElementById("videoTime"),
+			status: document.getElementById("status"),
+			plotTitle: document.getElementById("plotTitle"),
+			currentValueDisplay: document.getElementById("currentValueDisplay"),
+			scaleControl: document.getElementById("scaleControl"),
+			scaleValue: document.getElementById("scaleValue"),
+			sensitivityControl: document.getElementById("sensitivityControl"),
+			sensitivityValue: document.getElementById("sensitivityValue"),
+			yMinInput: document.getElementById("yMinInput"),
+			yMaxInput: document.getElementById("yMaxInput"),
+			yLimitResetBtn: document.getElementById("yLimitResetBtn"),
+			smoothingControl: document.getElementById("smoothingControl"),
+			smoothingValue: document.getElementById("smoothingValue"),
+			video: document.getElementById("video"),
+			plot: document.getElementById("plot"),
+			snapBtn: document.getElementById("snapBtn"),
+			trimLeftBtn: document.getElementById("trimLeftBtn"),
+			trimRightBtn: document.getElementById("trimRightBtn"),
+			saveSyncBtn: document.getElementById("saveSyncBtn"),
+			loadSyncBtn: document.getElementById("loadSyncBtn"),
+			loadSyncInput: document.getElementById("loadSyncInput"),
+			gearInputs: document.getElementById("gearInputs"),
+			cdaAirDensity: document.getElementById("cdaAirDensity"),
+			cdaCrr: document.getElementById("cdaCrr"),
+			cdaDriveEff: document.getElementById("cdaDriveEff"),
+			cdaInertiaFactor: document.getElementById("cdaInertiaFactor"),
+			cdaWindowSize: document.getElementById("cdaWindowSize"),
+			cdaRiders: document.getElementById("cdaRiders"),
+			cdaPanelHead: document.getElementById("cdaPanelHead"),
+			cdaPanelBody: document.getElementById("cdaPanelBody"),
+			sectionsPanelHead: document.getElementById("sectionsPanelHead"),
+			sectionsPanelBody: document.getElementById("sectionsPanelBody"),
+			sectionsList: document.getElementById("sectionsList"),
+			btnAddSection: document.getElementById("btnAddSection"),
+			btnCreateSummary: document.getElementById("btnCreateSummary"),
+			sectionsSummary: document.getElementById("sectionsSummary")
+		};
+
+		const sheetList = createSheetList(els.sheetSelect);
+
+		const ctx = els.plot.getContext("2d");
+
+		function setStatus(message, level = "warn") {
+			els.status.textContent = message;
+			if (level === "ok") {
+				els.status.style.color = "#166534";
+				els.status.style.background = "#f0fdf4";
+			} else {
+				els.status.style.color = "#b45309";
+				els.status.style.background = "#fff7ed";
+			}
+		}
+
+		function toNumber(val) {
+			const n = Number(val);
+			return Number.isFinite(n) ? n : null;
+		}
+
+		function formatNum(n, digits = 3) {
+			return Number.isFinite(n) ? n.toFixed(digits) : "-";
+		}
+
+		function findTimeColumn(columns) {
+			const exact = columns.find((name) => String(name).trim().toLowerCase() === "time");
+			if (exact) return exact;
+			const timestampLike = columns.find((name) => {
+				const normalized = String(name).toLowerCase();
+				return normalized.includes("timestamp") || normalized.includes("date_time") || normalized.includes("time");
+			});
+			return timestampLike || "";
+		}
+
+		function getStreamByName(streamName) {
+			return state.fitStreams.find((stream) => stream.sheetName === streamName) || null;
+		}
+
+		function toTitleCase(text) {
+			if (!text) return "";
+			return String(text)
+				.split(/\s+/)
+				.filter(Boolean)
+				.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+				.join(" ");
+		}
+
+		function formatDisplayName(rawName) {
+			const cleaned = toTitleCase(rawName);
+			const parts = cleaned.split(/\s+/).filter(Boolean);
+			if (parts.length >= 2) {
+				const initials = `${parts[0].charAt(0)}${parts[1].charAt(0)}`.toUpperCase();
+				return `${initials} ${parts[1]}`;
+			}
+			return cleaned || "Stream";
+		}
+
+		function deriveLabelFromFileName(fileName) {
+			const withoutExt = String(fileName || "").replace(/\.fit$/i, "");
+			const withoutPrefix = withoutExt.replace(/^\d{8}-\d{6}-\d+-/, "");
+			const idx = withoutPrefix.lastIndexOf(" - ");
+			const tail = idx >= 0 ? withoutPrefix.slice(idx + 3) : withoutPrefix;
+			return tail.trim() || "Stream";
+		}
+
+		function deriveStreamDisplayName(fileName, fitData) {
+			const userProfile = fitData?.user_profile || fitData?.userProfile || fitData?.activity?.user_profile || null;
+			const candidates = [
+				userProfile?.friendly_name,
+				userProfile?.full_name,
+				userProfile?.name,
+				fitData?.activity?.name,
+				fitData?.file_id?.name
+			];
+
+			for (const candidate of candidates) {
+				if (typeof candidate === "string" && candidate.trim()) {
+					return candidate.trim();
+				}
+			}
+
+			return deriveLabelFromFileName(fileName);
+		}
+
+		async function ensureFitParserLoaded() {
+			if (FitParserClass) return FitParserClass;
+
+			const moduleUrls = [
+				"https://cdn.jsdelivr.net/npm/fit-file-parser@2.3.3/+esm",
+				"https://esm.sh/fit-file-parser@2.3.3"
+			];
+
+			let lastError = null;
+			for (const moduleUrl of moduleUrls) {
+				try {
+					const mod = await import(moduleUrl);
+					FitParserClass = mod.default || mod.FitParser || null;
+					if (FitParserClass) return FitParserClass;
+					lastError = new Error(`No FitParser export found at ${moduleUrl}`);
+				} catch (error) {
+					lastError = error;
+				}
+			}
+
+			throw lastError || new Error("Unable to load FIT parser module.");
+		}
+
+		async function parseFitArrayBuffer(buffer) {
+			const ParserCtor = await ensureFitParserLoaded();
+			return new Promise((resolve, reject) => {
+				const parser = new ParserCtor({
+					force: true,
+					speedUnit: "m/s",
+					lengthUnit: "m",
+					temperatureUnit: "celsius",
+					elapsedRecordField: true,
+					mode: "both"
+				});
+
+				parser.parse(new Uint8Array(buffer), (error, fitData) => {
+					if (error) {
+						reject(error);
+						return;
+					}
+					resolve(fitData || {});
+				});
+			});
+		}
+
+		function extractFitRecords(fitData) {
+			if (!fitData || typeof fitData !== "object") return [];
+
+			if (Array.isArray(fitData.records) && fitData.records.length > 0) {
+				return fitData.records;
+			}
+
+			const records = [];
+			const pushRecords = (candidate) => {
+				if (Array.isArray(candidate) && candidate.length > 0) {
+					records.push(...candidate);
+				}
+			};
+
+			if (fitData.activity && Array.isArray(fitData.activity.sessions)) {
+				for (const session of fitData.activity.sessions) {
+					pushRecords(session.records);
+					if (Array.isArray(session.laps)) {
+						for (const lap of session.laps) {
+							pushRecords(lap.records);
+						}
+					}
+				}
+			}
+
+			if (Array.isArray(fitData.sessions)) {
+				for (const session of fitData.sessions) {
+					pushRecords(session.records);
+					if (Array.isArray(session.laps)) {
+						for (const lap of session.laps) {
+							pushRecords(lap.records);
+						}
+					}
+				}
+			}
+
+			if (Array.isArray(fitData.laps)) {
+				for (const lap of fitData.laps) {
+					pushRecords(lap.records);
+				}
+			}
+
+			return records;
+		}
+
+		function toTimestampSeconds(value) {
+			if (value instanceof Date) {
+				return value.getTime() / 1000;
+			}
+
+			if (typeof value === "string") {
+				const parsed = Date.parse(value);
+				if (Number.isFinite(parsed)) {
+					return parsed / 1000;
+				}
+			}
+
+			const asNumber = toNumber(value);
+			if (asNumber === null) return null;
+
+			if (asNumber > 1e12) return asNumber / 1000;
+			if (asNumber > 1e9) return asNumber;
+			return asNumber;
+		}
+
+		function normalizeFitRecordsToRows(records) {
+			const rows = [];
+			for (const record of records || []) {
+				if (!record || typeof record !== "object") continue;
+
+				const rawTime = record.timestamp ?? record.enhanced_timestamp ?? record.local_timestamp ?? record.time;
+				const timeSeconds = toTimestampSeconds(rawTime);
+				if (!Number.isFinite(timeSeconds)) continue;
+
+				const row = { Time: timeSeconds };
+				for (const [key, value] of Object.entries(record)) {
+					if (key === "timestamp" || key === "enhanced_timestamp" || key === "local_timestamp" || key === "time") {
+						continue;
+					}
+					const numeric = toNumber(value);
+					if (numeric !== null) {
+						row[key] = numeric;
+					}
+				}
+				rows.push(row);
+			}
+			return rows;
+		}
+
+		function getSelectedValues(select) {
+			return Array.from(select.selectedOptions || [])
+				.map((option) => option.value)
+				.filter(Boolean);
+		}
+
+		function createSheetList(container) {
+			let items = [];
+			let defaultOrder = [];
+			let dragSrcValue = null;
+
+			function indexOfValue(v) {
+				return items.findIndex((it) => it.value === v);
+			}
+
+			function emitChange() {
+				container.dispatchEvent(new Event("change"));
+			}
+
+			function clearDragMarkers() {
+				container.querySelectorAll(".drag-over-top, .drag-over-bottom").forEach((el) => {
+					el.classList.remove("drag-over-top", "drag-over-bottom");
+				});
+			}
+
+			function resetToDefaultOrder() {
+				items.sort((a, b) => defaultOrder.indexOf(a.value) - defaultOrder.indexOf(b.value));
+			}
+
+			function render() {
+				container.innerHTML = "";
+				if (items.length === 0) {
+					const empty = document.createElement("div");
+					empty.className = "sheet-list-empty";
+					empty.textContent = "No items loaded.";
+					container.appendChild(empty);
+					return;
+				}
+				for (const item of items) {
+					const row = document.createElement("div");
+					row.className = "sheet-list-item";
+					row.dataset.value = item.value;
+					row.draggable = true;
+					row.setAttribute("role", "option");
+					row.setAttribute("aria-selected", item.selected ? "true" : "false");
+
+					const handle = document.createElement("span");
+					handle.className = "sheet-list-handle";
+					handle.textContent = "\u2630";
+					handle.title = "Drag to reorder";
+					handle.setAttribute("aria-hidden", "true");
+
+					const checkbox = document.createElement("input");
+					checkbox.type = "checkbox";
+					checkbox.checked = item.selected;
+					checkbox.addEventListener("click", (e) => e.stopPropagation());
+					checkbox.addEventListener("change", () => {
+						item.selected = checkbox.checked;
+						resetToDefaultOrder();
+						render();
+						emitChange();
+					});
+
+					const label = document.createElement("span");
+					label.className = "sheet-list-label";
+					label.textContent = item.label;
+					label.title = item.label;
+
+					row.append(handle, checkbox, label);
+
+					row.addEventListener("dragstart", (e) => {
+						dragSrcValue = item.value;
+						e.dataTransfer.effectAllowed = "move";
+						try { e.dataTransfer.setData("text/plain", item.value); } catch (_) { /* noop */ }
+						row.classList.add("dragging");
+					});
+					row.addEventListener("dragend", () => {
+						row.classList.remove("dragging");
+						clearDragMarkers();
+						dragSrcValue = null;
+					});
+					row.addEventListener("dragover", (e) => {
+						if (!dragSrcValue || dragSrcValue === item.value) return;
+						e.preventDefault();
+						e.dataTransfer.dropEffect = "move";
+						const rect = row.getBoundingClientRect();
+						const before = (e.clientY - rect.top) < rect.height / 2;
+						row.classList.remove("drag-over-top", "drag-over-bottom");
+						row.classList.add(before ? "drag-over-top" : "drag-over-bottom");
+					});
+					row.addEventListener("dragleave", () => {
+						row.classList.remove("drag-over-top", "drag-over-bottom");
+					});
+					row.addEventListener("drop", (e) => {
+						if (!dragSrcValue || dragSrcValue === item.value) return;
+						e.preventDefault();
+						const rect = row.getBoundingClientRect();
+						const before = (e.clientY - rect.top) < rect.height / 2;
+						const fromIdx = indexOfValue(dragSrcValue);
+						let toIdx = indexOfValue(item.value);
+						if (fromIdx < 0 || toIdx < 0) return;
+						const [moved] = items.splice(fromIdx, 1);
+						if (fromIdx < toIdx) toIdx -= 1;
+						const insertAt = before ? toIdx : toIdx + 1;
+						items.splice(insertAt, 0, moved);
+						clearDragMarkers();
+						render();
+						emitChange();
+					});
+
+					row.addEventListener("click", (e) => {
+						if (e.target === checkbox || e.target === handle) return;
+						checkbox.checked = !checkbox.checked;
+						checkbox.dispatchEvent(new Event("change"));
+					});
+
+					container.appendChild(row);
+				}
+			}
+
+			function setItems(list) {
+				items = list.map((it) => ({
+					value: it.value,
+					label: it.label !== undefined ? it.label : it.value,
+					selected: !!it.selected
+				}));
+				defaultOrder = items.map((it) => it.value);
+				render();
+			}
+
+			function getSelectedValues() {
+				return items.filter((it) => it.selected).map((it) => it.value);
+			}
+
+			function setEnabled(value) {
+				container.dataset.disabled = value ? "false" : "true";
+			}
+
+			render();
+			return { setItems, getSelectedValues, setEnabled, container };
+		}
+
+		function getSeriesColor(index) {
+			return SERIES_COLORS[index % SERIES_COLORS.length];
+		}
+
+		function intersectMetricColumns(sheetData) {
+			if (sheetData.length === 0) return [];
+			let common = [...sheetData[0].metricColumns];
+			for (let i = 1; i < sheetData.length; i += 1) {
+				const metricSet = new Set(sheetData[i].metricColumns);
+				common = common.filter((column) => metricSet.has(column));
+			}
+			return common;
+		}
+
+		function formatSamplingDisplay(sheetData) {
+			const values = sheetData
+				.map((sheet) => sheet.samplingHz)
+				.filter((value) => Number.isFinite(value));
+			if (values.length === 0) return "-";
+			const min = Math.min(...values);
+			const max = Math.max(...values);
+			if (Math.abs(max - min) < 1e-6) {
+				return `${formatNum(min, 3)} Hz`;
+			}
+			return `${formatNum(min, 3)}-${formatNum(max, 3)} Hz`;
+		}
+
+		function updateSeriesLegend() {
+			if (state.series.length === 0) {
+				els.seriesLegend.innerHTML = '<span class="swatch"><i style="background:#0f766e"></i>metric</span>';
+				return;
+			}
+
+			els.seriesLegend.innerHTML = state.series
+				.map((series) => `<span class="swatch"><i style="background:${series.color}"></i>${series.label || series.sheetName}</span>`)
+				.join("");
+		}
+
+		function getSelectedSyncSheetNameSet() {
+			const selected = new Set(state.syncTargetSheetNames || []);
+			if (selected.size === 0 && state.series.length > 0) {
+				for (const series of state.series) selected.add(series.sheetName);
+			}
+			return selected;
+		}
+
+		function renderSyncTargets() {
+			if (state.series.length === 0) {
+				els.syncTargets.innerHTML = "";
+				return;
+			}
+
+			const selectedSet = getSelectedSyncSheetNameSet();
+			const allSelected = state.series.every((series) => selectedSet.has(series.sheetName));
+			const buttons = [
+				`<button type="button" class="target-btn ${allSelected ? "active" : ""}" data-target="all">All riders</button>`
+			];
+
+			for (const series of state.series) {
+				const isActive = selectedSet.has(series.sheetName);
+				buttons.push(`<button type="button" class="target-btn ${isActive ? "active" : ""}" data-target="${series.sheetName}">${series.label || series.sheetName}</button>`);
+			}
+
+			els.syncTargets.innerHTML = buttons.join("");
+		}
+
+		function getOffsetLabel() {
+			if (state.series.length === 0) return "0.000s";
+			const selectedSet = getSelectedSyncSheetNameSet();
+			const offsets = state.series
+				.filter((series) => selectedSet.has(series.sheetName))
+				.map((series) => series.offset || 0);
+
+			if (offsets.length === 0) return "0.000s";
+			const min = Math.min(...offsets);
+			const max = Math.max(...offsets);
+			if (Math.abs(max - min) < 1e-6) return `${formatNum(offsets[0], 3)}s`;
+			return "mixed";
+		}
+
+		function getPrimarySeries() {
+			return state.series[0] || null;
+		}
+
+		function populateMetricSelect(metricColumns, selectedValue = "", highRateColumns = []) {
+			els.metricSelect.innerHTML = "<option value=''>Select metric</option>";
+			const speedAvailable = canCalculateSpeed();
+			if (speedAvailable) {
+				const option = document.createElement("option");
+				option.value = SPEED_METRIC_LABEL;
+				option.textContent = `${SPEED_METRIC_LABEL} (calculated)`;
+				els.metricSelect.appendChild(option);
+			}
+			const leadPowerAvailable = canCalculateLeadPower();
+			if (leadPowerAvailable) {
+				const option = document.createElement("option");
+				option.value = LEAD_POWER_METRIC_LABEL;
+				option.textContent = `${LEAD_POWER_METRIC_LABEL} (calculated)`;
+				els.metricSelect.appendChild(option);
+			}
+			const draftEffectAvailable = canCalculateDraftEffect();
+			if (draftEffectAvailable) {
+				const option = document.createElement("option");
+				option.value = DRAFT_EFFECT_METRIC_LABEL;
+				option.textContent = `${DRAFT_EFFECT_METRIC_LABEL} (calculated)`;
+				els.metricSelect.appendChild(option);
+			}
+			const highRateLogical = new Set(highRateColumns.map((c) => logicalMetricName(c)));
+			for (const key of metricColumns) {
+				if (key === SPEED_METRIC_LABEL) continue;
+				if (key === LEAD_POWER_METRIC_LABEL) continue;
+				if (key === DRAFT_EFFECT_METRIC_LABEL) continue;
+				const option = document.createElement("option");
+				option.value = key;
+				option.textContent = highRateLogical.has(logicalMetricName(key)) ? `${key} (1Hz)` : key;
+				els.metricSelect.appendChild(option);
+			}
+			for (const key of highRateColumns) {
+				const option = document.createElement("option");
+				option.value = HIGH_RATE_PREFIX + key;
+				option.textContent = `${key} (200Hz)`;
+				els.metricSelect.appendChild(option);
+			}
+			els.metricSelect.disabled = metricColumns.length === 0 && highRateColumns.length === 0 && !speedAvailable && !leadPowerAvailable && !draftEffectAvailable;
+			const valueIsValid =
+				(selectedValue === SPEED_METRIC_LABEL && speedAvailable) ||
+				(selectedValue === LEAD_POWER_METRIC_LABEL && leadPowerAvailable) ||
+				(selectedValue === DRAFT_EFFECT_METRIC_LABEL && draftEffectAvailable) ||
+				metricColumns.includes(selectedValue) ||
+				(isHighRateMetric(selectedValue) && highRateColumns.includes(highRateColumnFromKey(selectedValue)));
+			if (selectedValue && valueIsValid) {
+				els.metricSelect.value = selectedValue;
+			}
+		}
+
+		function findCadenceColumn(columns) {
+			if (!Array.isArray(columns)) return null;
+			return columns.find((column) => typeof column === "string" && /^\s*cadence\s*$/i.test(column)) || null;
+		}
+
+		function smoothCenteredMA(values, windowSize) {
+			const n = values.length;
+			if (n === 0 || windowSize <= 1) return values.slice();
+			const half = Math.floor(windowSize / 2);
+			const out = new Array(n);
+			for (let i = 0; i < n; i += 1) {
+				let sum = 0;
+				let count = 0;
+				const lo = Math.max(0, i - half);
+				const hi = Math.min(n - 1, i + half);
+				for (let k = lo; k <= hi; k += 1) {
+					const v = values[k];
+					if (Number.isFinite(v)) { sum += v; count += 1; }
+				}
+				out[i] = count > 0 ? sum / count : values[i];
+			}
+			return out;
+		}
+
+		function centralDifference(values, times) {
+			const n = values.length;
+			const out = new Array(n).fill(0);
+			if (n < 2) return out;
+			for (let i = 0; i < n; i += 1) {
+				let lo = i - 1;
+				let hi = i + 1;
+				if (lo < 0) lo = i;
+				if (hi >= n) hi = i;
+				const dt = times[hi] - times[lo];
+				if (Number.isFinite(dt) && dt > 0) {
+					out[i] = (values[hi] - values[lo]) / dt;
+				}
+			}
+			return out;
+		}
+
+		function canCalculateSpeed() {
+			if (!Array.isArray(state.selectedSheets) || state.selectedSheets.length === 0) return false;
+			return state.selectedSheets.some((sheet) => {
+				const gear = toNumber(state.streamGearInches[sheet.sheetName]);
+				if (!gear || gear <= 0) return false;
+				return !!findCadenceColumn(sheet.metricColumns);
+			});
+		}
+
+		function sheetHasStoredCda(sheet) {
+			const record = state.cdaRiders && state.cdaRiders[sheet.sheetName];
+			return !!(record && Number.isFinite(record.cda) && record.cda > 0 && Number.isFinite(record.mass) && record.mass > 0);
+		}
+
+		function canCalculateLeadPowerForSheet(sheet) {
+			if (!sheetHasStoredCda(sheet)) return false;
+			const gear = toNumber(state.streamGearInches[sheet.sheetName]);
+			if (!gear || gear <= 0) return false;
+			return !!findCadenceColumn(sheet.metricColumns);
+		}
+
+		function canCalculateDraftEffectForSheet(sheet) {
+			if (!canCalculateLeadPowerForSheet(sheet)) return false;
+			return !!findPowerColumn(sheet.metricColumns);
+		}
+
+		function canCalculateLeadPower() {
+			if (!Array.isArray(state.selectedSheets) || state.selectedSheets.length === 0) return false;
+			return state.selectedSheets.some((sheet) => canCalculateLeadPowerForSheet(sheet));
+		}
+
+		function canCalculateDraftEffect() {
+			if (!Array.isArray(state.selectedSheets) || state.selectedSheets.length === 0) return false;
+			return state.selectedSheets.some((sheet) => canCalculateDraftEffectForSheet(sheet));
+		}
+
+		function renderGearInputs() {
+			const streams = state.fitStreams || [];
+			if (streams.length === 0) {
+				els.gearInputs.innerHTML = '<span class="gear-input-empty">Load FIT file(s) to set gear inches.</span>';
+				return;
+			}
+			els.gearInputs.innerHTML = "";
+			for (const stream of streams) {
+				const wrap = document.createElement("label");
+				wrap.className = "gear-input-item";
+				const name = document.createElement("span");
+				name.textContent = stream.displayName || stream.sheetName;
+				const input = document.createElement("input");
+				input.type = "number";
+				input.min = "0";
+				input.step = "0.1";
+				input.placeholder = "in";
+				input.title = "Gear inches (e.g. 90)";
+				const stored = toNumber(state.streamGearInches[stream.sheetName]);
+				if (stored !== null && stored > 0) input.value = String(stored);
+				input.addEventListener("input", (event) => {
+					const value = toNumber(event.target.value);
+					if (value === null || value <= 0) {
+						delete state.streamGearInches[stream.sheetName];
+					} else {
+						state.streamGearInches[stream.sheetName] = value;
+					}
+					onGearInputsChanged();
+				});
+				wrap.appendChild(name);
+				wrap.appendChild(input);
+				const suffix = document.createElement("span");
+				suffix.textContent = "in";
+				suffix.style.color = "var(--muted)";
+				wrap.appendChild(suffix);
+				els.gearInputs.appendChild(wrap);
+			}
+		}
+
+		function onGearInputsChanged() {
+			const current = state.metricColumnKey;
+			const commonMetricColumns = state.selectedSheets.length > 0 ? intersectMetricColumns(state.selectedSheets) : [];
+			populateMetricSelect(commonMetricColumns, current);
+			if (current === SPEED_METRIC_LABEL) {
+				if (canCalculateSpeed()) {
+					setMetric(SPEED_METRIC_LABEL);
+				} else {
+					setMetric("");
+				}
+			} else if (current === LEAD_POWER_METRIC_LABEL) {
+				if (canCalculateLeadPower()) {
+					setMetric(LEAD_POWER_METRIC_LABEL);
+				} else {
+					setMetric("");
+				}
+			} else if (current === DRAFT_EFFECT_METRIC_LABEL) {
+				if (canCalculateDraftEffect()) {
+					setMetric(DRAFT_EFFECT_METRIC_LABEL);
+				} else {
+					setMetric("");
+				}
+			}
+		}
+
+		function updateControlLabels() {
+			els.scaleValue.textContent = `${Math.round(state.viewScale * 100)}%`;
+			els.sensitivityValue.textContent = `${formatNum(state.dragSensitivity, 2)}x`;
+		}
+
+		function resetMetricAndPlot(options = {}) {
+			const { preserveMetricOptions = false } = options;
+			state.metricColumnKey = "";
+			state.series = [];
+			state.metricValues = [];
+			state.times = [];
+			state.samplingDisplay = state.selectedSheets.length ? formatSamplingDisplay(state.selectedSheets) : "-";
+			state.syncTargetSheetNames = [];
+			if (!preserveMetricOptions) {
+				populateMetricSelect([]);
+			} else {
+				els.metricSelect.value = "";
+			}
+			els.currentValueDisplay.textContent = "value @ playhead: -";
+			updateSeriesLegend();
+			renderSyncTargets();
+			updateStats();
+			drawPlot();
+		}
+
+		const FIT_BASE_TYPE_INFO = {
+			0x00: { size: 1, read: (v, o) => v.getUint8(o) },
+			0x01: { size: 1, read: (v, o) => v.getInt8(o) },
+			0x02: { size: 1, read: (v, o) => v.getUint8(o) },
+			0x83: { size: 2, read: (v, o, le) => v.getInt16(o, le) },
+			0x84: { size: 2, read: (v, o, le) => v.getUint16(o, le) },
+			0x85: { size: 4, read: (v, o, le) => v.getInt32(o, le) },
+			0x86: { size: 4, read: (v, o, le) => v.getUint32(o, le) },
+			0x07: { size: 1, read: (v, o) => v.getUint8(o) },
+			0x88: { size: 4, read: (v, o, le) => v.getFloat32(o, le) },
+			0x89: { size: 8, read: (v, o, le) => v.getFloat64(o, le) },
+			0x0A: { size: 1, read: (v, o) => v.getUint8(o) },
+			0x8B: { size: 2, read: (v, o, le) => v.getUint16(o, le) },
+			0x8C: { size: 4, read: (v, o, le) => v.getUint32(o, le) },
+			0x0D: { size: 1, read: (v, o) => v.getUint8(o) }
+		};
+
+		function extractHighRate200HzMessages(buffer) {
+			const view = new DataView(buffer);
+			const messages = [];
+			let chunkStart = 0;
+			while (chunkStart + 14 <= view.byteLength) {
+				const headerSize = view.getUint8(chunkStart);
+				if (headerSize < 12 || headerSize > 14) break;
+				const dataSize = view.getUint32(chunkStart + 4, true);
+				const dataStart = chunkStart + headerSize;
+				const dataEnd = Math.min(dataStart + dataSize, view.byteLength - 2);
+				if (dataEnd <= dataStart) break;
+				extractHighRate200HzChunk(view, dataStart, dataEnd, messages);
+				// Advance past the data + 2-byte CRC for this sub-file
+				chunkStart = dataStart + dataSize + 2;
+			}
+			return messages;
+		}
+
+		function extractHighRate200HzChunk(view, dataStart, dataEnd, messages) {
+			const defs = new Map();
+			let p = dataStart;
+
+			while (p < dataEnd) {
+				const recordHeader = view.getUint8(p);
+				p += 1;
+				const isCompressed = (recordHeader & 0x80) !== 0;
+				if (isCompressed) {
+					const localType = (recordHeader >> 5) & 0x3;
+					const def = defs.get(localType);
+					if (!def) break;
+					if (def.globalMesgNum === 65307) messages.push(parseFitFields(view, p, def));
+					p += def.totalSize;
+					continue;
+				}
+				const isDef = (recordHeader & 0x40) !== 0;
+				const localType = recordHeader & 0xF;
+				const hasDevData = (recordHeader & 0x20) !== 0;
+				if (isDef) {
+					if (p + 5 > dataEnd) break;
+					p += 1; // reserved
+					const arch = view.getUint8(p); p += 1;
+					const little = arch === 0;
+					const globalMesgNum = view.getUint16(p, little); p += 2;
+					const numFields = view.getUint8(p); p += 1;
+					if (p + numFields * 3 > dataEnd) break;
+					const fields = [];
+					let totalSize = 0;
+					for (let i = 0; i < numFields; i += 1) {
+						const fieldDef = view.getUint8(p); p += 1;
+						const size = view.getUint8(p); p += 1;
+						const baseType = view.getUint8(p); p += 1;
+						fields.push({ fieldDef, size, baseType, isDev: false });
+						totalSize += size;
+					}
+					if (hasDevData) {
+						if (p >= dataEnd) break;
+						const numDev = view.getUint8(p); p += 1;
+						if (p + numDev * 3 > dataEnd) break;
+						for (let i = 0; i < numDev; i += 1) {
+							const fieldDef = view.getUint8(p); p += 1;
+							const size = view.getUint8(p); p += 1;
+							p += 1; // dev data idx
+							fields.push({ fieldDef, size, baseType: 0, isDev: true });
+							totalSize += size;
+						}
+					}
+					defs.set(localType, { globalMesgNum, fields, totalSize, little });
+				} else {
+					const def = defs.get(localType);
+					if (!def) break;
+					if (p + def.totalSize > dataEnd) break;
+					if (def.globalMesgNum === 65307) messages.push(parseFitFields(view, p, def));
+					p += def.totalSize;
+				}
+			}
+		}
+
+		function parseFitFields(view, start, def) {
+			let offset = start;
+			const fields = {};
+			for (const f of def.fields) {
+				if (f.isDev) {
+					offset += f.size;
+					continue;
+				}
+				const info = FIT_BASE_TYPE_INFO[f.baseType] || FIT_BASE_TYPE_INFO[0x02];
+				const elementSize = info.size;
+				const numElements = Math.max(1, Math.floor(f.size / elementSize));
+				const values = [];
+				for (let i = 0; i < numElements; i += 1) {
+					values.push(info.read(view, offset, def.little));
+					offset += elementSize;
+				}
+				const consumed = numElements * elementSize;
+				offset += (f.size - consumed);
+				fields[f.fieldDef] = values.length === 1 ? values[0] : values;
+			}
+			return fields;
+		}
+
+		function buildHighRate200HzRows(messages, anchorTimeSeconds) {
+			const rows = [];
+			const SAMPLE_DT_S = 0.005;
+			const FIT_EPOCH_UNIX_OFFSET = 631065600; // FIT epoch (1989-12-31 UTC) → Unix epoch
+			let validMsgs = 0;
+			let firstAbs = null;
+			let lastAbs = null;
+			for (const msg of messages) {
+				const tsSec = msg[253];
+				const tsMs = msg[252];
+				const torque = Array.isArray(msg[100]) ? msg[100] : null;
+				const cadence = Array.isArray(msg[101]) ? msg[101] : null;
+				const angle = Array.isArray(msg[102]) ? msg[102] : null;
+				if (!Number.isFinite(tsSec) || !Number.isFinite(tsMs) || !torque || !cadence || !angle) continue;
+				validMsgs += 1;
+				const baseT = tsSec + FIT_EPOCH_UNIX_OFFSET + tsMs / 1000;
+				if (firstAbs === null) firstAbs = baseT;
+				lastAbs = baseT;
+				const len = Math.min(torque.length, cadence.length, angle.length);
+				for (let i = 0; i < len; i += 1) {
+					const cad = cadence[i];
+					const tq = torque[i];
+					const omega = (cad * 2 * Math.PI) / 60;
+					rows.push({
+						Time: baseT + i * SAMPLE_DT_S,
+						cadence_200hz: cad,
+						torque_raw: tq,
+						crank_angle_raw: angle[i],
+						power_raw: tq * omega
+					});
+				}
+			}
+			console.log(`[200Hz] messages parsed: ${messages.length}, valid: ${validMsgs}, span (s): ${firstAbs !== null ? (lastAbs - firstAbs).toFixed(2) : 'n/a'}, rows: ${rows.length}, anchor1Hz: ${anchorTimeSeconds}`);
+			return rows;
+		}
+
+		async function loadFitStreamsFromFiles(files) {
+			state.fitStreams = [];
+			state.selectedSheetNames = [];
+			state.selectedSheets = [];
+			resetMetricAndPlot();
+			const parseErrors = [];
+
+			for (const file of files) {
+				try {
+					const buffer = await file.arrayBuffer();
+					const fitData = await parseFitArrayBuffer(buffer);
+					const records = extractFitRecords(fitData);
+					const rows = normalizeFitRecordsToRows(records);
+					const displayName = deriveStreamDisplayName(file.name, fitData);
+					state.fitStreams.push({
+						sheetName: file.name,
+						displayName,
+						rows
+					});
+					if (!Object.prototype.hasOwnProperty.call(state.streamOffsets, file.name)) {
+						state.streamOffsets[file.name] = 0;
+					}
+
+					const hrMessages = extractHighRate200HzMessages(buffer);
+					if (hrMessages.length > 0) {
+						const anchorTime = rows.length > 0 && Number.isFinite(rows[0].Time) ? rows[0].Time : 0;
+						const hrRows = buildHighRate200HzRows(hrMessages, anchorTime);
+						if (hrRows.length > 0) {
+							const parent = state.fitStreams[state.fitStreams.length - 1];
+							if (parent && parent.sheetName === file.name) {
+								parent.highRateRows = hrRows;
+							}
+						}
+					}
+				} catch (error) {
+					parseErrors.push(file.name);
+					console.error(`Failed parsing FIT file ${file.name}`, error);
+				}
+			}
+
+			const sheets = state.fitStreams.map((stream) => stream.sheetName);
+			sheetList.setItems(sheets.map((name) => {
+				const stream = getStreamByName(name);
+				return { value: name, label: stream?.displayName || name, selected: true };
+			}));
+			sheetList.setEnabled(sheets.length > 0);
+			state.selectedSheetNames = [...sheets];
+			renderGearInputs();
+			renderCdaRiders();
+			renderRideSections();
+
+			if (sheets.length > 0) {
+				parseSelectedSheets();
+				if (parseErrors.length > 0) {
+					setStatus(`${sheets.length} FIT file(s) loaded. ${parseErrors.length} file(s) failed to parse.`, "ok");
+				} else {
+					setStatus(`${sheets.length} FIT file(s) loaded. Choose a metric column.`, "ok");
+				}
+			} else {
+				setStatus("No readable FIT streams were found. Try another FIT file or check file integrity.");
+			}
+		}
+
+		function parseSelectedSheets() {
+			if (!state.fitStreams.length) return;
+
+			const selectedNames = sheetList.getSelectedValues();
+			state.selectedSheetNames = selectedNames;
+			state.selectedSheets = [];
+			state.samplingDisplay = "-";
+
+			if (selectedNames.length === 0) {
+				resetMetricAndPlot();
+				setStatus("Choose one or more streams to continue.", "ok");
+				return;
+			}
+
+			const parsedSheets = [];
+			for (const sheetName of selectedNames) {
+				const stream = getStreamByName(sheetName);
+				if (!stream) continue;
+				const rows = stream.rows || [];
+				const columns = rows.length ? Object.keys(rows[0]) : [];
+				const timeColumnKey = findTimeColumn(columns);
+
+				if (!timeColumnKey) {
+					continue;
+				}
+
+				const timeValues = [];
+				for (const row of rows) {
+					const value = toNumber(row[timeColumnKey]);
+					if (value !== null) timeValues.push(value);
+				}
+
+				if (timeValues.length < 2) {
+					continue;
+				}
+
+				const dts = [];
+				for (let i = 1; i < timeValues.length; i += 1) {
+					const dt = timeValues[i] - timeValues[i - 1];
+					if (Number.isFinite(dt) && dt > 0) dts.push(dt);
+				}
+
+				if (dts.length === 0) {
+					continue;
+				}
+
+				const meanDt = dts.reduce((a, b) => a + b, 0) / dts.length;
+
+				const highRateRows = Array.isArray(stream.highRateRows) ? stream.highRateRows : [];
+				let highRateColumns = [];
+				let highRateTimeColumnKey = "";
+				let highRateBaseTime = null;
+				if (highRateRows.length > 0) {
+					const hrAllColumns = Object.keys(highRateRows[0] || {});
+					highRateTimeColumnKey = findTimeColumn(hrAllColumns) || "";
+					highRateColumns = hrAllColumns.filter((column) => column !== highRateTimeColumnKey);
+					if (highRateTimeColumnKey) {
+						for (const row of highRateRows) {
+							const v = toNumber(row[highRateTimeColumnKey]);
+							if (v !== null) { highRateBaseTime = v; break; }
+						}
+					}
+				}
+
+				parsedSheets.push({
+					sheetName,
+					displayName: stream.displayName || sheetName,
+					rows,
+					timeColumnKey,
+					baseTime: timeValues[0],
+					metricColumns: columns.filter((column) => column !== timeColumnKey),
+					samplingHz: meanDt > 0 ? 1 / meanDt : null,
+					highRateRows,
+					highRateTimeColumnKey,
+					highRateBaseTime,
+					highRateMetricColumns: highRateColumns
+				});
+			}
+
+			state.selectedSheets = parsedSheets;
+			state.samplingDisplay = formatSamplingDisplay(parsedSheets);
+
+			if (parsedSheets.length === 0) {
+				resetMetricAndPlot();
+				setStatus('Selected FIT streams need readable timestamp data with increasing values.');
+				return;
+			}
+
+			const commonMetricColumns = intersectMetricColumns(parsedSheets);
+			const highRateSheets = parsedSheets.filter((sheet) => Array.isArray(sheet.highRateMetricColumns) && sheet.highRateMetricColumns.length > 0);
+			const commonHighRateColumns = highRateSheets.length > 0
+				? highRateSheets.reduce((acc, sheet, idx) => {
+					if (idx === 0) return [...sheet.highRateMetricColumns];
+					const set = new Set(sheet.highRateMetricColumns);
+					return acc.filter((c) => set.has(c));
+				}, [])
+				: [];
+			const previousMetric = state.metricColumnKey;
+			populateMetricSelect(commonMetricColumns, previousMetric, commonHighRateColumns);
+
+			updateStats();
+
+			if (commonMetricColumns.length === 0 && commonHighRateColumns.length === 0) {
+				resetMetricAndPlot();
+				setStatus("No common numeric metrics were found across the selected FIT files.");
+				return;
+			}
+
+			if (previousMetric && (commonMetricColumns.includes(previousMetric) || (isHighRateMetric(previousMetric) && commonHighRateColumns.includes(highRateColumnFromKey(previousMetric))))) {
+				setMetric(previousMetric);
+				setStatus(`${parsedSheets.length} stream(s) loaded. Overlaying ${metricDisplayLabel(previousMetric)}.`, "ok");
+				return;
+			}
+
+			resetMetricAndPlot({ preserveMetricOptions: true });
+			setStatus(`${parsedSheets.length} stream(s) ready. Choose a shared metric column.`, "ok");
+		}
+
+		function setMetric(metricKey) {
+			if (metricKey !== state.metricColumnKey) {
+				resetYAxisOverrides();
+			}
+			if (state.selectedSheets.length === 0 || !metricKey) {
+				state.metricColumnKey = "";
+				state.series = [];
+				state.metricValues = [];
+				state.times = [];
+				els.currentValueDisplay.textContent = "value @ playhead: -";
+				updateSeriesLegend();
+				drawPlot();
+				return;
+			}
+
+			const isSpeedMetric = metricKey === SPEED_METRIC_LABEL;
+			const isLeadPowerMetric = metricKey === LEAD_POWER_METRIC_LABEL;
+			const isDraftEffectMetric = metricKey === DRAFT_EFFECT_METRIC_LABEL;
+			if (isSpeedMetric && !canCalculateSpeed()) {
+				state.metricColumnKey = "";
+				state.series = [];
+				state.metricValues = [];
+				state.times = [];
+				els.currentValueDisplay.textContent = "value @ playhead: -";
+				updateSeriesLegend();
+				drawPlot();
+				setStatus("Set gear inches on a stream that has a Cadence column to calculate speed.");
+				return;
+			}
+			if (isLeadPowerMetric && !canCalculateLeadPower()) {
+				state.metricColumnKey = "";
+				state.series = [];
+				state.metricValues = [];
+				state.times = [];
+				els.currentValueDisplay.textContent = "value @ playhead: -";
+				updateSeriesLegend();
+				drawPlot();
+				setStatus("Calculate CdA for at least one rider to plot lead power.");
+				return;
+			}
+			if (isDraftEffectMetric && !canCalculateDraftEffect()) {
+				state.metricColumnKey = "";
+				state.series = [];
+				state.metricValues = [];
+				state.times = [];
+				els.currentValueDisplay.textContent = "value @ playhead: -";
+				updateSeriesLegend();
+				drawPlot();
+				setStatus("Need a calculated CdA plus a power column to plot draft effect.");
+				return;
+			}
+
+			const globals = (isLeadPowerMetric || isDraftEffectMetric) ? readCdaGlobals() : null;
+
+			const series = [];
+			for (let i = 0; i < state.selectedSheets.length; i += 1) {
+				const sheet = state.selectedSheets[i];
+				const points = [];
+
+				if (isSpeedMetric) {
+					const gear = toNumber(state.streamGearInches[sheet.sheetName]);
+					if (!gear || gear <= 0) continue;
+					const cadenceCol = findCadenceColumn(sheet.metricColumns);
+					if (!cadenceCol) continue;
+					const factor = gear * SPEED_KMH_PER_GEARINCH_RPM;
+					for (const row of sheet.rows) {
+						const t = toNumber(row[sheet.timeColumnKey]);
+						const cad = toNumber(row[cadenceCol]);
+						if (t !== null && cad !== null) points.push({ t, y: cad * factor });
+					}
+				} else if (isLeadPowerMetric) {
+					if (!canCalculateLeadPowerForSheet(sheet)) continue;
+					const record = state.cdaRiders[sheet.sheetName];
+					const gear = toNumber(state.streamGearInches[sheet.sheetName]);
+					const cadenceCol = findCadenceColumn(sheet.metricColumns);
+					const speedFactorMps = (gear * WHEEL_CIRCUMFERENCE_M / 27) / 60;
+					const rollingTerm = globals.crr * record.mass * CDA_GRAVITY;
+					const aeroTerm = 0.5 * globals.rho * record.cda;
+					const mEff = record.mass * globals.inertiaFactor;
+					const rawT = [];
+					const rawV = [];
+					for (const row of sheet.rows) {
+						const t = toNumber(row[sheet.timeColumnKey]);
+						const cad = toNumber(row[cadenceCol]);
+						if (t === null || cad === null) continue;
+						const v = cad * speedFactorMps;
+						if (!Number.isFinite(v) || v <= 0) continue;
+						rawT.push(t);
+						rawV.push(v);
+					}
+					const smoothV = smoothCenteredMA(rawV, 3);
+					const accel = centralDifference(smoothV, rawT);
+					for (let k = 0; k < rawT.length; k += 1) {
+						const v = smoothV[k];
+						if (!Number.isFinite(v) || v <= 0) continue;
+						const lead = (aeroTerm * v * v * v + rollingTerm * v + mEff * v * accel[k]) / globals.eta;
+						if (!Number.isFinite(lead)) continue;
+						points.push({ t: rawT[k], y: lead });
+					}
+				} else if (isDraftEffectMetric) {
+					if (!canCalculateDraftEffectForSheet(sheet)) continue;
+					const record = state.cdaRiders[sheet.sheetName];
+					const gear = toNumber(state.streamGearInches[sheet.sheetName]);
+					const cadenceCol = findCadenceColumn(sheet.metricColumns);
+					const powerCol = findPowerColumn(sheet.metricColumns);
+					const speedFactorMps = (gear * WHEEL_CIRCUMFERENCE_M / 27) / 60;
+					const rollingTerm = globals.crr * record.mass * CDA_GRAVITY;
+					const aeroTerm = 0.5 * globals.rho * record.cda;
+					const mEff = record.mass * globals.inertiaFactor;
+					const rawT = [];
+					const rawV = [];
+					const rawP = [];
+					for (const row of sheet.rows) {
+						const t = toNumber(row[sheet.timeColumnKey]);
+						const cad = toNumber(row[cadenceCol]);
+						const pow = toNumber(row[powerCol]);
+						if (t === null || cad === null || pow === null) continue;
+						const v = cad * speedFactorMps;
+						if (!Number.isFinite(v) || v <= 0) continue;
+						rawT.push(t);
+						rawV.push(v);
+						rawP.push(pow);
+					}
+					const smoothV = smoothCenteredMA(rawV, 3);
+					const accel = centralDifference(smoothV, rawT);
+					for (let k = 0; k < rawT.length; k += 1) {
+						const v = smoothV[k];
+						if (!Number.isFinite(v) || v <= 0) continue;
+						const lead = (aeroTerm * v * v * v + rollingTerm * v + mEff * v * accel[k]) / globals.eta;
+						if (!Number.isFinite(lead) || lead <= 0) continue;
+						points.push({ t: rawT[k], y: rawP[k] / lead });
+					}
+				} else {
+					const highRate = isHighRateMetric(metricKey);
+					const columnName = highRate ? highRateColumnFromKey(metricKey) : metricKey;
+					const sourceRows = highRate ? sheet.highRateRows : sheet.rows;
+					const sourceTimeKey = highRate ? sheet.highRateTimeColumnKey : sheet.timeColumnKey;
+					if (!Array.isArray(sourceRows) || sourceRows.length === 0 || !sourceTimeKey) continue;
+					for (const row of sourceRows) {
+						const t = toNumber(row[sourceTimeKey]);
+						const y = toNumber(row[columnName]);
+						if (t !== null && y !== null) points.push({ t, y });
+					}
+				}
+
+				points.sort((a, b) => a.t - b.t);
+				if (points.length < 2) {
+					continue;
+				}
+
+				const baseTime = Number.isFinite(sheet.baseTime) ? sheet.baseTime : points[0].t;
+
+				series.push({
+					sheetName: sheet.sheetName,
+					label: sheet.displayName || sheet.sheetName,
+					color: getSeriesColor(i),
+					offset: toNumber(state.streamOffsets[sheet.sheetName]) || 0,
+					times: points.map((point) => point.t - baseTime),
+					rawMetricValues: points.map((point) => point.y),
+					metricValues: points.map((point) => point.y)
+				});
+			}
+
+			state.series = series;
+			state.syncTargetSheetNames = series.map((item) => item.sheetName);
+			state.metricColumnKey = metricKey;
+			applySmoothingToSeries();
+
+			const primarySeries = getPrimarySeries();
+			state.times = primarySeries ? [...primarySeries.times] : [];
+			state.metricValues = primarySeries ? [...primarySeries.metricValues] : [];
+			updateSeriesLegend();
+			renderSyncTargets();
+
+			if (!primarySeries) {
+				if (isSpeedMetric) {
+					setStatus("No streams have both gear inches and cadence data — cannot calculate speed.");
+				} else if (isLeadPowerMetric) {
+					setStatus("No streams have a calculated CdA plus gear and cadence — cannot calculate lead power.");
+				} else if (isDraftEffectMetric) {
+					setStatus("No streams have a calculated CdA plus gear, cadence and power — cannot calculate draft effect.");
+				} else {
+					setStatus("The selected metric has insufficient numeric data to plot across the chosen streams.");
+				}
+			} else {
+				const streamLabel = series.length === 1 ? "stream" : "streams";
+				setStatus(`Loaded ${series.length} ${streamLabel}. Drag keeps playhead fixed: left moves video timeline, right shifts metric trace.`, "ok");
+			}
+
+			updateStats();
+			drawPlot();
+		}
+
+		function getSeriesValueAtVideoTime(series, videoTime) {
+			if (!series || series.times.length === 0 || series.metricValues.length === 0) return null;
+			const metricT = videoTime - (series.offset || 0);
+
+			let lo = 0;
+			let hi = series.times.length - 1;
+			while (lo < hi) {
+				const mid = (lo + hi) >> 1;
+				if (series.times[mid] < metricT) lo = mid + 1;
+				else hi = mid;
+			}
+
+			if (lo > 0 && Math.abs(series.times[lo - 1] - metricT) <= Math.abs(series.times[lo] - metricT)) {
+				return series.metricValues[lo - 1];
+			}
+			return series.metricValues[lo];
+		}
+
+		function clamp(value, min, max) {
+			return Math.max(min, Math.min(max, value));
+		}
+
+		function findBounds(values) {
+			let min = Infinity;
+			let max = -Infinity;
+			for (const v of values) {
+				if (v < min) min = v;
+				if (v > max) max = v;
+			}
+			if (!Number.isFinite(min) || !Number.isFinite(max)) return [0, 1];
+			if (min === max) {
+				const pad = Math.abs(min) * 0.05 || 1;
+				return [min - pad, max + pad];
+			}
+			const pad = (max - min) * 0.08;
+			return [min - pad, max + pad];
+		}
+
+		function resizeCanvasToDisplaySize() {
+			const dpr = window.devicePixelRatio || 1;
+			const rect = els.plot.getBoundingClientRect();
+			const width = Math.max(200, Math.floor(rect.width));
+			const height = Math.max(180, Math.floor(rect.height));
+			const targetW = Math.floor(width * dpr);
+			const targetH = Math.floor(height * dpr);
+
+			if (els.plot.width !== targetW || els.plot.height !== targetH) {
+				els.plot.width = targetW;
+				els.plot.height = targetH;
+			}
+
+			ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+			return { width, height };
+		}
+
+		function drawPlot() {
+			const { width, height } = resizeCanvasToDisplaySize();
+			ctx.clearRect(0, 0, width, height);
+
+			const m = { l: 58, r: 16, t: 14, b: 26 };
+			const pw = width - m.l - m.r;
+			const ph = height - m.t - m.b;
+
+			ctx.fillStyle = "#ffffff";
+			ctx.fillRect(0, 0, width, height);
+
+			if (state.series.length === 0) {
+				ctx.fillStyle = "#6b7280";
+				ctx.font = "14px Segoe UI";
+				ctx.fillText("Select one or more streams and a metric to draw traces.", 14, 28);
+				state.drawingData = null;
+				return;
+			}
+
+			const allValues = [];
+			let minDisplayTime = Infinity;
+			let maxDisplayTime = -Infinity;
+			for (const series of state.series) {
+				if (series.times.length < 2 || series.metricValues.length < 2) continue;
+				allValues.push(...series.metricValues);
+				minDisplayTime = Math.min(minDisplayTime, series.times[0] + (series.offset || 0));
+				maxDisplayTime = Math.max(maxDisplayTime, series.times[series.times.length - 1] + (series.offset || 0));
+			}
+
+			const baseSpan = Math.max(0.01, maxDisplayTime - minDisplayTime);
+			const visibleSpan = Math.max(0.01, baseSpan * state.viewScale);
+			const viewCenterT = Number.isFinite(els.video.currentTime) ? els.video.currentTime : 0;
+			const viewMinT = viewCenterT - visibleSpan / 2;
+			const viewMaxT = viewCenterT + visibleSpan / 2;
+			let [yMin, yMax] = findBounds(allValues);
+			if (Number.isFinite(state.yMinOverride)) yMin = state.yMinOverride;
+			if (Number.isFinite(state.yMaxOverride)) yMax = state.yMaxOverride;
+			if (yMin >= yMax) {
+				const pad = Math.abs(yMin) * 0.05 || 1;
+				yMax = yMin + pad;
+			}
+
+			const xFromT = (t) => m.l + ((t - viewMinT) / (viewMaxT - viewMinT || 1)) * pw;
+			const yFromV = (v) => m.t + (1 - (v - yMin) / (yMax - yMin || 1)) * ph;
+
+			state.drawingData = { xFromT, viewMinT, viewMaxT, visibleSpan, yMin, yMax, m, pw, ph };
+
+			ctx.strokeStyle = "rgba(31, 41, 55, 0.15)";
+			ctx.lineWidth = 1;
+			ctx.beginPath();
+			for (let i = 0; i <= 4; i += 1) {
+				const gy = m.t + (ph * i) / 4;
+				ctx.moveTo(m.l, gy);
+				ctx.lineTo(width - m.r, gy);
+			}
+			ctx.stroke();
+
+			for (const series of state.series) {
+				ctx.strokeStyle = series.color;
+				ctx.lineWidth = 1.7;
+				ctx.beginPath();
+				for (let i = 0; i < series.times.length; i += 1) {
+					const x = xFromT(series.times[i] + (series.offset || 0));
+					const y = yFromV(series.metricValues[i]);
+					if (i === 0) ctx.moveTo(x, y);
+					else ctx.lineTo(x, y);
+				}
+				ctx.stroke();
+			}
+
+			ctx.strokeStyle = "#111827";
+			ctx.lineWidth = 1;
+			ctx.beginPath();
+			ctx.moveTo(m.l, m.t);
+			ctx.lineTo(m.l, m.t + ph);
+			ctx.lineTo(m.l + pw, m.t + ph);
+			ctx.stroke();
+
+			ctx.fillStyle = "#374151";
+			ctx.font = "12px Segoe UI";
+			ctx.fillText(`${formatNum(yMax, 2)}`, 8, m.t + 4);
+			ctx.fillText(`${formatNum(yMin, 2)}`, 8, m.t + ph + 4);
+			ctx.fillText(`${formatNum(viewMinT, 2)} s`, m.l, height - 8);
+			ctx.fillText(`${formatNum(viewMaxT, 2)} s`, width - m.r - 64, height - 8);
+
+			const linkedX = m.l + pw * 0.5;
+			ctx.strokeStyle = "#dc2626";
+			ctx.lineWidth = 2;
+			ctx.beginPath();
+			ctx.moveTo(linkedX, m.t);
+			ctx.lineTo(linkedX, m.t + ph);
+			ctx.stroke();
+
+			const playheadValues = state.series
+				.map((series) => ({
+					sheetName: series.label || series.sheetName,
+					value: getSeriesValueAtVideoTime(series, viewCenterT)
+				}))
+				.filter((entry) => entry.value !== null);
+
+			if (playheadValues.length > 0) {
+				const valueLines = playheadValues.map((entry) => `${entry.sheetName}: ${formatNum(entry.value, 4)}`);
+				els.currentValueDisplay.textContent = `values @ playhead: ${valueLines.join(" | ")}`;
+			} else {
+				els.currentValueDisplay.textContent = "values @ playhead: -";
+			}
+
+			const streamCount = state.series.length;
+			const streamLabel = streamCount === 1 ? "stream" : "streams";
+			els.plotTitle.textContent = `Metric trace: ${metricDisplayLabel(state.metricColumnKey) || "(none)"} across ${streamCount} ${streamLabel} (offset ${getOffsetLabel()})`;
+		}
+
+		function updateStats() {
+			els.samplingHz.textContent = state.samplingDisplay;
+			els.videoFps.textContent = state.estimatedVideoFps ? `${formatNum(state.estimatedVideoFps, 2)} fps` : "-";
+			els.traceOffset.textContent = getOffsetLabel();
+			els.videoTime.textContent = `${formatNum(els.video.currentTime || 0, 3)}s`;
+		}
+
+		function estimateVideoFps() {
+			if (!els.video.requestVideoFrameCallback || state.fpsEstimatorActive) return;
+
+			state.fpsEstimatorActive = true;
+			state.fpsFrameSamples = [];
+
+			let frameCount = 0;
+			const step = (_, meta) => {
+				if (!state.fpsEstimatorActive) return;
+				frameCount += 1;
+				const mt = meta.mediaTime;
+				state.fpsFrameSamples.push(mt);
+
+				if (state.fpsFrameSamples.length > 30) {
+					state.fpsFrameSamples.shift();
+				}
+
+				if (state.fpsFrameSamples.length >= 12) {
+					let dtSum = 0;
+					let n = 0;
+					for (let i = 1; i < state.fpsFrameSamples.length; i += 1) {
+						const dt = state.fpsFrameSamples[i] - state.fpsFrameSamples[i - 1];
+						if (dt > 0) {
+							dtSum += dt;
+							n += 1;
+						}
+					}
+					if (n > 0) {
+						state.estimatedVideoFps = 1 / (dtSum / n);
+						updateStats();
+					}
+				}
+
+				if (frameCount < 120) {
+					els.video.requestVideoFrameCallback(step);
+				} else {
+					state.fpsEstimatorActive = false;
+				}
+			};
+
+			els.video.requestVideoFrameCallback(step);
+		}
+
+		function trackVideoFrames() {
+			if (!els.video.requestVideoFrameCallback || state.frameTrackerActive) return;
+			state.frameTrackerActive = true;
+			const cb = (_, meta) => {
+				state.lastFrameMediaTime = meta.mediaTime;
+				els.video.requestVideoFrameCallback(cb);
+			};
+			els.video.requestVideoFrameCallback(cb);
+		}
+
+		function stepFrame(direction) {
+			if (!els.video.src) return;
+			if (!els.video.paused) els.video.pause();
+			const fps = state.estimatedVideoFps && state.estimatedVideoFps > 0 ? state.estimatedVideoFps : 30;
+			const frameDur = 1 / fps;
+			const base = Number.isFinite(state.lastFrameMediaTime) ? state.lastFrameMediaTime : els.video.currentTime;
+			const target = base + direction * frameDur * 1.01;
+			const duration = Number.isFinite(els.video.duration) ? els.video.duration : Infinity;
+			const clamped = Math.max(0, Math.min(target, duration));
+			els.video.currentTime = clamped;
+			state.lastFrameMediaTime = clamped;
+		}
+
+		els.videoInput.addEventListener("change", async (event) => {
+			const file = event.target.files?.[0];
+			if (!file) return;
+
+			const url = URL.createObjectURL(file);
+			els.video.src = url;
+			els.video.load();
+			state.estimatedVideoFps = null;
+			updateStats();
+			setStatus("Video loaded. Play video to refine frame-rate estimate.", "ok");
+			drawPlot();
+		});
+
+		els.fitInput.addEventListener("change", async (event) => {
+			const files = Array.from(event.target.files || []);
+			if (files.length === 0) return;
+
+			try {
+				setStatus("Loading FIT parser and reading FIT file(s)...", "ok");
+				await loadFitStreamsFromFiles(files);
+				updateSaveSyncEnabled();
+			} catch (err) {
+				console.error(err);
+				setStatus("Failed to read FIT file(s). Check browser console for parser details.");
+			}
+		});
+
+		els.scaleControl.addEventListener("input", (event) => {
+			const raw = toNumber(event.target.value);
+			if (raw === null) return;
+			state.viewScale = clamp(raw / 100, 0.25, 4);
+			updateControlLabels();
+			drawPlot();
+		});
+
+		function resetYAxisOverrides() {
+			state.yMinOverride = null;
+			state.yMaxOverride = null;
+			if (els.yMinInput) els.yMinInput.value = "";
+			if (els.yMaxInput) els.yMaxInput.value = "";
+		}
+
+		els.yMinInput.addEventListener("input", (event) => {
+			const v = toNumber(event.target.value);
+			state.yMinOverride = v === null ? null : v;
+			drawPlot();
+		});
+
+		els.yMaxInput.addEventListener("input", (event) => {
+			const v = toNumber(event.target.value);
+			state.yMaxOverride = v === null ? null : v;
+			drawPlot();
+		});
+
+		els.yLimitResetBtn.addEventListener("click", () => {
+			resetYAxisOverrides();
+			drawPlot();
+		});
+
+		els.sensitivityControl.addEventListener("input", (event) => {
+			const raw = toNumber(event.target.value);
+			if (raw === null) return;
+			state.dragSensitivity = clamp(raw / 100, 0.05, 3);
+			updateControlLabels();
+		});
+
+		function smoothValues(values, windowSize) {
+			if (!Array.isArray(values) || values.length === 0) return [];
+			const w = Math.max(1, Math.floor(windowSize));
+			if (w <= 1) return values.slice();
+			const half = Math.floor(w / 2);
+			const out = new Array(values.length);
+			for (let i = 0; i < values.length; i += 1) {
+				let sum = 0;
+				let count = 0;
+				const lo = Math.max(0, i - half);
+				const hi = Math.min(values.length - 1, i + half);
+				for (let j = lo; j <= hi; j += 1) {
+					const v = values[j];
+					if (Number.isFinite(v)) {
+						sum += v;
+						count += 1;
+					}
+				}
+				out[i] = count > 0 ? sum / count : values[i];
+			}
+			return out;
+		}
+
+		function applySmoothingToSeries() {
+			const w = state.smoothingWindow || 1;
+			for (const series of state.series) {
+				const raw = Array.isArray(series.rawMetricValues) ? series.rawMetricValues : series.metricValues;
+				series.rawMetricValues = raw;
+				series.metricValues = smoothValues(raw, w);
+			}
+			const primary = state.series[0] || null;
+			state.metricValues = primary ? [...primary.metricValues] : [];
+		}
+
+		function updateSmoothingLabel() {
+			const w = state.smoothingWindow || 1;
+			els.smoothingValue.textContent = w <= 1 ? "off" : `${w} pts`;
+		}
+
+		els.smoothingControl.addEventListener("input", (event) => {
+			const raw = toNumber(event.target.value);
+			if (raw === null) return;
+			let w = Math.max(1, Math.floor(raw));
+			if (w % 2 === 0) w += 1;
+			state.smoothingWindow = w;
+			updateSmoothingLabel();
+			applySmoothingToSeries();
+			updateStats();
+			drawPlot();
+		});
+
+		els.sheetSelect.addEventListener("change", () => {
+			parseSelectedSheets();
+		});
+
+		els.metricSelect.addEventListener("change", (event) => {
+			setMetric(event.target.value);
+		});
+
+		function updateSaveSyncEnabled() {
+			const hasStreams = !!(state.fitStreams && state.fitStreams.length > 0);
+			els.saveSyncBtn.disabled = !hasStreams;
+			els.trimLeftBtn.disabled = !hasStreams;
+			els.trimRightBtn.disabled = !hasStreams;
+		}
+
+		function buildSyncPayload() {
+			const orderedNames = sheetList.getSelectedValues();
+			const nameSet = new Set(state.fitStreams.map((s) => s.sheetName));
+			const orderedSelected = orderedNames.filter((name) => nameSet.has(name));
+			const offsets = {};
+			for (const stream of state.fitStreams) {
+				const v = toNumber(state.streamOffsets[stream.sheetName]);
+				offsets[stream.sheetName] = v === null ? 0 : v;
+			}
+			const gearInches = {};
+			for (const stream of state.fitStreams) {
+				const v = toNumber(state.streamGearInches[stream.sheetName]);
+				if (v !== null && v > 0) gearInches[stream.sheetName] = v;
+			}
+			const cdaGlobals = readCdaGlobals();
+			const cdaRiders = {};
+			for (const stream of state.fitStreams) {
+				const record = state.cdaRiders[stream.sheetName];
+				if (!record) continue;
+				const entry = {};
+				if (typeof record.name === "string" && record.name.length > 0) entry.name = record.name;
+				if (Number.isFinite(record.mass) && record.mass > 0) entry.mass = record.mass;
+				if (Number.isFinite(record.leadStart)) entry.leadStart = record.leadStart;
+				if (Number.isFinite(record.leadEnd)) entry.leadEnd = record.leadEnd;
+				if (Array.isArray(record.extraRanges) && record.extraRanges.length > 0) {
+					const extras = [];
+					for (const r of record.extraRanges) {
+						const e = {};
+						if (Number.isFinite(r.leadStart)) e.leadStart = r.leadStart;
+						if (Number.isFinite(r.leadEnd)) e.leadEnd = r.leadEnd;
+						if (Object.keys(e).length > 0) extras.push(e);
+					}
+					if (extras.length > 0) entry.extraRanges = extras;
+				}
+				if (Number.isFinite(record.cda) && record.cda > 0) entry.cda = record.cda;
+				if (Object.keys(entry).length > 0) cdaRiders[stream.sheetName] = entry;
+			}
+			return {
+				version: 1,
+				tool: "DraftCalculator",
+				createdAt: new Date().toISOString(),
+				metricKey: state.metricColumnKey || "",
+				selectedSheetNames: orderedSelected,
+				syncTargetSheetNames: Array.isArray(state.syncTargetSheetNames) ? [...state.syncTargetSheetNames] : [],
+				streamOffsets: offsets,
+				streamGearInches: gearInches,
+				cdaGlobals: { rho: cdaGlobals.rho, crr: cdaGlobals.crr, eta: cdaGlobals.eta, inertiaFactor: cdaGlobals.inertiaFactor, windowSize: cdaGlobals.windowSize },
+				cdaRiders,
+				rideSections: (state.rideSections || []).map((section) => ({
+					start: Number.isFinite(section.start) ? section.start : null,
+					end: Number.isFinite(section.end) ? section.end : null,
+					order: Array.isArray(section.order) ? [...section.order] : []
+				})),
+				streams: state.fitStreams.map((stream) => ({
+					sheetName: stream.sheetName,
+					displayName: stream.displayName || stream.sheetName,
+					rows: Array.isArray(stream.rows) ? stream.rows : []
+				}))
+			};
+		}
+
+		function restoreSyncPayload(payload) {
+			if (!payload || typeof payload !== "object" || !Array.isArray(payload.streams)) {
+				throw new Error("Synced file format not recognised.");
+			}
+
+			state.fitStreams = payload.streams.map((stream, index) => ({
+				sheetName: stream.sheetName || `Synced stream ${index + 1}`,
+				displayName: stream.displayName || stream.sheetName || `Synced stream ${index + 1}`,
+				rows: Array.isArray(stream.rows) ? stream.rows : []
+			}));
+
+			state.streamOffsets = {};
+			const payloadOffsets = payload.streamOffsets && typeof payload.streamOffsets === "object" ? payload.streamOffsets : {};
+			for (const stream of state.fitStreams) {
+				const v = toNumber(payloadOffsets[stream.sheetName]);
+				state.streamOffsets[stream.sheetName] = v === null ? 0 : v;
+			}
+
+			state.streamGearInches = {};
+			const payloadGears = payload.streamGearInches && typeof payload.streamGearInches === "object" ? payload.streamGearInches : {};
+			for (const stream of state.fitStreams) {
+				const v = toNumber(payloadGears[stream.sheetName]);
+				if (v !== null && v > 0) state.streamGearInches[stream.sheetName] = v;
+			}
+
+			const payloadGlobals = payload.cdaGlobals && typeof payload.cdaGlobals === "object" ? payload.cdaGlobals : null;
+			if (payloadGlobals) {
+				const rho = toNumber(payloadGlobals.rho);
+				const crr = toNumber(payloadGlobals.crr);
+				const eta = toNumber(payloadGlobals.eta);
+				const inertia = toNumber(payloadGlobals.inertiaFactor);
+				const win = toNumber(payloadGlobals.windowSize);
+				if (rho !== null && rho > 0) els.cdaAirDensity.value = String(rho);
+				if (crr !== null && crr >= 0) els.cdaCrr.value = String(crr);
+				if (eta !== null && eta > 0 && eta <= 1.5) els.cdaDriveEff.value = String(eta);
+				if (inertia !== null && inertia >= 1 && inertia <= 1.5) els.cdaInertiaFactor.value = String(inertia);
+				if (win !== null && win >= 2) els.cdaWindowSize.value = String(Math.floor(win));
+			}
+			readCdaGlobals();
+
+			state.cdaRiders = {};
+			const payloadRiders = payload.cdaRiders && typeof payload.cdaRiders === "object" ? payload.cdaRiders : {};
+			for (const stream of state.fitStreams) {
+				const entry = payloadRiders[stream.sheetName];
+				if (!entry || typeof entry !== "object") continue;
+				const record = { name: "", mass: null, leadStart: null, leadEnd: null, extraRanges: [] };
+				if (typeof entry.name === "string") record.name = entry.name;
+				const mass = toNumber(entry.mass);
+				if (mass !== null && mass > 0) record.mass = mass;
+				const leadStart = toNumber(entry.leadStart);
+				if (leadStart !== null) record.leadStart = leadStart;
+				const leadEnd = toNumber(entry.leadEnd);
+				if (leadEnd !== null) record.leadEnd = leadEnd;
+				if (Array.isArray(entry.extraRanges)) {
+					for (const r of entry.extraRanges) {
+						if (!r || typeof r !== "object") continue;
+						const rs = toNumber(r.leadStart);
+						const re = toNumber(r.leadEnd);
+						record.extraRanges.push({ leadStart: rs, leadEnd: re });
+					}
+				}
+				const cda = toNumber(entry.cda);
+				if (cda !== null && cda > 0) record.cda = cda;
+				state.cdaRiders[stream.sheetName] = record;
+			}
+
+			state.rideSections = [];
+			const payloadSections = Array.isArray(payload.rideSections) ? payload.rideSections : [];
+			for (const raw of payloadSections) {
+				if (!raw || typeof raw !== "object") continue;
+				const start = toNumber(raw.start);
+				const end = toNumber(raw.end);
+				const order = Array.isArray(raw.order) ? raw.order.filter((name) => typeof name === "string") : [];
+				state.rideSections.push({ start, end, order: reconcileSectionOrder(order) });
+			}
+
+			renderGearInputs();
+			renderCdaRiders();
+			renderRideSections();
+
+			const sheetNames = state.fitStreams.map((s) => s.sheetName);
+			const savedSelection = Array.isArray(payload.selectedSheetNames) && payload.selectedSheetNames.length > 0
+				? payload.selectedSheetNames.filter((name) => sheetNames.includes(name))
+				: sheetNames;
+			const selectedSet = new Set(savedSelection);
+			const orderedNames = [
+				...savedSelection,
+				...sheetNames.filter((name) => !selectedSet.has(name))
+			];
+
+			sheetList.setItems(orderedNames.map((name) => {
+				const stream = getStreamByName(name);
+				return {
+					value: name,
+					label: stream?.displayName || name,
+					selected: selectedSet.has(name)
+				};
+			}));
+			sheetList.setEnabled(sheetNames.length > 0);
+			state.selectedSheetNames = [...savedSelection];
+
+			parseSelectedSheets();
+
+			if (payload.metricKey) {
+				const commonMetricColumns = intersectMetricColumns(state.selectedSheets);
+				const isSpeed = payload.metricKey === SPEED_METRIC_LABEL;
+				const valid = (isSpeed && canCalculateSpeed()) || commonMetricColumns.includes(payload.metricKey);
+				if (valid) {
+					els.metricSelect.value = payload.metricKey;
+					setMetric(payload.metricKey);
+				}
+			}
+
+			if (Array.isArray(payload.syncTargetSheetNames) && payload.syncTargetSheetNames.length > 0) {
+				const validNames = new Set(state.series.map((s) => s.sheetName));
+				const filtered = payload.syncTargetSheetNames.filter((name) => validNames.has(name));
+				if (filtered.length > 0) {
+					state.syncTargetSheetNames = filtered;
+					renderSyncTargets();
+				}
+			}
+
+			drawPlot();
+			updateSaveSyncEnabled();
+		}
+
+		els.saveSyncBtn.addEventListener("click", () => {
+			if (!state.fitStreams || state.fitStreams.length === 0) {
+				setStatus("Load FIT file(s) before saving sync.");
+				return;
+			}
+			const payload = buildSyncPayload();
+			const videoFile = els.videoInput.files && els.videoInput.files[0];
+			const baseName = videoFile ? videoFile.name.replace(/\.[^.]+$/, "") : "DraftCalculator";
+			const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = `${baseName} synced.dcsync`;
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			setTimeout(() => URL.revokeObjectURL(url), 60_000);
+			setStatus("Synced file saved.", "ok");
+		});
+
+		els.loadSyncBtn.addEventListener("click", () => {
+			els.loadSyncInput.click();
+		});
+
+		els.loadSyncInput.addEventListener("change", (event) => {
+			const file = event.target.files && event.target.files[0];
+			if (!file) return;
+			const reader = new FileReader();
+			reader.onload = (loadEvent) => {
+				try {
+					const payload = JSON.parse(String(loadEvent.target.result || "{}"));
+					restoreSyncPayload(payload);
+					setStatus("Synced file loaded.", "ok");
+				} catch (error) {
+					console.error(error);
+					setStatus(error.message || "Failed to load synced file.");
+				} finally {
+					els.loadSyncInput.value = "";
+				}
+			};
+			reader.readAsText(file);
+		});
+
+		els.video.addEventListener("loadedmetadata", () => {
+			estimateVideoFps();
+			trackVideoFrames();
+			updateStats();
+			drawPlot();
+		});
+
+		els.video.addEventListener("play", () => {
+			estimateVideoFps();
+		});
+
+		els.video.addEventListener("timeupdate", () => {
+			updateStats();
+			drawPlot();
+		});
+
+		els.plot.addEventListener("contextmenu", (evt) => {
+			evt.preventDefault();
+		});
+
+		els.plot.addEventListener("pointerdown", (evt) => {
+			if (!state.drawingData) return;
+			els.plot.setPointerCapture(evt.pointerId);
+			state.dragLastX = evt.clientX;
+
+			if (evt.button === 2) {
+				state.pointerMode = "right";
+				updateStats();
+				drawPlot();
+				return;
+			}
+
+			if (evt.button === 0) {
+				state.pointerMode = "left";
+				updateStats();
+				drawPlot();
+			}
+		});
+
+		els.plot.addEventListener("pointermove", (evt) => {
+			if (state.pointerMode === "none") return;
+			if (!state.drawingData) return;
+
+			const dx = evt.clientX - state.dragLastX;
+			state.dragLastX = evt.clientX;
+			const secondsPerPixel = state.drawingData.visibleSpan / (state.drawingData.pw || 1);
+			const deltaT = dx * secondsPerPixel * state.dragSensitivity;
+
+			if (state.pointerMode === "right") {
+				const selectedSet = getSelectedSyncSheetNameSet();
+				for (const series of state.series) {
+					if (!selectedSet.has(series.sheetName)) continue;
+					series.offset = (series.offset || 0) + deltaT;
+					state.streamOffsets[series.sheetName] = series.offset;
+				}
+				updateStats();
+				drawPlot();
+			} else if (state.pointerMode === "left") {
+				const currentVideoT = Number.isFinite(els.video.currentTime) ? els.video.currentTime : 0;
+				const nextVideoT = currentVideoT - deltaT;
+				if (Number.isFinite(els.video.duration)) {
+					els.video.currentTime = clamp(nextVideoT, 0, els.video.duration);
+				} else {
+					els.video.currentTime = Math.max(0, nextVideoT);
+				}
+				updateStats();
+				drawPlot();
+			}
+		});
+
+		function releasePointer(evt) {
+			if (els.plot.hasPointerCapture(evt.pointerId)) {
+				els.plot.releasePointerCapture(evt.pointerId);
+			}
+			state.pointerMode = "none";
+		}
+
+		els.syncTargets.addEventListener("click", (event) => {
+			const btn = event.target.closest("button[data-target]");
+			if (!btn) return;
+
+			const target = btn.dataset.target;
+			if (target === "all") {
+				state.syncTargetSheetNames = state.series.map((series) => series.sheetName);
+				renderSyncTargets();
+				updateStats();
+				drawPlot();
+				return;
+			}
+
+			const next = new Set(state.syncTargetSheetNames || []);
+			if (next.has(target)) next.delete(target);
+			else next.add(target);
+			state.syncTargetSheetNames = Array.from(next);
+			renderSyncTargets();
+			updateStats();
+			drawPlot();
+		});
+
+		els.plot.addEventListener("pointerup", releasePointer);
+		els.plot.addEventListener("pointercancel", releasePointer);
+		window.addEventListener("resize", drawPlot);
+
+		window.addEventListener("keydown", (evt) => {
+			if (evt.key !== "ArrowLeft" && evt.key !== "ArrowRight") return;
+			if (evt.altKey || evt.ctrlKey || evt.metaKey) return;
+			const ae = document.activeElement;
+			if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.tagName === "SELECT" || ae.isContentEditable)) return;
+			if (!els.video.src) return;
+			evt.preventDefault();
+			stepFrame(evt.key === "ArrowRight" ? 1 : -1);
+		}, { capture: true });
+
+		function snapFitSeriesToPlayhead() {
+			if (state.series.length === 0) {
+				setStatus("Load FIT streams and select a metric before snapping.");
+				return;
+			}
+			const playhead = Number.isFinite(els.video.currentTime) ? els.video.currentTime : 0;
+			const selectedSet = getSelectedSyncSheetNameSet();
+			let snappedCount = 0;
+			let skippedCount = 0;
+			for (const series of state.series) {
+				if (!selectedSet.has(series.sheetName)) continue;
+				const metricT = playhead - (series.offset || 0);
+				let targetIdx = -1;
+				for (let i = 0; i < series.times.length; i += 1) {
+					if (series.times[i] < metricT) continue;
+					if (Math.abs(series.metricValues[i]) <= 1e-9) continue;
+					targetIdx = i;
+					break;
+				}
+				if (targetIdx < 0) {
+					skippedCount += 1;
+					continue;
+				}
+				const newOffset = playhead - series.times[targetIdx];
+				series.offset = newOffset;
+				state.streamOffsets[series.sheetName] = newOffset;
+				snappedCount += 1;
+			}
+			updateStats();
+			drawPlot();
+			if (snappedCount === 0) {
+				setStatus("No non-zero values were found to the right of the playhead in the selected streams.");
+			} else if (skippedCount > 0) {
+				setStatus(`Snapped ${snappedCount} stream(s). ${skippedCount} stream(s) had no non-zero value right of playhead.`, "ok");
+			} else {
+				setStatus(`Snapped ${snappedCount} stream(s) to the playhead.`, "ok");
+			}
+		}
+
+		els.snapBtn.addEventListener("click", snapFitSeriesToPlayhead);
+
+		function trimFitStreamsRelativeToPlayhead(direction) {
+			if (state.series.length === 0) {
+				setStatus("Load FIT streams and select a metric before trimming.");
+				return;
+			}
+			const playhead = Number.isFinite(els.video.currentTime) ? els.video.currentTime : 0;
+			const selectedSet = getSelectedSyncSheetNameSet();
+			let trimmedStreams = 0;
+			let totalRowsRemoved = 0;
+			let skippedAllRemoved = 0;
+
+			for (const series of state.series) {
+				if (!selectedSet.has(series.sheetName)) continue;
+				const stream = getStreamByName(series.sheetName);
+				if (!stream || !Array.isArray(stream.rows) || stream.rows.length === 0) continue;
+				const columns = Object.keys(stream.rows[0] || {});
+				const timeColumnKey = findTimeColumn(columns);
+				if (!timeColumnKey) continue;
+
+				const sheetParsed = state.selectedSheets.find((s) => s.sheetName === series.sheetName);
+				const firstRowTime = toNumber(stream.rows[0][timeColumnKey]);
+				const baseTime = sheetParsed && Number.isFinite(sheetParsed.baseTime)
+					? sheetParsed.baseTime
+					: (firstRowTime !== null ? firstRowTime : 0);
+				const offset = series.offset || 0;
+
+				const beforeCount = stream.rows.length;
+				const filtered = [];
+				let newBaseTime = null;
+				for (const row of stream.rows) {
+					const t = toNumber(row[timeColumnKey]);
+					if (t === null) continue;
+					const displayTime = t - baseTime + offset;
+					const keep = direction === "left" ? displayTime >= playhead : displayTime <= playhead;
+					if (keep) {
+						if (newBaseTime === null) newBaseTime = t;
+						filtered.push(row);
+					}
+				}
+
+				if (filtered.length === beforeCount) continue;
+				if (filtered.length === 0) {
+					skippedAllRemoved += 1;
+					continue;
+				}
+
+				stream.rows = filtered;
+				totalRowsRemoved += beforeCount - filtered.length;
+				trimmedStreams += 1;
+
+				if (direction === "left" && newBaseTime !== null) {
+					const newOffset = offset + (newBaseTime - baseTime);
+					state.streamOffsets[series.sheetName] = newOffset;
+				}
+			}
+
+			if (trimmedStreams === 0) {
+				if (skippedAllRemoved > 0) {
+					setStatus(`Skipped ${skippedAllRemoved} stream(s) — trimming would remove all rows.`);
+				} else {
+					setStatus("No data to trim on the selected stream(s) at the current playhead.");
+				}
+				return;
+			}
+
+			parseSelectedSheets();
+			drawPlot();
+			const sideLabel = direction === "left" ? "left of" : "right of";
+			const skipNote = skippedAllRemoved > 0 ? ` Skipped ${skippedAllRemoved} stream(s) where all rows would be removed.` : "";
+			setStatus(`Trimmed ${totalRowsRemoved} row(s) ${sideLabel} the playhead across ${trimmedStreams} stream(s).${skipNote}`, "ok");
+		}
+
+		els.trimLeftBtn.addEventListener("click", () => trimFitStreamsRelativeToPlayhead("left"));
+		els.trimRightBtn.addEventListener("click", () => trimFitStreamsRelativeToPlayhead("right"));
+
+		// ── CdA section ──────────────────────────────────────────────────
+
+		const CDA_GRAVITY = 9.81;
+
+		function findColumnByName(columns, regex) {
+			if (!Array.isArray(columns)) return null;
+			return columns.find((column) => typeof column === "string" && regex.test(column)) || null;
+		}
+
+		function findPowerColumn(columns) {
+			return findColumnByName(columns, /^\s*power\s*$/i);
+		}
+
+		function readCdaGlobals() {
+			const rho = toNumber(els.cdaAirDensity.value);
+			const crr = toNumber(els.cdaCrr.value);
+			const eta = toNumber(els.cdaDriveEff.value);
+			const inertiaFactor = toNumber(els.cdaInertiaFactor.value);
+			const win = toNumber(els.cdaWindowSize.value);
+			state.cdaGlobals = {
+				rho: rho !== null && rho > 0 ? rho : 1.168,
+				crr: crr !== null && crr >= 0 ? crr : 0.0024,
+				eta: eta !== null && eta > 0 && eta <= 1.5 ? eta : 0.9974,
+				inertiaFactor: inertiaFactor !== null && inertiaFactor >= 1 && inertiaFactor <= 1.5 ? inertiaFactor : 1.03,
+				windowSize: win !== null && win >= 2 ? Math.floor(win) : 5
+			};
+			return state.cdaGlobals;
+		}
+
+		function getCdaRiderRecord(sheetName) {
+			if (!state.cdaRiders[sheetName]) {
+				state.cdaRiders[sheetName] = { name: "", mass: null, leadStart: null, leadEnd: null, extraRanges: [] };
+			}
+			const rec = state.cdaRiders[sheetName];
+			if (!Array.isArray(rec.extraRanges)) rec.extraRanges = [];
+			return rec;
+		}
+
+		function getAllCdaRanges(record) {
+			const ranges = [{ leadStart: record.leadStart, leadEnd: record.leadEnd }];
+			if (Array.isArray(record.extraRanges)) {
+				for (const r of record.extraRanges) ranges.push({ leadStart: r.leadStart, leadEnd: r.leadEnd });
+			}
+			return ranges;
+		}
+
+		function pruneCdaRiders() {
+			const names = new Set((state.fitStreams || []).map((s) => s.sheetName));
+			for (const key of Object.keys(state.cdaRiders)) {
+				if (!names.has(key)) delete state.cdaRiders[key];
+			}
+		}
+
+		function renderCdaRiders() {
+			pruneCdaRiders();
+			const streams = state.fitStreams || [];
+			els.cdaRiders.innerHTML = "";
+			if (streams.length === 0) {
+				els.cdaRiders.innerHTML = '<span class="cda-riders-empty">Load FIT file(s) to configure rider CdA inputs.</span>';
+				return;
+			}
+			for (let i = 0; i < streams.length; i += 1) {
+				const stream = streams[i];
+				const record = getCdaRiderRecord(stream.sheetName);
+				const color = getSeriesColor(i);
+
+				const card = document.createElement("div");
+				card.className = "cda-rider";
+
+				const head = document.createElement("div");
+				head.className = "cda-rider-head";
+
+				const streamLabel = document.createElement("span");
+				streamLabel.className = "cda-rider-stream";
+				streamLabel.innerHTML = `<i style="background:${color}"></i>${stream.displayName || stream.sheetName}`;
+				head.appendChild(streamLabel);
+
+				const nameLabel = document.createElement("label");
+				nameLabel.textContent = "Name ";
+				const nameInput = document.createElement("input");
+				nameInput.type = "text";
+				nameInput.placeholder = stream.displayName || stream.sheetName;
+				if (record.name) nameInput.value = record.name;
+				nameInput.addEventListener("input", (event) => { record.name = event.target.value; });
+				nameLabel.appendChild(nameInput);
+				head.appendChild(nameLabel);
+
+				const massLabel = document.createElement("label");
+				massLabel.textContent = "Mass (kg) ";
+				const massInput = document.createElement("input");
+				massInput.type = "number";
+				massInput.step = "0.1";
+				massInput.min = "0";
+				massInput.placeholder = "e.g. 80";
+				if (Number.isFinite(record.mass) && record.mass > 0) massInput.value = String(record.mass);
+				massInput.addEventListener("input", (event) => {
+					const v = toNumber(event.target.value);
+					record.mass = v !== null && v > 0 ? v : null;
+				});
+				massLabel.appendChild(massInput);
+				head.appendChild(massLabel);
+
+				card.appendChild(head);
+
+				const rangeRow = document.createElement("div");
+				rangeRow.className = "cda-rider-range";
+
+				function buildRangeField(labelText, target, key) {
+					const wrap = document.createElement("label");
+					wrap.className = "cda-range-field";
+					wrap.appendChild(document.createTextNode(`${labelText} (s) `));
+					const input = document.createElement("input");
+					input.type = "number";
+					input.step = "0.001";
+					input.placeholder = "\u2014";
+					if (Number.isFinite(target[key])) input.value = formatNum(target[key], 3);
+					input.addEventListener("input", (event) => {
+						const v = toNumber(event.target.value);
+						target[key] = v;
+					});
+					wrap.appendChild(input);
+					const btn = document.createElement("button");
+					btn.type = "button";
+					btn.textContent = "Set \u25B8 playhead";
+					btn.addEventListener("click", () => {
+						const t = Number.isFinite(els.video.currentTime) ? els.video.currentTime : null;
+						if (t === null) return;
+						target[key] = t;
+						input.value = formatNum(t, 3);
+					});
+					wrap.appendChild(btn);
+					return wrap;
+				}
+
+				rangeRow.appendChild(buildRangeField("Lead start", record, "leadStart"));
+				rangeRow.appendChild(buildRangeField("Lead end", record, "leadEnd"));
+
+				const calcBtn = document.createElement("button");
+				calcBtn.type = "button";
+				calcBtn.className = "cda-rider-calc";
+				calcBtn.textContent = "Calculate CdA";
+
+				const addDataBtn = document.createElement("button");
+				addDataBtn.type = "button";
+				addDataBtn.className = "cda-rider-add-data";
+				addDataBtn.textContent = "+ Add data";
+
+				const resultDiv = document.createElement("div");
+				resultDiv.className = "cda-rider-result";
+				if (Number.isFinite(record.cda) && record.cda > 0) {
+					resultDiv.innerHTML = `<div class="stat-card highlight"><div class="label">CdA (m²) (saved)</div><div class="value">${formatNum(record.cda, 4)}</div></div>`;
+				} else {
+					resultDiv.innerHTML = '<span class="cda-rider-result-empty">Set mass and lead range, then press Calculate CdA.</span>';
+				}
+				calcBtn.addEventListener("click", () => {
+					const result = computeRiderCda(stream);
+					const rec = getCdaRiderRecord(stream.sheetName);
+					if (result && !result.error && Number.isFinite(result.cda)) {
+						rec.cda = result.cda;
+					} else {
+						delete rec.cda;
+					}
+					renderRiderResult(resultDiv, result);
+					onGearInputsChanged();
+				});
+				rangeRow.appendChild(addDataBtn);
+				rangeRow.appendChild(calcBtn);
+
+				const extraRangesContainer = document.createElement("div");
+				extraRangesContainer.className = "cda-rider-extra-ranges";
+
+				function renderExtraRangeRow(rangeObj, idx) {
+					const row = document.createElement("div");
+					row.className = "cda-rider-range cda-rider-extra-range";
+					const label = document.createElement("span");
+					label.className = "cda-rider-extra-label";
+					label.textContent = `Extra #${idx + 1}`;
+					row.appendChild(label);
+					row.appendChild(buildRangeField("Lead start", rangeObj, "leadStart"));
+					row.appendChild(buildRangeField("Lead end", rangeObj, "leadEnd"));
+					const removeBtn = document.createElement("button");
+					removeBtn.type = "button";
+					removeBtn.className = "cda-rider-extra-remove";
+					removeBtn.textContent = "\u00D7 Remove";
+					removeBtn.addEventListener("click", () => {
+						record.extraRanges.splice(idx, 1);
+						renderExtraRanges();
+					});
+					row.appendChild(removeBtn);
+					return row;
+				}
+
+				function renderExtraRanges() {
+					extraRangesContainer.innerHTML = "";
+					for (let r = 0; r < record.extraRanges.length; r += 1) {
+						extraRangesContainer.appendChild(renderExtraRangeRow(record.extraRanges[r], r));
+					}
+				}
+
+				addDataBtn.addEventListener("click", () => {
+					record.extraRanges.push({ leadStart: null, leadEnd: null });
+					renderExtraRanges();
+				});
+
+				renderExtraRanges();
+
+				card.appendChild(rangeRow);
+				card.appendChild(extraRangesContainer);
+				card.appendChild(resultDiv);
+
+				els.cdaRiders.appendChild(card);
+			}
+		}
+
+		function computeRiderCda(stream) {
+			const record = getCdaRiderRecord(stream.sheetName);
+			const globals = readCdaGlobals();
+			if (!Number.isFinite(record.mass) || record.mass <= 0) {
+				return { error: "Enter a positive mass for this rider." };
+			}
+
+			const rawRanges = getAllCdaRanges(record);
+			const ranges = [];
+			for (const r of rawRanges) {
+				if (!Number.isFinite(r.leadStart) || !Number.isFinite(r.leadEnd)) continue;
+				const lo = Math.min(r.leadStart, r.leadEnd);
+				const hi = Math.max(r.leadStart, r.leadEnd);
+				if (hi - lo <= 0) continue;
+				ranges.push({ lo, hi });
+			}
+			if (ranges.length === 0) {
+				return { error: "Set both lead start and lead end (seconds) on at least one range." };
+			}
+
+			const gear = toNumber(state.streamGearInches[stream.sheetName]);
+			if (!gear || gear <= 0) {
+				return { error: "Set gear inches for this stream (above the metric chart)." };
+			}
+
+			const rows = Array.isArray(stream.rows) ? stream.rows : [];
+			if (rows.length === 0) return { error: "No rows in this stream." };
+			const columns = Object.keys(rows[0] || {});
+			const timeColumnKey = findTimeColumn(columns);
+			if (!timeColumnKey) return { error: "No time column found in this stream." };
+			const cadenceCol = findCadenceColumn(columns);
+			if (!cadenceCol) return { error: "No 'cadence' column found in this stream." };
+			const powerCol = findPowerColumn(columns);
+			if (!powerCol) return { error: "No 'power' column found in this stream." };
+
+			const offset = toNumber(state.streamOffsets[stream.sheetName]) || 0;
+			const speedFactorMps = (gear * WHEEL_CIRCUMFERENCE_M / 27) / 60;
+
+			let baseTime = null;
+			for (const row of rows) {
+				const t = toNumber(row[timeColumnKey]);
+				if (t !== null) { baseTime = t; break; }
+			}
+			if (baseTime === null) return { error: "No numeric timestamps in this stream." };
+
+			const dataRanges = ranges.map((r) => ({ start: r.lo - offset, end: r.hi - offset }));
+			const windowSize = Math.max(2, Math.floor(globals.windowSize || 5));
+
+			const allT = [];
+			const allV = [];
+			const allP = [];
+			for (const row of rows) {
+				const tRaw = toNumber(row[timeColumnKey]);
+				if (tRaw === null) continue;
+				const cad = toNumber(row[cadenceCol]);
+				const pow = toNumber(row[powerCol]);
+				if (cad === null || pow === null) continue;
+				const v = cad * speedFactorMps;
+				if (!Number.isFinite(v) || v <= 0) continue;
+				allT.push(tRaw);
+				allV.push(v);
+				allP.push(pow);
+			}
+			const smoothV = smoothCenteredMA(allV, 3);
+			const accel = centralDifference(smoothV, allT);
+			const mEff = record.mass * globals.inertiaFactor;
+
+			const perRangeSamples = dataRanges.map(() => []);
+			let totalDuration = 0;
+			for (const r of ranges) totalDuration += r.hi - r.lo;
+			for (let k = 0; k < allT.length; k += 1) {
+				const tRel = allT[k] - baseTime;
+				let rangeIdx = -1;
+				for (let i = 0; i < dataRanges.length; i += 1) {
+					const dr = dataRanges[i];
+					if (tRel >= dr.start && tRel <= dr.end) { rangeIdx = i; break; }
+				}
+				if (rangeIdx < 0) continue;
+				perRangeSamples[rangeIdx].push({ p: allP[k], v: smoothV[k], a: accel[k] });
+			}
+
+			const rollingTerm = globals.crr * record.mass * CDA_GRAVITY;
+			const aeroFactor = 0.5 * globals.rho;
+			const cdaWindows = [];
+			let totalSamples = 0;
+			let sumP = 0;
+			let sumV = 0;
+			let sumV3 = 0;
+			for (const samples of perRangeSamples) {
+				totalSamples += samples.length;
+				for (const s of samples) {
+					sumP += s.p;
+					sumV += s.v;
+					sumV3 += s.v * s.v * s.v;
+				}
+				if (samples.length < windowSize) continue;
+				let winNumer = 0;
+				let winV3 = 0;
+				for (let i = 0; i < windowSize; i += 1) {
+					const s = samples[i];
+					winNumer += globals.eta * s.p - rollingTerm * s.v - mEff * s.v * s.a;
+					winV3 += s.v * s.v * s.v;
+				}
+				if (winV3 > 0) cdaWindows.push(winNumer / (aeroFactor * winV3));
+				for (let i = windowSize; i < samples.length; i += 1) {
+					const out = samples[i - windowSize];
+					const incoming = samples[i];
+					winNumer += globals.eta * incoming.p - rollingTerm * incoming.v - mEff * incoming.v * incoming.a;
+					winNumer -= globals.eta * out.p - rollingTerm * out.v - mEff * out.v * out.a;
+					winV3 += incoming.v * incoming.v * incoming.v;
+					winV3 -= out.v * out.v * out.v;
+					if (winV3 > 0) cdaWindows.push(winNumer / (aeroFactor * winV3));
+				}
+			}
+
+			if (totalSamples === 0) return { error: "No samples with both power and cadence in those ranges." };
+			if (cdaWindows.length === 0) {
+				return { error: `No range had at least ${windowSize} valid samples for the moving window.` };
+			}
+			const cda = cdaWindows.reduce((a, b) => a + b, 0) / cdaWindows.length;
+			const meanP = sumP / totalSamples;
+			const meanV = sumV / totalSamples;
+			const meanV3 = sumV3 / totalSamples;
+			return {
+				n: totalSamples,
+				meanP,
+				meanV,
+				meanV3,
+				cda,
+				duration: totalDuration,
+				rangesUsed: ranges.length,
+				windowSize,
+				windowsUsed: cdaWindows.length,
+				globals
+			};
+		}
+
+		function renderRiderResult(target, result) {
+			if (!result) {
+				target.innerHTML = '<span class="cda-rider-result-empty">No result.</span>';
+				return;
+			}
+			if (result.error) {
+				target.innerHTML = `<span class="cda-rider-error">${result.error}</span>`;
+				return;
+			}
+			const cards = [
+				`<div class="stat-card highlight"><div class="label">CdA (m²)</div><div class="value">${formatNum(result.cda, 4)}</div></div>`,
+				`<div class="stat-card"><div class="label">Mean power (W)</div><div class="value">${formatNum(result.meanP, 1)}</div></div>`,
+				`<div class="stat-card"><div class="label">Mean speed (m/s)</div><div class="value">${formatNum(result.meanV, 3)}</div></div>`,
+				`<div class="stat-card"><div class="label">Mean v³ (m³/s³)</div><div class="value">${formatNum(result.meanV3, 2)}</div></div>`,
+				`<div class="stat-card"><div class="label">Duration (s)</div><div class="value">${formatNum(result.duration, 3)}</div></div>`,
+				`<div class="stat-card"><div class="label">Samples</div><div class="value">${result.n}</div></div>`,
+				`<div class="stat-card"><div class="label">Ranges</div><div class="value">${result.rangesUsed || 1}</div></div>`,
+				`<div class="stat-card"><div class="label">Windows (size ${result.windowSize || "-"})</div><div class="value">${result.windowsUsed || 0}</div></div>`
+			];
+			target.innerHTML = cards.join("");
+		}
+
+		els.cdaAirDensity.addEventListener("input", readCdaGlobals);
+		els.cdaCrr.addEventListener("input", readCdaGlobals);
+		els.cdaDriveEff.addEventListener("input", readCdaGlobals);
+		els.cdaInertiaFactor.addEventListener("input", readCdaGlobals);
+		els.cdaWindowSize.addEventListener("input", readCdaGlobals);
+
+		// ── Collapsible panels ──────────────────────────────────────────
+
+		function setupCollapsiblePanel(headEl, bodyEl) {
+			headEl.addEventListener("click", () => {
+				const collapsed = headEl.classList.toggle("collapsed");
+				if (collapsed) bodyEl.classList.add("collapsed");
+				else bodyEl.classList.remove("collapsed");
+			});
+		}
+
+		setupCollapsiblePanel(els.cdaPanelHead, els.cdaPanelBody);
+		setupCollapsiblePanel(els.sectionsPanelHead, els.sectionsPanelBody);
+
+		// ── Ride sections ───────────────────────────────────────────────
+
+		function rotateLeft(arr) {
+			if (!Array.isArray(arr) || arr.length <= 1) return Array.isArray(arr) ? [...arr] : [];
+			return [...arr.slice(1), arr[0]];
+		}
+
+		function defaultRiderOrder() {
+			return (state.fitStreams || []).map((s) => s.sheetName);
+		}
+
+		function reconcileSectionOrder(order) {
+			const validNames = new Set(defaultRiderOrder());
+			return (Array.isArray(order) ? order : []).filter((name) => validNames.has(name));
+		}
+
+		function ensureSectionsAfterStreamChange() {
+			for (const section of state.rideSections) {
+				section.order = reconcileSectionOrder(section.order);
+			}
+		}
+
+		function streamDisplayName(sheetName) {
+			const stream = (state.fitStreams || []).find((s) => s.sheetName === sheetName);
+			return stream?.displayName || sheetName;
+		}
+
+		function streamColorBySheet(sheetName) {
+			const idx = (state.fitStreams || []).findIndex((s) => s.sheetName === sheetName);
+			return idx >= 0 ? getSeriesColor(idx) : "#64748b";
+		}
+
+		function computeSectionMotion(section) {
+			if (!section || !Number.isFinite(section.start) || !Number.isFinite(section.end) || section.end <= section.start) return null;
+			const orders = Array.isArray(section.order) ? section.order : [];
+			if (orders.length === 0) return null;
+
+			let speedSum = 0;
+			let speedCount = 0;
+			const riderAccels = [];
+			let ridersUsed = 0;
+			for (const sheetName of orders) {
+				const stream = (state.fitStreams || []).find((s) => s.sheetName === sheetName);
+				if (!stream) continue;
+				const gear = toNumber(state.streamGearInches[sheetName]);
+				if (!gear || gear <= 0) continue;
+				const rows = Array.isArray(stream.rows) ? stream.rows : [];
+				if (rows.length === 0) continue;
+				const columns = Object.keys(rows[0] || {});
+				const timeColumnKey = findTimeColumn(columns);
+				const cadenceCol = findCadenceColumn(columns);
+				if (!timeColumnKey || !cadenceCol) continue;
+				let baseTime = null;
+				for (const row of rows) {
+					const t = toNumber(row[timeColumnKey]);
+					if (t !== null) { baseTime = t; break; }
+				}
+				if (baseTime === null) continue;
+				const offset = toNumber(state.streamOffsets[sheetName]) || 0;
+				const speedFactorMps = (gear * WHEEL_CIRCUMFERENCE_M / 27) / 60;
+				const rangeStart = section.start - offset;
+				const rangeEnd = section.end - offset;
+				const ts = [];
+				const vs = [];
+				for (const row of rows) {
+					const tRaw = toNumber(row[timeColumnKey]);
+					if (tRaw === null) continue;
+					const tRel = tRaw - baseTime;
+					if (tRel < rangeStart || tRel > rangeEnd) continue;
+					const cad = toNumber(row[cadenceCol]);
+					if (cad === null) continue;
+					const v = cad * speedFactorMps;
+					if (!Number.isFinite(v) || v <= 0) continue;
+					ts.push(tRaw);
+					vs.push(v);
+				}
+				if (vs.length < 2) continue;
+				ridersUsed += 1;
+				for (const v of vs) { speedSum += v; speedCount += 1; }
+				const smoothV = smoothCenteredMA(vs, 3);
+				const dt = ts[ts.length - 1] - ts[0];
+				if (dt > 0) riderAccels.push((smoothV[smoothV.length - 1] - smoothV[0]) / dt);
+			}
+			if (speedCount === 0) return null;
+			const avgSpeedMps = speedSum / speedCount;
+			const avgAccel = riderAccels.length > 0
+				? riderAccels.reduce((a, b) => a + b, 0) / riderAccels.length
+				: null;
+			return {
+				avgSpeedMps,
+				avgSpeedKmh: avgSpeedMps * 3.6,
+				avgAccel,
+				ridersUsed
+			};
+		}
+
+		function computeRiderLeadOverRange(sheetName, videoStart, videoEnd) {
+			const stream = (state.fitStreams || []).find((s) => s.sheetName === sheetName);
+			if (!stream) return { error: "Stream not loaded." };
+			const record = state.cdaRiders[sheetName];
+			if (!record || !Number.isFinite(record.cda) || record.cda <= 0) {
+				return { error: "No CdA calculated." };
+			}
+			if (!Number.isFinite(record.mass) || record.mass <= 0) {
+				return { error: "No mass set." };
+			}
+			const gear = toNumber(state.streamGearInches[sheetName]);
+			if (!gear || gear <= 0) return { error: "No gear inches set." };
+
+			const rows = Array.isArray(stream.rows) ? stream.rows : [];
+			if (rows.length === 0) return { error: "No rows." };
+			const columns = Object.keys(rows[0] || {});
+			const timeColumnKey = findTimeColumn(columns);
+			if (!timeColumnKey) return { error: "No time column." };
+			const cadenceCol = findCadenceColumn(columns);
+			if (!cadenceCol) return { error: "No cadence column." };
+			const powerCol = findPowerColumn(columns);
+			if (!powerCol) return { error: "No power column." };
+
+			let baseTime = null;
+			for (const row of rows) {
+				const t = toNumber(row[timeColumnKey]);
+				if (t !== null) { baseTime = t; break; }
+			}
+			if (baseTime === null) return { error: "No timestamps." };
+
+			const globals = readCdaGlobals();
+			const offset = toNumber(state.streamOffsets[sheetName]) || 0;
+			const speedFactorMps = (gear * WHEEL_CIRCUMFERENCE_M / 27) / 60;
+			const aeroTerm = 0.5 * globals.rho * record.cda;
+			const rollingTerm = globals.crr * record.mass * CDA_GRAVITY;
+
+			const rangeStart = videoStart - offset;
+			const rangeEnd = videoEnd - offset;
+
+			let n = 0;
+			let sumActual = 0;
+			let sumLead = 0;
+			for (const row of rows) {
+				const tRaw = toNumber(row[timeColumnKey]);
+				if (tRaw === null) continue;
+				const tRel = tRaw - baseTime;
+				if (tRel < rangeStart || tRel > rangeEnd) continue;
+				const cad = toNumber(row[cadenceCol]);
+				const pow = toNumber(row[powerCol]);
+				if (cad === null || pow === null) continue;
+				const v = cad * speedFactorMps;
+				if (!Number.isFinite(v) || v <= 0) continue;
+				const lead = (aeroTerm * v * v * v + rollingTerm * v) / globals.eta;
+				if (!Number.isFinite(lead) || lead <= 0) continue;
+				n += 1;
+				sumActual += pow;
+				sumLead += lead;
+			}
+
+			if (n === 0) return { error: "No samples in range." };
+			const meanActual = sumActual / n;
+			const meanLead = sumLead / n;
+			return { n, sumActual, sumLead, meanActual, meanLead, ratio: sumActual / sumLead };
+		}
+
+		function makeRiderChip(sheetName, position, sectionIndex, riderIndex) {
+			const chip = document.createElement("span");
+			chip.className = "rider-chip";
+			chip.draggable = true;
+			chip.dataset.sectionIndex = String(sectionIndex);
+			chip.dataset.riderIndex = String(riderIndex);
+			chip.dataset.sheetName = sheetName;
+			chip.title = "Drag to reorder · right-click or click × to remove";
+			const color = streamColorBySheet(sheetName);
+			chip.innerHTML = `<span class="rider-chip-pos">P${position}</span><i style="background:${color}"></i><span class="rider-chip-name">${streamDisplayName(sheetName)}</span><button type="button" class="rider-chip-remove" title="Remove from section" aria-label="Remove rider">×</button>`;
+
+			const removeRider = () => {
+				const order = state.rideSections[sectionIndex]?.order;
+				if (!Array.isArray(order)) return;
+				order.splice(riderIndex, 1);
+				renderRideSections();
+			};
+
+			chip.querySelector(".rider-chip-remove").addEventListener("click", (event) => {
+				event.stopPropagation();
+				event.preventDefault();
+				removeRider();
+			});
+			chip.querySelector(".rider-chip-remove").addEventListener("mousedown", (event) => {
+				event.stopPropagation();
+			});
+			chip.addEventListener("contextmenu", (event) => {
+				event.preventDefault();
+				removeRider();
+			});
+
+			chip.addEventListener("dragstart", (event) => {
+				chip.classList.add("dragging");
+				event.dataTransfer.effectAllowed = "move";
+				event.dataTransfer.setData("text/plain", `${sectionIndex}:${riderIndex}`);
+			});
+			chip.addEventListener("dragend", () => {
+				chip.classList.remove("dragging");
+			});
+			chip.addEventListener("dragover", (event) => {
+				event.preventDefault();
+				event.dataTransfer.dropEffect = "move";
+				chip.classList.add("drop-target");
+			});
+			chip.addEventListener("dragleave", () => {
+				chip.classList.remove("drop-target");
+			});
+			chip.addEventListener("drop", (event) => {
+				event.preventDefault();
+				chip.classList.remove("drop-target");
+				const data = event.dataTransfer.getData("text/plain") || "";
+				const [srcSecIdx, srcRiderIdx] = data.split(":").map((s) => Number.parseInt(s, 10));
+				if (!Number.isInteger(srcSecIdx) || !Number.isInteger(srcRiderIdx)) return;
+				if (srcSecIdx !== sectionIndex) return;
+				const order = state.rideSections[sectionIndex].order;
+				if (srcRiderIdx === riderIndex) return;
+				const [moved] = order.splice(srcRiderIdx, 1);
+				const targetIdx = riderIndex > srcRiderIdx ? riderIndex - 1 : riderIndex;
+				order.splice(targetIdx, 0, moved);
+				renderRideSections();
+			});
+			return chip;
+		}
+
+		function buildSectionTile(section, index) {
+			const tile = document.createElement("div");
+			tile.className = "section-tile";
+
+			const head = document.createElement("div");
+			head.className = "section-tile-head";
+			const title = document.createElement("span");
+			title.className = "section-tile-title";
+			title.textContent = `Section ${index + 1}`;
+			head.appendChild(title);
+			const removeBtn = document.createElement("button");
+			removeBtn.type = "button";
+			removeBtn.className = "section-tile-remove";
+			removeBtn.textContent = "Remove";
+			removeBtn.addEventListener("click", () => {
+				state.rideSections.splice(index, 1);
+				renderRideSections();
+			});
+			head.appendChild(removeBtn);
+			tile.appendChild(head);
+
+			const timeRow = document.createElement("div");
+			timeRow.className = "section-time-row";
+
+			function buildTimeField(labelText, key) {
+				const wrap = document.createElement("label");
+				wrap.className = "cda-range-field";
+				wrap.appendChild(document.createTextNode(`${labelText} (s) `));
+				const input = document.createElement("input");
+				input.type = "number";
+				input.step = "0.001";
+				input.placeholder = "—";
+				if (Number.isFinite(section[key])) input.value = formatNum(section[key], 3);
+				input.addEventListener("input", (event) => {
+					const v = toNumber(event.target.value);
+					section[key] = v;
+					updateSectionResults(tile, section);
+				});
+				wrap.appendChild(input);
+				const btn = document.createElement("button");
+				btn.type = "button";
+				btn.textContent = "Set ▸ playhead";
+				btn.addEventListener("click", () => {
+					const t = Number.isFinite(els.video.currentTime) ? els.video.currentTime : null;
+					if (t === null) return;
+					section[key] = t;
+					input.value = formatNum(t, 3);
+					updateSectionResults(tile, section);
+				});
+				wrap.appendChild(btn);
+				return wrap;
+			}
+
+			timeRow.appendChild(buildTimeField("Start", "start"));
+			timeRow.appendChild(buildTimeField("End", "end"));
+			tile.appendChild(timeRow);
+
+			const orderLabel = document.createElement("div");
+			orderLabel.className = "rider-order-label";
+			orderLabel.textContent = "Rider order (drag to reorder — P1 is leading)";
+			tile.appendChild(orderLabel);
+
+			const orderRow = document.createElement("div");
+			orderRow.className = "rider-order";
+			if (!Array.isArray(section.order) || section.order.length === 0) {
+				const empty = document.createElement("span");
+				empty.className = "section-result-empty";
+				empty.textContent = "No riders in this section.";
+				orderRow.appendChild(empty);
+			} else {
+				for (let i = 0; i < section.order.length; i += 1) {
+					orderRow.appendChild(makeRiderChip(section.order[i], i + 1, index, i));
+				}
+				orderRow.addEventListener("dragover", (event) => {
+					event.preventDefault();
+					event.dataTransfer.dropEffect = "move";
+				});
+				orderRow.addEventListener("drop", (event) => {
+					event.preventDefault();
+					const data = event.dataTransfer.getData("text/plain") || "";
+					const [srcSecIdx, srcRiderIdx] = data.split(":").map((s) => Number.parseInt(s, 10));
+					if (!Number.isInteger(srcSecIdx) || !Number.isInteger(srcRiderIdx)) return;
+					if (srcSecIdx !== index) return;
+					const order = state.rideSections[index].order;
+					if (srcRiderIdx === order.length - 1) return;
+					const [moved] = order.splice(srcRiderIdx, 1);
+					order.push(moved);
+					renderRideSections();
+				});
+			}
+
+			const missing = defaultRiderOrder().filter((name) => !section.order.includes(name));
+			if (missing.length > 0) {
+				const addWrap = document.createElement("span");
+				addWrap.className = "rider-add-wrap";
+				const select = document.createElement("select");
+				select.className = "rider-add-select";
+				const placeholder = document.createElement("option");
+				placeholder.value = "";
+				placeholder.textContent = "+ Add rider";
+				select.appendChild(placeholder);
+				for (const name of missing) {
+					const option = document.createElement("option");
+					option.value = name;
+					option.textContent = streamDisplayName(name);
+					select.appendChild(option);
+				}
+				select.addEventListener("change", (event) => {
+					const chosen = event.target.value;
+					if (!chosen) return;
+					state.rideSections[index].order.push(chosen);
+					renderRideSections();
+				});
+				addWrap.appendChild(select);
+				orderRow.appendChild(addWrap);
+			}
+			tile.appendChild(orderRow);
+
+			const results = document.createElement("div");
+			results.className = "section-results";
+			tile.appendChild(results);
+			tile.dataset.resultsAttached = "1";
+
+			updateSectionResults(tile, section);
+			return tile;
+		}
+
+		function updateSectionResults(tile, section) {
+			const results = tile.querySelector(".section-results");
+			if (!results) return;
+			results.innerHTML = "";
+			if (!Array.isArray(section.order) || section.order.length === 0) {
+				const empty = document.createElement("span");
+				empty.className = "section-result-empty";
+				empty.textContent = "Add riders to the order to compute draft effect.";
+				results.appendChild(empty);
+				return;
+			}
+			if (!Number.isFinite(section.start) || !Number.isFinite(section.end) || section.end <= section.start) {
+				const empty = document.createElement("span");
+				empty.className = "section-result-empty";
+				empty.textContent = "Set start and end times to compute draft effect.";
+				results.appendChild(empty);
+				return;
+			}
+
+			const motion = computeSectionMotion(section);
+			if (motion) {
+				const summary = document.createElement("div");
+				summary.className = "section-motion-summary";
+				const speedHtml = `<div><span class="label">Avg speed</span><span class="value">${formatNum(motion.avgSpeedKmh, 2)} km/h</span> <span class="label">(${formatNum(motion.avgSpeedMps, 2)} m/s)</span></div>`;
+				const accelHtml = motion.avgAccel !== null
+					? `<div><span class="label">Avg accel</span><span class="value">${formatNum(motion.avgAccel, 3)} m/s²</span></div>`
+					: `<div><span class="label">Avg accel</span><span class="value">—</span></div>`;
+				const ridersHtml = `<div><span class="label">Riders used</span><span class="value">${motion.ridersUsed}</span></div>`;
+				summary.innerHTML = speedHtml + accelHtml + ridersHtml;
+				results.appendChild(summary);
+			}
+
+			const start = section.start;
+			const end = section.end;
+			for (let i = 0; i < section.order.length; i += 1) {
+				const sheetName = section.order[i];
+				const card = document.createElement("div");
+				card.className = "section-result-card" + (i === 0 ? " leader" : "");
+				const labelEl = document.createElement("div");
+				labelEl.className = "label";
+				const colorDot = `<i style="background:${streamColorBySheet(sheetName)}"></i>`;
+				labelEl.innerHTML = `${colorDot}<span>P${i + 1} ${streamDisplayName(sheetName)}</span>`;
+				card.appendChild(labelEl);
+
+				const result = computeRiderLeadOverRange(sheetName, start, end);
+				if (result.error) {
+					const err = document.createElement("div");
+					err.className = "section-result-error";
+					err.textContent = result.error;
+					card.appendChild(err);
+				} else if (i === 0) {
+					const v = document.createElement("div");
+					v.className = "value";
+					v.textContent = "Leader";
+					card.appendChild(v);
+					const sub = document.createElement("div");
+					sub.className = "sub";
+					sub.textContent = `mean P ${formatNum(result.meanActual, 1)} W`;
+					card.appendChild(sub);
+				} else {
+					const prevName = section.order[i - 1];
+					const v = document.createElement("div");
+					v.className = "value";
+					v.textContent = formatNum(result.ratio, 3);
+					card.appendChild(v);
+					const sub = document.createElement("div");
+					sub.className = "sub";
+					sub.textContent = `behind ${streamDisplayName(prevName)} · ${formatNum(result.meanActual, 1)} / ${formatNum(result.meanLead, 1)} W`;
+					card.appendChild(sub);
+				}
+				results.appendChild(card);
+			}
+		}
+
+		function renderRideSections() {
+			ensureSectionsAfterStreamChange();
+			els.sectionsList.innerHTML = "";
+			if (state.rideSections.length === 0) {
+				const empty = document.createElement("span");
+				empty.className = "section-result-empty";
+				empty.textContent = "No sections yet — click \"+ Add section\" to add one.";
+				els.sectionsList.appendChild(empty);
+			} else {
+				for (let i = 0; i < state.rideSections.length; i += 1) {
+					els.sectionsList.appendChild(buildSectionTile(state.rideSections[i], i));
+				}
+			}
+			els.btnAddSection.disabled = (state.fitStreams || []).length === 0;
+			els.btnCreateSummary.disabled = (state.fitStreams || []).length === 0;
+		}
+
+		els.btnAddSection.addEventListener("click", () => {
+			const sections = state.rideSections;
+			let order;
+			if (sections.length === 0) {
+				order = defaultRiderOrder();
+			} else {
+				order = rotateLeft(sections[sections.length - 1].order);
+			}
+			sections.push({ start: null, end: null, order });
+			renderRideSections();
+		});
+
+		function renderSectionsSummary() {
+			const container = els.sectionsSummary;
+			container.innerHTML = "";
+			container.hidden = false;
+
+			const sections = (state.rideSections || []).filter((s) =>
+				Number.isFinite(s.start) && Number.isFinite(s.end) && s.end > s.start &&
+				Array.isArray(s.order) && s.order.length >= 2
+			);
+
+			if (sections.length === 0) {
+				const empty = document.createElement("div");
+				empty.className = "summary-empty";
+				empty.textContent = "No sections with valid start/end times and at least 2 riders.";
+				container.appendChild(empty);
+				return;
+			}
+
+			const behindMap = new Map(); // drafter -> Map(leader -> {sum, count})
+			const positionMap = new Map(); // drafter -> Map(position -> {sum, count})
+			const riderSet = new Set();
+			let maxPos = 0;
+			let skipped = 0;
+
+			for (const section of sections) {
+				for (const name of section.order) riderSet.add(name);
+				for (let i = 1; i < section.order.length; i += 1) {
+					const drafter = section.order[i];
+					const leader = section.order[i - 1];
+					const result = computeRiderLeadOverRange(drafter, section.start, section.end);
+					if (result.error || !Number.isFinite(result.ratio)) {
+						skipped += 1;
+						continue;
+					}
+					if (!behindMap.has(drafter)) behindMap.set(drafter, new Map());
+					const bm = behindMap.get(drafter);
+					const bc = bm.get(leader) || { sum: 0, count: 0 };
+					bc.sum += result.ratio;
+					bc.count += 1;
+					bm.set(leader, bc);
+
+					if (!positionMap.has(drafter)) positionMap.set(drafter, new Map());
+					const pm = positionMap.get(drafter);
+					const pos = i + 1;
+					const pc = pm.get(pos) || { sum: 0, count: 0 };
+					pc.sum += result.ratio;
+					pc.count += 1;
+					pm.set(pos, pc);
+					if (pos > maxPos) maxPos = pos;
+				}
+			}
+
+			const riders = (state.fitStreams || [])
+				.map((s) => s.sheetName)
+				.filter((name) => riderSet.has(name));
+			for (const name of riderSet) {
+				if (!riders.includes(name)) riders.push(name);
+			}
+
+			if (behindMap.size === 0) {
+				const empty = document.createElement("div");
+				empty.className = "summary-empty";
+				empty.textContent = `No usable draft effect samples (every rider/section combo errored: ${skipped} skipped).`;
+				container.appendChild(empty);
+				return;
+			}
+
+			container.appendChild(buildBehindMatrix(riders, behindMap));
+			container.appendChild(buildBehindCdaMatrix(riders, behindMap));
+			container.appendChild(buildPositionMatrix(riders, positionMap, maxPos));
+
+			if (skipped > 0) {
+				const note = document.createElement("div");
+				note.className = "summary-empty";
+				note.textContent = `${skipped} rider/section sample(s) were skipped (missing CdA, gear, mass, power, or cadence data).`;
+				container.appendChild(note);
+			}
+		}
+
+		function buildBehindMatrix(riders, behindMap) {
+			const block = document.createElement("div");
+			block.className = "summary-block";
+
+			const head = document.createElement("div");
+			head.className = "summary-block-head";
+			head.innerHTML = `<span>Avg draft effect by rider in front</span><span class="summary-block-note">rows = drafter · cols = rider directly ahead · lower = more shelter</span>`;
+			block.appendChild(head);
+
+			const wrap = document.createElement("div");
+			wrap.className = "summary-table-wrap";
+			const table = document.createElement("table");
+			table.className = "summary-table";
+
+			const thead = document.createElement("thead");
+			const headRow = document.createElement("tr");
+			headRow.appendChild(makeCell("th", "Drafter \u2193 / Leader \u2192", "row-label"));
+			for (const rider of riders) headRow.appendChild(makeCell("th", streamDisplayName(rider)));
+			headRow.appendChild(makeCell("th", "Avg"));
+			thead.appendChild(headRow);
+			table.appendChild(thead);
+
+			const tbody = document.createElement("tbody");
+			for (const drafter of riders) {
+				const row = document.createElement("tr");
+				row.appendChild(makeCell("th", streamDisplayName(drafter), "row-label"));
+				const inner = behindMap.get(drafter) || new Map();
+				let sum = 0, count = 0;
+				for (const leader of riders) {
+					if (leader === drafter) {
+						row.appendChild(makeCell("td", "—", "summary-cell-empty"));
+						continue;
+					}
+					const cell = inner.get(leader);
+					if (!cell || cell.count === 0) {
+						row.appendChild(makeCell("td", "—", "summary-cell-empty"));
+					} else {
+						const avg = cell.sum / cell.count;
+						sum += cell.sum;
+						count += cell.count;
+						row.appendChild(makeRatioCell(avg, cell.count));
+					}
+				}
+				if (count > 0) row.appendChild(makeRatioCell(sum / count, count));
+				else row.appendChild(makeCell("td", "—", "summary-cell-empty"));
+				tbody.appendChild(row);
+			}
+			table.appendChild(tbody);
+			wrap.appendChild(table);
+			block.appendChild(wrap);
+			return block;
+		}
+
+		function buildBehindCdaMatrix(riders, behindMap) {
+			const block = document.createElement("div");
+			block.className = "summary-block";
+
+			const head = document.createElement("div");
+			head.className = "summary-block-head";
+			head.innerHTML = `<span>Effective CdA behind each leader</span><span class="summary-block-note">draft effect × leader's CdA · m²</span>`;
+			block.appendChild(head);
+
+			const wrap = document.createElement("div");
+			wrap.className = "summary-table-wrap";
+			const table = document.createElement("table");
+			table.className = "summary-table";
+
+			const leaderCda = new Map();
+			for (const rider of riders) {
+				const rec = state.cdaRiders[rider];
+				const v = rec && Number.isFinite(rec.cda) ? rec.cda : null;
+				leaderCda.set(rider, v);
+			}
+
+			const thead = document.createElement("thead");
+			const headRow = document.createElement("tr");
+			headRow.appendChild(makeCell("th", "Drafter ↓ / Leader →", "row-label"));
+			for (const rider of riders) {
+				const cda = leaderCda.get(rider);
+				const label = cda !== null ? `${streamDisplayName(rider)} (CdA ${formatNum(cda, 4)})` : `${streamDisplayName(rider)} (no CdA)`;
+				headRow.appendChild(makeCell("th", label));
+			}
+			headRow.appendChild(makeCell("th", "Avg"));
+			thead.appendChild(headRow);
+			table.appendChild(thead);
+
+			const tbody = document.createElement("tbody");
+			let anyValue = false;
+			for (const drafter of riders) {
+				const row = document.createElement("tr");
+				row.appendChild(makeCell("th", streamDisplayName(drafter), "row-label"));
+				const inner = behindMap.get(drafter) || new Map();
+				let sum = 0, count = 0;
+				for (const leader of riders) {
+					if (leader === drafter) {
+						row.appendChild(makeCell("td", "—", "summary-cell-empty"));
+						continue;
+					}
+					const cell = inner.get(leader);
+					const cda = leaderCda.get(leader);
+					if (!cell || cell.count === 0 || cda === null) {
+						row.appendChild(makeCell("td", "—", "summary-cell-empty"));
+					} else {
+						const avg = cell.sum / cell.count;
+						const effective = avg * cda;
+						sum += effective * cell.count;
+						count += cell.count;
+						anyValue = true;
+						const td = document.createElement("td");
+						td.innerHTML = `${formatNum(effective, 4)}<span class="summary-cell-count">n=${cell.count}</span>`;
+						row.appendChild(td);
+					}
+				}
+				if (count > 0) {
+					const td = document.createElement("td");
+					td.innerHTML = `${formatNum(sum / count, 4)}<span class="summary-cell-count">n=${count}</span>`;
+					row.appendChild(td);
+				} else {
+					row.appendChild(makeCell("td", "—", "summary-cell-empty"));
+				}
+				tbody.appendChild(row);
+			}
+			table.appendChild(tbody);
+			wrap.appendChild(table);
+			block.appendChild(wrap);
+
+			if (!anyValue) {
+				const note = document.createElement("div");
+				note.className = "summary-empty";
+				note.textContent = "No leader CdA values available — calculate CdA for the riders above to populate this table.";
+				block.appendChild(note);
+			}
+			return block;
+		}
+
+		function buildPositionMatrix(riders, positionMap, maxPos) {
+			const block = document.createElement("div");
+			block.className = "summary-block";
+
+			const head = document.createElement("div");
+			head.className = "summary-block-head";
+			head.innerHTML = `<span>Avg draft effect by position</span><span class="summary-block-note">P1 = leader (no draft effect)</span>`;
+			block.appendChild(head);
+
+			const wrap = document.createElement("div");
+			wrap.className = "summary-table-wrap";
+			const table = document.createElement("table");
+			table.className = "summary-table";
+
+			const positions = [];
+			for (let p = 2; p <= maxPos; p += 1) positions.push(p);
+
+			const thead = document.createElement("thead");
+			const headRow = document.createElement("tr");
+			headRow.appendChild(makeCell("th", "Rider", "row-label"));
+			for (const p of positions) headRow.appendChild(makeCell("th", `P${p}`));
+			headRow.appendChild(makeCell("th", "Rider avg"));
+			thead.appendChild(headRow);
+			table.appendChild(thead);
+
+			const tbody = document.createElement("tbody");
+			const posTotals = new Map();
+			for (const drafter of riders) {
+				const row = document.createElement("tr");
+				row.appendChild(makeCell("th", streamDisplayName(drafter), "row-label"));
+				const inner = positionMap.get(drafter) || new Map();
+				let sum = 0, count = 0;
+				for (const p of positions) {
+					const cell = inner.get(p);
+					if (!cell || cell.count === 0) {
+						row.appendChild(makeCell("td", "—", "summary-cell-empty"));
+					} else {
+						const avg = cell.sum / cell.count;
+						sum += cell.sum;
+						count += cell.count;
+						row.appendChild(makeRatioCell(avg, cell.count));
+						const total = posTotals.get(p) || { sum: 0, count: 0 };
+						total.sum += cell.sum;
+						total.count += cell.count;
+						posTotals.set(p, total);
+					}
+				}
+				if (count > 0) row.appendChild(makeRatioCell(sum / count, count));
+				else row.appendChild(makeCell("td", "—", "summary-cell-empty"));
+				tbody.appendChild(row);
+			}
+
+			const avgRow = document.createElement("tr");
+			avgRow.className = "summary-avg-row";
+			avgRow.appendChild(makeCell("th", "Position avg", "row-label"));
+			let grandSum = 0, grandCount = 0;
+			for (const p of positions) {
+				const total = posTotals.get(p);
+				if (!total || total.count === 0) {
+					avgRow.appendChild(makeCell("td", "—", "summary-cell-empty"));
+				} else {
+					avgRow.appendChild(makeRatioCell(total.sum / total.count, total.count));
+					grandSum += total.sum;
+					grandCount += total.count;
+				}
+			}
+			if (grandCount > 0) avgRow.appendChild(makeRatioCell(grandSum / grandCount, grandCount));
+			else avgRow.appendChild(makeCell("td", "—", "summary-cell-empty"));
+			tbody.appendChild(avgRow);
+
+			table.appendChild(tbody);
+			wrap.appendChild(table);
+			block.appendChild(wrap);
+			return block;
+		}
+
+		function makeCell(tag, text, className) {
+			const el = document.createElement(tag);
+			el.textContent = text;
+			if (className) el.className = className;
+			return el;
+		}
+
+		function makeRatioCell(value, count) {
+			const td = document.createElement("td");
+			td.innerHTML = `${formatNum(value, 3)}<span class="summary-cell-count">n=${count}</span>`;
+			return td;
+		}
+
+		els.btnCreateSummary.addEventListener("click", () => {
+			renderSectionsSummary();
+		});
+
+		drawPlot();
+		updateStats();
+		updateControlLabels();
+		updateSmoothingLabel();
+		updateSaveSyncEnabled();
+		renderGearInputs();
+		renderCdaRiders();
+		renderRideSections();
+	</script>
+</body>
+</html>
