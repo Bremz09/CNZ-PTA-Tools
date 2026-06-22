@@ -1599,20 +1599,21 @@ function parseSheet3(aoa) {
   const posIdx    = idxOf('position');
   const leaderIdx = idxOf('leader');
   const draftIdx  = idxOf('draft');
+  const cdaIdx    = idxOf('cda');
   if ([riderIdx, posIdx, leaderIdx, draftIdx].some(i => i < 0)) return null;
+  const toNum = v => { const n = Number(v); return isNaN(n) ? null : n; };
   const out = [];
   for (let r = 1; r < aoa.length; r++) {
     const row = aoa[r];
     if (!row || row.every(v => v == null || v === '')) continue;
     const rider = row[riderIdx] != null ? String(row[riderIdx]).trim() : '';
     if (!rider) continue;
-    const d = Number(row[draftIdx]);
-    if (isNaN(d)) continue;
     out.push({
       rider,
       position: row[posIdx]    != null ? String(row[posIdx]).trim()    : '',
       leader:   row[leaderIdx] != null ? String(row[leaderIdx]).trim() : '',
-      draft: d,
+      draft:    toNum(row[draftIdx]),          // null for P1 leader rows
+      cda:      cdaIdx >= 0 ? toNum(row[cdaIdx]) : null,
     });
   }
   return out;
