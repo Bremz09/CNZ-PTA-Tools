@@ -1471,6 +1471,21 @@ function lookupSheet3Cda(riderName, posNum, leaderName) {
   return null;
 }
 
+/** Average lead (P1) CdA for a rider from Sheet3. */
+function getAvgLeadCda(riderName) {
+  const rows = SHEET3_DATA.filter(r =>
+    r.rider === riderName && normPos(r.position) === '1' && r.cda != null);
+  if (!rows.length) return null;
+  return rows.reduce((s, r) => s + r.cda, 0) / rows.length;
+}
+
+function applyLeadCda(riderIdx, riderName) {
+  const avgCda = getAvgLeadCda(riderName);
+  if (avgCda == null) return;
+  const el = document.getElementById(`r${riderIdx}-cda`);
+  if (el) el.value = avgCda.toFixed(4);
+}
+
 function renderStepTable() {
   if (!simData) return;
   const { riders, segs, segSums, g, customDraftFactors } = simData;
@@ -1693,8 +1708,14 @@ function rebuildRiderCards() {
           sel.appendChild(opt);
         });
         if (!sel.value) sel.value = riderList[0];
-        sel.addEventListener('change', () => { refreshRotSelects(); renderDraftDiagnostics(); });
+        sel.addEventListener('change', () => {
+          refreshRotSelects();
+          renderDraftDiagnostics();
+          applyLeadCda(i, sel.value);
+        });
         el.replaceWith(sel);
+        // Set CdA default for the initially selected rider
+        applyLeadCda(i, sel.value);
       }
     } else {
       if (el.tagName === 'SELECT') {
