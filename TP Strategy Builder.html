@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Team Pursuit Strategy Builder</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <style>
 :root {
   --bg:       #0d1117;
@@ -156,6 +157,24 @@ details.step-wrap .inner{margin-top:12px;overflow-x:auto}
   .g6,.g4,.g3{grid-template-columns:repeat(2,1fr)}
   .summary-riders{grid-template-columns:1fr}
 }
+
+/* ── Custom draft toggle ────────────────────── */
+.toggle-row{display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap}
+.toggle-label{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;
+  color:var(--dim);cursor:pointer;user-select:none}
+.toggle-label.active{color:var(--accent)}
+.toggle-label input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--accent)}
+.draft-status{font-size:12px;padding:3px 9px;border-radius:4px;display:none}
+.draft-status.loaded{display:inline-block;background:rgba(63,185,80,.12);
+  border:1px solid rgba(63,185,80,.35);color:var(--success)}
+.draft-status.error{display:inline-block;background:rgba(248,81,73,.12);
+  border:1px solid rgba(248,81,73,.35);color:var(--danger)}
+.draft-file-inline{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim)}
+
+/* ── Diagnostics ───────────────────────────── */
+.diag-exact{color:var(--success)}
+.diag-fallback{color:var(--warn)}
+.diag-none{color:var(--danger)}
 </style>
 </head>
 <body>
@@ -165,6 +184,17 @@ details.step-wrap .inner{margin-top:12px;overflow-x:auto}
 <header>
   <h1>Team Pursuit Strategy Builder</h1>
   <p>4 km · 250 m track · Critical Power &amp; W′ Model</p>
+  <div class="toggle-row">
+    <label class="toggle-label" id="custom-draft-label">
+      <input type="checkbox" id="custom-draft-toggle" onchange="toggleCustomDraft(this.checked)">
+      Use custom draft effect
+    </label>
+    <span class="draft-status" id="draft-status"></span>
+    <span class="draft-file-inline" id="draft-file-load" style="display:none">
+      <label for="draft-file-input">Load DraftingSummary.xlsx:</label>
+      <input type="file" id="draft-file-input" accept=".xlsx,.xls" onchange="loadDraftFile(this)">
+    </span>
+  </div>
 </header>
 
 <!-- ═══════════════════════════════ GLOBAL SETTINGS ══════════════════════ -->
@@ -224,6 +254,18 @@ details.step-wrap .inner{margin-top:12px;overflow-x:auto}
       <button class="btn btn-ghost" onclick="addRow()">+ Add Row</button>
       <button class="btn btn-ghost" onclick="presetEqual()">Load Equal Rotation</button>
       <span class="dist-info" id="dist-lbl"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ DRAFT DIAGNOSTICS ════════════════════ -->
+<div class="card" id="draft-diag-card" style="display:none">
+  <div class="card-head open" onclick="toggleCard('draft-diag-card')">
+    <h2>Draft Effect Diagnostics</h2><i class="chevron">▼</i>
+  </div>
+  <div class="card-body">
+    <div id="draft-diag-content">
+      <p style="font-size:12px;color:var(--dim)">Configure riders and rotation above — draft effects will appear here.</p>
     </div>
   </div>
 </div>
@@ -322,6 +364,130 @@ const DEFAULTS = [
   { name:'Campbell', cp:375, wp:32000, rm:80, bm:8, cda:0.185, st:20, sp:875,  tau:377 },
   { name:'Gatey',    cp:420, wp:27000, rm:70, bm:8, cda:0.170, st:20, sp:850,  tau:377 },
   { name:'Keegan',   cp:340, wp:27000, rm:70, bm:8, cda:0.149, st:20, sp:800,  tau:377 },
+];
+
+/* ── Built-in default data (from DraftingSummary.xlsx · Sheet3) ──────────── */
+const DEFAULT_SHEET3_DATA = [
+  {section:'Section 1',event:'HK Q',rider:'D Morton',position:'P1',leader:'—',draft:null,power:535.9,calcLeadPower:568.8,cda:0.1557},
+  {section:'Section 1',event:'HK Q',rider:'G Jackson',position:'P2',leader:'D Morton',draft:0.698,power:396.3,calcLeadPower:567.4,cda:0.1118},
+  {section:'Section 1',event:'HK Q',rider:'M Erwood',position:'P3',leader:'G Jackson',draft:0.611,power:358.8,calcLeadPower:587.2,cda:0.1003},
+  {section:'Section 1',event:'HK Q',rider:'K Hornblow',position:'P4',leader:'M Erwood',draft:0.585,power:311.2,calcLeadPower:532.1,cda:0.0878},
+  {section:'Section 2',event:'HK Q',rider:'G Jackson',position:'P1',leader:'—',draft:null,power:572.8,calcLeadPower:581.8,cda:0.1623},
+  {section:'Section 2',event:'HK Q',rider:'M Erwood',position:'P2',leader:'G Jackson',draft:0.708,power:425.4,calcLeadPower:600.4,cda:0.1183},
+  {section:'Section 2',event:'HK Q',rider:'K Hornblow',position:'P3',leader:'M Erwood',draft:0.596,power:324.8,calcLeadPower:544.6,cda:0.0899},
+  {section:'Section 2',event:'HK Q',rider:'D Morton',position:'P4',leader:'K Hornblow',draft:0.632,power:367.1,calcLeadPower:581.2,cda:0.1057},
+  {section:'Section 3',event:'HK Q',rider:'M Erwood',position:'P1',leader:'—',draft:null,power:649.3,calcLeadPower:623.7,cda:0.1779},
+  {section:'Section 3',event:'HK Q',rider:'K Hornblow',position:'P2',leader:'M Erwood',draft:0.758,power:427.3,calcLeadPower:563.6,cda:0.1156},
+  {section:'Section 3',event:'HK Q',rider:'D Morton',position:'P3',leader:'K Hornblow',draft:0.715,power:431.6,calcLeadPower:603.6,cda:0.1161},
+  {section:'Section 3',event:'HK Q',rider:'G Jackson',position:'P4',leader:'D Morton',draft:0.727,power:438.2,calcLeadPower:602.8,cda:0.1177},
+  {section:'Section 4',event:'HK Q',rider:'K Hornblow',position:'P1',leader:'—',draft:null,power:507.3,calcLeadPower:563.7,cda:0.1386},
+  {section:'Section 4',event:'HK Q',rider:'D Morton',position:'P2',leader:'K Hornblow',draft:0.652,power:395.8,calcLeadPower:606.9,cda:0.1049},
+  {section:'Section 4',event:'HK Q',rider:'G Jackson',position:'P3',leader:'D Morton',draft:0.565,power:344,calcLeadPower:608.4,cda:0.0891},
+  {section:'Section 4',event:'HK Q',rider:'M Erwood',position:'P4',leader:'G Jackson',draft:0.691,power:433.8,calcLeadPower:627.3,cda:0.1163},
+  {section:'Section 5',event:'HK Q',rider:'D Morton',position:'P1',leader:'—',draft:null,power:567,calcLeadPower:586.7,cda:0.16},
+  {section:'Section 5',event:'HK Q',rider:'G Jackson',position:'P2',leader:'D Morton',draft:0.699,power:407.9,calcLeadPower:583.5,cda:0.1124},
+  {section:'Section 5',event:'HK Q',rider:'M Erwood',position:'P3',leader:'G Jackson',draft:0.595,power:357.5,calcLeadPower:601.3,cda:0.0971},
+  {section:'Section 5',event:'HK Q',rider:'K Hornblow',position:'P4',leader:'M Erwood',draft:0.596,power:327.4,calcLeadPower:549.5,cda:0.0893},
+  {section:'Section 6',event:'HK Q',rider:'G Jackson',position:'P1',leader:'—',draft:null,power:566.2,calcLeadPower:579.9,cda:0.1607},
+  {section:'Section 6',event:'HK Q',rider:'M Erwood',position:'P2',leader:'G Jackson',draft:0.721,power:427.5,calcLeadPower:592.7,cda:0.1207},
+  {section:'Section 6',event:'HK Q',rider:'K Hornblow',position:'P3',leader:'M Erwood',draft:0.608,power:329.7,calcLeadPower:542.1,cda:0.0916},
+  {section:'Section 6',event:'HK Q',rider:'D Morton',position:'P4',leader:'K Hornblow',draft:0.628,power:363.7,calcLeadPower:578.8,cda:0.1009},
+  {section:'Section 7',event:'HK Q',rider:'M Erwood',position:'P1',leader:'—',draft:null,power:649.2,calcLeadPower:635,cda:0.1746},
+  {section:'Section 7',event:'HK Q',rider:'K Hornblow',position:'P2',leader:'M Erwood',draft:0.741,power:424.8,calcLeadPower:573.2,cda:0.1135},
+  {section:'Section 7',event:'HK Q',rider:'D Morton',position:'P3',leader:'K Hornblow',draft:0.711,power:435.7,calcLeadPower:612.8,cda:0.1157},
+  {section:'Section 7',event:'HK Q',rider:'G Jackson',position:'P4',leader:'D Morton',draft:0.69,power:422.8,calcLeadPower:613.1,cda:0.1115},
+  {section:'Section 1',event:'HK R1',rider:'M Erwood',position:'P1',leader:'—',draft:null,power:639.4,calcLeadPower:621.4,cda:0.1687},
+  {section:'Section 1',event:'HK R1',rider:'G Jackson',position:'P2',leader:'M Erwood',draft:0.774,power:479.3,calcLeadPower:619.3,cda:0.1256},
+  {section:'Section 1',event:'HK R1',rider:'K Hornblow',position:'P3',leader:'G Jackson',draft:0.692,power:370.9,calcLeadPower:535.8,cda:0.0971},
+  {section:'Section 1',event:'HK R1',rider:'N Kergozou',position:'P4',leader:'K Hornblow',draft:0.621,power:425.2,calcLeadPower:684.3,cda:0.1109},
+  {section:'Section 2',event:'HK R1',rider:'G Jackson',position:'P1',leader:'—',draft:null,power:608.4,calcLeadPower:626.5,cda:0.1596},
+  {section:'Section 2',event:'HK R1',rider:'K Hornblow',position:'P2',leader:'G Jackson',draft:0.723,power:391.8,calcLeadPower:542.1,cda:0.1013},
+  {section:'Section 2',event:'HK R1',rider:'N Kergozou',position:'P3',leader:'K Hornblow',draft:0.566,power:389.6,calcLeadPower:688.9,cda:0.1001},
+  {section:'Section 2',event:'HK R1',rider:'M Erwood',position:'P4',leader:'N Kergozou',draft:0.625,power:387,calcLeadPower:619.4,cda:0.0991},
+  {section:'Section 3',event:'HK R1',rider:'K Hornblow',position:'P1',leader:'—',draft:null,power:531.4,calcLeadPower:535.6,cda:0.1413},
+  {section:'Section 3',event:'HK R1',rider:'N Kergozou',position:'P2',leader:'K Hornblow',draft:0.654,power:444,calcLeadPower:679.3,cda:0.1169},
+  {section:'Section 3',event:'HK R1',rider:'M Erwood',position:'P3',leader:'N Kergozou',draft:0.642,power:391.9,calcLeadPower:610.5,cda:0.1024},
+  {section:'Section 3',event:'HK R1',rider:'G Jackson',position:'P4',leader:'M Erwood',draft:0.658,power:405.9,calcLeadPower:617.2,cda:0.1058},
+  {section:'Section 4',event:'HK R1',rider:'M Erwood',position:'P1',leader:'—',draft:null,power:588.9,calcLeadPower:599.6,cda:0.1606},
+  {section:'Section 4',event:'HK R1',rider:'G Jackson',position:'P2',leader:'M Erwood',draft:0.719,power:433.5,calcLeadPower:602.7,cda:0.1159},
+  {section:'Section 4',event:'HK R1',rider:'K Hornblow',position:'P3',leader:'G Jackson',draft:0.64,power:334.2,calcLeadPower:521.8,cda:0.0889},
+  {section:'Section 5',event:'HK R1',rider:'G Jackson',position:'P1',leader:'—',draft:null,power:578,calcLeadPower:593.6,cda:0.1603},
+  {section:'Section 5',event:'HK R1',rider:'K Hornblow',position:'P2',leader:'G Jackson',draft:0.749,power:382,calcLeadPower:510.1,cda:0.1057},
+  {section:'Section 5',event:'HK R1',rider:'M Erwood',position:'P3',leader:'K Hornblow',draft:0.683,power:399.9,calcLeadPower:585.7,cda:0.1095},
+  {section:'Section 6',event:'HK R1',rider:'K Hornblow',position:'P1',leader:'—',draft:null,power:462.2,calcLeadPower:487.6,cda:0.1347},
+  {section:'Section 6',event:'HK R1',rider:'M Erwood',position:'P2',leader:'K Hornblow',draft:0.717,power:400.2,calcLeadPower:558,cda:0.1174},
+  {section:'Section 6',event:'HK R1',rider:'G Jackson',position:'P3',leader:'M Erwood',draft:0.665,power:375.9,calcLeadPower:565.2,cda:0.1063},
+  {section:'Section 1',event:'HK F',rider:'D Morton',position:'P1',leader:'—',draft:null,power:561.1,calcLeadPower:591.1,cda:0.1659},
+  {section:'Section 1',event:'HK F',rider:'G Jackson',position:'P2',leader:'D Morton',draft:0.696,power:408.4,calcLeadPower:586.8,cda:0.1113},
+  {section:'Section 1',event:'HK F',rider:'M Erwood',position:'P3',leader:'G Jackson',draft:0.609,power:359.8,calcLeadPower:590.9,cda:0.097},
+  {section:'Section 1',event:'HK F',rider:'N Kergozou',position:'P4',leader:'M Erwood',draft:0.569,power:353.2,calcLeadPower:620.5,cda:0.0936},
+  {section:'Section 2',event:'HK F',rider:'G Jackson',position:'P1',leader:'—',draft:null,power:584.1,calcLeadPower:597.9,cda:0.1635},
+  {section:'Section 2',event:'HK F',rider:'M Erwood',position:'P2',leader:'G Jackson',draft:0.713,power:431,calcLeadPower:604.1,cda:0.1152},
+  {section:'Section 2',event:'HK F',rider:'N Kergozou',position:'P3',leader:'M Erwood',draft:0.601,power:379.7,calcLeadPower:632,cda:0.1006},
+  {section:'Section 2',event:'HK F',rider:'D Morton',position:'P4',leader:'N Kergozou',draft:0.65,power:391.6,calcLeadPower:602.8,cda:0.1049},
+  {section:'Section 3',event:'HK F',rider:'M Erwood',position:'P1',leader:'—',draft:null,power:594.4,calcLeadPower:603.7,cda:0.1655},
+  {section:'Section 3',event:'HK F',rider:'N Kergozou',position:'P2',leader:'M Erwood',draft:0.673,power:423.9,calcLeadPower:630.2,cda:0.1133},
+  {section:'Section 3',event:'HK F',rider:'D Morton',position:'P3',leader:'N Kergozou',draft:0.645,power:387.9,calcLeadPower:601,cda:0.1036},
+  {section:'Section 3',event:'HK F',rider:'G Jackson',position:'P4',leader:'D Morton',draft:0.683,power:405.6,calcLeadPower:593.8,cda:0.109},
+  {section:'Section 4',event:'HK F',rider:'N Kergozou',position:'P1',leader:'—',draft:null,power:610.3,calcLeadPower:634.2,cda:0.1735},
+  {section:'Section 4',event:'HK F',rider:'D Morton',position:'P2',leader:'N Kergozou',draft:0.756,power:454.7,calcLeadPower:601.4,cda:0.1235},
+  {section:'Section 4',event:'HK F',rider:'G Jackson',position:'P3',leader:'D Morton',draft:0.687,power:411.8,calcLeadPower:599.8,cda:0.1094},
+  {section:'Section 4',event:'HK F',rider:'M Erwood',position:'P4',leader:'G Jackson',draft:0.723,power:436.1,calcLeadPower:603.4,cda:0.1178},
+  {section:'Section 5',event:'HK F',rider:'D Morton',position:'P1',leader:'—',draft:null,power:583.1,calcLeadPower:600,cda:0.1659},
+  {section:'Section 5',event:'HK F',rider:'G Jackson',position:'P2',leader:'D Morton',draft:0.694,power:409.7,calcLeadPower:590.4,cda:0.1106},
+  {section:'Section 5',event:'HK F',rider:'M Erwood',position:'P3',leader:'G Jackson',draft:0.6,power:358.8,calcLeadPower:598,cda:0.0951},
+  {section:'Section 6',event:'HK F',rider:'G Jackson',position:'P1',leader:'—',draft:null,power:592.6,calcLeadPower:608.7,cda:0.1635},
+  {section:'Section 6',event:'HK F',rider:'M Erwood',position:'P2',leader:'G Jackson',draft:0.737,power:452.5,calcLeadPower:613.6,cda:0.1201},
+  {section:'Section 6',event:'HK F',rider:'D Morton',position:'P3',leader:'M Erwood',draft:0.665,power:408.9,calcLeadPower:615.1,cda:0.1074},
+  {section:'Section 7',event:'HK F',rider:'M Erwood',position:'P1',leader:'—',draft:null,power:653.1,calcLeadPower:625.6,cda:0.1655},
+  {section:'Section 7',event:'HK F',rider:'D Morton',position:'P2',leader:'M Erwood',draft:0.801,power:497.2,calcLeadPower:620.8,cda:0.1311},
+  {section:'Section 7',event:'HK F',rider:'G Jackson',position:'P3',leader:'D Morton',draft:0.749,power:461.7,calcLeadPower:616.5,cda:0.1207},
+  {section:'Section 1',event:'Nilai Q',rider:'M Erwood',position:'P1',leader:'—',draft:null,power:635.3,calcLeadPower:644,cda:0.1753},
+  {section:'Section 1',event:'Nilai Q',rider:'G Jackson',position:'P2',leader:'M Erwood',draft:0.716,power:450.1,calcLeadPower:628.9,cda:0.1187},
+  {section:'Section 1',event:'Nilai Q',rider:'D Morton',position:'P3',leader:'G Jackson',draft:0.611,power:376.9,calcLeadPower:616.8,cda:0.1031},
+  {section:'Section 1',event:'Nilai Q',rider:'T Sexton',position:'P4',leader:'D Morton',draft:0.649,power:375,calcLeadPower:577.8,cda:0.1012},
+  {section:'Section 2',event:'Nilai Q',rider:'G Jackson',position:'P1',leader:'—',draft:null,power:598.9,calcLeadPower:596.6,cda:0.1713},
+  {section:'Section 2',event:'Nilai Q',rider:'D Morton',position:'P2',leader:'G Jackson',draft:0.695,power:420.2,calcLeadPower:605,cda:0.1205},
+  {section:'Section 2',event:'Nilai Q',rider:'T Sexton',position:'P3',leader:'D Morton',draft:0.597,power:343.9,calcLeadPower:575.9,cda:0.1029},
+  {section:'Section 2',event:'Nilai Q',rider:'M Erwood',position:'P4',leader:'T Sexton',draft:0.641,power:403.5,calcLeadPower:629.3,cda:0.1101},
+  {section:'Section 3',event:'Nilai Q',rider:'D Morton',position:'P1',leader:'—',draft:null,power:578.6,calcLeadPower:597.6,cda:0.1768},
+  {section:'Section 3',event:'Nilai Q',rider:'T Sexton',position:'P2',leader:'D Morton',draft:0.703,power:389.5,calcLeadPower:554.1,cda:0.1122},
+  {section:'Section 3',event:'Nilai Q',rider:'M Erwood',position:'P3',leader:'T Sexton',draft:0.611,power:381.7,calcLeadPower:624.9,cda:0.1031},
+  {section:'Section 3',event:'Nilai Q',rider:'G Jackson',position:'P4',leader:'M Erwood',draft:0.649,power:382.4,calcLeadPower:589.5,cda:0.1112},
+  {section:'Section 4',event:'Nilai Q',rider:'T Sexton',position:'P1',leader:'—',draft:null,power:596.2,calcLeadPower:601.3,cda:0.1605},
+  {section:'Section 4',event:'Nilai Q',rider:'M Erwood',position:'P2',leader:'T Sexton',draft:0.736,power:480.3,calcLeadPower:652.5,cda:0.1267},
+  {section:'Section 4',event:'Nilai Q',rider:'G Jackson',position:'P3',leader:'M Erwood',draft:0.658,power:417.7,calcLeadPower:635,cda:0.1103},
+  {section:'Section 4',event:'Nilai Q',rider:'D Morton',position:'P4',leader:'G Jackson',draft:0.658,power:418,calcLeadPower:635.5,cda:0.1126},
+  {section:'Section 5',event:'Nilai Q',rider:'M Erwood',position:'P1',leader:'—',draft:null,power:596.8,calcLeadPower:615.8,cda:0.1753},
+  {section:'Section 5',event:'Nilai Q',rider:'G Jackson',position:'P2',leader:'M Erwood',draft:0.714,power:431.8,calcLeadPower:604.3,cda:0.12},
+  {section:'Section 5',event:'Nilai Q',rider:'D Morton',position:'P3',leader:'G Jackson',draft:0.642,power:371.8,calcLeadPower:579.5,cda:0.1307},
+  {section:'Section 6',event:'Nilai Q',rider:'G Jackson',position:'P1',leader:'—',draft:null,power:571.4,calcLeadPower:588.4,cda:0.1713},
+  {section:'Section 6',event:'Nilai Q',rider:'D Morton',position:'P2',leader:'G Jackson',draft:0.699,power:403.8,calcLeadPower:578.1,cda:0.1218},
+  {section:'Section 6',event:'Nilai Q',rider:'M Erwood',position:'P3',leader:'D Morton',draft:0.653,power:390.4,calcLeadPower:598.1,cda:0.1128},
+  {section:'Section 7',event:'Nilai Q',rider:'D Morton',position:'P1',leader:'—',draft:null,power:606.5,calcLeadPower:607,cda:0.1768},
+  {section:'Section 7',event:'Nilai Q',rider:'M Erwood',position:'P2',leader:'D Morton',draft:0.726,power:465.5,calcLeadPower:641.6,cda:0.123},
+  {section:'Section 7',event:'Nilai Q',rider:'G Jackson',position:'P3',leader:'M Erwood',draft:0.695,power:440.3,calcLeadPower:633.3,cda:0.1147},
+  {section:'Section 1',event:'Nilai R1',rider:'D Morton',position:'P1',leader:'—',draft:null,power:573.1,calcLeadPower:581.9,cda:0.1608},
+  {section:'Section 1',event:'Nilai R1',rider:'M Erwood',position:'P2',leader:'D Morton',draft:0.709,power:425.1,calcLeadPower:599.9,cda:0.1177},
+  {section:'Section 1',event:'Nilai R1',rider:'T Sexton',position:'P3',leader:'M Erwood',draft:0.653,power:343.3,calcLeadPower:526.1,cda:0.1003},
+  {section:'Section 1',event:'Nilai R1',rider:'N Kergozou',position:'P4',leader:'T Sexton',draft:0.574,power:392.1,calcLeadPower:682.6,cda:0.1097},
+  {section:'Section 2',event:'Nilai R1',rider:'M Erwood',position:'P1',leader:'—',draft:null,power:620.1,calcLeadPower:619.8,cda:0.1658},
+  {section:'Section 2',event:'Nilai R1',rider:'T Sexton',position:'P2',leader:'M Erwood',draft:0.71,power:403.8,calcLeadPower:568.8,cda:0.1037},
+  {section:'Section 2',event:'Nilai R1',rider:'N Kergozou',position:'P3',leader:'T Sexton',draft:0.55,power:388.1,calcLeadPower:705.5,cda:0.1047},
+  {section:'Section 2',event:'Nilai R1',rider:'D Morton',position:'P4',leader:'N Kergozou',draft:0.632,power:387.8,calcLeadPower:613.7,cda:0.1088},
+  {section:'Section 3',event:'Nilai R1',rider:'T Sexton',position:'P1',leader:'—',draft:null,power:562.1,calcLeadPower:557,cda:0.1503},
+  {section:'Section 3',event:'Nilai R1',rider:'N Kergozou',position:'P2',leader:'T Sexton',draft:0.61,power:436.5,calcLeadPower:715.6,cda:0.1185},
+  {section:'Section 3',event:'Nilai R1',rider:'D Morton',position:'P3',leader:'N Kergozou',draft:0.651,power:386.7,calcLeadPower:594.3,cda:0.1026},
+  {section:'Section 3',event:'Nilai R1',rider:'M Erwood',position:'P4',leader:'D Morton',draft:0.692,power:434.3,calcLeadPower:627.8,cda:0.1182},
+  {section:'Section 4',event:'Nilai R1',rider:'D Morton',position:'P1',leader:'—',draft:null,power:509.6,calcLeadPower:463.7,cda:0.1608},
+  {section:'Section 4',event:'Nilai R1',rider:'M Erwood',position:'P2',leader:'D Morton',draft:0.799,power:367,calcLeadPower:459.1,cda:0.1378},
+  {section:'Section 4',event:'Nilai R1',rider:'T Sexton',position:'P3',leader:'M Erwood',draft:0.786,power:316.2,calcLeadPower:402,cda:0.1235},
+  {section:'Section 5',event:'Nilai R1',rider:'M Erwood',position:'P1',leader:'—',draft:null,power:617,calcLeadPower:610.9,cda:0.1658},
+  {section:'Section 5',event:'Nilai R1',rider:'T Sexton',position:'P2',leader:'M Erwood',draft:0.783,power:420.1,calcLeadPower:536.4,cda:0.1163},
+  {section:'Section 5',event:'Nilai R1',rider:'D Morton',position:'P3',leader:'T Sexton',draft:0.764,power:429.7,calcLeadPower:562.7,cda:0.1296},
+  {section:'Section 6',event:'Nilai R1',rider:'T Sexton',position:'P1',leader:'—',draft:null,power:478.7,calcLeadPower:514.2,cda:0.1503},
+  {section:'Section 6',event:'Nilai R1',rider:'D Morton',position:'P2',leader:'T Sexton',draft:0.7,power:380.3,calcLeadPower:543.2,cda:0.1193},
+  {section:'Section 6',event:'Nilai R1',rider:'M Erwood',position:'P3',leader:'D Morton',draft:0.673,power:391.4,calcLeadPower:581.7,cda:0.109},
 ];
 
 /* ─── Rotation state ─────────────────────────────────────────────────── */
@@ -802,6 +968,22 @@ function runSim() {
   const riders = readRiders();
   const segs   = buildSchedule(rows);
 
+  // Pre-compute custom draft factors [segIdx][riderIdx] when custom mode is active.
+  // seg.positions is rider-indexed → slot (0=lead … 3=W4, -1=dropped).
+  // For each following rider: find who is at the slot directly in front.
+  let customDraftFactors = null;
+  if (customDraftMode && SHEET3_DATA.length > 0) {
+    customDraftFactors = segs.map(seg =>
+      riders.map((rider, ri) => {
+        const slot = seg.positions[ri];
+        if (slot <= 0) return null;                          // lead (0) or dropped (−1)
+        const frontRi = seg.positions.indexOf(slot - 1);    // rider at slot directly in front
+        if (frontRi < 0) return null;
+        return lookupDraftEffect(rider.name, slot + 1, riders[frontRi].name);
+      })
+    );
+  }
+
   // Speeds
   const vTravel = TRACK / g.lapTime;
   // Use the lead rider's start lap time for lap 1 speed
@@ -897,9 +1079,20 @@ function runSim() {
     riders.forEach((rider, ri) => {
       const pos = seg.positions[ri]; // -1 if dropped
       // Dropped riders coast at CP so W′ stays flat; excluded from team work totals
-      const P   = isStart ? rider.sp
-                : pos < 0 ? rider.cp
-                :           calcPower(rider, pos, v, g);
+      let P;
+      if (isStart) {
+        P = rider.sp;
+      } else if (pos < 0) {
+        P = rider.cp;
+      } else if (customDraftFactors && pos > 0) {
+        const df = customDraftFactors[segIdx][ri];
+        // df.effect is the fraction of lead power saved (e.g. 0.12 = 12% saving)
+        P = (df && df.effect != null)
+          ? calcPower(rider, 0, v, g) * df.effect
+          : calcPower(rider, pos, v, g); // no data → fall back to global
+      } else {
+        P = calcPower(rider, pos, v, g);
+      }
 
       // Work accumulation (active riders only)
       const Jdt = P * dt;
@@ -961,7 +1154,7 @@ function runSim() {
       ss.riderPow[ri].time > 0 ? ss.riderPow[ri].work / ss.riderPow[ri].time : 0);
   });
 
-  simData = { g, riders, segs, segSums, totalWork, cDists, chartW, itvSums, totalTime };
+  simData = { g, riders, segs, segSums, totalWork, cDists, chartW, itvSums, totalTime, customDraftFactors };
   renderResults();
   document.getElementById('results').style.display = 'block';
   document.getElementById('results').scrollIntoView({ behavior:'smooth' });
@@ -977,6 +1170,7 @@ function renderResults() {
   updateWorkChart();
   renderLapTable();
   renderStepTable();
+  if (customDraftMode) renderDraftDiagnostics();
 }
 
 function renderFinishTime() {
@@ -1259,31 +1453,104 @@ function renderLapTable() {
 }
 
 /* ─── Step Table ─────────────────────────────────────────────────────── */
+/* Normalise a position value to a plain integer string: "P2", "W2", "2nd", 2 → "2" */
+function normPos(p) {
+  const n = parseInt(String(p).trim().replace(/[^\d]/g, ''), 10);
+  return isNaN(n) ? String(p).trim() : String(n);
+}
+
+/** Average CdA from Sheet3 for a rider/position/leader (exact, then fallback). */
+function lookupSheet3Cda(riderName, posNum, leaderName) {
+  const posStr = normPos(posNum);
+  const exact = SHEET3_DATA.filter(r =>
+    r.rider === riderName && normPos(r.position) === posStr && r.leader === leaderName && r.cda != null);
+  if (exact.length) return exact.reduce((s, r) => s + r.cda, 0) / exact.length;
+  const fallback = SHEET3_DATA.filter(r =>
+    r.rider === riderName && normPos(r.position) === posStr && r.cda != null);
+  if (fallback.length) return fallback.reduce((s, r) => s + r.cda, 0) / fallback.length;
+  return null;
+}
+
 function renderStepTable() {
   if (!simData) return;
-  const { riders, segs, segSums } = simData;
+  const { riders, segs, segSums, g, customDraftFactors } = simData;
   const mi = MODELS.findIndex(m => m.id === 'skiba12');
+
+  // Extra columns: draft factor + CdA — always shown, populated differently by mode
+  const showDraft = true;
+  const draftHdrLabel  = 'Draft factor';
+  const cdaHdrLabel    = customDraftMode ? 'Sheet3 CdA'  : 'Eff. CdA';
 
   const rHdr = riders.map((r, ri) =>
     `<th style="color:${COLORS[ri]}">${r.name}<br>Pos</th>
      <th class="r" style="color:${COLORS[ri]}">Avg W</th>
+     <th class="r" style="color:${COLORS[ri]}">${draftHdrLabel}</th>
+     <th class="r" style="color:${COLORS[ri]}">${cdaHdrLabel}</th>
      <th class="r" style="color:${COLORS[ri]}">W′ start</th>
      <th class="r" style="color:${COLORS[ri]}">W′ end</th>`
   ).join('');
 
   const rows2 = segs.map((seg, si) => {
     const ss = segSums[si];
-    const rCells = riders.map((_, ri) => {
-      const pos    = seg.positions[ri];
-      const posLbl = pos < 0 ? 'Dropped' : (['Lead','W2','W3','W4'][pos] || '?');
+    const rCells = riders.map((rider, ri) => {
+      const slot   = seg.positions[ri];          // 0=lead, 1=W2…, -1=dropped
+      const posLbl = slot < 0 ? 'Dropped' : (['Lead','W2','W3','W4'][slot] || '?');
       const ws     = (ss.wbalStart[mi][ri]/1000).toFixed(2);
       const we     = (ss.wbalEnd[mi][ri]/1000).toFixed(2);
       const weCls  = +we < 2 ? 'wp-crit' : +we < 5 ? 'wp-low' : '';
-      return `<td class="${pos===0?'pos-lead':''}" style="color:${COLORS[ri]}">${posLbl}</td>
+
+      let draftCell, cdaCell;
+
+      if (slot < 0) {
+        // Dropped
+        draftCell = '<td class="r" style="opacity:.4">—</td>';
+        cdaCell   = '<td class="r" style="opacity:.4">—</td>';
+
+      } else if (slot === 0) {
+        // Lead rider
+        draftCell = `<td class="r" style="color:var(--dim)">Lead</td>`;
+        cdaCell   = `<td class="r">${rider.cda.toFixed(4)}</td>`;
+
+      } else if (customDraftFactors) {
+        // Custom draft mode — look up effect + Sheet3 CdA
+        const df = customDraftFactors[si][ri];
+        if (df && df.effect != null) {
+          const fmt     = `×${df.effect.toFixed(3)}`;
+          const srcCol  = df.source === 'exact' ? 'var(--success)'
+                        : df.source === 'fallback' ? 'var(--warn)' : '';
+          const srcTip  = df.source === 'exact' ? 'Exact match'
+                        : df.source === 'fallback' ? 'Fallback avg' : '';
+          draftCell = `<td class="r" style="color:${srcCol}" title="${srcTip}">${fmt}</td>`;
+
+          // Rider directly in front
+          const frontRi  = seg.positions.indexOf(slot - 1);
+          const leaderNm = frontRi >= 0 ? riders[frontRi].name : '';
+          const sheetCda = lookupSheet3Cda(rider.name, slot + 1, leaderNm);
+          cdaCell = sheetCda != null
+            ? `<td class="r" title="From Sheet3">${sheetCda.toFixed(4)}</td>`
+            : `<td class="r" style="color:var(--dim)" title="No Sheet3 data">—</td>`;
+        } else {
+          // No data — fell back to global
+          const mult = slot === 1 ? g.w2 : g.w34;
+          draftCell = `<td class="r" style="color:var(--dim)" title="Global fallback">×${mult.toFixed(3)}</td>`;
+          cdaCell   = `<td class="r" style="color:var(--dim)">${(rider.cda * mult).toFixed(4)}</td>`;
+        }
+
+      } else {
+        // Global mode
+        const mult = slot === 1 ? g.w2 : g.w34;
+        draftCell = `<td class="r">×${mult.toFixed(3)}</td>`;
+        cdaCell   = `<td class="r">${(rider.cda * mult).toFixed(4)}</td>`;
+      }
+
+      return `<td class="${slot===0?'pos-lead':''}" style="color:${COLORS[ri]}">${posLbl}</td>
               <td class="r">${ss.avgPow[ri].toFixed(0)}</td>
+              ${draftCell}
+              ${cdaCell}
               <td class="r">${ws}</td>
               <td class="r ${weCls}">${we}</td>`;
     }).join('');
+
     return `<tr>
       <td>${si+1}</td>
       <td>${seg.startDist}–${seg.endDist} m</td>
@@ -1299,6 +1566,243 @@ function renderStepTable() {
     ${rHdr}
   </tr></thead>
   <tbody>${rows2}</tbody>`;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   CUSTOM DRAFT EFFECT  (DraftingSummary.xlsx · Sheet3)
+   ════════════════════════════════════════════════════════════════════════ */
+
+let SHEET3_DATA    = DEFAULT_SHEET3_DATA.slice();
+let customDraftMode = false;
+
+/* ── Parse Sheet3 ──────────────────────────────────────────────────── */
+function parseSheet3(aoa) {
+  if (!aoa || !aoa.length) return [];
+  const header = aoa[0].map(h => (h == null ? '' : String(h).trim().toLowerCase()));
+  const idxOf  = name => header.findIndex(h => h === name);
+  const riderIdx  = idxOf('rider');
+  const posIdx    = idxOf('position');
+  const leaderIdx = idxOf('leader');
+  const draftIdx  = idxOf('draft');
+  if ([riderIdx, posIdx, leaderIdx, draftIdx].some(i => i < 0)) return null;
+  const out = [];
+  for (let r = 1; r < aoa.length; r++) {
+    const row = aoa[r];
+    if (!row || row.every(v => v == null || v === '')) continue;
+    const rider = row[riderIdx] != null ? String(row[riderIdx]).trim() : '';
+    if (!rider) continue;
+    const d = Number(row[draftIdx]);
+    if (isNaN(d)) continue;
+    out.push({
+      rider,
+      position: row[posIdx]    != null ? String(row[posIdx]).trim()    : '',
+      leader:   row[leaderIdx] != null ? String(row[leaderIdx]).trim() : '',
+      draft: d,
+    });
+  }
+  return out;
+}
+
+/* ── Workbook processing ───────────────────────────────────────────── */
+function processDraftWorkbook(buf, fname) {
+  const wb    = XLSX.read(buf, { type: 'array' });
+  const sName = wb.SheetNames.find(n => n.toLowerCase() === 'sheet3') || wb.SheetNames[2];
+  if (!sName) { setDraftStatus('error', `Sheet3 not found in ${fname}`); return false; }
+  const aoa  = XLSX.utils.sheet_to_json(wb.Sheets[sName], { header: 1, defval: null });
+  const data = parseSheet3(aoa);
+  if (!data || !data.length) {
+    setDraftStatus('error', `No valid rows in "${sName}" of ${fname}`);
+    return false;
+  }
+  SHEET3_DATA = data;
+  const nRiders = new Set(data.map(r => r.rider)).size;
+  setDraftStatus('loaded', `${fname} · ${data.length} rows · ${nRiders} riders`);
+  return true;
+}
+
+async function autoLoadXlsx(filename) {
+  try {
+    const url  = new URL(filename, window.location.href).href;
+    const resp = await fetch(url, { credentials: 'include', cache: 'no-cache' });
+    if (!resp.ok) return null;
+    const buf  = await resp.arrayBuffer();
+    const m    = new Uint8Array(buf, 0, 2);
+    if (m[0] !== 0x50 || m[1] !== 0x4B) return null; // not a ZIP/xlsx
+    return buf;
+  } catch { return null; }
+}
+
+async function autoLoadDraftSummary() {
+  const buf = await autoLoadXlsx('DraftingSummary.xlsx');
+  if (!buf) return false;
+  return processDraftWorkbook(buf, 'DraftingSummary.xlsx');
+}
+
+function loadDraftFile(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  file.arrayBuffer().then(buf => {
+    if (processDraftWorkbook(buf, file.name)) {
+      document.getElementById('draft-file-load').style.display = 'none';
+      rebuildRiderCards();
+      renderDraftDiagnostics();
+    }
+  }).catch(err => setDraftStatus('error', 'Failed to read: ' + err.message));
+}
+
+function setDraftStatus(type, msg) {
+  const el = document.getElementById('draft-status');
+  el.className = 'draft-status ' + type;
+  el.textContent = msg;
+}
+
+/* ── Toggle ────────────────────────────────────────────────────────── */
+async function toggleCustomDraft(enabled) {
+  customDraftMode = enabled;
+  document.getElementById('custom-draft-label').classList.toggle('active', enabled);
+  document.getElementById('draft-diag-card').style.display = enabled ? '' : 'none';
+  if (enabled) {
+    // Try to fetch fresh data; fall back to built-in defaults silently
+    setDraftStatus('loaded', 'Loading…');
+    const ok = await autoLoadDraftSummary();
+    if (!ok) {
+      setDraftStatus('loaded', `Built-in data · ${SHEET3_DATA.length} rows (upload file to refresh)`);
+    }
+    rebuildRiderCards();
+    renderDraftDiagnostics();
+  } else {
+    rebuildRiderCards();
+  }
+}
+
+/* ── Swap rider name inputs ↔ selects ─────────────────────────────── */
+function rebuildRiderCards() {
+  const riderList = [...new Set(SHEET3_DATA.map(r => r.rider))].sort();
+  for (let i = 0; i < NR; i++) {
+    const el = document.getElementById(`r${i}-name`);
+    if (!el) continue;
+    const curVal = el.value || DEFAULTS[i].name;
+    if (customDraftMode && riderList.length > 0) {
+      if (el.tagName !== 'SELECT') {
+        const sel = document.createElement('select');
+        sel.id = `r${i}-name`;
+        riderList.forEach(r => {
+          const opt = document.createElement('option');
+          opt.value = r; opt.textContent = r;
+          if (r === curVal) opt.selected = true;
+          sel.appendChild(opt);
+        });
+        if (!sel.value) sel.value = riderList[0];
+        sel.addEventListener('change', () => { refreshRotSelects(); renderDraftDiagnostics(); });
+        el.replaceWith(sel);
+      }
+    } else {
+      if (el.tagName === 'SELECT') {
+        const inp = document.createElement('input');
+        inp.type = 'text'; inp.id = `r${i}-name`; inp.value = curVal;
+        inp.addEventListener('input', refreshRotSelects);
+        el.replaceWith(inp);
+      }
+    }
+  }
+}
+
+/* ── Lookup ────────────────────────────────────────────────────────── */
+/**
+ * Returns draft saving fraction for a rider at a 1-based position behind a named leader.
+ * Falls back to same rider + position across all leaders if no exact match.
+ * @returns {{ effect: number|null, source: 'exact'|'fallback'|'none', count: number }}
+ */
+function lookupDraftEffect(riderName, posNum, leaderName) {
+  const posStr = normPos(posNum);
+  const exact = SHEET3_DATA.filter(r =>
+    r.rider === riderName && normPos(r.position) === posStr && r.leader === leaderName);
+  if (exact.length) {
+    return { effect: exact.reduce((s, r) => s + r.draft, 0) / exact.length,
+             source: 'exact', count: exact.length };
+  }
+  const fallback = SHEET3_DATA.filter(r =>
+    r.rider === riderName && normPos(r.position) === posStr);
+  if (fallback.length) {
+    return { effect: fallback.reduce((s, r) => s + r.draft, 0) / fallback.length,
+             source: 'fallback', count: fallback.length };
+  }
+  return { effect: null, source: 'none', count: 0 };
+}
+
+/* ── Diagnostics ───────────────────────────────────────────────────── */
+function renderDraftDiagnostics() {
+  if (!customDraftMode) return;
+  const el = document.getElementById('draft-diag-content');
+
+  if (!SHEET3_DATA.length) {
+    el.innerHTML = '<p style="font-size:12px;color:var(--dim)">Load DraftingSummary.xlsx to see diagnostics.</p>';
+    return;
+  }
+
+  // Build unique (rider, position, leader) combos from current rotation.
+  // rows[i].positions[slot] = riderIdx  (slot 0 = lead)
+  const seen = new Set();
+  const combos = [];
+  rows.forEach(rotRow => {
+    for (let slot = 1; slot <= 3; slot++) {
+      const ri = rotRow.positions[slot];
+      if (!(ri >= 0)) continue;
+      const fi = rotRow.positions[slot - 1]; // rider directly in front
+      if (!(fi >= 0)) continue;
+      const rName  = riderName(ri);
+      const lName  = riderName(fi);
+      const pos1b  = slot + 1;  // 1-based position in the group
+      const key    = `${rName}|${pos1b}|${lName}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      combos.push({ rider: rName, position: pos1b, leader: lName,
+                    lookup: lookupDraftEffect(rName, pos1b, lName) });
+    }
+  });
+
+  if (!combos.length) {
+    el.innerHTML = '<p style="font-size:12px;color:var(--dim)">No follower positions in the current rotation.</p>';
+    return;
+  }
+
+  const tableRows = combos.map(c => {
+    const lk = c.lookup;
+    const effPct = lk.effect != null ? `×${lk.effect.toFixed(3)}` : '—';
+    const [cls, src] = lk.source === 'exact'
+      ? ['diag-exact',    `Exact match (${lk.count} obs)`]
+      : lk.source === 'fallback'
+      ? ['diag-fallback', `Fallback — avg all leaders at P${c.position} (${lk.count} obs)`]
+      : ['diag-none',     'No data — global W2/W34 load used as fallback'];
+    return `<tr>
+      <td style="font-weight:600">${c.rider}</td>
+      <td>P${c.position}</td>
+      <td>${c.leader}</td>
+      <td class="r ${cls}" style="font-weight:700">${effPct}</td>
+      <td class="${cls}">${src}</td>
+    </tr>`;
+  }).join('');
+
+  // Show raw position values in the data so mismatches are visible
+  const rawPositions = [...new Set(SHEET3_DATA.map(r => r.position))].sort().join(', ');
+
+  el.innerHTML = `
+    <p style="font-size:12px;color:var(--dim);margin-bottom:10px">
+      Draft saving applied per rider · position · leader combination in the current rotation. &nbsp;
+      <span class="diag-exact">■</span> Exact match &nbsp;
+      <span class="diag-fallback">■</span> Fallback (avg other leaders at same position) &nbsp;
+      <span class="diag-none">■</span> No data — global settings used
+      <br><span style="opacity:.6">Position values in Sheet3: <code>${rawPositions}</code></span>
+    </p>
+    <div style="overflow-x:auto">
+      <table class="dtable">
+        <thead><tr>
+          <th>Rider</th><th>Position</th><th>Leader in front</th>
+          <th class="r">Draft factor</th><th>Source</th>
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>`;
 }
 
 /* ════════════════════════════════════════════════════════════════════════

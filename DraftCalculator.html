@@ -1124,6 +1124,11 @@
 		<header class="topbar">
 			<h1 class="title">Draft Calculator</h1>
 			<p class="subtitle">Choose a video file, one or more FIT files, and a shared metric to start. Left click + drag to go to point of interest in video, right click + drag to sync datastream.</p>
+			<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+				<button type="button" class="target-btn" onclick="saveConfig()">💾 Save Config</button>
+				<button type="button" class="target-btn" onclick="document.getElementById('loadConfigInput').click()">📂 Load Config</button>
+				<input type="file" id="loadConfigInput" accept=".json,.dcsync" style="display:none" onchange="loadConfig(this)" />
+			</div>
 		</header>
 
 		<section class="controls">
@@ -3907,9 +3912,13 @@
 			const rangeStart = videoStart - offset;
 			const rangeEnd = videoEnd - offset;
 
-			let n = 0;
-			let sumActual = 0;
-			let sumLead = 0;
+			const halfRho = 0.5 * globals.rho;
+			const mEff = record.mass * globals.inertiaFactor;
+
+			// First pass: collect in-range samples
+			const rawT = [];
+			const rawV = [];
+			const rawP = [];
 			for (const row of rows) {
 				const tRaw = toNumber(row[timeColumnKey]);
 				if (tRaw === null) continue;
@@ -3920,17 +3929,45 @@
 				if (cad === null || pow === null) continue;
 				const v = cad * speedFactorMps;
 				if (!Number.isFinite(v) || v <= 0) continue;
-				const lead = (aeroTerm * v * v * v + rollingTerm * v) / globals.eta;
+				rawT.push(tRaw);
+				rawV.push(v);
+				rawP.push(pow);
+			}
+
+			if (rawT.length === 0) return { error: "No samples in range." };
+
+			// Smooth velocity then differentiate to get acceleration
+			const smoothV = smoothCenteredMA(rawV, 3);
+			const accel = centralDifference(smoothV, rawT);
+
+			let n = 0;
+			let sumActual = 0;
+			let sumLead = 0;
+			let sumEffCda = 0;
+			let nEffCda = 0;
+			for (let k = 0; k < rawT.length; k += 1) {
+				const v = smoothV[k];
+				if (!Number.isFinite(v) || v <= 0) continue;
+				// Lead power includes aero + rolling + inertial terms
+				const lead = (aeroTerm * v * v * v + rollingTerm * v + mEff * v * accel[k]) / globals.eta;
 				if (!Number.isFinite(lead) || lead <= 0) continue;
 				n += 1;
-				sumActual += pow;
+				sumActual += rawP[k];
 				sumLead += lead;
+				// Back-calculate effective CdA from actual power (including inertial term):
+				// P*eta = 0.5*rho*CdA_eff*v³ + Crr*m*g*v + mEff*v*a  →  CdA_eff = (P*eta - rollingTerm*v - mEff*v*a) / (0.5*rho*v³)
+				const aeroPow = rawP[k] * globals.eta - rollingTerm * v - mEff * v * accel[k];
+				if (aeroPow > 0) {
+					sumEffCda += aeroPow / (halfRho * v * v * v);
+					nEffCda += 1;
+				}
 			}
 
 			if (n === 0) return { error: "No samples in range." };
 			const meanActual = sumActual / n;
 			const meanLead = sumLead / n;
-			return { n, sumActual, sumLead, meanActual, meanLead, ratio: sumActual / sumLead };
+			const effectiveCda = nEffCda > 0 ? sumEffCda / nEffCda : null;
+			return { n, sumActual, sumLead, meanActual, meanLead, ratio: sumActual / sumLead, effectiveCda };
 		}
 
 		function makeRiderChip(sheetName, position, sectionIndex, riderIndex) {
@@ -4297,6 +4334,7 @@
 			container.appendChild(buildBehindMatrix(riders, behindMap));
 			container.appendChild(buildBehindCdaMatrix(riders, behindMap));
 			container.appendChild(buildPositionMatrix(riders, positionMap, maxPos));
+			container.appendChild(buildPerSectionDetailTable(sections));
 
 			if (skipped > 0) {
 				const note = document.createElement("div");
@@ -4517,6 +4555,102 @@
 			return block;
 		}
 
+		function buildPerSectionDetailTable(sections) {
+			const block = document.createElement("div");
+			block.className = "summary-block";
+
+			const head = document.createElement("div");
+			head.className = "summary-block-head";
+			const copyBtn = document.createElement("button");
+			copyBtn.type = "button";
+			copyBtn.style.cssText = "padding:3px 10px;border:1px solid rgba(31,41,55,.2);border-radius:999px;background:#f8fafc;font-size:.78rem;font-weight:600;cursor:pointer;";
+			copyBtn.textContent = "Copy for Excel";
+			head.innerHTML = `<span>Per-section rider detail</span>`;
+			head.appendChild(copyBtn);
+			block.appendChild(head);
+
+			const HEADERS = ["Section", "Rider", "Position", "Leader", "Draft", "Power (W)", "Calc Lead Power (W)", "CdA"];
+			const tsvRows = [HEADERS];
+
+			const wrap = document.createElement("div");
+			wrap.className = "summary-table-wrap";
+			const table = document.createElement("table");
+			table.className = "summary-table";
+
+			const thead = document.createElement("thead");
+			const headRow = document.createElement("tr");
+			for (const h of HEADERS) {
+				const th = document.createElement("th");
+				th.textContent = h;
+				if (h === "Section" || h === "Rider") th.className = "row-label";
+				headRow.appendChild(th);
+			}
+			thead.appendChild(headRow);
+			table.appendChild(thead);
+
+			const tbody = document.createElement("tbody");
+
+			for (let si = 0; si < sections.length; si += 1) {
+				const section = sections[si];
+				const origIdx = state.rideSections.indexOf(section);
+				const sectionLabel = `Section ${origIdx >= 0 ? origIdx + 1 : si + 1}`;
+
+				for (let i = 0; i < section.order.length; i += 1) {
+					const sheetName = section.order[i];
+					const displayName = streamDisplayName(sheetName);
+					const position = `P${i + 1}`;
+					const leaderName = i > 0 ? streamDisplayName(section.order[i - 1]) : "—";
+
+					const result = computeRiderLeadOverRange(sheetName, section.start, section.end);
+
+					let draftVal, powerVal, calcLeadPowerVal, cdaVal;
+					if (result.error) {
+						draftVal = "—"; powerVal = "—"; calcLeadPowerVal = "—"; cdaVal = "—";
+					} else {
+						draftVal = i === 0 ? "Leader" : formatNum(result.ratio, 3);
+						powerVal = formatNum(result.meanActual, 1);
+						calcLeadPowerVal = formatNum(result.meanLead, 1);
+						if (i === 0) {
+							// Lead rider: use the CdA set in the CdA section
+							const rec = state.cdaRiders[sheetName];
+							cdaVal = (rec && Number.isFinite(rec.cda) && rec.cda > 0) ? formatNum(rec.cda, 4) : "—";
+						} else {
+							// Drafting rider: back-calculate effective CdA from actual power
+							cdaVal = result.effectiveCda !== null ? formatNum(result.effectiveCda, 4) : "—";
+						}
+					}
+
+					const tr = document.createElement("tr");
+					const cells = [sectionLabel, displayName, position, leaderName, draftVal, powerVal, calcLeadPowerVal, cdaVal];
+					for (let ci = 0; ci < cells.length; ci += 1) {
+						const td = document.createElement("td");
+						td.textContent = cells[ci];
+						if (ci === 0 || ci === 1) td.className = "row-label";
+						tr.appendChild(td);
+					}
+					tbody.appendChild(tr);
+					tsvRows.push(cells);
+				}
+			}
+
+			table.appendChild(tbody);
+			wrap.appendChild(table);
+			block.appendChild(wrap);
+
+			copyBtn.addEventListener("click", () => {
+				const tsv = tsvRows.map((r) => r.join("\t")).join("\n");
+				navigator.clipboard.writeText(tsv).then(() => {
+					copyBtn.textContent = "Copied!";
+					setTimeout(() => { copyBtn.textContent = "Copy for Excel"; }, 1500);
+				}).catch(() => {
+					copyBtn.textContent = "Copy failed";
+					setTimeout(() => { copyBtn.textContent = "Copy for Excel"; }, 1500);
+				});
+			});
+
+			return block;
+		}
+
 		function makeCell(tag, text, className) {
 			const el = document.createElement(tag);
 			el.textContent = text;
@@ -4533,6 +4667,128 @@
 		els.btnCreateSummary.addEventListener("click", () => {
 			renderSectionsSummary();
 		});
+
+		/* ════════════════════════════════════════════════════════
+		   SAVE / LOAD CONFIG
+		   ════════════════════════════════════════════════════════ */
+		function saveConfig() {
+			// Build full payload (includes FIT rows, offsets, CdA data, sections, metric, etc.)
+			const payload = buildSyncPayload();
+			// Add settings not covered by buildSyncPayload
+			payload.smoothing      = state.smoothingWindow || 1;
+			payload.yMin           = state.yMinOverride;
+			payload.yMax           = state.yMaxOverride;
+			payload.viewScale      = Math.round(state.viewScale * 100);
+			payload.dragSensitivity = Math.round(state.dragSensitivity * 100);
+
+			const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+			const url  = URL.createObjectURL(blob);
+			const a    = document.createElement("a");
+			a.href     = url;
+			a.download = "draft-session.json";
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			setTimeout(() => URL.revokeObjectURL(url), 60_000);
+			setStatus("Session saved.", "ok");
+		}
+
+		function loadConfig(input) {
+			const file = input.files && input.files[0];
+			if (!file) return;
+			const reader = new FileReader();
+			reader.onload = (e) => {
+				try {
+					const config = JSON.parse(String(e.target.result || "{}"));
+					if (!config || config.tool !== "DraftCalculator") throw new Error("This file is not a DraftCalculator session.");
+
+					// If FIT stream data is present, restore the full session first
+					if (Array.isArray(config.streams) && config.streams.length > 0) {
+						restoreSyncPayload(config);
+					} else {
+						// Settings-only file: apply per-stream settings to already-loaded streams
+						const ss = config.streamSettings && typeof config.streamSettings === "object" ? config.streamSettings : {};
+						for (const stream of (state.fitStreams || [])) {
+							const entry = ss[stream.sheetName];
+							if (!entry || typeof entry !== "object") continue;
+							const gear = toNumber(entry.gearInches);
+							if (gear !== null && gear > 0) state.streamGearInches[stream.sheetName] = gear;
+							if (entry.riderName || entry.riderMass || entry.leadStart != null || entry.leadEnd != null || entry.extraRanges || entry.cda) {
+								if (!state.cdaRiders[stream.sheetName]) state.cdaRiders[stream.sheetName] = { name: "", mass: null, leadStart: null, leadEnd: null, extraRanges: [] };
+								const rec = state.cdaRiders[stream.sheetName];
+								if (typeof entry.riderName === "string") rec.name = entry.riderName;
+								const mass = toNumber(entry.riderMass); if (mass !== null && mass > 0) rec.mass = mass;
+								const ls = toNumber(entry.leadStart); if (ls !== null) rec.leadStart = ls;
+								const le = toNumber(entry.leadEnd);   if (le !== null) rec.leadEnd   = le;
+								if (Array.isArray(entry.extraRanges)) {
+									rec.extraRanges = entry.extraRanges
+										.filter((r) => r && typeof r === "object")
+										.map((r) => ({ leadStart: toNumber(r.leadStart), leadEnd: toNumber(r.leadEnd) }));
+								}
+								const cda = toNumber(entry.cda); if (cda !== null && cda > 0) rec.cda = cda;
+							}
+						}
+						renderGearInputs();
+						renderCdaRiders();
+
+						if (Array.isArray(config.rideSections) && config.rideSections.length > 0) {
+							state.rideSections = config.rideSections.map((raw) => ({
+								start: toNumber(raw.start),
+								end:   toNumber(raw.end),
+								order: Array.isArray(raw.order) ? raw.order.filter((n) => typeof n === "string") : []
+							}));
+							renderRideSections();
+						}
+
+						if (config.metricKey && state.fitStreams && state.fitStreams.length > 0) {
+							const commonMetricColumns = intersectMetricColumns(state.selectedSheets);
+							const isSpeed = config.metricKey === SPEED_METRIC_LABEL;
+							const valid = (isSpeed && canCalculateSpeed()) || commonMetricColumns.includes(config.metricKey);
+							if (valid) { els.metricSelect.value = config.metricKey; setMetric(config.metricKey); }
+						}
+					}
+
+					// Apply extra settings (not handled by restoreSyncPayload)
+					const smRaw = toNumber(config.smoothing);
+					if (smRaw !== null && smRaw >= 1) {
+						let sm = Math.max(1, Math.floor(smRaw));
+						if (sm % 2 === 0) sm += 1;
+						state.smoothingWindow = sm;
+						els.smoothingControl.value = String(sm);
+						updateSmoothingLabel();
+					}
+					const yMin = toNumber(config.yMin);
+					const yMax = toNumber(config.yMax);
+					state.yMinOverride = yMin;
+					state.yMaxOverride = yMax;
+					els.yMinInput.value = yMin !== null ? String(yMin) : "";
+					els.yMaxInput.value = yMax !== null ? String(yMax) : "";
+					const vsRaw = toNumber(config.viewScale);
+					if (vsRaw !== null && vsRaw >= 1) {
+						els.scaleControl.value = String(vsRaw);
+						state.viewScale = clamp(vsRaw / 100, 0.25, 4);
+					}
+					const dsRaw = toNumber(config.dragSensitivity);
+					if (dsRaw !== null && dsRaw > 0) {
+						els.sensitivityControl.value = String(dsRaw);
+						state.dragSensitivity = clamp(dsRaw / 100, 0.05, 3);
+					}
+					updateControlLabels();
+
+					if (state.fitStreams && state.fitStreams.length > 0) {
+						applySmoothingToSeries();
+						drawPlot();
+					}
+
+					setStatus("Session loaded.", "ok");
+				} catch (err) {
+					setStatus("Failed to load session: " + err.message);
+				} finally {
+					input.value = "";
+				}
+			};
+			reader.readAsText(file);
+		}
 
 		drawPlot();
 		updateStats();
