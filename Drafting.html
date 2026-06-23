@@ -188,6 +188,14 @@
       color: var(--color-text-muted);
       font-size: 13px;
     }
+    table.lookup-table th {
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    table.lookup-table th:hover { opacity: 0.75; }
+    table.lookup-table th.sort-asc::after  { content: ' ▲'; font-size: 10px; }
+    table.lookup-table th.sort-desc::after { content: ' ▼'; font-size: 10px; }
   </style>
 </head>
 <body>
@@ -1415,6 +1423,8 @@
 
     // ---------- DraftingSummary Sheet3 — draft effect lookup ----------
     let SHEET3_DATA = DEFAULT_SHEET3_DATA.slice();
+    let lookupSortCol = null;  // active sort column key
+    let lookupSortDir = 1;     // 1 = asc, −1 = desc
 
     function parseSheet3(aoa) {
       if (!aoa.length) return [];
@@ -1487,6 +1497,12 @@
       return ratioColour(1 - normalised);
     }
 
+    function sortLookupBy(key) {
+      lookupSortDir = lookupSortCol === key ? -lookupSortDir : 1;
+      lookupSortCol = key;
+      renderLookupTable();
+    }
+
     function renderLookupTable() {
       const riderFilter    = document.getElementById('lookupRider').value;
       const posFilter      = document.getElementById('lookupPosition').value;
@@ -1497,15 +1513,43 @@
       if (posFilter)    rows = rows.filter(r => r.position === posFilter);
       if (leaderFilter) rows = rows.filter(r => r.leader   === leaderFilter);
 
+      // Column definitions
+      const COLS = [
+        { key: 'section',       label: 'Section',             num: false },
+        { key: 'event',         label: 'Event',               num: false },
+        { key: 'rider',         label: 'Rider',               num: false },
+        { key: 'position',      label: 'Position',            num: true,  val: r => +String(r.position).replace(/\D/g,'') || 0 },
+        { key: 'leader',        label: 'Leader',              num: false },
+        { key: 'draft',         label: 'Draft',               num: true  },
+        { key: 'power',         label: 'Power (W)',           num: true  },
+        { key: 'calcLeadPower', label: 'Calc Lead Power (W)', num: true  },
+        { key: 'cda',           label: 'CdA',                 num: true  },
+      ];
+
+      // Sort
+      if (lookupSortCol) {
+        const col = COLS.find(c => c.key === lookupSortCol);
+        rows = [...rows].sort((a, b) => {
+          const av = col.val ? col.val(a) : a[col.key];
+          const bv = col.val ? col.val(b) : b[col.key];
+          if (av == null && bv == null) return 0;
+          if (av == null) return 1;
+          if (bv == null) return -1;
+          if (typeof av === 'string') return av.localeCompare(bv) * lookupSortDir;
+          return (av - bv) * lookupSortDir;
+        });
+      }
+
       const table = document.getElementById('lookupTable');
       table.innerHTML = '';
 
       const thead = document.createElement('thead');
-      thead.innerHTML = `<tr>
-        <th>Section</th><th>Event</th><th>Rider</th><th>Position</th>
-        <th>Leader</th><th>Draft</th><th>Power (W)</th>
-        <th>Calc Lead Power (W)</th><th>CdA</th>
-      </tr>`;
+      const headCols = COLS.map(c => {
+        const cls = lookupSortCol === c.key
+          ? (lookupSortDir === 1 ? 'sort-asc' : 'sort-desc') : '';
+        return `<th class="${cls}" onclick="sortLookupBy('${c.key}')">${c.label}</th>`;
+      }).join('');
+      thead.innerHTML = `<tr>${headCols}</tr>`;
       table.appendChild(thead);
 
       const tbody = document.createElement('tbody');
@@ -1537,12 +1581,12 @@
           tbody.appendChild(tr);
         });
 
-        // Average row
+        // Average row (pinned — not sorted)
         const avg = (arr) => { const v = arr.filter(x => x != null && !isNaN(x)); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
-        const avgDraft        = avg(rows.map(r => r.draft));
-        const avgPower        = avg(rows.map(r => r.power));
-        const avgCalcLead     = avg(rows.map(r => r.calcLeadPower));
-        const avgCda          = avg(rows.map(r => r.cda));
+        const avgDraft    = avg(rows.map(r => r.draft));
+        const avgPower    = avg(rows.map(r => r.power));
+        const avgCalcLead = avg(rows.map(r => r.calcLeadPower));
+        const avgCda      = avg(rows.map(r => r.cda));
 
         const avgDraftFmt = avgDraft != null
           ? (Math.abs(avgDraft) <= 1.5
