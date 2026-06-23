@@ -1513,13 +1513,23 @@
       if (posFilter)    rows = rows.filter(r => r.position === posFilter);
       if (leaderFilter) rows = rows.filter(r => r.leader   === leaderFilter);
 
-      // Column definitions
+      // Build section+event → P1 rider lookup
+      const leaderMap = {};
+      SHEET3_DATA.forEach(r => {
+        if (r.position === 'P1' || r.position === '1') {
+          leaderMap[`${r.section}|${r.event}`] = r.rider;
+        }
+      });
+      const getLeader = r => leaderMap[`${r.section}|${r.event}`] || '—';
+
+      // Column definitions — 10 cols total
       const COLS = [
         { key: 'section',       label: 'Section',             num: false },
         { key: 'event',         label: 'Event',               num: false },
         { key: 'rider',         label: 'Rider',               num: false },
         { key: 'position',      label: 'Position',            num: true,  val: r => +String(r.position).replace(/\D/g,'') || 0 },
-        { key: 'leader',        label: 'Leader',              num: false },
+        { key: 'inFront',       label: 'In Front',            num: false, val: r => r.leader || '' },
+        { key: 'leader',        label: 'Leader (P1)',         num: false, val: r => getLeader(r) },
         { key: 'draft',         label: 'Draft',               num: true  },
         { key: 'power',         label: 'Power (W)',           num: true  },
         { key: 'calcLeadPower', label: 'Calc Lead Power (W)', num: true  },
@@ -1529,7 +1539,7 @@
       // Sort
       if (lookupSortCol) {
         const col = COLS.find(c => c.key === lookupSortCol);
-        rows = [...rows].sort((a, b) => {
+        if (col) rows = [...rows].sort((a, b) => {
           const av = col.val ? col.val(a) : a[col.key];
           const bv = col.val ? col.val(b) : b[col.key];
           if (av == null && bv == null) return 0;
@@ -1556,7 +1566,7 @@
 
       if (rows.length === 0) {
         const empty = document.createElement('tr');
-        empty.innerHTML = '<td colspan="9" class="lookup-empty">No matching records</td>';
+        empty.innerHTML = '<td colspan="10" class="lookup-empty">No matching records</td>';
         tbody.appendChild(empty);
       } else {
         rows.forEach(row => {
@@ -1573,6 +1583,7 @@
             <td class="name">${row.rider}</td>
             <td>${row.position || '—'}</td>
             <td>${row.leader || '—'}</td>
+            <td>${getLeader(row)}</td>
             <td class="ratio-cell" style="background:${draftBg}">${draftFmt}</td>
             <td>${row.power != null ? row.power.toFixed(0) : '—'}</td>
             <td>${row.calcLeadPower != null ? row.calcLeadPower.toFixed(0) : '—'}</td>
@@ -1597,7 +1608,7 @@
         const avgTr = document.createElement('tr');
         avgTr.className = 'lookup-avg-row';
         avgTr.innerHTML = `
-          <td colspan="5" style="text-align:right;padding-right:12px;">
+          <td colspan="6" style="text-align:right;padding-right:12px;">
             Average &mdash; ${rows.length} observation${rows.length === 1 ? '' : 's'}
           </td>
           <td class="ratio-cell" style="background:${draftColour(avgDraft)}">${avgDraftFmt}</td>
