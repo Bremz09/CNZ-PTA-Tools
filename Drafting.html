@@ -196,6 +196,14 @@
     table.lookup-table th:hover { opacity: 0.75; }
     table.lookup-table th.sort-asc::after  { content: ' ▲'; font-size: 10px; }
     table.lookup-table th.sort-desc::after { content: ' ▼'; font-size: 10px; }
+    table.lookup-table td.rider-highlight {
+      font-weight: 800;
+      background: rgba(0, 174, 199, 0.15);
+      color: #00AEC7;
+    }
+    table.lookup-table td.rider-other {
+      color: var(--color-text-muted);
+    }
   </style>
 </head>
 <body>
@@ -304,7 +312,7 @@
         </section>
 
         <section class="chart-card">
-          <h3>Draft effect lookup — by rider, position &amp; leader</h3>
+          <h3>Speed adjusted draft effect lookup — by rider, position &amp; leader</h3>
           <p class="panel-copy">
             Load <code>DraftingSummary.xlsx</code> to explore individual draft observations from Sheet3.
             Filter by rider, position, and who is directly in front — the table shows every matching
@@ -1504,32 +1512,34 @@
     }
 
     function renderLookupTable() {
-      const riderFilter    = document.getElementById('lookupRider').value;
-      const posFilter      = document.getElementById('lookupPosition').value;
-      const leaderFilter   = document.getElementById('lookupLeader').value;
+      const riderFilter  = document.getElementById('lookupRider').value;
+      const posFilter    = document.getElementById('lookupPosition').value;
+      const leaderFilter = document.getElementById('lookupLeader').value;
 
       let rows = SHEET3_DATA;
       if (riderFilter)  rows = rows.filter(r => r.rider    === riderFilter);
       if (posFilter)    rows = rows.filter(r => r.position === posFilter);
       if (leaderFilter) rows = rows.filter(r => r.leader   === leaderFilter);
 
-      // Build section+event → P1 rider lookup
-      const leaderMap = {};
+      // Build formation map: "section|event" → { '1': rider, '2': rider, … }
+      const formationMap = {};
       SHEET3_DATA.forEach(r => {
-        if (r.position === 'P1' || r.position === '1') {
-          leaderMap[`${r.section}|${r.event}`] = r.rider;
-        }
+        const key = `${r.section}|${r.event}`;
+        if (!formationMap[key]) formationMap[key] = {};
+        const p = String(r.position).replace(/\D/g, '');
+        if (p) formationMap[key][p] = r.rider;
       });
-      const getLeader = r => leaderMap[`${r.section}|${r.event}`] || '—';
+      const getPos = (r, p) => (formationMap[`${r.section}|${r.event}`] || {})[p] || '—';
 
-      // Column definitions — 10 cols total
+      // Column definitions
       const COLS = [
         { key: 'section',       label: 'Section',             num: false },
         { key: 'event',         label: 'Event',               num: false },
-        { key: 'rider',         label: 'Rider',               num: false },
         { key: 'position',      label: 'Position',            num: true,  val: r => +String(r.position).replace(/\D/g,'') || 0 },
-        { key: 'inFront',       label: 'In Front',            num: false, val: r => r.leader || '' },
-        { key: 'leader',        label: 'Leader (P1)',         num: false, val: r => getLeader(r) },
+        { key: 'p1',            label: 'P1',                  num: false, val: r => getPos(r,'1') },
+        { key: 'p2',            label: 'P2',                  num: false, val: r => getPos(r,'2') },
+        { key: 'p3',            label: 'P3',                  num: false, val: r => getPos(r,'3') },
+        { key: 'p4',            label: 'P4',                  num: false, val: r => getPos(r,'4') },
         { key: 'draft',         label: 'Draft',               num: true  },
         { key: 'power',         label: 'Power (W)',           num: true  },
         { key: 'calcLeadPower', label: 'Calc Lead Power (W)', num: true  },
@@ -1566,24 +1576,31 @@
 
       if (rows.length === 0) {
         const empty = document.createElement('tr');
-        empty.innerHTML = '<td colspan="10" class="lookup-empty">No matching records</td>';
+        empty.innerHTML = '<td colspan="11" class="lookup-empty">No matching records</td>';
         tbody.appendChild(empty);
       } else {
         rows.forEach(row => {
-          const tr = document.createElement('tr');
+          const riderPos = String(row.position).replace(/\D/g, '');
           const draftFmt = row.draft != null
             ? (Math.abs(row.draft) <= 1.5
                 ? (row.draft * 100).toFixed(1) + '%'
                 : row.draft.toFixed(1) + '%')
             : '—';
           const draftBg = draftColour(row.draft);
+
+          const posCols = ['1','2','3','4'].map(p => {
+            const name = getPos(row, p);
+            const cls  = p === riderPos ? 'rider-highlight'
+                       : name !== '—' ? 'rider-other' : '';
+            return `<td class="${cls}">${name}</td>`;
+          }).join('');
+
+          const tr = document.createElement('tr');
           tr.innerHTML = `
             <td>${row.section || '—'}</td>
             <td>${row.event || '—'}</td>
-            <td class="name">${row.rider}</td>
             <td>${row.position || '—'}</td>
-            <td>${row.leader || '—'}</td>
-            <td>${getLeader(row)}</td>
+            ${posCols}
             <td class="ratio-cell" style="background:${draftBg}">${draftFmt}</td>
             <td>${row.power != null ? row.power.toFixed(0) : '—'}</td>
             <td>${row.calcLeadPower != null ? row.calcLeadPower.toFixed(0) : '—'}</td>
@@ -1608,7 +1625,7 @@
         const avgTr = document.createElement('tr');
         avgTr.className = 'lookup-avg-row';
         avgTr.innerHTML = `
-          <td colspan="6" style="text-align:right;padding-right:12px;">
+          <td colspan="7" style="text-align:right;padding-right:12px;">
             Average &mdash; ${rows.length} observation${rows.length === 1 ? '' : 's'}
           </td>
           <td class="ratio-cell" style="background:${draftColour(avgDraft)}">${avgDraftFmt}</td>
