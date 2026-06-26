@@ -52,6 +52,13 @@
   /* --- Axis controls (inside chart panel) --- */
   .chart-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
   .chart-inline-controls { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+  .btn-download-png {
+    display: flex; align-items: center; gap: 5px; padding: 5px 12px;
+    border: 1px solid #d1d5db; border-radius: 6px; background: #fff;
+    font-size: 0.78rem; font-weight: 600; color: #374151; cursor: pointer;
+    transition: background 0.15s, border-color 0.15s; white-space: nowrap;
+  }
+  .btn-download-png:hover { background: #f3f4f6; border-color: #9ca3af; }
   .axis-ctrl { display: flex; flex-direction: column; gap: 4px; }
   .axis-ctrl label { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #6b7280; }
   .axis-ctrl input[type="number"] {
@@ -210,6 +217,10 @@
           <label for="xMax">X Max (s)</label>
           <input type="number" id="xMax" min="0" step="0.01" placeholder="Auto">
         </div>
+        <button class="btn-download-png" id="btnDownloadPng" title="Download chart as PNG">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 1v9M8 10l-3-3M8 10l3-3" stroke="#374151" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 12h12" stroke="#374151" stroke-width="1.6" stroke-linecap="round"/><path d="M2 14h12" stroke="#374151" stroke-width="1.6" stroke-linecap="round"/></svg>
+          PNG
+        </button>
       </div>
     </div>
     <div class="chart-container">
@@ -590,6 +601,25 @@ function render() {
 document.getElementById('binWidth').addEventListener('change', render);
 document.getElementById('xMin').addEventListener('change', render);
 document.getElementById('xMax').addEventListener('change', render);
+
+document.getElementById('btnDownloadPng').addEventListener('click', () => {
+  const canvas = document.getElementById('histChart');
+  const f = getFilters();
+  const tabLabel = { '1-2': '1st-2nd', '3-4': '3rd-4th', '8-9': '8th-9th' }[activeRankGap];
+  const filename = `gap-${tabLabel}-${buildSubtitle(f).replace(/[^a-z0-9]/gi, '_').replace(/_+/g, '_')}.png`;
+  // Draw onto a white-background offscreen canvas so the PNG isn't transparent
+  const offscreen = document.createElement('canvas');
+  offscreen.width  = canvas.width;
+  offscreen.height = canvas.height;
+  const octx = offscreen.getContext('2d');
+  octx.fillStyle = '#ffffff';
+  octx.fillRect(0, 0, offscreen.width, offscreen.height);
+  octx.drawImage(canvas, 0, 0);
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = offscreen.toDataURL('image/png');
+  link.click();
+});
 
 render();
 </script>
