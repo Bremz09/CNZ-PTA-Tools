@@ -1,0 +1,1140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <script src="auth-gate.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>W per CdA</title>
+  <link rel="stylesheet" href="theme.css" />
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    .drop-zone {
+      border: 2px dashed var(--color-border);
+      border-radius: 14px;
+      padding: 48px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      background: var(--color-surface-alt);
+      color: var(--color-text-muted);
+    }
+    .drop-zone.drag-over {
+      border-color: var(--color-brand-aqua);
+      background: rgba(0, 174, 199, 0.06);
+      color: var(--color-brand-aqua);
+    }
+    .drop-zone-icon {
+      font-size: 40px;
+      margin-bottom: 12px;
+      display: block;
+    }
+    .drop-zone p {
+      margin: 0;
+      font-size: 15px;
+    }
+    .drop-zone input[type="file"] {
+      display: none;
+    }
+
+    #results {
+      display: grid;
+      gap: 24px;
+    }
+
+    .rider-block {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(14, 65, 116, 0.06);
+    }
+
+    .rider-header {
+      padding: 14px 20px;
+      background: linear-gradient(135deg, rgba(14, 65, 116, 0.96), rgba(26, 26, 26, 0.94));
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .rider-name {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .rider-file {
+      font-size: 12px;
+      opacity: 0.7;
+    }
+
+    .metrics-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .metrics-table th {
+      background: var(--color-surface-alt);
+      color: var(--color-text-secondary);
+      font-weight: 700;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 10px 16px;
+      text-align: center;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .metrics-table th:first-child {
+      text-align: left;
+      width: 160px;
+    }
+
+    .metrics-table td {
+      padding: 11px 16px;
+      text-align: center;
+      border-bottom: 1px solid var(--color-border);
+      color: var(--color-text-primary);
+    }
+
+    .metrics-table td:first-child {
+      text-align: left;
+      font-weight: 600;
+      color: var(--color-text-secondary);
+      font-size: 13px;
+    }
+
+    .metrics-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .metrics-table tr.highlight-row td {
+      background: rgba(14, 65, 116, 0.05);
+      font-weight: 700;
+      color: var(--color-brand-blue);
+    }
+
+    .metrics-table tr.highlight-row td:first-child {
+      color: var(--color-brand-blue);
+    }
+
+    .metric-unit {
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--color-text-muted);
+      margin-left: 2px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 32px;
+      color: var(--color-text-muted);
+      font-size: 14px;
+    }
+
+    #clear-btn {
+      display: none;
+      padding: 8px 18px;
+      border-radius: 8px;
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background 0.15s;
+    }
+
+    #clear-btn:hover {
+      background: var(--color-surface-alt);
+    }
+
+    .error-msg {
+      padding: 12px 16px;
+      border-radius: 10px;
+      background: rgba(238, 83, 64, 0.1);
+      border: 1px solid rgba(238, 83, 64, 0.3);
+      color: var(--color-brand-red);
+      font-size: 13px;
+    }
+
+    .r2-badge {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.25);
+      letter-spacing: 0.04em;
+    }
+
+    .metrics-table tr.fit-error-row td {
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .metrics-table td.residual-pos {
+      color: var(--color-brand-green);
+    }
+
+    .metrics-table td.residual-neg {
+      color: var(--color-brand-red);
+    }
+
+    .chart-wrap {
+      padding: 20px 20px 16px;
+      border-top: 1px solid var(--color-border);
+      background: var(--color-surface);
+    }
+
+    .chart-wrap canvas {
+      max-height: 300px;
+    }
+
+    .chart-checkboxes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 20px;
+      padding: 10px 20px 18px;
+      border-top: 1px solid var(--color-border);
+    }
+
+    .lap-check-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text-secondary);
+      user-select: none;
+    }
+
+    .lap-check-label input[type="checkbox"] {
+      width: 15px;
+      height: 15px;
+      cursor: pointer;
+      accent-color: var(--lap-colour, #0E4174);
+    }
+
+    .lap-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .tab-bar {
+      display: none;
+      gap: 6px;
+      border-bottom: 2px solid var(--color-border);
+      padding-bottom: 0;
+    }
+
+    .tab-btn {
+      padding: 9px 22px;
+      border: none;
+      border-bottom: 3px solid transparent;
+      background: none;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--color-text-muted);
+      cursor: pointer;
+      margin-bottom: -2px;
+      border-radius: 0;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .tab-btn.active {
+      color: var(--color-brand-blue);
+      border-bottom-color: var(--color-brand-blue);
+    }
+
+    .tab-panel {
+      display: none;
+    }
+
+    .tab-panel.active {
+      display: grid;
+      gap: 24px;
+    }
+
+    .summary-panel {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(14, 65, 116, 0.06);
+    }
+
+    .summary-panel-header {
+      padding: 14px 20px;
+      background: linear-gradient(135deg, rgba(14, 65, 116, 0.96), rgba(26, 26, 26, 0.94));
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .fit-toggle {
+      display: flex;
+      gap: 3px;
+      flex-shrink: 0;
+    }
+
+    .fit-btn {
+      padding: 4px 13px;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.35);
+      background: transparent;
+      color: rgba(255,255,255,0.65);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      letter-spacing: 0.02em;
+    }
+
+    .fit-btn.active {
+      background: rgba(255,255,255,0.22);
+      color: #fff;
+      border-color: rgba(255,255,255,0.6);
+    }
+
+    .fit-btn:hover:not(.active) {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+    }
+
+    .summary-chart-wrap {
+      padding: 24px;
+    }
+
+    .summary-eq {
+      margin-top: 12px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: rgba(14, 65, 116, 0.06);
+      border: 1px solid rgba(14, 65, 116, 0.15);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-brand-blue);
+      display: none;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+
+    .summary-info {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--color-text-muted);
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <section class="page-frame">
+
+      <header class="page-header">
+        <div class="page-title-row">
+          <div>
+            <div class="page-kicker"><a href="index.html" style="text-decoration:none;color:inherit;">← PTA Tools</a></div>
+            <h1 class="page-title">W per CdA</h1>
+            <p class="page-subtitle">Drop a race report Excel file to display per-lap Power, Speed, Speed Change, CdA and Power/CdA for each rider.</p>
+          </div>
+          <div class="page-actions">
+            <button id="clear-btn">Clear</button>
+          </div>
+        </div>
+      </header>
+
+      <div class="page-body grid-stack">
+
+        <div
+          class="drop-zone"
+          id="drop-zone"
+          role="button"
+          tabindex="0"
+          aria-label="Drop Excel file here or click to browse"
+        >
+          <span class="drop-zone-icon">📂</span>
+          <p><strong>Drop an Excel file here</strong></p>
+          <p style="margin-top:6px;font-size:13px;">or click to browse &nbsp;·&nbsp; .xlsx / .xls</p>
+          <input type="file" id="file-input" accept=".xlsx,.xls" multiple />
+        </div>
+
+        <div class="tab-bar" id="tab-bar">
+          <button class="tab-btn active" data-tab="individual">Individual</button>
+          <button class="tab-btn" data-tab="summary">Summary</button>
+        </div>
+
+        <div id="tab-individual" class="tab-panel active">
+          <div id="results"></div>
+        </div>
+
+        <div id="tab-summary" class="tab-panel">
+          <div class="summary-panel">
+            <div class="summary-panel-header">
+              <span>Average Speed vs W/CdA — All Riders</span>
+              <div class="fit-toggle">
+                <button class="fit-btn active" data-fit="linear">Linear</button>
+                <button class="fit-btn" data-fit="cubic">Cubic</button>
+              </div>
+            </div>
+            <div class="summary-chart-wrap">
+              <canvas id="summary-chart" style="max-height:420px;"></canvas>
+              <div class="summary-eq" id="summary-eq"></div>
+              <div class="summary-info" id="summary-info"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const dropZone  = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const results   = document.getElementById('results');
+    const clearBtn  = document.getElementById('clear-btn');
+    const tabBar    = document.getElementById('tab-bar');
+
+    // --- Summary state ---
+    const summaryData   = [];
+    const summaryHidden = new Set();
+    let   summaryChart  = null;
+    let   summaryCubicFit = false;
+
+    // --- Drag & drop wiring ---
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') fileInput.click(); });
+
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      handleFiles(e.dataTransfer.files);
+    });
+
+    fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+    clearBtn.addEventListener('click', () => {
+      results.innerHTML = '';
+      fileInput.value = '';
+      clearBtn.style.display = 'none';
+      summaryData.length = 0;
+      summaryHidden.clear();
+      tabBar.style.display = 'none';
+      if (summaryChart) { summaryChart.data.datasets = []; summaryChart.update(); }
+      // Reset to Individual tab
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'individual'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-individual'));
+    });
+
+    // --- Tab switching ---
+    tabBar.addEventListener('click', e => {
+      const btn = e.target.closest('.tab-btn');
+      if (!btn) return;
+      const tab = btn.dataset.tab;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `tab-${tab}`));
+    });
+
+    // --- Fit-type toggle (summary chart) ---
+    document.addEventListener('click', e => {
+      const btn = e.target.closest('.fit-btn[data-fit]');
+      if (!btn) return;
+      const wantCubic = btn.dataset.fit === 'cubic';
+      if (wantCubic === summaryCubicFit) return;
+      summaryCubicFit = wantCubic;
+      document.querySelectorAll('.fit-btn[data-fit]').forEach(b =>
+        b.classList.toggle('active', b.dataset.fit === (wantCubic ? 'cubic' : 'linear'))
+      );
+      rebuildSummaryFit();
+      if (summaryChart) summaryChart.update();
+    });
+
+    // --- File processing ---
+    function handleFiles(fileList) {
+      Array.from(fileList).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = e => {
+          try {
+            processWorkbook(e.target.result, file.name);
+          } catch (err) {
+            showError(`Could not read "${file.name}": ${err.message}`);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
+    function processWorkbook(arrayBuffer, fileName) {
+      const wb = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+      // Find every "Position" row (column B = index 1)
+      const positionRowIndices = [];
+      rows.forEach((row, i) => {
+        const label = String(row[1] ?? '').trim();
+        if (label === 'Position') positionRowIndices.push(i);
+      });
+
+      if (positionRowIndices.length === 0) {
+        showError(`No "Position" row found in "${fileName}". Make sure column B contains "Position".`);
+        return;
+      }
+
+      // Extract date from sheet header rows (look for "Date" label in column B)
+      let fileDate = null;
+      const firstPosRow = positionRowIndices[0] ?? rows.length;
+      for (let r = 0; r < Math.min(firstPosRow, 30); r++) {
+        if (String(rows[r][1] ?? '').trim().toLowerCase() === 'date') {
+          fileDate = formatExcelDate(rows[r][2]);
+          break;
+        }
+      }
+
+      positionRowIndices.forEach(posRowIdx => {
+        const posRow = rows[posRowIdx];
+        // Rider name is in column A of the position row
+        const riderName = String(posRow[0] ?? '').trim() || 'Unknown Rider';
+
+        // Find valid lap columns: columns where Position value is exactly 1 (number)
+        // Column B is index 1, data starts at index 2
+        const lapCols = [];
+        for (let c = 2; c < posRow.length; c++) {
+          const val = posRow[c];
+          // Accept numeric 1 or string "1" — reject anything containing "Overall" or blank
+          if (val === 1 || val === '1') {
+            lapCols.push(c);
+          }
+        }
+
+        if (lapCols.length === 0) {
+          showError(`No lap columns with Position = 1 found for "${riderName}" in "${fileName}".`);
+          return;
+        }
+
+        // Build a label→row-index map for the rows in this rider's section.
+        // Scan from posRowIdx+1 until the next Position row or end of data.
+        const nextSection = positionRowIndices.find(i => i > posRowIdx) ?? rows.length;
+        const labelMap = {};
+        for (let r = posRowIdx + 1; r < nextSection; r++) {
+          const lbl = String(rows[r][1] ?? '').trim();
+          if (lbl) labelMap[lbl] = r;
+        }
+
+        // Extract values by metric name
+        function getValues(metricLabel) {
+          const r = labelMap[metricLabel];
+          if (r == null) return lapCols.map(() => null);
+          return lapCols.map(c => {
+            const v = rows[r][c];
+            return (v === '' || v == null) ? null : Number(v);
+          });
+        }
+
+        const power        = getValues('Power');
+        const avgSpeed     = getValues('Average Speed');
+        const speedChange  = getValues('Speed Change');
+        const cda          = getValues('CdA');
+
+        // Power / CdA
+        const powerPerCda = lapCols.map((_, i) => {
+          const p = power[i], a = cda[i];
+          return (p != null && a != null && a !== 0) ? p / a : null;
+        });
+
+        // Linear regression: Average Speed (x) vs Power/CdA (y) — all laps
+        const reg = linearRegression(avgSpeed, powerPerCda);
+        const residuals = powerPerCda.map((y, i) => {
+          const x = avgSpeed[i];
+          if (y == null || x == null || reg == null) return null;
+          return y - (reg.m * x + reg.b);
+        });
+
+        // Identify worst 2 laps by |residual|, always keeping ≥2 for regression
+        const validLapIdxs = avgSpeed.map((_, i) => i)
+          .filter(i => avgSpeed[i] != null && powerPerCda[i] != null);
+        const numExclude = Math.max(0, Math.min(2, validLapIdxs.length - 2));
+        const worstLaps = new Set(
+          validLapIdxs
+            .filter(i => residuals[i] != null)
+            .sort((a, b) => Math.abs(residuals[b]) - Math.abs(residuals[a]))
+            .slice(0, numExclude)
+        );
+
+        renderRiderBlock(riderName, fileName, lapCols.length, {
+          power, avgSpeed, speedChange, cda, powerPerCda, residuals, r2: reg ? reg.r2 : null
+        }, worstLaps, fileDate);
+      });
+
+      clearBtn.style.display = 'inline-block';
+    }
+
+    let chartIdCounter = 0;
+
+    // --- Linear regression helpers ---
+    function linearRegression(xs, ys) {
+      // Use only indices where both values are non-null numbers
+      const pairs = xs.reduce((acc, x, i) => {
+        if (x != null && ys[i] != null && isFinite(x) && isFinite(ys[i])) {
+          acc.push([x, ys[i]]);
+        }
+        return acc;
+      }, []);
+      if (pairs.length < 2) return null;
+
+      const n   = pairs.length;
+      const sx  = pairs.reduce((s, p) => s + p[0], 0);
+      const sy  = pairs.reduce((s, p) => s + p[1], 0);
+      const sxy = pairs.reduce((s, p) => s + p[0] * p[1], 0);
+      const sxx = pairs.reduce((s, p) => s + p[0] * p[0], 0);
+
+      const denom = n * sxx - sx * sx;
+      if (denom === 0) return null;
+
+      const m = (n * sxy - sx * sy) / denom;
+      const b = (sy - m * sx) / n;
+
+      const yMean  = sy / n;
+      const SStot  = pairs.reduce((s, p) => s + (p[1] - yMean) ** 2, 0);
+      const SSres  = pairs.reduce((s, p) => s + (p[1] - (m * p[0] + b)) ** 2, 0);
+      const r2     = SStot === 0 ? 1 : 1 - SSres / SStot;
+
+      return { m, b, r2 };
+    }
+
+    // --- Rendering ---
+    function renderRiderBlock(riderName, fileName, lapCount, data, worstLaps = new Set(), date = null) {
+      const lapHeaders = Array.from({ length: lapCount }, (_, i) =>
+        `<th>Lap ${i + 1}</th>`
+      ).join('');
+
+      function row(label, unit, values, cls, decimals) {
+        const cells = values.map(v =>
+          v == null
+            ? '<td>—</td>'
+            : `<td>${v.toFixed(decimals)}</td>`
+        ).join('');
+        return `
+          <tr${cls ? ` class="${cls}"` : ''}>
+            <td>${label}<span class="metric-unit">${unit}</span></td>
+            ${cells}
+          </tr>`;
+      }
+
+      function residualRow(label, unit, values, decimals) {
+        const cells = values.map(v => {
+          if (v == null) return '<td>—</td>';
+          const cls = v > 0 ? 'residual-pos' : v < 0 ? 'residual-neg' : '';
+          const sign = v > 0 ? '+' : '';
+          return `<td class="${cls}">${sign}${v.toFixed(decimals)}</td>`;
+        }).join('');
+        return `
+          <tr class="fit-error-row">
+            <td>${label}<span class="metric-unit">${unit}</span></td>
+            ${cells}
+          </tr>`;
+      }
+
+      const canvasId = `chart-${++chartIdCounter}`;
+
+      // R² from active (non-worst) laps only
+      const _activeSp  = data.avgSpeed.filter((_, i) => !worstLaps.has(i));
+      const _activePc  = data.powerPerCda.filter((_, i) => !worstLaps.has(i));
+      const _activeReg = linearRegression(_activeSp, _activePc);
+      const r2Label = _activeReg != null
+        ? `<span class="r2-badge" id="r2-${canvasId}">R² = ${_activeReg.r2.toFixed(4)}</span>`
+        : `<span class="r2-badge" id="r2-${canvasId}"></span>`;
+
+      const checkboxes = Array.from({ length: lapCount }, (_, i) => {
+        const colour  = LAP_COLOURS[i % LAP_COLOURS.length];
+        const isWorst = worstLaps.has(i);
+        return `<label class="lap-check-label" style="--lap-colour:${colour}">
+          <input type="checkbox" ${isWorst ? '' : 'checked'} data-canvas="${canvasId}" data-lap="${i}" />
+          <span class="lap-dot" style="background:${colour};${isWorst ? 'opacity:0.35;' : ''}"></span>
+          Lap ${i + 1}${isWorst ? ' <span style="font-size:11px;opacity:0.55;">(excluded)</span>' : ''}
+        </label>`;
+      }).join('');
+
+      const html = `
+        <div class="rider-block">
+          <div class="rider-header">
+            <span class="rider-name">${escHtml(riderName)}</span>
+            <span style="display:flex;align-items:center;gap:10px;">
+              ${r2Label}
+              <span class="rider-file">${escHtml(fileName)}</span>
+            </span>
+          </div>
+          <table class="metrics-table">
+            <thead>
+              <tr>
+                <th>Metric</th>
+                ${lapHeaders}
+              </tr>
+            </thead>
+            <tbody>
+              ${row('Power', 'W', data.power, '', 0)}
+              ${row('Average Speed', 'km/h', data.avgSpeed, '', 1)}
+              ${row('Speed Change', 'km/h', data.speedChange, '', 1)}
+              ${row('CdA', 'm²', data.cda, '', 4)}
+              ${row('Power / CdA', 'W/m²', data.powerPerCda, 'highlight-row', 1)}
+              ${residualRow('Fit Error (W/CdA)', 'W/m²', data.residuals, 2)}
+            </tbody>
+          </table>
+          <div class="chart-wrap">
+            <canvas id="${canvasId}"></canvas>
+          </div>
+          <div class="chart-checkboxes">${checkboxes}</div>
+        </div>`;
+
+      results.insertAdjacentHTML('beforeend', html);
+      renderChart(canvasId, lapCount, data, worstLaps);
+
+      // Store initial averages (from active laps) for the summary tab
+      summaryData.push({
+        canvasId,
+        riderName,
+        date,
+        fileName,
+        avgSpeed: computeMean(data.avgSpeed.filter((_, i) => !worstLaps.has(i))),
+        avgWCdA:  computeMean(data.powerPerCda.filter((_, i) => !worstLaps.has(i)))
+      });
+      updateSummaryChart();
+    }
+
+    // --- Chart rendering ---
+    const LAP_COLOURS = [
+      '#0E4174', '#DB6B30', '#00AEC7', '#79BE70',
+      '#EE5340', '#BBBCBC', '#6B4EDB', '#DBA830'
+    ];
+
+    // Registry: canvasId → { chart, data, lapCount }
+    const chartRegistry = new Map();
+
+    // Checkbox delegation
+    results.addEventListener('change', e => {
+      const cb = e.target.closest('input[data-canvas]');
+      if (cb) updateChart(cb.dataset.canvas);
+    });
+
+    function updateChart(canvasId) {
+      const entry = chartRegistry.get(canvasId);
+      if (!entry) return;
+      const { chart, data, lapCount } = entry;
+
+      // Determine which laps are active
+      const checks = document.querySelectorAll(`input[data-canvas="${canvasId}"]`);
+      const active = Array.from(checks).map(c => c.checked);
+
+      // Show/hide per-lap scatter datasets
+      for (let i = 0; i < lapCount; i++) {
+        chart.data.datasets[i].hidden = !active[i];
+      }
+
+      // Recalculate regression on active laps only
+      const activeSpeeds = data.avgSpeed.filter((_, i) => active[i]);
+      const activePCdA   = data.powerPerCda.filter((_, i) => active[i]);
+      const reg = linearRegression(activeSpeeds, activePCdA);
+
+      // Update line of best fit dataset (last dataset)
+      const lineDs = chart.data.datasets[lapCount];
+      if (lineDs) {
+        if (reg) {
+          const validSpeeds = activeSpeeds.filter(v => v != null);
+          if (validSpeeds.length >= 2) {
+            const xMin = Math.min(...validSpeeds);
+            const xMax = Math.max(...validSpeeds);
+            const pad  = (xMax - xMin) * 0.08 || 0.5;
+            lineDs.data = [
+              { x: xMin - pad, y: reg.m * (xMin - pad) + reg.b },
+              { x: xMax + pad, y: reg.m * (xMax + pad) + reg.b }
+            ];
+            lineDs.hidden = false;
+          } else {
+            lineDs.hidden = true;
+          }
+        } else {
+          lineDs.hidden = true;
+        }
+      }
+
+      // Update R² badge
+      const badge = document.getElementById(`r2-${canvasId}`);
+      if (badge) {
+        badge.textContent = reg ? `R² = ${reg.r2.toFixed(4)}` : '';
+      }
+
+      chart.update();
+
+      // Sync averages into summary
+      const summaryEntry = summaryData.find(d => d.canvasId === canvasId);
+      if (summaryEntry) {
+        summaryEntry.avgSpeed = computeMean(data.avgSpeed.filter((_, i) => active[i]));
+        summaryEntry.avgWCdA  = computeMean(data.powerPerCda.filter((_, i) => active[i]));
+        updateSummaryChart();
+      }
+    }
+
+    function renderChart(canvasId, lapCount, data, worstLaps = new Set()) {
+      // Regression uses only the active (non-worst) laps
+      const initActiveSp = data.avgSpeed.filter((_, i) => !worstLaps.has(i));
+      const initActivePc = data.powerPerCda.filter((_, i) => !worstLaps.has(i));
+      const reg = linearRegression(initActiveSp, initActivePc);
+
+      // One scatter dataset per lap for distinct legend entries
+      const lapDatasets = Array.from({ length: lapCount }, (_, i) => {
+        const x = data.avgSpeed[i];
+        const y = data.powerPerCda[i];
+        const colour = LAP_COLOURS[i % LAP_COLOURS.length];
+        return {
+          label: `Lap ${i + 1}`,
+          type: 'scatter',
+          data: (x != null && y != null) ? [{ x, y }] : [],
+          backgroundColor: colour,
+          borderColor: colour,
+          pointRadius: 7,
+          pointHoverRadius: 9,
+          hidden: worstLaps.has(i),
+          order: 1
+        };
+      });
+
+      const datasets = [...lapDatasets];
+
+      // Best-fit line spanning the active speed range
+      if (reg) {
+        const validSpeeds = initActiveSp.filter(v => v != null);
+        const xMin = Math.min(...validSpeeds);
+        const xMax = Math.max(...validSpeeds);
+        const pad  = (xMax - xMin) * 0.08 || 0.5;
+        datasets.push({
+          label: 'Line of best fit',
+          type: 'line',
+          data: [
+            { x: xMin - pad, y: reg.m * (xMin - pad) + reg.b },
+            { x: xMax + pad, y: reg.m * (xMax + pad) + reg.b }
+          ],
+          borderColor: 'rgba(14,65,116,0.55)',
+          borderWidth: 2,
+          borderDash: [6, 4],
+          pointRadius: 0,
+          fill: false,
+          order: 2
+        });
+      }
+
+      const chartInstance = new Chart(document.getElementById(canvasId), {
+        type: 'scatter',
+        data: { datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          aspectRatio: 2.8,
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: { boxWidth: 10, font: { size: 12 } }
+            },
+            tooltip: {
+              callbacks: {
+                label: ctx => {
+                  const { x, y } = ctx.parsed;
+                  return `${ctx.dataset.label}  •  Speed: ${x.toFixed(1)} km/h  •  W/CdA: ${y.toFixed(1)} W/m²`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              title: { display: true, text: 'Average Speed (km/h)', font: { size: 12 } },
+              grid: { color: 'rgba(0,0,0,0.06)' }
+            },
+            y: {
+              title: { display: true, text: 'Power / CdA (W/m²)', font: { size: 12 } },
+              grid: { color: 'rgba(0,0,0,0.06)' }
+            }
+          }
+        }
+      });
+
+      chartRegistry.set(canvasId, { chart: chartInstance, data, lapCount });
+    }
+
+    // --- Helpers & summary chart ---
+    function computeMean(arr) {
+      const valid = (arr || []).filter(v => v != null && isFinite(v));
+      return valid.length > 0 ? valid.reduce((a, b) => a + b, 0) / valid.length : null;
+    }
+
+    function updateSummaryChart() {
+      tabBar.style.display = 'flex';
+      clearBtn.style.display = 'inline-block';
+
+      if (!summaryChart) {
+        summaryChart = new Chart(document.getElementById('summary-chart'), {
+          type: 'scatter',
+          data: { datasets: [] },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            aspectRatio: 2,
+            plugins: {
+              legend: {
+                position: 'right',
+                labels: { boxWidth: 10, font: { size: 12 } },
+                onClick: (e, legendItem, legend) => {
+                  const chart = legend.chart;
+                  const ds = chart.data.datasets[legendItem.datasetIndex];
+                  if (ds && ds._canvasId) {
+                    if (summaryHidden.has(ds._canvasId)) {
+                      summaryHidden.delete(ds._canvasId);
+                    } else {
+                      summaryHidden.add(ds._canvasId);
+                    }
+                    ds.hidden = summaryHidden.has(ds._canvasId);
+                    rebuildSummaryFit();
+                    chart.update();
+                  }
+                }
+              },
+              tooltip: {
+                callbacks: {
+                  label: ctx => {
+                    const { x, y } = ctx.parsed;
+                    const date = ctx.dataset._date;
+                    const datePart = date ? `  •  ${date}` : '';
+                    return `${ctx.dataset.label}${datePart}  •  ${x.toFixed(1)} km/h  •  ${y.toFixed(1)} W/m²`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                title: { display: true, text: 'Average Speed (km/h)', font: { size: 12 } },
+                grid: { color: 'rgba(0,0,0,0.06)' }
+              },
+              y: {
+                title: { display: true, text: 'Average W/CdA (W/m²)', font: { size: 12 } },
+                grid: { color: 'rgba(0,0,0,0.06)' }
+              }
+            }
+          }
+        });
+      }
+
+      const validRiders = summaryData.filter(d => d.avgSpeed != null && d.avgWCdA != null);
+
+      summaryChart.data.datasets = [
+        ...validRiders.map((d, idx) => ({
+          label: d.riderName,
+          _canvasId: d.canvasId,
+          _date: d.fileName || null,
+          type: 'scatter',
+          data: [{ x: d.avgSpeed, y: d.avgWCdA }],
+          backgroundColor: LAP_COLOURS[idx % LAP_COLOURS.length],
+          borderColor:     LAP_COLOURS[idx % LAP_COLOURS.length],
+          pointRadius: 9,
+          pointHoverRadius: 11,
+          hidden: summaryHidden.has(d.canvasId)
+        })),
+        // Placeholder line dataset — filled by rebuildSummaryFit
+        {
+          label: 'Line of best fit',
+          type: 'line',
+          data: [],
+          borderColor: 'rgba(14,65,116,0.5)',
+          borderWidth: 2,
+          borderDash: [6, 4],
+          pointRadius: 0,
+          fill: false,
+          order: 99,
+          hidden: true
+        }
+      ];
+
+      rebuildSummaryFit();
+      summaryChart.update();
+    }
+
+    function rebuildSummaryFit() {
+      if (!summaryChart) return;
+      const visibleRiders = summaryData.filter(d =>
+        d.avgSpeed != null && d.avgWCdA != null && !summaryHidden.has(d.canvasId)
+      );
+      const xs = visibleRiders.map(d => d.avgSpeed);
+      const ys = visibleRiders.map(d => d.avgWCdA);
+
+      const minPts = summaryCubicFit ? 4 : 2;
+      const reg    = visibleRiders.length >= minPts
+        ? (summaryCubicFit ? cubicRegression(xs, ys) : linearRegression(xs, ys))
+        : null;
+
+      const lineDs = summaryChart.data.datasets.find(ds => ds.label === 'Line of best fit');
+      const eqEl   = document.getElementById('summary-eq');
+      const infoEl = document.getElementById('summary-info');
+
+      // Diagnostic counts
+      const totalValid   = summaryData.filter(d => d.avgSpeed != null && d.avgWCdA != null).length;
+      const totalFiles   = new Set(summaryData.map(d => d.fileName)).size;
+      const visibleFiles = new Set(visibleRiders.map(d => d.fileName)).size;
+      if (infoEl) {
+        infoEl.style.display = 'block';
+        infoEl.textContent = `${visibleRiders.length} of ${totalValid} data point${
+          totalValid !== 1 ? 's' : ''} included — from ${visibleFiles} of ${totalFiles} file${
+          totalFiles !== 1 ? 's' : ''}`;
+      }
+
+      if (reg && lineDs) {
+        const xMin = Math.min(...xs);
+        const xMax = Math.max(...xs);
+        const pad  = (xMax - xMin) * 0.1 || 1;
+
+        if (summaryCubicFit) {
+          // 80-point smooth curve
+          const nPts = 80;
+          lineDs.data = Array.from({ length: nPts }, (_, i) => {
+            const x = (xMin - pad) + i * (xMax - xMin + 2 * pad) / (nPts - 1);
+            return { x, y: reg.predict(x) };
+          });
+        } else {
+          lineDs.data = [
+            { x: xMin - pad, y: reg.m * (xMin - pad) + reg.b },
+            { x: xMax + pad, y: reg.m * (xMax + pad) + reg.b }
+          ];
+        }
+        lineDs.hidden = false;
+
+        if (eqEl) {
+          eqEl.style.display = 'flex';
+          if (summaryCubicFit) {
+            const { a, b, c, d, r2 } = reg;
+            eqEl.innerHTML =
+              `<span>W/CdA = ${fc(a)}·v³ ${signed(b)}·v² ${signed(c)}·v ${signed(d)}</span>` +
+              `<span>R² = ${r2.toFixed(4)}</span>`;
+          } else {
+            const sign = reg.b >= 0 ? '+' : '−';
+            eqEl.innerHTML =
+              `<span>W/CdA = ${reg.m.toFixed(3)} × Speed ${sign} ${Math.abs(reg.b).toFixed(2)}</span>` +
+              `<span>R² = ${reg.r2.toFixed(4)}</span>`;
+          }
+        }
+      } else {
+        if (lineDs) lineDs.hidden = true;
+        if (eqEl)   eqEl.style.display = 'none';
+      }
+    }
+
+    // Coefficient formatting helpers
+    function fc(v) {
+      const a = Math.abs(v);
+      if (a >= 100)   return v.toFixed(1);
+      if (a >= 1)     return v.toFixed(3);
+      if (a >= 0.01)  return v.toFixed(5);
+      return v.toExponential(3);
+    }
+    function signed(v) {
+      return `${v >= 0 ? '+' : '−'} ${fc(Math.abs(v))}`;
+    }
+
+    // --- Polynomial regression helpers ---
+    function gaussianElimination(A, rhs) {
+      const n = rhs.length;
+      const M = A.map((row, i) => [...row, rhs[i]]);
+      for (let col = 0; col < n; col++) {
+        let maxRow = col;
+        for (let row = col + 1; row < n; row++) {
+          if (Math.abs(M[row][col]) > Math.abs(M[maxRow][col])) maxRow = row;
+        }
+        [M[col], M[maxRow]] = [M[maxRow], M[col]];
+        if (Math.abs(M[col][col]) < 1e-14) return null;
+        for (let row = col + 1; row < n; row++) {
+          const f = M[row][col] / M[col][col];
+          for (let k = col; k <= n; k++) M[row][k] -= f * M[col][k];
+        }
+      }
+      const x = new Array(n).fill(0);
+      for (let i = n - 1; i >= 0; i--) {
+        x[i] = M[i][n];
+        for (let j = i + 1; j < n; j++) x[i] -= M[i][j] * x[j];
+        x[i] /= M[i][i];
+      }
+      return x;
+    }
+
+    function cubicRegression(xs, ys) {
+      const pairs = [];
+      for (let i = 0; i < xs.length; i++) {
+        if (xs[i] != null && ys[i] != null && isFinite(xs[i]) && isFinite(ys[i]))
+          pairs.push([xs[i], ys[i]]);
+      }
+      if (pairs.length < 4) return null;
+
+      // Power sums S[k] = Σx^k (k=0..6), T[k] = Σx^k·y (k=0..3)
+      const S = new Array(7).fill(0);
+      const T = new Array(4).fill(0);
+      for (const [x, y] of pairs) {
+        let xk = 1;
+        for (let k = 0; k <= 6; k++) { S[k] += xk; xk *= x; }
+        xk = 1;
+        for (let k = 0; k <= 3; k++) { T[k] += xk * y; xk *= x; }
+      }
+
+      // Normal equations: solve for [d, c, b, a] (constant → cubic)
+      const coeffs = gaussianElimination(
+        [[S[0],S[1],S[2],S[3]],
+         [S[1],S[2],S[3],S[4]],
+         [S[2],S[3],S[4],S[5]],
+         [S[3],S[4],S[5],S[6]]],
+        [T[0], T[1], T[2], T[3]]
+      );
+      if (!coeffs) return null;
+      const [d, c, b, a] = coeffs;
+      const predict = x => a*x*x*x + b*x*x + c*x + d;
+
+      const yMean = pairs.reduce((s, p) => s + p[1], 0) / pairs.length;
+      const SStot = pairs.reduce((s, p) => s + (p[1] - yMean) ** 2, 0);
+      const SSres = pairs.reduce((s, p) => s + (p[1] - predict(p[0])) ** 2, 0);
+      const r2    = SStot === 0 ? 1 : 1 - SSres / SStot;
+
+      return { a, b, c, d, r2, predict };
+    }
+
+    function showError(msg) {
+      results.insertAdjacentHTML('beforeend',
+        `<div class="error-msg">⚠ ${escHtml(msg)}</div>`);
+      clearBtn.style.display = 'inline-block';
+    }
+
+    function formatExcelDate(v) {
+      if (v == null || v === '') return null;
+      if (typeof v === 'number') {
+        // Excel serial date: days since 1899-12-30
+        const d = new Date(Date.UTC(1899, 11, 30) + v * 86400000);
+        return d.toLocaleDateString('en-NZ', { day: '2-digit', month: 'short', year: 'numeric' });
+      }
+      return String(v).trim() || null;
+    }
+
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+  </script>
+</body>
+</html>

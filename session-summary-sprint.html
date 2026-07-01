@@ -622,11 +622,14 @@
       });
     });
 
-    // Build repData = { date: { repType: { rider: count } } }
+    // Build repData = { date: { repType: { rider: count } } } and repEntries for distance filtering
     const repData = {};
+    const repEntries = []; // { date, repType, rider, count, distance }
     allFiles.forEach(f => {
       const date = parseDateFromFilename(f.name);
       if (!date) return;
+      const distMatch = f.name.match(/(\d+)m\s*-/i);
+      const distance  = distMatch ? parseInt(distMatch[1]) : null;
       const base = f.name.replace(/\.[^.]+$/, '');
       const parts = base.split(' - ');
       if (parts.length < 2) return;
@@ -647,6 +650,7 @@
           const resolved = initialsMap[init.toUpperCase()] ?? init;
           if (ALLOWED_RIDERS.has(resolved)) {
             repData[date][repType][resolved] = (repData[date][repType][resolved] ?? 0) + repCount;
+            repEntries.push({ date, repType, rider: resolved, count: repCount, distance });
           }
         });
       }
@@ -682,6 +686,12 @@
     const selectedRider = (prevMeta?.selectedRider && allRepRiders.includes(prevMeta.selectedRider))
       ? prevMeta.selectedRider : allRepRiders[0];
 
+    // Distinct sorted distances from filenames
+    const allDistances = [...new Set(repEntries.map(e => e.distance).filter(d => d !== null))].sort((a, b) => a - b);
+    const distMax = Math.max(allDistances.length - 1, 0);
+    let distLo = Math.min(prevMeta?.distLo ?? 0, distMax);
+    let distHi = Math.min(prevMeta?.distHi ?? distMax, distMax);
+
     let html = '<p class="section-title" style="margin:0 0 0.6rem">Rep Types</p>';
 
     // Rider selection buttons (radio style — one active at a time)
@@ -701,8 +711,23 @@
       <div class="dual-range-wrap" id="rangeWrap_${chartId}">
         <input type="range" id="rangeLo_${chartId}" min="0" max="${maxIdx}" value="${sliderLo}" step="1">
         <input type="range" id="rangeHi_${chartId}" min="0" max="${maxIdx}" value="${sliderHi}" step="1">
+      </div>`;
+
+    // Distance range slider (only when more than 1 unique distance)
+    if (allDistances.length > 1) {
+      html += `
+      <div class="slider-header" style="margin-top:0.5rem">
+        <span class="slider-label" id="distLo_${chartId}">${allDistances[distLo]}m</span>
+        <span style="font-size:0.78rem;color:#718096;font-weight:500">Distance range</span>
+        <span class="slider-label" id="distHi_${chartId}">${allDistances[distHi]}m</span>
       </div>
-      <canvas id="${chartId}" style="max-height:300px;margin-top:0.5rem"></canvas>`;
+      <div class="dual-range-wrap" id="distRangeWrap_${chartId}">
+        <input type="range" id="distRangeLo_${chartId}" min="0" max="${distMax}" value="${distLo}" step="1">
+        <input type="range" id="distRangeHi_${chartId}" min="0" max="${distMax}" value="${distHi}" step="1">
+      </div>`;
+    }
+
+    html += `<canvas id="${chartId}" style="max-height:300px;margin-top:0.5rem"></canvas>`;
 
     // Diagnostic: all unique parsed rep-type strings with session counts
     const diagItems = allRepTypes.map(t => {
@@ -713,6 +738,26 @@
       <summary style="cursor:pointer;font-size:0.8rem;font-weight:600;color:#718096;user-select:none">&#9656; Diagnostic &mdash; ${allRepTypes.length} unique rep type${allRepTypes.length !== 1 ? 's' : ''} (click to expand)</summary>
       <div style="margin-top:0.5rem;display:flex;flex-wrap:wrap;gap:0.35rem">${diagItems}</div>
     </details>`;
+
+    // Diagnostic: all unique distances parsed from filenames
+    const distCounts = {};
+    allFiles.forEach(f => {
+      const m = f.name.match(/(\d+)m\s*-/i);
+      if (m) {
+        const dist = m[1] + 'm';
+        distCounts[dist] = (distCounts[dist] ?? 0) + 1;
+      }
+    });
+    const allDists = Object.keys(distCounts).sort((a, b) => parseInt(a) - parseInt(b));
+    if (allDists.length) {
+      const distItems = allDists.map(d =>
+        `<span style="display:inline-flex;align-items:center;gap:0.25rem;padding:0.2rem 0.6rem;background:#edf2f7;border:1px solid #e2e8f0;border-radius:4px;font-size:0.8rem;font-family:monospace;color:#2d3748">${escHtml(d)}<span style="color:#a0aec0;font-size:0.75em">(${distCounts[d]})</span></span>`
+      ).join('');
+      html += `<details style="margin-top:0.5rem;border-top:1px solid #e2e8f0;padding-top:0.6rem">
+        <summary style="cursor:pointer;font-size:0.8rem;font-weight:600;color:#718096;user-select:none">&#9656; Diagnostic &mdash; ${allDists.length} unique distance${allDists.length !== 1 ? 's' : ''} (click to expand)</summary>
+        <div style="margin-top:0.5rem;display:flex;flex-wrap:wrap;gap:0.35rem">${distItems}</div>
+      </details>`;
+    }
 
     el.innerHTML = html;
     el.style.display = 'block';
@@ -728,9 +773,13 @@
         datasets: [{
           label: selectedRider,
           data: allRepTypes.map(t => {
-            let s = 0;
-            for (let i = sliderLo; i <= sliderHi; i++) s += (repData[allDates[i]]?.[t]?.[selectedRider] ?? 0);
-            return s;
+            const dLoV = allDistances.length ? allDistances[distLo] : -Infinity;
+            const dHiV = allDistances.length ? allDistances[distHi] :  Infinity;
+            return repEntries.filter(e =>
+              e.repType === t && e.rider === selectedRider &&
+              e.date >= allDates[sliderLo] && e.date <= allDates[sliderHi] &&
+              (e.distance === null || (e.distance >= dLoV && e.distance <= dHiV))
+            ).reduce((s, e) => s + e.count, 0);
           }),
           backgroundColor: riderColor + 'cc',
           borderColor: riderColor,
@@ -764,8 +813,9 @@
       }
     });
 
-    chartMeta[chartId] = { allDates, allRepTypes, repData, allRepRiders, palette, selectedRider };
+    chartMeta[chartId] = { allDates, allRepTypes, repData, repEntries, allDistances, distLo, distHi, allRepRiders, palette, selectedRider };
     updateSliderTrack(chartId, sliderLo, sliderHi, maxIdx);
+    if (allDistances.length > 1) updateDistTrack(chartId, distLo, distHi, distMax);
 
     // Slider events
     const loEl = document.getElementById('rangeLo_' + chartId);
@@ -780,6 +830,26 @@
     };
     loEl.addEventListener('input', onSlider);
     hiEl.addEventListener('input', onSlider);
+
+    // Distance slider events
+    if (allDistances.length > 1) {
+      const dLoEl = document.getElementById('distRangeLo_' + chartId);
+      const dHiEl = document.getElementById('distRangeHi_' + chartId);
+      const onDistSlider = () => {
+        let dlo = parseInt(dLoEl.value), dhi = parseInt(dHiEl.value);
+        if (dlo > dhi) { const t = dlo; dlo = dhi; dhi = t; }
+        chartMeta[chartId].distLo = dlo;
+        chartMeta[chartId].distHi = dhi;
+        document.getElementById('distLo_' + chartId).textContent = allDistances[dlo] + 'm';
+        document.getElementById('distHi_' + chartId).textContent = allDistances[dhi] + 'm';
+        updateDistTrack(chartId, dlo, dhi, distMax);
+        const lo2 = Math.min(parseInt(loEl.value), parseInt(hiEl.value));
+        const hi2 = Math.max(parseInt(loEl.value), parseInt(hiEl.value));
+        updateRepChart(chartId, lo2, hi2);
+      };
+      dLoEl.addEventListener('input', onDistSlider);
+      dHiEl.addEventListener('input', onDistSlider);
+    }
 
     // Rider button events (radio — one active at a time)
     el.querySelectorAll('.rider-filter-btn').forEach(btn => {
@@ -898,10 +968,15 @@
 
     // ── Available rep types for the chart filter dropdown ───────────────────
     const isSummaryMode = summaryRows.length > 0;
-    // File-mode: cache rep type per file name so we don't re-parse each filter check.
+    // File-mode: cache rep type and distance per file.
     const fileRepTypeMap = new Map();
+    const fileDistanceMap = new Map();
     if (!isSummaryMode) {
-      allFiles.forEach(f => fileRepTypeMap.set(f, fileRepTypeKey(f.name)));
+      allFiles.forEach(f => {
+        fileRepTypeMap.set(f, fileRepTypeKey(f.name));
+        const dm = f.name.match(/(\d+)m\s*-/i);
+        fileDistanceMap.set(f, dm ? parseInt(dm[1]) : null);
+      });
     }
     const allChartRepTypes = isSummaryMode
       ? [...new Set(summaryRows.map(r => summaryRepTypeKey(r)).filter(Boolean))].sort()
@@ -913,9 +988,28 @@
     const repTypeFilterActive = selectedChartRepTypes.size > 0;
     const fileMatchesRepType = f => !repTypeFilterActive
       || selectedChartRepTypes.has(fileRepTypeMap.get(f));
+
+    // File-mode distance filter
+    const allFileDistances = isSummaryMode ? [] : [...new Set(
+      [...fileDistanceMap.values()].filter(d => d !== null)
+    )].sort((a, b) => a - b);
+    const fileDistMaxIdx = Math.max(allFileDistances.length - 1, 0);
+    if (!isSummaryMode && allFileDistances.length > 0) {
+      if (chartDistLo == null || chartDistLo < 0 || chartDistLo > fileDistMaxIdx) chartDistLo = 0;
+      if (chartDistHi == null || chartDistHi < 0 || chartDistHi > fileDistMaxIdx) chartDistHi = fileDistMaxIdx;
+      if (chartDistLo > chartDistHi) { const t = chartDistLo; chartDistLo = chartDistHi; chartDistHi = t; }
+    }
+    const fileDistLoVal = allFileDistances.length ? allFileDistances[chartDistLo ?? 0] : -Infinity;
+    const fileDistHiVal = allFileDistances.length ? allFileDistances[chartDistHi ?? fileDistMaxIdx] :  Infinity;
+    const fileDistActive = !isSummaryMode && allFileDistances.length > 1 && (chartDistLo > 0 || chartDistHi < fileDistMaxIdx);
+    const fileMatchesDistance = f => {
+      if (!fileDistActive) return true;
+      const d = fileDistanceMap.get(f);
+      return d !== null && d >= fileDistLoVal && d <= fileDistHiVal;
+    };
     const filteredFileCount = isSummaryMode
       ? 0
-      : allFiles.filter(fileMatchesRepType).length;
+      : allFiles.filter(f => fileMatchesRepType(f) && fileMatchesDistance(f)).length;
 
     // ── Parse Overview: Max Power, Max Torque, CdA, Max Cadence, Work Done ──
     const riderBestPower   = {};
@@ -927,9 +1021,10 @@
     const dateRiderCadence = {};
     const dateRiderWork         = {}; // sum per day
     const dateRiderCadAtMaxPower = {};
+    const dateRiderDistance = {};
 
     allFiles.forEach(f => {
-      if (!fileMatchesRepType(f)) return;
+      if (!fileMatchesRepType(f) || !fileMatchesDistance(f)) return;
       const date = parseDateFromFilename(f.name);
       const overviewSheet = f.sheets.find(s => /^overview$/i.test(s.name));
       if (!overviewSheet) return;
@@ -985,6 +1080,12 @@
               if (!dateRiderWork[date]) dateRiderWork[date] = {};
               dateRiderWork[date][currentRider] = (dateRiderWork[date][currentRider] ?? 0) + v;
             }
+          } else if (label === 'distance' && overallColIdx !== -1) {
+            const v = parseFloat(row[overallColIdx]);
+            if (!isNaN(v) && date) {
+              if (!dateRiderDistance[date]) dateRiderDistance[date] = {};
+              dateRiderDistance[date][currentRider] = (dateRiderDistance[date][currentRider] ?? 0) + v;
+            }
           }
         }
       });
@@ -1002,12 +1103,14 @@
     )].sort((a, b) => a - b);
     const distMaxIdx = Math.max(allChartDistances.length - 1, 0);
     const gearMaxIdx = Math.max(allChartGears.length - 1, 0);
-    if (chartDistLo == null || chartDistLo < 0 || chartDistLo > distMaxIdx) chartDistLo = 0;
-    if (chartDistHi == null || chartDistHi < 0 || chartDistHi > distMaxIdx) chartDistHi = distMaxIdx;
-    if (chartGearLo == null || chartGearLo < 0 || chartGearLo > gearMaxIdx) chartGearLo = 0;
-    if (chartGearHi == null || chartGearHi < 0 || chartGearHi > gearMaxIdx) chartGearHi = gearMaxIdx;
-    if (chartDistLo > chartDistHi) { const t = chartDistLo; chartDistLo = chartDistHi; chartDistHi = t; }
-    if (chartGearLo > chartGearHi) { const t = chartGearLo; chartGearLo = chartGearHi; chartGearHi = t; }
+    if (isSummaryMode) {
+      if (chartDistLo == null || chartDistLo < 0 || chartDistLo > distMaxIdx) chartDistLo = 0;
+      if (chartDistHi == null || chartDistHi < 0 || chartDistHi > distMaxIdx) chartDistHi = distMaxIdx;
+      if (chartGearLo == null || chartGearLo < 0 || chartGearLo > gearMaxIdx) chartGearLo = 0;
+      if (chartGearHi == null || chartGearHi < 0 || chartGearHi > gearMaxIdx) chartGearHi = gearMaxIdx;
+      if (chartDistLo > chartDistHi) { const t = chartDistLo; chartDistLo = chartDistHi; chartDistHi = t; }
+      if (chartGearLo > chartGearHi) { const t = chartGearLo; chartGearLo = chartGearHi; chartGearHi = t; }
+    }
     const distLoVal = allChartDistances.length ? allChartDistances[chartDistLo] : -Infinity;
     const distHiVal = allChartDistances.length ? allChartDistances[chartDistHi] :  Infinity;
     const gearLoVal = allChartGears.length     ? allChartGears[chartGearLo]     : -Infinity;
@@ -1060,6 +1163,11 @@
       if (workDone != null) {
         if (!dateRiderWork[date]) dateRiderWork[date] = {};
         dateRiderWork[date][rider] = (dateRiderWork[date][rider] ?? 0) + workDone;
+      }
+      const distance = fv('Distance');
+      if (distance != null) {
+        if (!dateRiderDistance[date]) dateRiderDistance[date] = {};
+        dateRiderDistance[date][rider] = (dateRiderDistance[date][rider] ?? 0) + distance;
       }
       if (cda != null) {
         riderMinCdA[rider] = Math.min(riderMinCdA[rider] ?? Infinity, cda);
@@ -1156,7 +1264,8 @@
       { entry: makeChartEntry('chartMaxTorque',     dateRiderTorque,        'Max Torque (Nm)',           allRiders, palette, 'max'), title: 'Max Torque Over Time'         },
       { entry: makeChartEntry('chartMaxCadence',    dateRiderCadence,       'Max Cadence (rpm)',         allRiders, palette, 'max'), title: 'Max Cadence Over Time'        },
       { entry: makeChartEntry('chartCadAtMaxPower', dateRiderCadAtMaxPower, 'Cadence @ Max Power (rpm)', allRiders, palette, 'max'), title: 'Cadence @ Max Power Over Time' },
-      { entry: makeChartEntry('chartWorkDone',      dateRiderWork,          'Work Done (J)',             allRiders, palette, 'sum'), title: 'Work Done Over Time'          }
+      { entry: makeChartEntry('chartWorkDone',      dateRiderWork,          'Work Done (J)',             allRiders, palette, 'sum'), title: 'Work Done Over Time'          },
+      { entry: makeChartEntry('chartDistance',       dateRiderDistance,       'Distance (m)',              allRiders, palette, 'sum'), title: 'Distance Over Time'           }
     ];
 
     const tabShortLabels = {
@@ -1164,7 +1273,8 @@
       'Max Torque Over Time':         'Max Torque',
       'Max Cadence Over Time':        'Max Cadence',
       'Cadence @ Max Power Over Time':'Cad @ Max Power',
-      'Work Done Over Time':          'Work Done'
+      'Work Done Over Time':          'Work Done',
+      'Distance Over Time':           'Distance'
     };
     const validEntries = chartEntries.filter(e => e.entry);
     // Render the chart container whenever we have either valid charts or rep-type filters
@@ -1199,17 +1309,21 @@
         });
         chartContainerHtml += '</div></div></div>';
 
-        // Distance dual-range slider (summary mode only)
-        if (isSummaryMode && allChartDistances.length > 1) {
+        // Distance dual-range slider (summary and file/folder mode)
+        const _distVals = isSummaryMode ? allChartDistances : allFileDistances;
+        const _distMaxI = isSummaryMode ? distMaxIdx : fileDistMaxIdx;
+        const _distLoV  = isSummaryMode ? distLoVal  : fileDistLoVal;
+        const _distHiV  = isSummaryMode ? distHiVal  : fileDistHiVal;
+        if (_distVals.length > 1) {
           chartContainerHtml += `
             <div style="display:flex;flex-direction:column;min-width:200px;flex:1 1 200px;max-width:280px">
               <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:0.78rem;color:#2d3748">
                 <span style="font-weight:600">Distance</span>
-                <span style="color:#2b6cb0;font-weight:600"><span id="chartDistLoLbl">${distLoVal}</span> – <span id="chartDistHiLbl">${distHiVal}</span> m</span>
+                <span style="color:#2b6cb0;font-weight:600"><span id="chartDistLoLbl">${_distLoV}</span> – <span id="chartDistHiLbl">${_distHiV}</span> m</span>
               </div>
               <div class="dual-range-wrap" id="chartDistWrap" style="margin:10px 0 4px">
-                <input type="range" id="chartDistLo" min="0" max="${distMaxIdx}" value="${chartDistLo}" step="1">
-                <input type="range" id="chartDistHi" min="0" max="${distMaxIdx}" value="${chartDistHi}" step="1">
+                <input type="range" id="chartDistLo" min="0" max="${_distMaxI}" value="${chartDistLo ?? 0}" step="1">
+                <input type="range" id="chartDistHi" min="0" max="${_distMaxI}" value="${chartDistHi ?? _distMaxI}" step="1">
               </div>
             </div>`;
         }
@@ -1229,7 +1343,7 @@
             </div>`;
         }
 
-        if (repTypeFilterActive || (isSummaryMode && (distActive || gearActive))) {
+        if (repTypeFilterActive || fileDistActive || (isSummaryMode && (distActive || gearActive))) {
           chartContainerHtml += `<span style="font-size:0.78rem;color:#718096;align-self:center">Showing ${filteredCount} of ${totalCount} ${unitLabel}</span>`;
         }
         chartContainerHtml += '</div>';
@@ -1449,8 +1563,9 @@
       loEl.addEventListener('change', onCommit);
       hiEl.addEventListener('change', onCommit);
     }
-    if (isSummaryMode && allChartDistances.length > 1) {
-      wireChartRangeSlider('chartDistLo', 'chartDistHi', 'chartDistWrap', 'chartDistLoLbl', 'chartDistHiLbl', allChartDistances,
+    const _wireDistVals = isSummaryMode ? allChartDistances : allFileDistances;
+    if (_wireDistVals.length > 1) {
+      wireChartRangeSlider('chartDistLo', 'chartDistHi', 'chartDistWrap', 'chartDistLoLbl', 'chartDistHiLbl', _wireDistVals,
         (lo, hi) => { chartDistLo = lo; chartDistHi = hi; });
     }
     if (isSummaryMode && allChartGears.length > 1) {
@@ -1557,11 +1672,23 @@
       chart.update();
       return;
     }
-    chart.data.datasets[0].data = meta.allRepTypes.map(t => {
-      let s = 0;
-      for (let i = lo; i <= hi; i++) s += (meta.repData[meta.allDates[i]]?.[t]?.[meta.selectedRider] ?? 0);
-      return s;
-    });
+    if (meta.repEntries) {
+      const dLoV = meta.allDistances?.length ? meta.allDistances[meta.distLo ?? 0] : -Infinity;
+      const dHiV = meta.allDistances?.length ? meta.allDistances[meta.distHi ?? meta.allDistances.length - 1] :  Infinity;
+      chart.data.datasets[0].data = meta.allRepTypes.map(t =>
+        meta.repEntries.filter(e =>
+          e.repType === t && e.rider === meta.selectedRider &&
+          e.date >= meta.allDates[lo] && e.date <= meta.allDates[hi] &&
+          (e.distance === null || (e.distance >= dLoV && e.distance <= dHiV))
+        ).reduce((s, e) => s + e.count, 0)
+      );
+    } else {
+      chart.data.datasets[0].data = meta.allRepTypes.map(t => {
+        let s = 0;
+        for (let i = lo; i <= hi; i++) s += (meta.repData[meta.allDates[i]]?.[t]?.[meta.selectedRider] ?? 0);
+        return s;
+      });
+    }
     chart.update();
   }
 
@@ -1608,6 +1735,7 @@
           chartMaxCadence:    'MaxCadenceOverall',
           chartCadAtMaxPower: 'CadenceAtMaxFullRevPowerOverall',
           chartWorkDone:      'TotalWorkDoneOverall',
+          chartDistance:      'Distance',
         };
         const highlightKey = chartMetricMap[chartId] ?? null;
         let highlightVal = null;
@@ -1648,11 +1776,11 @@
       return;
     }
 
-    const DISPLAY_METRICS = ['max power', 'max torque', 'cda', 'max cadence', 'cadence @ max power', 'work done'];
-    const METRIC_LABELS   = { 'max power': 'Max Power', 'max torque': 'Max Torque', 'cda': 'CdA', 'max cadence': 'Max Cadence', 'cadence @ max power': 'Cadence @ Max Power', 'work done': 'Work Done' };
-    const METRIC_UNITS    = { 'max power': 'W', 'max torque': 'Nm', 'cda': '', 'max cadence': 'rpm', 'cadence @ max power': 'rpm', 'work done': 'J' };
-    const METRIC_DECIMALS = { 'max power': 0, 'max torque': 0, 'cda': 4, 'max cadence': 0, 'cadence @ max power': 0, 'work done': 0 };
-    const METRIC_IS_MAX   = { 'max power': true, 'max torque': true, 'cda': false, 'max cadence': true, 'cadence @ max power': true, 'work done': true };
+    const DISPLAY_METRICS = ['max power', 'max torque', 'cda', 'max cadence', 'cadence @ max power', 'work done', 'distance'];
+    const METRIC_LABELS   = { 'max power': 'Max Power', 'max torque': 'Max Torque', 'cda': 'CdA', 'max cadence': 'Max Cadence', 'cadence @ max power': 'Cadence @ Max Power', 'work done': 'Work Done', 'distance': 'Distance' };
+    const METRIC_UNITS    = { 'max power': 'W', 'max torque': 'Nm', 'cda': '', 'max cadence': 'rpm', 'cadence @ max power': 'rpm', 'work done': 'J', 'distance': 'm' };
+    const METRIC_DECIMALS = { 'max power': 0, 'max torque': 0, 'cda': 4, 'max cadence': 0, 'cadence @ max power': 0, 'work done': 0, 'distance': 1 };
+    const METRIC_IS_MAX   = { 'max power': true, 'max torque': true, 'cda': false, 'max cadence': true, 'cadence @ max power': true, 'work done': true, 'distance': true };
 
     const files = allFiles.filter(f => parseDateFromFilename(f.name) === date);
     let html = `<h3 style="font-size:1rem;font-weight:700;color:#1a202c;margin-bottom:1rem;padding-right:1.5rem">${escHtml(rider)} &mdash; ${date}</h3>`;
@@ -1679,6 +1807,9 @@
           if (label === 'work done' && overallColIdx !== -1) {
             const v = parseFloat(row[overallColIdx]);
             if (!isNaN(v)) metrics[label] = v;
+          } else if (label === 'distance' && overallColIdx !== -1) {
+            const v = parseFloat(row[overallColIdx]);
+            if (!isNaN(v)) metrics[label] = (metrics[label] ?? 0) + v;
           } else {
             const isMax = METRIC_IS_MAX[label];
             let best = null;

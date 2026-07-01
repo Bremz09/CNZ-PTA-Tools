@@ -1,0 +1,3009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="auth-gate.js"></script>
+  <meta charset="UTF-8">
+  <title>Individual Pursuit Video Timing</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      margin: 0;
+    }
+    h2, h3 {
+      margin: 0 0 10px;
+    }
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: flex-start;
+    }
+    .video-section {
+      flex: 1 1 700px;
+      min-width: 320px;
+    }
+    .report-section {
+      flex: 1 1 420px;
+      min-width: 320px;
+    }
+    .inputs-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(140px, 1fr));
+      gap: 10px 12px;
+      margin-bottom: 12px;
+    }
+    .inputs-grid label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+    .inputs-grid input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 6px 8px;
+    }
+    video {
+      width: 100%;
+      max-width: 960px;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      margin-bottom: 10px;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    button {
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    #info, #status {
+      margin-top: 6px;
+    }
+    #reportTable {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      display: none;
+    }
+    .report-table-wrap {
+      max-height: 210px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      margin-top: 8px;
+    }
+    #reportTable th,
+    #reportTable td {
+      border: 1px solid #ccc;
+      padding: 6px 8px;
+      text-align: left;
+      font-size: 14px;
+    }
+    #reportTable th {
+      background: #f2f2f2;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .small-note {
+      font-size: 13px;
+      color: #333;
+      margin-top: 4px;
+    }
+    [hidden] { display: none !important; }
+    .flying-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      padding: 7px 16px;
+      border-radius: 20px;
+      border: 2px solid #2563eb;
+      background: #eff6ff;
+      color: #1d4ed8;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .flying-toggle input { cursor: pointer; width: 15px; height: 15px; }
+    .report-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .fit-sync-panel {
+      margin: 18px 20px 0;
+      border: 1px solid #dbe2ea;
+      border-radius: 12px;
+      background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+      padding: 14px;
+    }
+    .fit-sync-panel h3,
+    .fit-sync-panel h4 {
+      margin: 0 0 8px;
+    }
+    .fit-sync-panel p {
+      margin: 0 0 10px;
+      color: #475569;
+      font-size: 13px;
+    }
+    .fit-sync-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px 12px;
+      margin-bottom: 12px;
+    }
+    .fit-field label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+    .fit-field input,
+    .fit-field select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 6px 8px;
+    }
+    .fit-assignment-layout {
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) minmax(260px, 1fr);
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .fit-assignment-card {
+      border: 1px solid #dbe2ea;
+      border-radius: 10px;
+      background: #fff;
+      padding: 8px;
+    }
+    .fit-assignment-card h4 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      color: #334155;
+    }
+    .fit-dropzone {
+      min-height: 58px;
+      border: 1px dashed #cbd5e1;
+      border-radius: 8px;
+      padding: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-content: flex-start;
+      background: #f8fafc;
+    }
+    .fit-dropzone.over {
+      border-color: #0f766e;
+      background: #ecfdf5;
+    }
+    .fit-slot {
+      border: 1px solid #dbe2ea;
+      border-radius: 8px;
+      padding: 6px;
+      background: #ffffff;
+    }
+    .fit-slot-title {
+      font-size: 12px;
+      color: #334155;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+    .fit-file-chip {
+      display: inline-flex;
+      align-items: center;
+      max-width: 100%;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: #334155;
+      font-size: 12px;
+      cursor: grab;
+      user-select: none;
+    }
+    .fit-file-chip:active {
+      cursor: grabbing;
+    }
+    .fit-slot-placeholder {
+      color: #64748b;
+      font-size: 12px;
+    }
+    .fit-file-note {
+      margin-top: 4px;
+      font-size: 12px;
+      color: #64748b;
+      min-height: 16px;
+      word-break: break-word;
+    }
+    .fit-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .fit-chip {
+      border: 1px solid #dbe2ea;
+      border-radius: 999px;
+      background: #fff;
+      padding: 5px 10px;
+      font-size: 12px;
+      color: #334155;
+    }
+    .fit-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 8px;
+      font-size: 13px;
+      color: #334155;
+    }
+    .fit-swatch {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .fit-swatch i {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+    }
+    .fit-plot-wrap {
+      position: relative;
+      border: 1px solid #dbe2ea;
+      border-radius: 10px;
+      background: #fff;
+      overflow: hidden;
+    }
+    .fit-plot {
+      display: block;
+      width: 100%;
+      height: 320px;
+      touch-action: none;
+      cursor: grab;
+    }
+    .fit-current-values {
+      padding: 8px 10px 0;
+      font-size: 13px;
+      color: #334155;
+    }
+    .fit-controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 10px;
+      align-items: end;
+    }
+    .fit-control-group {
+      flex: 1 1 220px;
+    }
+    .fit-control-group.fit-actions {
+      flex: 0 0 auto;
+    }
+    .fit-control-group label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+    .fit-control-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .fit-control-row input {
+      flex: 1 1 auto;
+    }
+    .fit-control-value {
+      min-width: 54px;
+      font-size: 12px;
+      color: #475569;
+      text-align: right;
+    }
+    .sync-targets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .sync-targets .target-btn {
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: #334155;
+      font-size: 12px;
+    }
+    .sync-targets .target-btn.active {
+      border-color: #0f766e;
+      background: #ecfdf5;
+      color: #166534;
+    }
+    .fit-status {
+      margin-top: 10px;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 13px;
+      background: #fff7ed;
+      color: #b45309;
+    }
+    .fit-status.ok {
+      background: #f0fdf4;
+      color: #166534;
+    }
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 5px;
+      background: rgba(15, 23, 42, 0.55);
+      z-index: 1000;
+    }
+    .modal-overlay.open {
+      display: flex;
+    }
+    .modal-panel {
+      width: calc(100vw - 10px);
+      min-height: calc(100vh - 10px);
+      max-height: calc(100vh - 10px);
+      overflow: auto;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+      padding: 10px 12px 12px;
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .report-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 0 0 auto;
+    }
+    #exportReportBtn {
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      font-size: 13px;
+      color: #0f172a;
+      cursor: pointer;
+    }
+    #exportReportBtn:disabled {
+      opacity: 0.65;
+      cursor: wait;
+    }
+    #appendToFileBtn {
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      font-size: 13px;
+      color: #0f172a;
+      cursor: pointer;
+    }
+    #appendToFileBtn:disabled {
+      opacity: 0.65;
+      cursor: wait;
+    }
+    .modal-header p {
+      margin: 4px 0 0;
+      color: #475569;
+      font-size: 13px;
+    }
+    .chart-card {
+      border: 1px solid #dbe2ea;
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+    }
+    .scatter-card {
+      border: 1px solid #dbe2ea;
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+      margin-top: 8px;
+    }
+    .scatter-card h4 {
+      margin: 0 0 5px;
+      font-size: 14px;
+    }
+    .scatter-wrapper {
+      position: relative;
+      width: 100%;
+      min-height: 300px;
+    }
+    .scatter-wrapper canvas {
+      width: 100%;
+      height: 300px;
+      display: block;
+    }
+    .scatter-empty {
+      min-height: 300px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+      text-align: center;
+      padding: 20px;
+    }
+    .scatter-equation {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #334155;
+    }
+    .dashboard-top {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .lap-splits-panel {
+      flex: 0 0 auto;
+    }
+    .chart-and-tables {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+    .bottom-tables-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .bottom-tables-row .table-card {
+      flex: 1 1 200px;
+      min-width: 160px;
+      align-self: flex-start;
+    }
+    .compact-table-card {
+      flex: 0 0 auto !important;
+      min-width: 0;
+    }
+    .cadence-row {
+      margin-top: 8px;
+      overflow-x: auto;
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+    }
+    .cadence-row .table-card {
+      width: fit-content;
+      flex: none;
+    }
+    .chart-card h4 {
+      margin: 0 0 5px;
+      font-size: 14px;
+    }
+    .chart-wrapper {
+      position: relative;
+      width: 100%;
+      min-height: 360px;
+    }
+    .chart-wrapper canvas {
+      width: 100%;
+      height: 360px;
+      display: block;
+    }
+    .chart-empty {
+      min-height: 360px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+      text-align: center;
+      padding: 20px;
+    }
+    .chart-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-top: 12px;
+      font-size: 13px;
+      color: #334155;
+    }
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .legend-swatch,
+    .legend-dot {
+      flex: 0 0 auto;
+    }
+    .legend-line {
+      width: 16px;
+      height: 0;
+      border-top: 2px dotted #f7ea48;
+    }
+    .legend-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      background: #2563eb;
+    }
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: #e03c31;
+    }
+    .table-card {
+      border: 1px solid #dbe2ea;
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: #fff;
+    }
+    .table-card h4 {
+      margin: 0 0 5px;
+      font-size: 14px;
+    }
+    .table-card p {
+      display: none;
+    }
+    .lap-table-wrap {
+      overflow-x: auto;
+    }
+    #lapMergedTable {
+      width: auto;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    #lapMergedTable th,
+    #lapMergedTable td {
+      border: 1px solid #dbe2ea;
+      padding: 8px 10px;
+      text-align: center;
+      white-space: nowrap;
+    }
+    #lapMergedTable thead th {
+      background: #f8fafc;
+    }
+    #lapMergedTable tbody th {
+      background: #f8fafc;
+      text-align: left;
+      font-weight: 600;
+      position: sticky;
+      left: 0;
+      z-index: 1;
+    }
+    #firstLapTable {
+      width: auto;
+      border-collapse: collapse;
+      font-size: 14px;
+      margin-top: 12px;
+    }
+    #firstLapTable th,
+    #firstLapTable td {
+      border: 1px solid #dbe2ea;
+      padding: 8px 10px;
+      text-align: left;
+      white-space: nowrap;
+    }
+    #lapAveragesTable {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      margin-top: 12px;
+    }
+    #lapAveragesTable th,
+    #lapAveragesTable td {
+      border: 1px solid #dbe2ea;
+      padding: 8px 10px;
+      text-align: left;
+      white-space: nowrap;
+    }
+    #firstLapTable th { background: #f8fafc; }
+    #lapAveragesTable th { background: #f8fafc; }
+    #kiloSplitsTable {
+      width: auto;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    #kiloSplitsTable th,
+    #kiloSplitsTable td {
+      border: 1px solid #dbe2ea;
+      padding: 8px 10px;
+      text-align: left;
+      white-space: nowrap;
+    }
+    #kiloSplitsTable th { background: #f8fafc; }
+    .table-empty {
+      color: #64748b;
+      padding: 12px 0 2px;
+    }
+    .modal-close {
+      background: #e2e8f0;
+      border: 0;
+      border-radius: 999px;
+      min-width: 40px;
+      min-height: 40px;
+      font-size: 18px;
+      line-height: 1;
+    }
+    @media (max-width: 1200px) {
+      .lap-splits-panel { flex: 0 0 280px; }
+      #lapMergedTable th, #lapMergedTable td,
+      #firstLapTable th, #firstLapTable td,
+      #lapAveragesTable th, #lapAveragesTable td,
+      #kiloSplitsTable th, #kiloSplitsTable td {
+        padding: 6px 8px;
+        font-size: 13px;
+      }
+    }
+    @media (max-width: 768px) {
+      .modal-panel { padding: 8px; }
+      .dashboard-top { flex-direction: column; }
+      .lap-splits-panel { width: 100%; flex: 1 1 auto; }
+      .chart-and-tables { width: 100%; }
+      .chart-wrapper, .chart-empty, .chart-wrapper canvas { min-height: 280px; height: 280px; }
+      #lapMergedTable th, #lapMergedTable td,
+      #firstLapTable th, #firstLapTable td,
+      #lapAveragesTable th, #lapAveragesTable td,
+      #kiloSplitsTable th, #kiloSplitsTable td {
+        padding: 6px 8px;
+        font-size: 12px;
+      }
+    }
+    @media (max-width: 480px) {
+      .modal-panel { padding: 6px; }
+      .fit-sync-panel { margin: 14px 8px 0; padding: 10px; }
+      .fit-assignment-layout { grid-template-columns: 1fr; }
+      .lap-splits-panel { width: 100%; }
+      .table-card, .chart-card { padding: 6px 8px; }
+      .table-card h4, .chart-card h4 { font-size: 13px; margin-bottom: 4px; }
+      #lapMergedTable th, #lapMergedTable td,
+      #firstLapTable th, #firstLapTable td,
+      #lapAveragesTable th, #lapAveragesTable td,
+      #kiloSplitsTable th, #kiloSplitsTable td {
+        padding: 4px 6px;
+        font-size: 11px;
+      }
+      .chart-wrapper, .chart-empty, .chart-wrapper canvas { min-height: 240px; height: 240px; }
+      .chart-legend { gap: 8px; font-size: 12px; }
+      .inputs-grid { grid-template-columns: 1fr; }
+      .fit-plot { height: 240px; }
+    }
+  </style>
+</head>
+<body>
+  <h2>Individual Pursuit Video Timing</h2>
+  <h3>Keys: S start, Z quarter, T finish, Space play/pause, arrows frame-step, Ctrl+arrows jump.</h3>
+  <input type="file" accept="video/mp4,video/quicktime" id="videoInput">
+  <button id="uploadAllBtn" type="button" title="Upload video (.mp4/.mov), timing data (.csv) and FIT sync (.ipsync) together — snaps to start automatically">Upload all files</button>
+  <input type="file" id="uploadAllInput" accept="video/mp4,video/quicktime,.csv,.json,.ipsync,application/octet-stream" multiple style="display:none;"><br><br>
+
+  <div class="container">
+    <div class="video-section">
+      <video id="video" controls style="display:none;"></video>
+
+      <div class="controls">
+        <label for="fpsInput">FPS:</label>
+        <input type="number" id="fpsInput" min="1" max="240" value="50" style="width:70px;">
+        <button id="prevFrame">⏪ Previous Frame</button>
+        <button id="nextFrame">⏩ Next Frame</button>
+        <button id="startBtn">Start (S)</button>
+        <button id="quarterBtn">Quarter (Z)</button>
+        <button id="finishBtn">Finish (T)</button>
+        <button id="resetBtn">Reset</button>
+        <button id="deleteLastBtn">Delete Last Row</button>
+      </div>
+
+      <div id="info">Current Time: <span id="currentTime">0.00</span>s</div>
+      <div id="status">Status: Waiting for start.</div>
+      <div class="small-note">Speed is calculated from 62.5m split distance.</div>
+    </div>
+
+    <div class="report-section">
+      <div class="inputs-grid">
+        <div>
+          <label for="countryInput">Title</label>
+          <input id="countryInput" type="text" placeholder="Session title">
+        </div>
+        <div>
+          <label for="airDensityInput">Air Density</label>
+          <input id="airDensityInput" type="number" min="0.5" max="2" step="0.001" value="1.169">
+        </div>
+        <div>
+          <label for="jumpFramesInput">Jump Ahead (frames)</label>
+          <input id="jumpFramesInput" type="number" min="1" value="160">
+        </div>
+        <div>
+          <label for="raceDistanceInput">Race Distance (m)</label>
+          <input id="raceDistanceInput" type="number" min="500" max="10000" step="500" value="4000">
+        </div>
+        <div>
+          <label for="rider1Input">Rider Name</label>
+          <input id="rider1Input" type="text" placeholder="Rider name">
+        </div>
+      </div>
+      <div class="report-actions">
+        <button id="updateBtn">Update Data</button>
+        <button id="downloadBtn">Download Data</button>
+        <button id="createReportBtn">Create Report</button>
+        <label>
+          <button id="uploadBtn" onclick="document.getElementById('csvUploadInput').click()" style="margin-bottom:0;">Upload Data</button>
+        </label>
+        <button id="snapToStartBtn" type="button" disabled>Snap to start</button>
+        <input type="file" id="csvUploadInput" accept=".csv" style="display:none;">
+      </div>
+
+      <h3 id="reportTitle">Individual Pursuit Report</h3>
+      <div class="report-table-wrap">
+        <table id="reportTable">
+          <thead>
+            <tr>
+              <th>Split</th>
+              <th>Quarter Time (s)</th>
+              <th>Running Time (s)</th>
+              <th>Speed (km/h)</th>
+              <th>Event</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <section class="fit-sync-panel">
+    <h3>FIT Sync</h3>
+    <p>Select a FIT file, then drag it onto the rider slot. Choose a metric, then left-drag to scrub video or right-drag to sync the FIT trace.</p>
+    <div class="fit-sync-grid">
+      <div class="fit-field">
+        <label for="fitFilesInput">FIT file (.fit)</label>
+        <input id="fitFilesInput" type="file" accept=".fit,application/octet-stream" multiple>
+        <div class="fit-file-note">Load a FIT file, then drag the chip to the rider slot below.</div>
+        <div class="fit-control-row" style="margin-top:8px;">
+          <button id="fitSaveSyncBtn" type="button">Save sync</button>
+          <button id="fitUploadSyncBtn" type="button">Upload synced fit file</button>
+        </div>
+        <input id="fitSyncedUploadInput" type="file" accept=".json,.ipsync" style="display:none;">
+      </div>
+      <div class="fit-field">
+        <label for="fitMetricSelect">FIT Metric</label>
+        <select id="fitMetricSelect" disabled>
+          <option value="">Select metric</option>
+        </select>
+      </div>
+    </div>
+    <div class="fit-assignment-layout">
+      <div class="fit-assignment-card">
+        <h4>Unassigned FIT files</h4>
+        <div id="fitUnassignedList" class="fit-dropzone" data-drop-target="unassigned">
+          <span class="fit-slot-placeholder">Drop FIT files here to unassign.</span>
+        </div>
+      </div>
+      <div class="fit-assignment-card">
+        <h4>Rider FIT assignment</h4>
+        <div class="fit-slot">
+          <div class="fit-slot-title" id="fitSlotTitle0">Rider</div>
+          <div id="fitRiderSlot0" class="fit-dropzone" data-drop-target="rider" data-rider-index="0"></div>
+        </div>
+      </div>
+    </div>
+    <div class="fit-stats">
+      <span class="fit-chip">Sampling: <strong id="fitSamplingHz">-</strong></span>
+      <span class="fit-chip">Video FPS: <strong id="fitVideoFps">-</strong></span>
+      <span class="fit-chip">Sync Offset: <strong id="fitTraceOffset">0.000s</strong></span>
+      <span class="fit-chip">Video Time: <strong id="fitVideoTime">0.000s</strong></span>
+    </div>
+    <div id="fitLegend" class="fit-legend"></div>
+    <div class="fit-plot-wrap">
+      <canvas id="fitPlot" class="fit-plot"></canvas>
+      <div id="fitCurrentValues" class="fit-current-values">Values @ playhead: -</div>
+    </div>
+    <div class="fit-controls-row">
+      <div class="fit-control-group">
+        <label for="fitScaleControl">Trace window scale</label>
+        <div class="fit-control-row">
+          <input id="fitScaleControl" type="range" min="20" max="400" step="10" value="100">
+          <span id="fitScaleValue" class="fit-control-value">100%</span>
+        </div>
+      </div>
+      <div class="fit-control-group">
+        <label for="fitSensitivityControl">Drag sensitivity</label>
+        <div class="fit-control-row">
+          <input id="fitSensitivityControl" type="range" min="5" max="300" step="5" value="20">
+          <span id="fitSensitivityValue" class="fit-control-value">0.20x</span>
+        </div>
+      </div>
+      <div class="fit-control-group fit-actions">
+        <label>&nbsp;</label>
+        <div class="fit-control-row">
+          <button id="fitSnapBtn" type="button">Snap to playhead</button>
+        </div>
+      </div>
+    </div>
+    <div id="fitSyncTargets" class="sync-targets"></div>
+    <div id="fitStatus" class="fit-status">Assign a FIT file to start syncing.</div>
+  </section>
+
+  <div id="reportModal" class="modal-overlay" aria-hidden="true">
+    <div id="reportDashboardPanel" class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="reportDashboardTitle">
+      <div class="modal-header">
+        <div class="report-header-actions">
+          <label class="flying-toggle">
+            <input type="checkbox" id="flyingToggle"> Fly
+          </label>
+          <label class="flying-toggle">
+            <input type="checkbox" id="hlToggle" checked> HL
+          </label>
+          <div style="display:inline-flex;align-items:center;gap:6px;font-size:13px;">
+            <label for="chartYMinInput" style="white-space:nowrap;">Y min</label>
+            <input type="number" id="chartYMinInput" value="44" step="1" style="width:60px;padding:4px 6px;">
+            <label for="chartYMaxInput" style="white-space:nowrap;">Y max</label>
+            <input type="number" id="chartYMaxInput" placeholder="auto" step="1" style="width:60px;padding:4px 6px;">
+          </div>
+          <button id="appendToFileBtn" type="button">Append to file</button>
+          <button id="exportReportBtn" type="button">Export report</button>
+        </div>
+        <h3 id="reportDashboardTitle" style="margin:0 0 0 8px;font-size:40px;">Report Dashboard</h3>
+        <button id="closeReportBtn" class="modal-close" type="button" aria-label="Close report dashboard">×</button>
+      </div>
+      <div class="dashboard-top">
+        <!-- LEFT: Quarter splits, kilo splits, averages -->
+        <div class="lap-splits-panel">
+          <div class="table-card">
+            <h4>Lap 1 Quarter Splits</h4>
+            <div id="firstLapEmpty" class="table-empty">Add quarter splits to see first lap detail.</div>
+            <div class="lap-table-wrap">
+              <table id="firstLapTable" hidden>
+                <thead>
+                  <tr>
+                    <th>Q</th>
+                    <th>Time (s)</th>
+                    <th>Run Time (s)</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="table-card" style="margin-top:8px;">
+            <h4>Kilo Splits</h4>
+            <div id="kiloSplitsEmpty" class="table-empty">Complete a kilometre to see kilo splits.</div>
+            <div class="lap-table-wrap">
+              <table id="kiloSplitsTable" hidden>
+                <thead>
+                  <tr>
+                    <th>Kilo</th>
+                    <th>Time (s)</th>
+                    <th>Speed (km/h)</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="table-card" style="margin-top:8px;">
+            <h4>Lap Averages</h4>
+            <div class="lap-table-wrap">
+              <table id="lapAveragesTable" hidden>
+                <thead>
+                  <tr>
+                    <th>Metric</th>
+                    <th>Raw (s)</th>
+                    <th>Standardised (s)</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <!-- RIGHT: Chart + tables below -->
+        <div class="chart-and-tables">
+          <div class="chart-card">
+            <h4 id="speedProfileTitle">Half Lap Speed Profile</h4>
+            <div id="reportChartWrapper" class="chart-wrapper">
+              <canvas id="reportChart" width="900" height="360"></canvas>
+            </div>
+            <div id="reportChartEmpty" class="chart-empty" hidden>Add quarter splits to generate the speed dashboard.</div>
+            <div id="chartLegend" class="chart-legend"></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px;align-items:flex-start;flex-wrap:wrap;">
+            <div class="table-card" style="overflow-x:auto;flex:1 1 auto;min-width:0;">
+              <h4>Lap Splits</h4>
+              <div id="lapMergedEmpty" class="table-empty">No laps yet.</div>
+              <div class="lap-table-wrap">
+                <table id="lapMergedTable" hidden>
+                  <thead><tr></tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="table-card" id="fitAvgCard" style="flex:0 0 auto;" hidden>
+              <h4>Averages</h4>
+              <table id="fitAvgTable" style="border-collapse:collapse;font-size:14px;white-space:nowrap;">
+                <thead>
+                  <tr>
+                    <th style="border:1px solid #dbe2ea;padding:8px 10px;background:#f8fafc;text-align:left;">Metric</th>
+                    <th style="border:1px solid #dbe2ea;padding:8px 10px;background:#f8fafc;text-align:center;">Overall</th>
+                    <th style="border:1px solid #dbe2ea;padding:8px 10px;background:#f8fafc;text-align:center;">After Lap 1</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SPLIT_DISTANCE_METERS = 62.5;
+    const LAP_DISTANCE_METERS = SPLIT_DISTANCE_METERS * 4;
+    const QUARTERS_PER_KILO = 16; // 4 laps × 4 quarters = 1000 m
+
+    const BAR_COLOR = '#2563eb';
+    const AVERAGE_LINE_COLOR = '#f7ea48';
+
+    const video = document.getElementById('video');
+    const videoInput = document.getElementById('videoInput');
+    const currentTimeDisplay = document.getElementById('currentTime');
+    const statusDisplay = document.getElementById('status');
+
+    const fpsInput = document.getElementById('fpsInput');
+    const jumpFramesInput = document.getElementById('jumpFramesInput');
+    const airDensityInput = document.getElementById('airDensityInput');
+    const raceDistanceInput = document.getElementById('raceDistanceInput');
+
+    const countryInput = document.getElementById('countryInput');
+    const rider1Input = document.getElementById('rider1Input');
+
+    const startBtn = document.getElementById('startBtn');
+    const quarterBtn = document.getElementById('quarterBtn');
+    const finishBtn = document.getElementById('finishBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const deleteLastBtn = document.getElementById('deleteLastBtn');
+    const updateBtn = document.getElementById('updateBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const createReportBtn = document.getElementById('createReportBtn');
+    const snapToStartBtn = document.getElementById('snapToStartBtn');
+    const csvUploadInput = document.getElementById('csvUploadInput');
+    const uploadAllBtn = document.getElementById('uploadAllBtn');
+    const uploadAllInput = document.getElementById('uploadAllInput');
+
+    let videoFileName = 'data';
+
+    const nextFrameBtn = document.getElementById('nextFrame');
+    const prevFrameBtn = document.getElementById('prevFrame');
+
+    const reportTitle = document.getElementById('reportTitle');
+    const reportDashboardTitle = document.getElementById('reportDashboardTitle');
+    const reportTable = document.getElementById('reportTable');
+    const reportTableBody = reportTable.querySelector('tbody');
+    const reportModal = document.getElementById('reportModal');
+    const reportDashboardPanel = document.getElementById('reportDashboardPanel');
+    const closeReportBtn = document.getElementById('closeReportBtn');
+    const exportReportBtn = document.getElementById('exportReportBtn');
+    const appendToFileBtn = document.getElementById('appendToFileBtn');
+    const reportChartWrapper = document.getElementById('reportChartWrapper');
+    const reportChart = document.getElementById('reportChart');
+    const reportChartEmpty = document.getElementById('reportChartEmpty');
+    const reportChartContext = reportChart.getContext('2d');
+    const chartLegend = document.getElementById('chartLegend');
+    const lapMergedTable = document.getElementById('lapMergedTable');
+    const lapMergedEmpty = document.getElementById('lapMergedEmpty');
+    const firstLapTable = document.getElementById('firstLapTable');
+    const firstLapTableBody = firstLapTable.querySelector('tbody');
+    const firstLapEmpty = document.getElementById('firstLapEmpty');
+    const lapAveragesTable = document.getElementById('lapAveragesTable');
+    const lapAveragesTableBody = lapAveragesTable.querySelector('tbody');
+    const kiloSplitsTable = document.getElementById('kiloSplitsTable');
+    const kiloSplitsTableBody = kiloSplitsTable.querySelector('tbody');
+    const kiloSplitsEmpty = document.getElementById('kiloSplitsEmpty');
+    const fitAvgCard = document.getElementById('fitAvgCard');
+    const fitAvgTable = document.getElementById('fitAvgTable');
+    const flyingToggle = document.getElementById('flyingToggle');
+    const hlToggle = document.getElementById('hlToggle');
+    const fitFilesInput = document.getElementById('fitFilesInput');
+    const fitUnassignedList = document.getElementById('fitUnassignedList');
+    const fitRiderSlot0 = document.getElementById('fitRiderSlot0');
+    const fitSlotTitle0 = document.getElementById('fitSlotTitle0');
+    const fitMetricSelect = document.getElementById('fitMetricSelect');
+    const fitSaveSyncBtn = document.getElementById('fitSaveSyncBtn');
+    const fitUploadSyncBtn = document.getElementById('fitUploadSyncBtn');
+    const fitSyncedUploadInput = document.getElementById('fitSyncedUploadInput');
+    const fitSamplingHz = document.getElementById('fitSamplingHz');
+    const fitVideoFps = document.getElementById('fitVideoFps');
+    const fitTraceOffset = document.getElementById('fitTraceOffset');
+    const fitVideoTime = document.getElementById('fitVideoTime');
+    const fitLegend = document.getElementById('fitLegend');
+    const fitPlot = document.getElementById('fitPlot');
+    const fitPlotContext = fitPlot.getContext('2d');
+    const fitCurrentValues = document.getElementById('fitCurrentValues');
+    const fitScaleControl = document.getElementById('fitScaleControl');
+    const fitScaleValue = document.getElementById('fitScaleValue');
+    const fitSensitivityControl = document.getElementById('fitSensitivityControl');
+    const fitSensitivityValue = document.getElementById('fitSensitivityValue');
+    const fitSnapBtn = document.getElementById('fitSnapBtn');
+    const fitSyncTargets = document.getElementById('fitSyncTargets');
+    const fitStatusDisplay = document.getElementById('fitStatus');
+
+    let flyingMode = false;
+    let FitParserClass = null;
+
+    // Session state
+    let startTime = null;
+    let lastMarkerTime = null;
+    let finished = false;
+    let uploadedCsvStartTime = null;
+    let hasUploadedTimingData = false;
+    let hasVideoLoaded = false;
+
+    const fitSyncState = {
+      stream: null,       // single stream for the one rider
+      parsedFiles: [],
+      nextParsedFileId: 1,
+      metricKey: '',
+      series: [],         // 0 or 1 entries
+      samplingDisplay: '-',
+      dragLastX: 0,
+      pointerMode: 'none',
+      drawingData: null,
+      viewScale: 1,
+      dragSensitivity: 0.2
+    };
+
+    // Each row: { splitType, splitLabel, endTime, quarterTime, speed, eventLabel }
+    const splitRows = [];
+
+    // --- Helpers ---
+
+    function getFps() { return parseInt(fpsInput.value, 10) || 50; }
+    function frameDuration() { return 1 / getFps(); }
+    function getJumpSeconds() { return (parseInt(jumpFramesInput.value, 10) || 160) / getFps(); }
+    function getRiderName() { return rider1Input.value.trim() || 'Rider'; }
+    function getTitleText() { return countryInput.value.trim() || 'Untitled Session'; }
+    function getRaceDistance() { return parseInt(raceDistanceInput.value, 10) || 4000; }
+    function speedFromTime(s) { return s > 0 ? (SPLIT_DISTANCE_METERS / s) * 3.6 : 0; }
+    function speedFromDistanceTime(distanceMeters, seconds) {
+      return seconds > 0 ? (distanceMeters / seconds) * 3.6 : 0;
+    }
+    function formatTime(v) { return Number.isFinite(v) ? v.toFixed(2) : '--'; }
+    function formatClockTime(v) {
+      if (!Number.isFinite(v)) return '--';
+      const minutes = Math.floor(v / 60);
+      const seconds = v - minutes * 60;
+      return `${minutes}:${seconds.toFixed(2).padStart(5, '0')}`;
+    }
+    function formatSignedTime(v) {
+      if (!Number.isFinite(v)) return '--';
+      return `${v >= 0 ? '+' : ''}${v.toFixed(2)}`;
+    }
+    function formatFitNum(v, digits = 3) {
+      return Number.isFinite(v) ? v.toFixed(digits) : '-';
+    }
+    function clampValue(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+    function toNumeric(value) {
+      const num = Number(value);
+      return Number.isFinite(num) ? num : null;
+    }
+    function findTimeColumn(columns) {
+      return columns.find((name) => String(name).trim().toLowerCase() === 'time') || null;
+    }
+    function setFitStatus(message, level = 'warn') {
+      fitStatusDisplay.textContent = message;
+      fitStatusDisplay.classList.toggle('ok', level === 'ok');
+    }
+    function updateSnapToStartAvailability() {
+      snapToStartBtn.disabled = !(hasVideoLoaded && hasUploadedTimingData && Number.isFinite(uploadedCsvStartTime));
+    }
+    function updateFitControlLabels() {
+      fitScaleValue.textContent = `${Math.round(fitSyncState.viewScale * 100)}%`;
+      fitSensitivityValue.textContent = `${formatFitNum(fitSyncState.dragSensitivity, 2)}x`;
+    }
+    function getLoadedFitStream() {
+      return fitSyncState.stream || null;
+    }
+    function toTimestampSeconds(value) {
+      if (value instanceof Date) return value.getTime() / 1000;
+      if (typeof value === 'string') {
+        const parsed = Date.parse(value);
+        if (Number.isFinite(parsed)) return parsed / 1000;
+      }
+      const numeric = toNumeric(value);
+      if (numeric === null) return null;
+      if (numeric > 1e12) return numeric / 1000;
+      if (numeric > 1e9) return numeric;
+      return numeric;
+    }
+    async function ensureFitParserLoaded() {
+      if (FitParserClass) return FitParserClass;
+      const moduleUrls = [
+        'https://cdn.jsdelivr.net/npm/fit-file-parser@2.3.3/+esm',
+        'https://esm.sh/fit-file-parser@2.3.3'
+      ];
+      let lastError = null;
+      for (const moduleUrl of moduleUrls) {
+        try {
+          const mod = await import(moduleUrl);
+          FitParserClass = mod.default || mod.FitParser || null;
+          if (FitParserClass) return FitParserClass;
+          lastError = new Error(`No FitParser export found at ${moduleUrl}`);
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      throw lastError || new Error('Unable to load FIT parser module.');
+    }
+    async function parseFitArrayBuffer(buffer) {
+      const ParserCtor = await ensureFitParserLoaded();
+      return new Promise((resolve, reject) => {
+        const parser = new ParserCtor({
+          force: true,
+          speedUnit: 'm/s',
+          lengthUnit: 'm',
+          temperatureUnit: 'celsius',
+          elapsedRecordField: true,
+          mode: 'both'
+        });
+        parser.parse(new Uint8Array(buffer), (error, fitData) => {
+          if (error) { reject(error); return; }
+          resolve(fitData || {});
+        });
+      });
+    }
+    function extractFitRecords(fitData) {
+      if (!fitData || typeof fitData !== 'object') return [];
+      if (Array.isArray(fitData.records) && fitData.records.length > 0) return fitData.records;
+      const records = [];
+      const pushRecords = (candidate) => {
+        if (Array.isArray(candidate) && candidate.length > 0) records.push(...candidate);
+      };
+      if (fitData.activity && Array.isArray(fitData.activity.sessions)) {
+        for (const session of fitData.activity.sessions) {
+          pushRecords(session.records);
+          if (Array.isArray(session.laps)) {
+            for (const lap of session.laps) pushRecords(lap.records);
+          }
+        }
+      }
+      if (Array.isArray(fitData.sessions)) {
+        for (const session of fitData.sessions) {
+          pushRecords(session.records);
+          if (Array.isArray(session.laps)) {
+            for (const lap of session.laps) pushRecords(lap.records);
+          }
+        }
+      }
+      if (Array.isArray(fitData.laps)) {
+        for (const lap of fitData.laps) pushRecords(lap.records);
+      }
+      return records;
+    }
+    function normalizeFitRecordsToRows(records) {
+      const rows = [];
+      for (const record of records || []) {
+        if (!record || typeof record !== 'object') continue;
+        const rawTime = record.timestamp ?? record.enhanced_timestamp ?? record.local_timestamp ?? record.time;
+        const timeSeconds = toTimestampSeconds(rawTime);
+        if (!Number.isFinite(timeSeconds)) continue;
+        const row = { Time: timeSeconds };
+        for (const [key, value] of Object.entries(record)) {
+          if (key === 'timestamp' || key === 'enhanced_timestamp' || key === 'local_timestamp' || key === 'time') continue;
+          const numeric = toNumeric(value);
+          if (numeric !== null) row[key] = numeric;
+        }
+        rows.push(row);
+      }
+      return rows;
+    }
+    function addDerivedFitColumns(rows) {
+      const hasPower = rows.some((row) => row.power != null);
+      const hasCadence = rows.some((row) => row.cadence != null);
+      if (hasPower && hasCadence) {
+        for (const row of rows) {
+          const power = toNumeric(row.power);
+          const cadence = toNumeric(row.cadence);
+          if (power !== null && cadence !== null) {
+            row.torque = (power > 0 && cadence > 0) ? (power * 60) / (2 * Math.PI * cadence) : 0;
+          }
+        }
+      }
+    }
+    function formatSamplingDisplay(stream) {
+      if (!stream || !Number.isFinite(stream.samplingHz)) return '-';
+      return `${formatFitNum(stream.samplingHz, 3)} Hz`;
+    }
+    function getFitSeriesLabel() {
+      return getRiderName();
+    }
+    function getAssignedFitFile() {
+      return fitSyncState.parsedFiles.find((file) => file.assignedRiderIndex === 0) || null;
+    }
+    function syncStreamFromAssignment() {
+      fitSyncState.stream = null;
+      for (const file of fitSyncState.parsedFiles) {
+        if (file.assignedRiderIndex === 0) {
+          file.riderIndex = 0;
+          fitSyncState.stream = file;
+          break;
+        }
+      }
+    }
+    function getFitFileChipHtml(file) {
+      return `<span class="fit-file-chip" draggable="true" data-fit-file-id="${file.id}" title="${file.fileName}">${file.fileName}</span>`;
+    }
+    function renderFitAssignments({ rebuild = true } = {}) {
+      fitSlotTitle0.textContent = getFitSeriesLabel();
+
+      const unassigned = fitSyncState.parsedFiles.filter((file) => file.assignedRiderIndex !== 0);
+      fitUnassignedList.innerHTML = unassigned.length > 0
+        ? unassigned.map(getFitFileChipHtml).join('')
+        : '<span class="fit-slot-placeholder">No unassigned FIT files.</span>';
+
+      const assigned = getAssignedFitFile();
+      fitRiderSlot0.innerHTML = assigned
+        ? getFitFileChipHtml(assigned)
+        : '<span class="fit-slot-placeholder">Drop FIT file here</span>';
+
+      syncStreamFromAssignment();
+      if (rebuild) rebuildFitMetricOptions();
+    }
+    function buildSyncedFitExportPayload() {
+      return {
+        version: 1,
+        createdAt: new Date().toISOString(),
+        metricKey: fitSyncState.metricKey || '',
+        riderName: getRiderName(),
+        files: fitSyncState.parsedFiles.map((file) => ({
+          id: file.id,
+          fileName: file.fileName,
+          assignedRiderIndex: file.assignedRiderIndex === 0 ? 0 : null,
+          offset: Number.isFinite(file.offset) ? file.offset : 0,
+          timeColumnKey: file.timeColumnKey,
+          metricColumns: Array.isArray(file.metricColumns) ? file.metricColumns : [],
+          samplingHz: Number.isFinite(file.samplingHz) ? file.samplingHz : null,
+          rows: Array.isArray(file.rows) ? file.rows : []
+        }))
+      };
+    }
+    function restoreSyncedFitPayload(payload) {
+      if (!payload || typeof payload !== 'object' || !Array.isArray(payload.files)) {
+        throw new Error('Synced FIT file format not recognised.');
+      }
+      fitSyncState.parsedFiles = payload.files.map((file, index) => ({
+        id: Number.isFinite(file.id) ? file.id : index + 1,
+        fileName: file.fileName || `Synced FIT ${index + 1}`,
+        rows: Array.isArray(file.rows) ? file.rows : [],
+        timeColumnKey: file.timeColumnKey || 'Time',
+        metricColumns: Array.isArray(file.metricColumns) ? file.metricColumns : [],
+        samplingHz: Number.isFinite(file.samplingHz) ? file.samplingHz : null,
+        offset: Number.isFinite(file.offset) ? file.offset : 0,
+        assignedRiderIndex: file.assignedRiderIndex === 0 ? 0 : null,
+        riderIndex: file.assignedRiderIndex === 0 ? 0 : null
+      }));
+      fitSyncState.nextParsedFileId = fitSyncState.parsedFiles.reduce((maxId, file) => Math.max(maxId, file.id), 0) + 1;
+      if (typeof payload.riderName === 'string' && payload.riderName.trim()) {
+        rider1Input.value = payload.riderName;
+      }
+      renderFitAssignments();
+      if (payload.metricKey) {
+        const stream = getLoadedFitStream();
+        if (stream && Array.isArray(stream.metricColumns) && stream.metricColumns.includes(payload.metricKey)) {
+          fitMetricSelect.value = payload.metricKey;
+          buildFitSeries(payload.metricKey);
+        }
+      }
+    }
+    function populateFitMetricSelect(metricColumns, selectedValue = '') {
+      fitMetricSelect.innerHTML = '<option value="">Select metric</option>';
+      for (const key of metricColumns) {
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = key;
+        fitMetricSelect.appendChild(option);
+      }
+      fitMetricSelect.disabled = metricColumns.length === 0;
+      if (selectedValue && metricColumns.includes(selectedValue)) {
+        fitMetricSelect.value = selectedValue;
+      }
+    }
+    function renderFitLegend() {
+      if (fitSyncState.series.length === 0) {
+        fitLegend.innerHTML = '<span class="fit-swatch"><i style="background:#94a3b8"></i>No active FIT stream</span>';
+        return;
+      }
+      fitLegend.innerHTML = fitSyncState.series
+        .map((series) => `<span class="fit-swatch"><i style="background:${series.color}"></i>${series.label}</span>`)
+        .join('');
+    }
+    function renderFitSyncTargets() {
+      if (fitSyncState.series.length === 0) {
+        fitSyncTargets.innerHTML = '';
+        return;
+      }
+      fitSyncTargets.innerHTML = fitSyncState.series
+        .map((series) => `<button type="button" class="target-btn active" data-target="${series.riderIndex}">${series.label}</button>`)
+        .join('');
+    }
+    function getFitOffsetLabel() {
+      if (fitSyncState.series.length === 0) return '0.000s';
+      const offset = fitSyncState.series[0].offset || 0;
+      return `${formatFitNum(offset, 3)}s`;
+    }
+    function updateFitStats() {
+      fitSamplingHz.textContent = formatSamplingDisplay(fitSyncState.stream);
+      fitVideoFps.textContent = `${getFps()} fps`;
+      fitTraceOffset.textContent = getFitOffsetLabel();
+      fitVideoTime.textContent = `${formatFitNum(video.currentTime || 0, 3)}s`;
+    }
+    function resetFitMetricAndPlot(options = {}) {
+      const { preserveMetricOptions = false } = options;
+      fitSyncState.metricKey = '';
+      fitSyncState.series = [];
+      fitSyncState.samplingDisplay = fitSyncState.stream ? formatSamplingDisplay(fitSyncState.stream) : '-';
+      if (!preserveMetricOptions) populateFitMetricSelect([]);
+      else fitMetricSelect.value = '';
+      fitCurrentValues.textContent = 'Values @ playhead: -';
+      renderFitLegend();
+      renderFitSyncTargets();
+      updateFitStats();
+      drawFitPlot();
+    }
+    function rebuildFitMetricOptions() {
+      const stream = getLoadedFitStream();
+      fitSyncState.samplingDisplay = formatSamplingDisplay(stream);
+      if (!stream) {
+        resetFitMetricAndPlot();
+        renderLapDataTables();
+        setFitStatus('Assign a FIT file to start syncing.');
+        return;
+      }
+      const metricColumns = Array.isArray(stream.metricColumns) ? [...stream.metricColumns].sort((a, b) => a.localeCompare(b)) : [];
+      const previousMetric = fitSyncState.metricKey;
+      populateFitMetricSelect(metricColumns, previousMetric);
+      updateFitStats();
+      if (metricColumns.length === 0) {
+        resetFitMetricAndPlot();
+        renderLapDataTables();
+        setFitStatus('No numeric metrics found in the FIT file.');
+        return;
+      }
+      if (previousMetric && metricColumns.includes(previousMetric)) {
+        buildFitSeries(previousMetric);
+        renderLapDataTables();
+        setFitStatus(`FIT stream ready. Overlaying ${previousMetric}.`, 'ok');
+        return;
+      }
+      resetFitMetricAndPlot({ preserveMetricOptions: true });
+      renderLapDataTables();
+      setFitStatus('FIT stream loaded. Choose a metric.', 'ok');
+    }
+    function buildFitSeries(metricKey) {
+      if (!metricKey) {
+        resetFitMetricAndPlot({ preserveMetricOptions: true });
+        renderLapDataTables();
+        return;
+      }
+      const stream = getLoadedFitStream();
+      if (!stream) {
+        resetFitMetricAndPlot({ preserveMetricOptions: true });
+        renderLapDataTables();
+        return;
+      }
+      const points = [];
+      for (const row of stream.rows) {
+        const t = toNumeric(row[stream.timeColumnKey]);
+        const y = toNumeric(row[metricKey]);
+        if (t !== null && y !== null) points.push({ t, y });
+      }
+      points.sort((a, b) => a.t - b.t);
+      if (points.length < 2) {
+        fitSyncState.series = [];
+        fitSyncState.metricKey = metricKey;
+        renderFitLegend();
+        renderFitSyncTargets();
+        updateFitStats();
+        drawFitPlot();
+        renderLapDataTables();
+        setFitStatus('The selected metric does not have enough numeric points to plot.');
+        return;
+      }
+      const baseTime = points[0].t;
+      fitSyncState.series = [{
+        riderIndex: 0,
+        label: getFitSeriesLabel(),
+        fileName: stream.fileName,
+        color: BAR_COLOR,
+        offset: toNumeric(stream.offset) || 0,
+        times: points.map((point) => point.t - baseTime),
+        metricValues: points.map((point) => point.y)
+      }];
+      fitSyncState.metricKey = metricKey;
+      renderFitLegend();
+      renderFitSyncTargets();
+      updateFitStats();
+      drawFitPlot();
+      renderLapDataTables();
+      setFitStatus('FIT stream loaded. Left drag scrubs video, right drag syncs the trace.', 'ok');
+    }
+    async function loadFitFilesToPool(files) {
+      if (!files || files.length === 0) return;
+      setFitStatus('Loading FIT file(s)...', 'ok');
+      const loadedNames = [];
+      const failedNames = [];
+      for (const file of files) {
+        try {
+          const buffer = await file.arrayBuffer();
+          const fitData = await parseFitArrayBuffer(buffer);
+          const records = extractFitRecords(fitData);
+          const rows = normalizeFitRecordsToRows(records);
+          addDerivedFitColumns(rows);
+          const columnSet = new Set();
+          for (const row of rows) { for (const key of Object.keys(row)) columnSet.add(key); }
+          const columns = [...columnSet];
+          const timeColumnKey = findTimeColumn(columns);
+          if (!timeColumnKey || rows.length < 2) {
+            throw new Error(`No readable timestamp series found in ${file.name}.`);
+          }
+          const timeValues = [];
+          for (const row of rows) {
+            const value = toNumeric(row[timeColumnKey]);
+            if (value !== null) timeValues.push(value);
+          }
+          const dts = [];
+          for (let i = 1; i < timeValues.length; i++) {
+            const dt = timeValues[i] - timeValues[i - 1];
+            if (Number.isFinite(dt) && dt > 0) dts.push(dt);
+          }
+          if (dts.length === 0) throw new Error(`Timestamps are not increasing in ${file.name}.`);
+          const meanDt = dts.reduce((sum, value) => sum + value, 0) / dts.length;
+          fitSyncState.parsedFiles.push({
+            id: fitSyncState.nextParsedFileId++,
+            fileName: file.name,
+            rows,
+            timeColumnKey,
+            metricColumns: columns.filter((column) => column !== timeColumnKey),
+            samplingHz: meanDt > 0 ? 1 / meanDt : null,
+            offset: 0,
+            assignedRiderIndex: null,
+            riderIndex: null
+          });
+          loadedNames.push(file.name);
+        } catch (error) {
+          console.error(error);
+          failedNames.push(file.name);
+        }
+      }
+      renderFitAssignments();
+      if (loadedNames.length > 0 && failedNames.length > 0) {
+        setFitStatus(`Loaded ${loadedNames.length} FIT file(s). ${failedNames.length} failed. Drag file into rider slot.`, 'ok');
+      } else if (loadedNames.length > 0) {
+        setFitStatus(`Loaded ${loadedNames.length} FIT file(s). Drag file into rider slot.`, 'ok');
+      } else {
+        setFitStatus('No FIT files were loaded successfully.');
+      }
+    }
+    function assignFitFileToRider(fileId) {
+      const file = fitSyncState.parsedFiles.find((item) => item.id === fileId);
+      if (!file) return;
+      const current = getAssignedFitFile();
+      if (current && current.id !== file.id) current.assignedRiderIndex = null;
+      file.assignedRiderIndex = 0;
+      renderFitAssignments();
+    }
+    function unassignFitFile(fileId) {
+      const file = fitSyncState.parsedFiles.find((item) => item.id === fileId);
+      if (!file) return;
+      file.assignedRiderIndex = null;
+      renderFitAssignments();
+    }
+    function getFitSeriesValueAtVideoTime(series, videoTime) {
+      if (!series || series.times.length === 0 || series.metricValues.length === 0) return null;
+      const metricT = videoTime - (series.offset || 0);
+      let lo = 0, hi = series.times.length - 1;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (series.times[mid] < metricT) lo = mid + 1;
+        else hi = mid;
+      }
+      if (lo > 0 && Math.abs(series.times[lo - 1] - metricT) <= Math.abs(series.times[lo] - metricT)) {
+        return series.metricValues[lo - 1];
+      }
+      return series.metricValues[lo];
+    }
+    function snapFitSeriesToPlayhead() {
+      if (fitSyncState.series.length === 0) {
+        setFitStatus('Load a FIT stream and select a metric before snapping.');
+        return;
+      }
+      const playhead = Number.isFinite(video.currentTime) ? video.currentTime : 0;
+      const series = fitSyncState.series[0];
+      const metricT = playhead - (series.offset || 0);
+      let targetIdx = -1;
+      for (let i = 0; i < series.times.length; i++) {
+        if (series.times[i] < metricT) continue;
+        if (Math.abs(series.metricValues[i]) <= 1e-9) continue;
+        targetIdx = i;
+        break;
+      }
+      if (targetIdx < 0) {
+        setFitStatus('No non-zero values found to the right of the playhead in the loaded stream.');
+        return;
+      }
+      const newOffset = playhead - series.times[targetIdx];
+      series.offset = newOffset;
+      if (fitSyncState.stream) fitSyncState.stream.offset = newOffset;
+      updateFitStats();
+      drawFitPlot();
+      renderLapDataTables();
+      setFitStatus('Snapped stream to the playhead.', 'ok');
+    }
+    function findFitBounds(values) {
+      let min = Infinity, max = -Infinity;
+      for (const value of values) {
+        if (value < min) min = value;
+        if (value > max) max = value;
+      }
+      if (!Number.isFinite(min) || !Number.isFinite(max)) return [0, 1];
+      if (min === max) {
+        const pad = Math.abs(min) * 0.05 || 1;
+        return [min - pad, max + pad];
+      }
+      const pad = (max - min) * 0.08;
+      return [min - pad, max + pad];
+    }
+    function resizeFitCanvasToDisplaySize() {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = fitPlot.getBoundingClientRect();
+      const width = Math.max(220, Math.floor(rect.width));
+      const height = Math.max(200, Math.floor(rect.height));
+      const targetWidth = Math.floor(width * dpr);
+      const targetHeight = Math.floor(height * dpr);
+      if (fitPlot.width !== targetWidth || fitPlot.height !== targetHeight) {
+        fitPlot.width = targetWidth;
+        fitPlot.height = targetHeight;
+      }
+      fitPlotContext.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { width, height };
+    }
+    function drawFitPlot() {
+      const { width, height } = resizeFitCanvasToDisplaySize();
+      fitPlotContext.clearRect(0, 0, width, height);
+      fitPlotContext.fillStyle = '#ffffff';
+      fitPlotContext.fillRect(0, 0, width, height);
+      const margin = { l: 58, r: 16, t: 14, b: 26 };
+      const plotWidth = width - margin.l - margin.r;
+      const plotHeight = height - margin.t - margin.b;
+      if (fitSyncState.series.length === 0) {
+        fitPlotContext.fillStyle = '#64748b';
+        fitPlotContext.font = '14px sans-serif';
+        fitPlotContext.fillText('Load a FIT file and choose a metric to draw the trace.', 14, 28);
+        fitSyncState.drawingData = null;
+        fitCurrentValues.textContent = 'Values @ playhead: -';
+        return;
+      }
+      const allValues = [];
+      let minDisplayTime = Infinity, maxDisplayTime = -Infinity;
+      for (const series of fitSyncState.series) {
+        if (series.times.length < 2 || series.metricValues.length < 2) continue;
+        allValues.push(...series.metricValues);
+        minDisplayTime = Math.min(minDisplayTime, series.times[0] + (series.offset || 0));
+        maxDisplayTime = Math.max(maxDisplayTime, series.times[series.times.length - 1] + (series.offset || 0));
+      }
+      const baseSpan = Math.max(0.01, maxDisplayTime - minDisplayTime);
+      const visibleSpan = Math.max(0.01, baseSpan * fitSyncState.viewScale);
+      const viewCenterT = Number.isFinite(video.currentTime) ? video.currentTime : 0;
+      const viewMinT = viewCenterT - visibleSpan / 2;
+      const viewMaxT = viewCenterT + visibleSpan / 2;
+      const [yMin, yMax] = findFitBounds(allValues);
+      const xFromT = (t) => margin.l + ((t - viewMinT) / (viewMaxT - viewMinT || 1)) * plotWidth;
+      const yFromV = (v) => margin.t + (1 - (v - yMin) / (yMax - yMin || 1)) * plotHeight;
+      fitSyncState.drawingData = { xFromT, viewMinT, viewMaxT, visibleSpan, plotWidth };
+      fitPlotContext.strokeStyle = 'rgba(31, 41, 55, 0.15)';
+      fitPlotContext.lineWidth = 1;
+      fitPlotContext.beginPath();
+      for (let i = 0; i <= 4; i++) {
+        const gy = margin.t + (plotHeight * i) / 4;
+        fitPlotContext.moveTo(margin.l, gy);
+        fitPlotContext.lineTo(width - margin.r, gy);
+      }
+      fitPlotContext.stroke();
+      for (const series of fitSyncState.series) {
+        fitPlotContext.strokeStyle = series.color;
+        fitPlotContext.lineWidth = 1.7;
+        fitPlotContext.beginPath();
+        for (let i = 0; i < series.times.length; i++) {
+          const x = xFromT(series.times[i] + (series.offset || 0));
+          const y = yFromV(series.metricValues[i]);
+          if (i === 0) fitPlotContext.moveTo(x, y);
+          else fitPlotContext.lineTo(x, y);
+        }
+        fitPlotContext.stroke();
+      }
+      fitPlotContext.strokeStyle = '#111827';
+      fitPlotContext.lineWidth = 1;
+      fitPlotContext.beginPath();
+      fitPlotContext.moveTo(margin.l, margin.t);
+      fitPlotContext.lineTo(margin.l, margin.t + plotHeight);
+      fitPlotContext.lineTo(margin.l + plotWidth, margin.t + plotHeight);
+      fitPlotContext.stroke();
+      fitPlotContext.fillStyle = '#374151';
+      fitPlotContext.font = '12px sans-serif';
+      fitPlotContext.fillText(`${formatFitNum(yMax, 2)}`, 8, margin.t + 4);
+      fitPlotContext.fillText(`${formatFitNum(yMin, 2)}`, 8, margin.t + plotHeight + 4);
+      fitPlotContext.fillText(`${formatFitNum(viewMinT, 2)} s`, margin.l, height - 8);
+      fitPlotContext.fillText(`${formatFitNum(viewMaxT, 2)} s`, width - margin.r - 64, height - 8);
+      const linkedX = margin.l + plotWidth * 0.5;
+      fitPlotContext.strokeStyle = '#dc2626';
+      fitPlotContext.lineWidth = 2;
+      fitPlotContext.beginPath();
+      fitPlotContext.moveTo(linkedX, margin.t);
+      fitPlotContext.lineTo(linkedX, margin.t + plotHeight);
+      fitPlotContext.stroke();
+      const playheadValues = fitSyncState.series
+        .map((series) => ({ label: series.label, value: getFitSeriesValueAtVideoTime(series, viewCenterT) }))
+        .filter((entry) => entry.value !== null);
+      fitCurrentValues.textContent = playheadValues.length > 0
+        ? `Values @ playhead: ${playheadValues.map((entry) => `${entry.label}: ${formatFitNum(entry.value, 4)}`).join(' | ')}`
+        : 'Values @ playhead: -';
+    }
+
+    function getAirDensity() {
+      const v = parseFloat(airDensityInput.value);
+      return Number.isFinite(v) && v > 0 ? v : 1.169;
+    }
+    function isStandardizationEnabled() {
+      return Math.abs(getAirDensity() - 1.169) > 0.0000001;
+    }
+    function getStandardizationFactor() {
+      const x = getAirDensity();
+      return Math.pow(1.169 / x, 0.3277);
+    }
+    function getStandardizedQuarterTimeAt(index) {
+      const row = splitRows[index];
+      if (!row) return null;
+      if (!isStandardizationEnabled()) return row.quarterTime;
+      const factor = getStandardizationFactor();
+      const apply = flyingMode || index >= 4;
+      return apply ? row.quarterTime * factor : row.quarterTime;
+    }
+    function getStandardizedLapTotal(lapStart, lapRows) {
+      let total = 0;
+      for (let i = 0; i < lapRows.length; i++) {
+        const t = getStandardizedQuarterTimeAt(lapStart + i);
+        if (Number.isFinite(t)) total += t;
+      }
+      return total;
+    }
+    function getStandardizedTotalTime() {
+      if (splitRows.length === 0) return null;
+      let total = 0;
+      for (let i = 0; i < splitRows.length; i++) {
+        const t = getStandardizedQuarterTimeAt(i);
+        if (Number.isFinite(t)) total += t;
+      }
+      return total;
+    }
+    function getRawTotalTime() {
+      if (splitRows.length === 0) return null;
+      return splitRows.reduce((acc, row) => acc + row.quarterTime, 0);
+    }
+    function getLapTotals() {
+      const lapTotals = [];
+      for (let lapStart = 0; lapStart < splitRows.length; lapStart += 4) {
+        const lapRows = splitRows.slice(lapStart, lapStart + 4);
+        let lapTotal = 0;
+        for (const row of lapRows) lapTotal += row.quarterTime;
+        lapTotals.push(lapTotal);
+      }
+      return lapTotals;
+    }
+    function getAverageLapSplitOverall(lapTotals = getLapTotals()) {
+      if (lapTotals.length === 0) return null;
+      return lapTotals.reduce((acc, v) => acc + v, 0) / lapTotals.length;
+    }
+    function getAverageLapSplitAfterFirstLap(lapTotals = getLapTotals()) {
+      if (lapTotals.length <= 1) return null;
+      const postFirst = lapTotals.slice(1);
+      return postFirst.reduce((acc, v) => acc + v, 0) / postFirst.length;
+    }
+    function getRunningTimeForRow(row, index) {
+      if (Number.isFinite(startTime) && Number.isFinite(row.endTime)) {
+        return Math.max(0, row.endTime - startTime);
+      }
+      let running = 0;
+      for (let i = 0; i <= index; i++) running += splitRows[i].quarterTime;
+      return running;
+    }
+    function updateTitle() {
+      const rawTotal = getRawTotalTime();
+      const stdTotal = getStandardizedTotalTime();
+      const riderName = getRiderName();
+      const totalText = Number.isFinite(rawTotal)
+        ? (isStandardizationEnabled() && Number.isFinite(stdTotal)
+          ? ` (Raw/Std): ${formatClockTime(rawTotal)} / ${formatClockTime(stdTotal)} (ρ=${getAirDensity().toFixed(3)} kg/m³)`
+          : ` ${formatClockTime(rawTotal)}`)
+        : '';
+      reportTitle.textContent = `${getTitleText()} — ${riderName} IP Report${totalText}`;
+      reportDashboardTitle.textContent = `${getTitleText()} — ${riderName}${totalText}`;
+    }
+    function setStatus(msg) { statusDisplay.textContent = `Status: ${msg}`; }
+    function renumberRows() {
+      let n = 0;
+      for (const row of splitRows) {
+        n++;
+        row.splitLabel = row.splitType === 'FINISH' ? `Q${n} (Finish)` : `Q${n}`;
+      }
+    }
+    function renderRows() {
+      reportTableBody.innerHTML = '';
+      for (let i = splitRows.length - 1; i >= 0; i--) {
+        const row = splitRows[i];
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${row.splitLabel}</td>
+          <td>${formatTime(row.quarterTime)}</td>
+          <td>${formatTime(getRunningTimeForRow(row, i))}</td>
+          <td>${row.speed.toFixed(3)}</td>
+          <td>${row.eventLabel}</td>
+        `;
+        reportTableBody.appendChild(tr);
+      }
+      reportTable.style.display = splitRows.length > 0 ? 'table' : 'none';
+      updateTitle();
+      renderReportChart();
+      renderLapDataTables();
+      renderFirstLapTable();
+      renderKiloSplitsTable();
+    }
+
+    function getChartRows() {
+      return splitRows.map((row) => ({
+        label: row.splitLabel,
+        speed: row.speed,
+        quarterTime: row.quarterTime
+      }));
+    }
+
+    function renderChartLegend(showAverageLine) {
+      chartLegend.innerHTML = '';
+      const speedItem = document.createElement('span');
+      speedItem.className = 'legend-item';
+      speedItem.innerHTML = `<span class="legend-swatch" style="background:${BAR_COLOR}"></span>Speed`;
+      chartLegend.appendChild(speedItem);
+      if (showAverageLine) {
+        const avgItem = document.createElement('span');
+        avgItem.className = 'legend-item';
+        avgItem.innerHTML = '<span class="legend-line"></span>Post-lap-1 average';
+        chartLegend.appendChild(avgItem);
+      }
+    }
+
+    function resizeChartCanvas() {
+      const width = Math.max(320, Math.floor(reportChartWrapper.clientWidth || 900));
+      const height = window.innerWidth <= 700 ? 280 : 360;
+      if (reportChart.width !== width || reportChart.height !== height) {
+        reportChart.width = width;
+        reportChart.height = height;
+      }
+      return { width, height };
+    }
+
+    function renderReportChart() {
+      const allRows = getChartRows();
+      const globalStartIndex = flyingMode ? 0 : 4;
+      const hlMode = hlToggle ? hlToggle.checked : true;
+      const speedProfileTitle = document.getElementById('speedProfileTitle');
+      if (speedProfileTitle) speedProfileTitle.textContent = hlMode ? 'Half Lap Speed Profile' : 'Quarter Split Speed Profile';
+      const quarterRows = flyingMode ? allRows : allRows.slice(4);
+
+      let rows;
+      if (hlMode && quarterRows.length >= 3) {
+        const inner = quarterRows.slice(1, quarterRows.length - 1);
+        rows = [];
+        for (let p = 0; p + 1 < inner.length; p += 2) {
+          const a = inner[p];
+          const b = inner[p + 1];
+          const combinedTime = (a.quarterTime || 0) + (b.quarterTime || 0);
+          const hlSpeed = combinedTime > 0 ? (125 / combinedTime) * 3.6 : 0;
+          rows.push({
+            label: b.label,
+            speed: hlSpeed,
+            _hlIndex: p / 2,
+            _hlEndQuarterIndex: globalStartIndex + 1 + p + 1
+          });
+        }
+      } else {
+        rows = quarterRows;
+      }
+
+      const hasRows = rows.length > 0;
+      const postFirstLapAverage = getAverageLapSplitAfterFirstLap();
+      const postFirstLapAverageSpeed = Number.isFinite(postFirstLapAverage)
+        ? speedFromDistanceTime(LAP_DISTANCE_METERS, postFirstLapAverage)
+        : null;
+      reportChartWrapper.hidden = !hasRows;
+      reportChartEmpty.hidden = hasRows;
+      renderChartLegend(Number.isFinite(postFirstLapAverageSpeed));
+
+      const { width, height } = resizeChartCanvas();
+      reportChartContext.clearRect(0, 0, width, height);
+      if (!hasRows) return;
+
+      const padding = { top: 22, right: 18, bottom: 80, left: 68 };
+      const chartWidth = width - padding.left - padding.right;
+      const chartHeight = height - padding.top - padding.bottom;
+      const maxSpeed = Math.max(...rows.map((row) => row.speed), 1);
+      const minSpeed = Math.min(...rows.map((row) => row.speed));
+      const userYMin = parseFloat(document.getElementById('chartYMinInput').value);
+      const userYMax = parseFloat(document.getElementById('chartYMaxInput').value);
+      const axisMin = Number.isFinite(userYMin) ? userYMin : minSpeed - 1;
+      const axisMax = Number.isFinite(userYMax) ? Math.max(userYMax, axisMin + 1) : Math.max(maxSpeed + 1, axisMin + 1);
+      const axisRange = Math.max(0.001, axisMax - axisMin);
+      const tickCount = 5;
+      const baseY = padding.top + chartHeight;
+      const barSlot = chartWidth / rows.length;
+      const barWidth = Math.min(30, Math.max(8, barSlot * 0.55));
+
+      reportChartContext.font = '12px sans-serif';
+      reportChartContext.textAlign = 'right';
+      reportChartContext.textBaseline = 'middle';
+      reportChartContext.strokeStyle = '#cbd5e1';
+      reportChartContext.fillStyle = '#475569';
+      reportChartContext.lineWidth = 1;
+
+      for (let tick = 0; tick <= tickCount; tick++) {
+        const value = axisMin + (axisRange / tickCount) * tick;
+        const y = baseY - ((value - axisMin) / axisRange) * chartHeight;
+        reportChartContext.beginPath();
+        reportChartContext.moveTo(padding.left, y);
+        reportChartContext.lineTo(width - padding.right, y);
+        reportChartContext.stroke();
+        reportChartContext.fillText(value.toFixed(1), padding.left - 10, y);
+      }
+
+      reportChartContext.strokeStyle = '#0f172a';
+      reportChartContext.lineWidth = 1.2;
+      reportChartContext.beginPath();
+      reportChartContext.moveTo(padding.left, padding.top);
+      reportChartContext.lineTo(padding.left, baseY);
+      reportChartContext.lineTo(width - padding.right, baseY);
+      reportChartContext.stroke();
+
+      reportChartContext.save();
+      reportChartContext.translate(18, padding.top + chartHeight / 2);
+      reportChartContext.rotate(-Math.PI / 2);
+      reportChartContext.textAlign = 'center';
+      reportChartContext.fillStyle = '#0f172a';
+      reportChartContext.fillText('Speed (km/h)', 0, 0);
+      reportChartContext.restore();
+
+      if (Number.isFinite(postFirstLapAverageSpeed)) {
+        const avgY = baseY - ((postFirstLapAverageSpeed - axisMin) / axisRange) * chartHeight;
+        reportChartContext.save();
+        reportChartContext.strokeStyle = AVERAGE_LINE_COLOR;
+        reportChartContext.lineWidth = 2;
+        reportChartContext.setLineDash([6, 6]);
+        reportChartContext.beginPath();
+        reportChartContext.moveTo(padding.left, avgY);
+        reportChartContext.lineTo(width - padding.right, avgY);
+        reportChartContext.stroke();
+        reportChartContext.restore();
+      }
+
+      rows.forEach((row, index) => {
+        const centerX = padding.left + barSlot * index + barSlot / 2;
+        const barHeight = ((row.speed - axisMin) / axisRange) * chartHeight;
+        const barX = centerX - barWidth / 2;
+        const barY = baseY - barHeight;
+
+        reportChartContext.fillStyle = BAR_COLOR;
+        reportChartContext.fillRect(barX, barY, barWidth, barHeight);
+
+        reportChartContext.save();
+        reportChartContext.translate(centerX, baseY + 8);
+        reportChartContext.rotate(Math.PI / 2);
+        reportChartContext.textAlign = 'left';
+        reportChartContext.textBaseline = 'middle';
+        reportChartContext.fillStyle = '#475569';
+        const xLabel = hlMode && row._hlEndQuarterIndex != null
+          ? `${(row._hlEndQuarterIndex + 1) * SPLIT_DISTANCE_METERS}m`
+          : `${(globalStartIndex + index + 1) * SPLIT_DISTANCE_METERS}m`;
+        reportChartContext.fillText(xLabel, 0, 0);
+        reportChartContext.restore();
+      });
+    }
+
+    function renderMergedLapTable() {
+      const tbody = lapMergedTable.querySelector('tbody');
+      const headRow = lapMergedTable.querySelector('thead tr');
+      tbody.innerHTML = '';
+
+      // Collect completed laps
+      const completedLaps = [];
+      for (let lapStart = 0; lapStart < splitRows.length; lapStart += 4) {
+        const lapRows = splitRows.slice(lapStart, lapStart + 4);
+        if (lapRows.length < 4) continue;
+        let lapTotal = 0;
+        for (const row of lapRows) lapTotal += row.quarterTime;
+        completedLaps.push({ total: lapTotal, lapStart });
+      }
+
+      if (completedLaps.length === 0) {
+        lapMergedTable.hidden = true;
+        lapMergedEmpty.hidden = false;
+        return;
+      }
+
+      // FIT data
+      const stream = fitSyncState.stream;
+      const cadenceKey = getCadenceColumnKeyForStream(stream);
+      const powerKey = getPowerColumnKeyForStream(stream);
+      const hasCadence = !!(stream && cadenceKey);
+      const hasPower = !!(stream && powerKey);
+
+      // Lap bounds for FIT
+      const lapBounds = [];
+      if (hasCadence || hasPower) {
+        let elapsed = 0;
+        for (const { lapStart } of completedLaps) {
+          let dur = 0;
+          for (let q = 0; q < 4; q++) dur += splitRows[lapStart + q].quarterTime;
+          lapBounds.push({
+            start: (Number.isFinite(startTime) ? startTime : 0) + elapsed,
+            end: (Number.isFinite(startTime) ? startTime : 0) + elapsed + dur
+          });
+          elapsed += dur;
+        }
+      }
+
+      // Pre-compute all per-lap values
+      const totals = completedLaps.map(l => l.total);
+      const postFirstLapAvg = getAverageLapSplitAfterFirstLap(totals);
+      const diffs = totals.map(t => Number.isFinite(postFirstLapAvg) ? t - postFirstLapAvg : null);
+
+      const cadValues = hasCadence
+        ? lapBounds.map(b => getAverageMetricForVideoInterval(stream, cadenceKey, b.start, b.end))
+        : [];
+      const powValues = hasPower
+        ? lapBounds.map(b => getAverageMetricForVideoInterval(stream, powerKey, b.start, b.end))
+        : [];
+
+      // Heat colour helpers
+      function heatColor(t) {
+        const n = Math.max(0, Math.min(1, (t + 1) / 2));
+        const r = n < 0.5 ? Math.round(n * 2 * 255) : 255;
+        const g = n < 0.5 ? 255 : Math.round((1 - (n - 0.5) * 2) * 255);
+        return `rgba(${r},${g},80,0.45)`;
+      }
+      function rangeHeat(value, values, invert = false) {
+        // Only compare laps 2+ (index 1+) for heat ranging
+        const postFirst = values.slice(1).filter(v => v != null);
+        if (postFirst.length < 2) return '';
+        const min = Math.min(...postFirst);
+        const max = Math.max(...postFirst);
+        if (max === min) return '';
+        const t = ((value - min) / (max - min)) * 2 - 1; // -1=lowest, +1=highest
+        return heatColor(invert ? -t : t);
+      }
+      // For diff: negative diff = faster (green), positive = slower (red)
+      function diffHeat(diff) {
+        const postFirstDiffs = diffs.slice(1).filter(d => d != null);
+        if (postFirstDiffs.length < 2) return '';
+        const maxAbs = Math.max(...postFirstDiffs.map(Math.abs));
+        if (maxAbs === 0) return '';
+        return heatColor(diff / maxAbs);
+      }
+
+      // Build transposed header: blank label cell + one <th> per lap
+      headRow.innerHTML = '<th></th>' + completedLaps.map((_, i) => `<th>Lap ${i + 1}</th>`).join('');
+
+      // Helper to build a metric row
+      function makeRow(label, values, bgFn) {
+        const tr = document.createElement('tr');
+        const th = document.createElement('th');
+        th.textContent = label;
+        tr.appendChild(th);
+        values.forEach((val, i) => {
+          const td = document.createElement('td');
+          td.textContent = val !== null && val !== undefined ? val : '--';
+          if (i > 0 && val !== null && val !== undefined) {
+            const bg = bgFn(val, i);
+            if (bg) td.style.background = bg;
+          }
+          tr.appendChild(td);
+        });
+        return tr;
+      }
+
+      // Total (s) row — heat: lower = greener (invert=false means low=-1=green)
+      tbody.appendChild(makeRow(
+        'Total (s)',
+        totals.map(formatTime),
+        (val, i) => rangeHeat(totals[i], totals, false)
+      ));
+
+      // Diff (s) row
+      tbody.appendChild(makeRow(
+        'Diff (s)',
+        diffs.map(d => d !== null ? formatSignedTime(d) : '--'),
+        (val, i) => diffs[i] !== null ? diffHeat(diffs[i]) : ''
+      ));
+
+      // Cadence row
+      if (hasCadence) {
+        tbody.appendChild(makeRow(
+          'Cadence (rpm)',
+          cadValues.map(v => v != null ? v.toFixed(1) : '--'),
+          (val, i) => rangeHeat(cadValues[i], cadValues, false)
+        ));
+      }
+
+      // Power row
+      if (hasPower) {
+        tbody.appendChild(makeRow(
+          'Power (W)',
+          powValues.map(v => v != null ? v.toFixed(0) : '--'),
+          (val, i) => rangeHeat(powValues[i], powValues, false)
+        ));
+      }
+
+      lapMergedTable.hidden = false;
+      lapMergedEmpty.hidden = true;
+    }
+
+    function renderFitAveragesTable() {
+      const tbody = fitAvgTable.querySelector('tbody');
+      tbody.innerHTML = '';
+
+      const stream = fitSyncState.stream;
+      const cadenceKey = getCadenceColumnKeyForStream(stream);
+      const powerKey = getPowerColumnKeyForStream(stream);
+      const completedLapCount = Math.floor(splitRows.length / 4);
+
+      if (!stream || (!cadenceKey && !powerKey) || completedLapCount === 0) {
+        fitAvgCard.hidden = true;
+        return;
+      }
+
+      // Build lap bounds
+      const lapBounds = [];
+      let elapsed = 0;
+      for (let lap = 0; lap < completedLapCount; lap++) {
+        let dur = 0;
+        for (let q = 0; q < 4; q++) dur += splitRows[lap * 4 + q].quarterTime;
+        lapBounds.push({
+          start: (Number.isFinite(startTime) ? startTime : 0) + elapsed,
+          end: (Number.isFinite(startTime) ? startTime : 0) + elapsed + dur
+        });
+        elapsed += dur;
+      }
+
+      function avgOf(values) {
+        const valid = values.filter(v => v != null);
+        return valid.length > 0 ? valid.reduce((s, v) => s + v, 0) / valid.length : null;
+      }
+
+      const tdStyle = 'border:1px solid #dbe2ea;padding:8px 10px;text-align:center;';
+      const thStyle = 'border:1px solid #dbe2ea;padding:8px 10px;text-align:left;font-weight:600;background:#f8fafc;';
+      let hasData = false;
+
+      if (cadenceKey) {
+        const vals = lapBounds.map(b => getAverageMetricForVideoInterval(stream, cadenceKey, b.start, b.end));
+        const overall = avgOf(vals);
+        const postFirst = avgOf(vals.slice(1));
+        if (overall != null || postFirst != null) {
+          hasData = true;
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<th style="${thStyle}">Cadence (rpm)</th>` +
+            `<td style="${tdStyle}">${overall != null ? overall.toFixed(1) : '--'}</td>` +
+            `<td style="${tdStyle}">${postFirst != null ? postFirst.toFixed(1) : '--'}</td>`;
+          tbody.appendChild(tr);
+        }
+
+        const lapOneEnd = lapBounds[0] ? lapBounds[0].end : null;
+        const firstReachTime = getFirstCadenceReachTimeAfterLapOne(stream, cadenceKey, lapOneEnd, postFirst);
+        const firstReachElapsed = (firstReachTime != null && Number.isFinite(startTime))
+          ? Math.max(0, firstReachTime - startTime)
+          : null;
+        if (postFirst != null) {
+          hasData = true;
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<th style="${thStyle}">Time to avg cadence</th>` +
+            `<td style="${tdStyle}">--</td>` +
+            `<td style="${tdStyle}">${firstReachElapsed != null ? formatClockTime(firstReachElapsed) : 'Not reached'}</td>`;
+          tbody.appendChild(tr);
+        }
+      }
+
+      if (powerKey) {
+        const vals = lapBounds.map(b => getAverageMetricForVideoInterval(stream, powerKey, b.start, b.end));
+        const overall = avgOf(vals);
+        const postFirst = avgOf(vals.slice(1));
+        if (overall != null || postFirst != null) {
+          hasData = true;
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<th style="${thStyle}">Power (W)</th>` +
+            `<td style="${tdStyle}">${overall != null ? overall.toFixed(0) : '--'}</td>` +
+            `<td style="${tdStyle}">${postFirst != null ? postFirst.toFixed(0) : '--'}</td>`;
+          tbody.appendChild(tr);
+        }
+      }
+
+      fitAvgCard.hidden = !hasData;
+    }
+
+    function renderLapDataTables() {
+      renderMergedLapTable();
+      renderFitAveragesTable();
+    }
+
+    function renderFirstLapTable() {
+      firstLapTableBody.innerHTML = '';
+      lapAveragesTableBody.innerHTML = '';
+      const showStandardized = isStandardizationEnabled();
+      const lapAveragesHeaderRow = lapAveragesTable.querySelector('thead tr');
+      lapAveragesHeaderRow.innerHTML = showStandardized
+        ? '<th>Metric</th><th>Raw (s)</th><th>Standardised (s)</th>'
+        : '<th>Metric</th><th>Raw (s)</th>';
+
+      const lapTotalsRaw = [];
+      const lapTotalsStd = [];
+      for (let lapStart = 0; lapStart < splitRows.length; lapStart += 4) {
+        const lapRows = splitRows.slice(lapStart, lapStart + 4);
+        if (lapRows.length < 4) continue;
+        let raw = 0;
+        for (const row of lapRows) raw += row.quarterTime;
+        lapTotalsRaw.push(raw);
+        lapTotalsStd.push(getStandardizedLapTotal(lapStart, lapRows));
+      }
+      const averageOverallRaw = getAverageLapSplitOverall(lapTotalsRaw);
+      const averageAfterFirstRaw = getAverageLapSplitAfterFirstLap(lapTotalsRaw);
+      const averageOverallStd = getAverageLapSplitOverall(lapTotalsStd);
+      const averageAfterFirstStd = getAverageLapSplitAfterFirstLap(lapTotalsStd);
+
+      const firstLap = splitRows.slice(0, 4);
+      if (firstLap.length === 0) {
+        firstLapTable.hidden = true;
+        firstLapEmpty.hidden = false;
+        lapAveragesTable.hidden = true;
+        return;
+      }
+
+      firstLap.forEach((row, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${i + 1}</td><td>${formatTime(row.quarterTime)}</td><td>${formatTime(getRunningTimeForRow(row, i))}</td>`;
+        firstLapTableBody.appendChild(tr);
+      });
+
+      const overallRow = document.createElement('tr');
+      overallRow.innerHTML = showStandardized
+        ? `<td>Average lap split (overall)</td><td>${formatTime(averageOverallRaw)}</td><td>${formatTime(averageOverallStd)}</td>`
+        : `<td>Average lap split (overall)</td><td>${formatTime(averageOverallRaw)}</td>`;
+      lapAveragesTableBody.appendChild(overallRow);
+
+      const postFirstRow = document.createElement('tr');
+      postFirstRow.innerHTML = showStandardized
+        ? `<td>Average lap split (after first lap)</td><td>${formatTime(averageAfterFirstRaw)}</td><td>${formatTime(averageAfterFirstStd)}</td>`
+        : `<td>Average lap split (after first lap)</td><td>${formatTime(averageAfterFirstRaw)}</td>`;
+      lapAveragesTableBody.appendChild(postFirstRow);
+
+      firstLapTable.hidden = false;
+      firstLapEmpty.hidden = true;
+      lapAveragesTable.hidden = false;
+    }
+
+    function getPreferredMetricColumnKeyForStream(stream, preferredKeys, fallbackIncludes) {
+      if (!stream || !Array.isArray(stream.metricColumns)) return null;
+      const columns = stream.metricColumns;
+      const lowerToOriginal = new Map(columns.map((col) => [String(col).toLowerCase(), col]));
+      for (const key of preferredKeys) {
+        if (lowerToOriginal.has(key)) return lowerToOriginal.get(key);
+      }
+      for (const col of columns) {
+        if (String(col).toLowerCase().includes(fallbackIncludes)) return col;
+      }
+      return null;
+    }
+    function getCadenceColumnKeyForStream(stream) {
+      return getPreferredMetricColumnKeyForStream(
+        stream, ['cadence', 'enhanced_cadence', 'bike_cadence', 'avg_cadence'], 'cadence'
+      );
+    }
+    function getPowerColumnKeyForStream(stream) {
+      return getPreferredMetricColumnKeyForStream(
+        stream, ['power', 'enhanced_power', 'bike_power', 'avg_power'], 'power'
+      );
+    }
+    function getAverageMetricForVideoInterval(stream, metricKey, startVideoTime, endVideoTime) {
+      if (!stream || !metricKey || !Array.isArray(stream.rows) || stream.rows.length === 0 || !stream.timeColumnKey) return null;
+      const offset = Number.isFinite(stream.offset) ? stream.offset : 0;
+      const timeColumnKey = stream.timeColumnKey;
+      const sampleTimes = [];
+      for (const row of stream.rows) {
+        const t = toNumeric(row[timeColumnKey]);
+        if (t !== null) sampleTimes.push(t);
+      }
+      if (sampleTimes.length === 0) return null;
+      const baseTime = Math.min(...sampleTimes);
+      let sum = 0, count = 0;
+      for (const row of stream.rows) {
+        const rawT = toNumeric(row[timeColumnKey]);
+        const metricValue = toNumeric(row[metricKey]);
+        if (rawT === null || metricValue === null) continue;
+        const alignedVideoTime = (rawT - baseTime) + offset;
+        if (alignedVideoTime >= startVideoTime && alignedVideoTime < endVideoTime) {
+          sum += metricValue;
+          count++;
+        }
+      }
+      return count > 0 ? sum / count : null;
+    }
+
+    function getFirstCadenceReachTimeAfterLapOne(stream, cadenceKey, lapOneEndVideoTime, targetCadence) {
+      if (!stream || !cadenceKey || !Number.isFinite(lapOneEndVideoTime) || !Number.isFinite(targetCadence)) return null;
+      if (!Array.isArray(stream.rows) || stream.rows.length === 0 || !stream.timeColumnKey) return null;
+
+      const offset = Number.isFinite(stream.offset) ? stream.offset : 0;
+      const timeColumnKey = stream.timeColumnKey;
+      const sampleTimes = [];
+      for (const row of stream.rows) {
+        const t = toNumeric(row[timeColumnKey]);
+        if (t !== null) sampleTimes.push(t);
+      }
+      if (sampleTimes.length === 0) return null;
+      const baseTime = Math.min(...sampleTimes);
+
+      const samples = [];
+      for (const row of stream.rows) {
+        const rawT = toNumeric(row[timeColumnKey]);
+        const cadence = toNumeric(row[cadenceKey]);
+        if (rawT === null || cadence === null) continue;
+        const alignedVideoTime = (rawT - baseTime) + offset;
+        if (alignedVideoTime >= lapOneEndVideoTime) samples.push({ t: alignedVideoTime, v: cadence });
+      }
+      if (samples.length === 0) return null;
+      samples.sort((a, b) => a.t - b.t);
+
+      let prev = null;
+      for (const sample of samples) {
+        if (sample.v >= targetCadence) {
+          if (!prev || prev.v >= targetCadence || sample.v === prev.v) return sample.t;
+          const frac = (targetCadence - prev.v) / (sample.v - prev.v);
+          return prev.t + frac * (sample.t - prev.t);
+        }
+        prev = sample;
+      }
+      return null;
+    }
+
+
+
+    function renderKiloSplitsTable() {
+      kiloSplitsTableBody.innerHTML = '';
+      const kilos = [];
+      for (let start = 0; start < splitRows.length; start += QUARTERS_PER_KILO) {
+        const kiloRows = splitRows.slice(start, start + QUARTERS_PER_KILO);
+        if (kiloRows.length < QUARTERS_PER_KILO) break;
+        let total = 0;
+        for (const row of kiloRows) total += row.quarterTime;
+        kilos.push(total);
+      }
+      if (kilos.length === 0) {
+        kiloSplitsTable.hidden = true;
+        kiloSplitsEmpty.hidden = false;
+        return;
+      }
+      kilos.forEach((time, i) => {
+        const speed = speedFromDistanceTime(1000, time);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td><strong>${i + 1} km</strong></td><td>${formatTime(time)}</td><td>${speed.toFixed(2)}</td>`;
+        kiloSplitsTableBody.appendChild(tr);
+      });
+      kiloSplitsTable.hidden = false;
+      kiloSplitsEmpty.hidden = true;
+    }
+
+    function openReportModal() {
+      reportModal.classList.add('open');
+      reportModal.setAttribute('aria-hidden', 'false');
+      renderReportChart();
+      renderLapDataTables();
+      renderFirstLapTable();
+      renderKiloSplitsTable();
+    }
+    function closeReportModal() {
+      reportModal.classList.remove('open');
+      reportModal.setAttribute('aria-hidden', 'true');
+    }
+
+    async function ensureHtml2CanvasLoaded() {
+      if (window.html2canvas) return window.html2canvas;
+      if (window.__html2canvasLoadingPromise) return window.__html2canvasLoadingPromise;
+      window.__html2canvasLoadingPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+        script.onload = () => resolve(window.html2canvas);
+        script.onerror = () => reject(new Error('Failed to load export library.'));
+        document.head.appendChild(script);
+      });
+      return window.__html2canvasLoadingPromise;
+    }
+
+    async function ensureXLSXLoaded() {
+      if (window.XLSX) return window.XLSX;
+      if (window.__xlsxLoadingPromise) return window.__xlsxLoadingPromise;
+      window.__xlsxLoadingPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+        script.onload = () => resolve(window.XLSX);
+        script.onerror = () => reject(new Error('Failed to load XLSX library.'));
+        document.head.appendChild(script);
+      });
+      return window.__xlsxLoadingPromise;
+    }
+
+    function buildReportRows() {
+      const riderName = getRiderName();
+      const sessionLabel = getTitleText();
+      const now = new Date();
+      const sessionDateTime = now.toISOString().slice(0, 19).replace('T', ' ');
+      const rows = [];
+      let cumulativeTime = 0;
+      for (let i = 0; i < splitRows.length; i++) {
+        const row = splitRows[i];
+        cumulativeTime += row.quarterTime;
+        const appendEvent = row.eventLabel === 'None' ? 'No Change' : row.eventLabel;
+        rows.push([
+          sessionLabel,
+          sessionDateTime,
+          riderName,
+          parseFloat(((i + 1) * 62.5).toFixed(1)),
+          parseFloat(cumulativeTime.toFixed(8)),
+          row.quarterTime,
+          parseFloat(row.speed.toFixed(8)),
+          appendEvent,
+          '' // Video URL
+        ]);
+      }
+      return rows;
+    }
+
+    function getFirstBlankRowIndex(sheet, XLSX) {
+      const endCol = 8;
+      const rowHasData = (r) => {
+        for (let c = 0; c <= endCol; c++) {
+          const cell = sheet[XLSX.utils.encode_cell({ r, c })];
+          if (!cell) continue;
+          const value = cell.v;
+          if (value !== undefined && value !== null && String(value).trim() !== '') return true;
+        }
+        return false;
+      };
+      let seenData = false;
+      const maxScanRows = 200000;
+      for (let r = 0; r < maxScanRows; r++) {
+        const hasData = rowHasData(r);
+        if (hasData) { seenData = true; continue; }
+        if (seenData) return r;
+      }
+      throw new Error('Unable to find a blank row to append into.');
+    }
+
+    function updateReport() {
+      updateTitle();
+      for (const row of splitRows) {
+        row.speed = speedFromTime(row.quarterTime);
+      }
+      renderRows();
+      setStatus('Report updated.');
+    }
+
+    function resetSession() {
+      startTime = null;
+      lastMarkerTime = null;
+      finished = false;
+      splitRows.length = 0;
+      renderRows();
+      updateTitle();
+      setStatus('Waiting for start.');
+    }
+
+    // --- Core timing ---
+
+    function startTiming() {
+      resetSession();
+      startTime = video.currentTime;
+      lastMarkerTime = startTime;
+      reportTable.style.display = 'table';
+      setStatus(`Started at ${startTime.toFixed(2)}s.`);
+    }
+
+    function addSplit(splitType, eventLabel) {
+      if (startTime === null || finished) return;
+      const now = video.currentTime;
+      if (now <= startTime) return;
+
+      // Check for insert mode
+      let insertIdx = -1;
+      let prevTime = startTime;
+      for (let i = 0; i < splitRows.length; i++) {
+        const rowEnd = splitRows[i].endTime;
+        if (now > prevTime + frameDuration() * 0.4 && now < rowEnd - frameDuration() * 0.4) {
+          insertIdx = i;
+          break;
+        }
+        prevTime = rowEnd;
+      }
+
+      const isAppend = insertIdx === -1;
+      const rowPrevTime = isAppend
+        ? lastMarkerTime
+        : (insertIdx === 0 ? startTime : splitRows[insertIdx - 1].endTime);
+
+      const quarterTime = now - rowPrevTime;
+      if (quarterTime < frameDuration() * 0.5) return;
+
+      const speed = speedFromTime(quarterTime);
+      const resolvedEvent = eventLabel || 'None';
+
+      const newRow = {
+        splitType,
+        splitLabel: '',
+        endTime: now,
+        quarterTime,
+        speed,
+        eventLabel: resolvedEvent
+      };
+
+      if (isAppend) {
+        splitRows.push(newRow);
+        lastMarkerTime = now;
+      } else {
+        const existingRow = splitRows[insertIdx];
+        const remainderTime = existingRow.endTime - now;
+        existingRow.quarterTime = remainderTime;
+        existingRow.speed = speedFromTime(remainderTime);
+        splitRows.splice(insertIdx, 0, newRow);
+      }
+
+      renumberRows();
+
+      if (splitType === 'FINISH') {
+        finished = true;
+        setStatus(`Finished at ${now.toFixed(2)}s — ${formatClockTime(splitRows.reduce((s, r) => s + r.quarterTime, 0))}.`);
+      } else if (isAppend) {
+        setStatus(`Quarter at ${now.toFixed(2)}s.`);
+      } else {
+        setStatus(`Inserted quarter at ${now.toFixed(2)}s.`);
+      }
+
+      renderRows();
+    }
+
+    function stepNextFrame() {
+      video.pause();
+      const duration = Number.isFinite(video.duration) ? video.duration : Infinity;
+      video.currentTime = Math.min(duration, video.currentTime + frameDuration());
+    }
+    function stepPrevFrame() {
+      video.pause();
+      video.currentTime = Math.max(0, video.currentTime - frameDuration());
+    }
+    function jumpForward() {
+      video.pause();
+      const duration = Number.isFinite(video.duration) ? video.duration : Infinity;
+      video.currentTime = Math.min(duration, video.currentTime + getJumpSeconds());
+    }
+    function jumpBackward() {
+      video.pause();
+      video.currentTime = Math.max(0, video.currentTime - getJumpSeconds());
+    }
+
+    let nextFrameInterval = null, prevFrameInterval = null;
+
+    nextFrameBtn.addEventListener('mousedown', () => { stepNextFrame(); nextFrameInterval = setInterval(stepNextFrame, 80); });
+    nextFrameBtn.addEventListener('mouseup', () => clearInterval(nextFrameInterval));
+    nextFrameBtn.addEventListener('mouseleave', () => clearInterval(nextFrameInterval));
+    nextFrameBtn.addEventListener('touchstart', () => { stepNextFrame(); nextFrameInterval = setInterval(stepNextFrame, 80); });
+    nextFrameBtn.addEventListener('touchend', () => clearInterval(nextFrameInterval));
+
+    prevFrameBtn.addEventListener('mousedown', () => { stepPrevFrame(); prevFrameInterval = setInterval(stepPrevFrame, 80); });
+    prevFrameBtn.addEventListener('mouseup', () => clearInterval(prevFrameInterval));
+    prevFrameBtn.addEventListener('mouseleave', () => clearInterval(prevFrameInterval));
+    prevFrameBtn.addEventListener('touchstart', () => { stepPrevFrame(); prevFrameInterval = setInterval(stepPrevFrame, 80); });
+    prevFrameBtn.addEventListener('touchend', () => clearInterval(prevFrameInterval));
+
+    startBtn.addEventListener('click', startTiming);
+    quarterBtn.addEventListener('click', () => addSplit('QUARTER', ''));
+    finishBtn.addEventListener('click', () => addSplit('FINISH', ''));
+    resetBtn.addEventListener('click', resetSession);
+    deleteLastBtn.addEventListener('click', () => {
+      if (splitRows.length === 0) return;
+      const removed = splitRows.pop();
+      if (removed.splitType === 'FINISH') finished = false;
+      lastMarkerTime = splitRows.length > 0 ? splitRows[splitRows.length - 1].endTime : startTime;
+      renumberRows();
+      renderRows();
+      setStatus(`Deleted ${removed.splitLabel}.`);
+    });
+
+    updateBtn.addEventListener('click', updateReport);
+    snapToStartBtn.addEventListener('click', () => {
+      if (!Number.isFinite(uploadedCsvStartTime)) return;
+      video.currentTime = Math.max(0, uploadedCsvStartTime);
+      currentTimeDisplay.textContent = video.currentTime.toFixed(2);
+      updateFitStats();
+      drawFitPlot();
+      setStatus(`Snapped video to uploaded start at ${uploadedCsvStartTime.toFixed(2)}s.`);
+    });
+    createReportBtn.addEventListener('click', openReportModal);
+    closeReportBtn.addEventListener('click', closeReportModal);
+
+    exportReportBtn.addEventListener('click', async () => {
+      if (!reportModal.classList.contains('open')) return;
+      const originalText = exportReportBtn.textContent;
+      exportReportBtn.disabled = true;
+      exportReportBtn.textContent = 'Exporting...';
+      const prevCloseVis = closeReportBtn.style.visibility;
+      const prevOverflow = reportDashboardPanel.style.overflow;
+      const prevMaxHeight = reportDashboardPanel.style.maxHeight;
+      try {
+        closeReportBtn.style.visibility = 'hidden';
+        reportDashboardPanel.style.overflow = 'visible';
+        reportDashboardPanel.style.maxHeight = 'none';
+        await new Promise((resolve) => setTimeout(resolve, 40));
+        const html2canvas = await ensureHtml2CanvasLoaded();
+        const scale = Math.max(2, window.devicePixelRatio || 1);
+        const canvas = await html2canvas(reportDashboardPanel, { backgroundColor: '#ffffff', useCORS: true, logging: false, scale });
+        const link = document.createElement('a');
+        const safeBase = (videoFileName || 'report').replace(/[^a-z0-9_-]+/gi, '_');
+        link.download = `${safeBase}_dashboard.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        setStatus('Report dashboard exported as PNG.');
+      } catch (error) {
+        console.error(error);
+        setStatus(`Export failed: ${error.message || error}`);
+      } finally {
+        closeReportBtn.style.visibility = prevCloseVis;
+        reportDashboardPanel.style.overflow = prevOverflow;
+        reportDashboardPanel.style.maxHeight = prevMaxHeight;
+        exportReportBtn.disabled = false;
+        exportReportBtn.textContent = originalText;
+      }
+    });
+
+    appendToFileBtn.addEventListener('click', async () => {
+      if (!reportModal.classList.contains('open')) return;
+      if (splitRows.length === 0) { setStatus('No report data to append.'); return; }
+      let fileHandle;
+      try {
+        [fileHandle] = await window.showOpenFilePicker({
+          types: [{ description: 'Excel Files', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } }]
+        });
+      } catch { return; }
+      const originalText = appendToFileBtn.textContent;
+      appendToFileBtn.disabled = true;
+      appendToFileBtn.textContent = 'Appending...';
+      try {
+        const XLSX = await ensureXLSXLoaded();
+        const file = await fileHandle.getFile();
+        const fileBuffer = await file.arrayBuffer();
+        const workbook = XLSX.read(new Uint8Array(fileBuffer), { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const reportRows = buildReportRows();
+        if (reportRows.length === 0) { setStatus('No rows to append.'); return; }
+        const appendAtRow = getFirstBlankRowIndex(sheet, XLSX);
+        XLSX.utils.sheet_add_aoa(sheet, reportRows, { origin: { r: appendAtRow, c: 0 } });
+        const wbArray = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
+        const blob = new Blob([wbArray], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        setStatus(`Appended ${reportRows.length} rows to ${file.name} starting at row ${appendAtRow + 1}.`);
+      } catch (error) {
+        console.error(error);
+        setStatus(`Append error: ${error.message || error}`);
+      } finally {
+        appendToFileBtn.disabled = false;
+        appendToFileBtn.textContent = originalText;
+      }
+    });
+
+    reportModal.addEventListener('click', (e) => { if (e.target === reportModal) closeReportModal(); });
+    flyingToggle.addEventListener('change', () => { flyingMode = flyingToggle.checked; renderRows(); });
+    hlToggle.addEventListener('change', () => { renderReportChart(); });
+    document.getElementById('chartYMinInput').addEventListener('input', renderReportChart);
+    document.getElementById('chartYMaxInput').addEventListener('input', renderReportChart);
+
+    downloadBtn.addEventListener('click', () => {
+      if (splitRows.length === 0) { setStatus('No data to download.'); return; }
+      const headers = ['Split', 'Quarter Time (s)', 'Running Time (s)', 'Speed (km/h)', 'Event', 'splitType', 'endTime'];
+      const lines = [headers.join(',')];
+      for (let i = 0; i < splitRows.length; i++) {
+        const row = splitRows[i];
+        lines.push([
+          row.splitLabel,
+          row.quarterTime,
+          formatTime(getRunningTimeForRow(row, i)),
+          row.speed.toFixed(3),
+          `"${row.eventLabel}"`,
+          row.splitType,
+          row.endTime
+        ].join(','));
+      }
+      lines.push(`# startTime,${startTime != null ? startTime : ''}`);
+      lines.push(`# title,"${getTitleText()}"`);
+      lines.push(`# rider,"${rider1Input.value.trim()}"`);
+      lines.push(`# raceDistance,${getRaceDistance()}`);
+      const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${videoFileName} IP Data.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      setStatus('CSV downloaded.');
+    });
+
+    function parseCsvText(text) {
+      const allLines = text.split(/\r?\n/);
+      const metaLines = allLines.filter(l => l.startsWith('# '));
+      const dataLines = allLines.filter(l => l.trim() && !l.startsWith('#'));
+      const header = dataLines[0].split(',');
+      const col = (name) => header.indexOf(name);
+      const iSplitType = col('splitType');
+      const iEndTime   = col('endTime');
+      const iEvent     = col('Event');
+      const iQTime     = col('Quarter Time (s)');
+      if ([iSplitType, iEndTime, iEvent, iQTime].some(x => x < 0)) return null;
+
+      let uploadedStartTime = null;
+      for (const ml of metaLines) {
+        const parts = ml.slice(2).split(',');
+        if (parts[0] === 'startTime' && parts[1]) uploadedStartTime = parseFloat(parts[1]);
+        if (parts[0] === 'title') countryInput.value = parts[1].replace(/^"|"$/g, '');
+        if (parts[0] === 'rider') rider1Input.value = parts[1].replace(/^"|"$/g, '');
+        if (parts[0] === 'raceDistance' && parts[1]) raceDistanceInput.value = parseInt(parts[1], 10) || 4000;
+      }
+
+      resetSession();
+      startTime = uploadedStartTime;
+      uploadedCsvStartTime = uploadedStartTime;
+      hasUploadedTimingData = true;
+      updateSnapToStartAvailability();
+
+      for (const line of dataLines.slice(1)) {
+        if (!line.trim()) continue;
+        const cols = [];
+        let cur = '', inQ = false;
+        for (const ch of line) {
+          if (ch === '"') { inQ = !inQ; }
+          else if (ch === ',' && !inQ) { cols.push(cur); cur = ''; }
+          else { cur += ch; }
+        }
+        cols.push(cur);
+        const splitType = cols[iSplitType];
+        const endTime = parseFloat(cols[iEndTime]);
+        const eventLabel = cols[iEvent] || 'None';
+        const quarterTime = parseFloat(cols[iQTime]);
+        const speed = speedFromTime(quarterTime);
+        splitRows.push({ splitType, splitLabel: '', endTime, quarterTime, speed, eventLabel });
+        if (splitType === 'FINISH') finished = true;
+      }
+
+      lastMarkerTime = splitRows.length > 0 ? splitRows[splitRows.length - 1].endTime : startTime;
+      renumberRows();
+      updateTitle();
+      renderRows();
+      return splitRows.length;
+    }
+
+    csvUploadInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const count = parseCsvText(evt.target.result);
+          if (count === null) { setStatus('Upload failed: CSV columns not recognised.'); return; }
+          csvUploadInput.value = '';
+          setStatus(`Loaded ${count} rows from CSV.`);
+        } catch (err) { setStatus('Upload failed: ' + err.message); }
+      };
+      reader.readAsText(file);
+    });
+
+    videoInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      videoFileName = file.name.replace(/\.[^.]+$/, '');
+      const url = URL.createObjectURL(file);
+      video.src = url;
+      video.load();
+      video.style.display = '';
+      hasVideoLoaded = true;
+      updateSnapToStartAvailability();
+      video.addEventListener('focus', () => video.blur());
+      setStatus('Video loaded. Press S to start timing.');
+    });
+
+    countryInput.addEventListener('input', updateTitle);
+    airDensityInput.addEventListener('input', renderRows);
+    rider1Input.addEventListener('input', () => {
+      renderFitAssignments({ rebuild: false });
+      if (fitSyncState.metricKey) buildFitSeries(fitSyncState.metricKey);
+      else { renderFitLegend(); renderFitSyncTargets(); drawFitPlot(); }
+    });
+
+    fitFilesInput.addEventListener('change', async (event) => {
+      const files = Array.from(event.target.files || []);
+      if (files.length === 0) return;
+      await loadFitFilesToPool(files);
+      fitFilesInput.value = '';
+    });
+
+    fitSaveSyncBtn.addEventListener('click', () => {
+      if (fitSyncState.parsedFiles.length === 0) { setFitStatus('Load and assign a FIT file before saving sync.'); return; }
+      const payload = buildSyncedFitExportPayload();
+      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${videoFileName || 'video'} Synced FIT.ipsync`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      setFitStatus('Synced FIT file saved.', 'ok');
+    });
+
+    fitUploadSyncBtn.addEventListener('click', () => fitSyncedUploadInput.click());
+
+    fitSyncedUploadInput.addEventListener('change', (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (loadEvent) => {
+        try {
+          const payload = JSON.parse(String(loadEvent.target.result || '{}'));
+          restoreSyncedFitPayload(payload);
+          setFitStatus('Synced FIT file loaded.', 'ok');
+        } catch (error) {
+          console.error(error);
+          setFitStatus(error.message || 'Failed to load synced FIT file.');
+        } finally {
+          fitSyncedUploadInput.value = '';
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    uploadAllBtn.addEventListener('click', () => uploadAllInput.click());
+
+    uploadAllInput.addEventListener('change', async (e) => {
+      const files = Array.from(e.target.files || []);
+      uploadAllInput.value = '';
+      if (!files.length) return;
+
+      const videoFile = files.find(f => f.type.startsWith('video/') || /\.(mp4|mov|qt)$/i.test(f.name));
+      const csvFile   = files.find(f => /\.csv$/i.test(f.name));
+      const syncFile  = files.find(f => /\.(ipsync|json)$/i.test(f.name));
+
+      const tasks = [];
+
+      if (videoFile) {
+        const videoReady = new Promise(resolve => {
+          const onMeta = () => { video.removeEventListener('loadedmetadata', onMeta); resolve(); };
+          video.addEventListener('loadedmetadata', onMeta);
+        });
+        videoFileName = videoFile.name.replace(/\.[^.]+$/, '');
+        video.src = URL.createObjectURL(videoFile);
+        video.load();
+        video.style.display = '';
+        hasVideoLoaded = true;
+        updateSnapToStartAvailability();
+        video.addEventListener('focus', () => video.blur());
+        tasks.push(videoReady);
+      }
+
+      if (csvFile) {
+        tasks.push(new Promise(resolve => {
+          const reader = new FileReader();
+          reader.onload = (evt) => {
+            try { parseCsvText(evt.target.result); } catch (err) { setStatus('CSV upload failed: ' + err.message); }
+            resolve();
+          };
+          reader.readAsText(csvFile);
+        }));
+      }
+
+      if (syncFile) {
+        tasks.push(new Promise(resolve => {
+          const reader = new FileReader();
+          reader.onload = (loadEvent) => {
+            try {
+              const payload = JSON.parse(String(loadEvent.target.result || '{}'));
+              restoreSyncedFitPayload(payload);
+              setFitStatus('Synced FIT file loaded.', 'ok');
+            } catch (error) {
+              console.error(error);
+              setFitStatus(error.message || 'Failed to load synced FIT file.');
+            }
+            resolve();
+          };
+          reader.readAsText(syncFile);
+        }));
+      }
+
+      await Promise.all(tasks);
+
+      if (hasVideoLoaded && hasUploadedTimingData && Number.isFinite(uploadedCsvStartTime)) {
+        video.currentTime = Math.max(0, uploadedCsvStartTime);
+        currentTimeDisplay.textContent = video.currentTime.toFixed(2);
+        updateFitStats();
+        drawFitPlot();
+        setStatus(`All files loaded — snapped to start at ${uploadedCsvStartTime.toFixed(2)}s.`);
+      } else {
+        const loaded = [videoFile && 'video', csvFile && 'data', syncFile && 'sync'].filter(Boolean);
+        setStatus(`Loaded: ${loaded.join(', ') || 'nothing'}.`);
+      }
+    });
+
+    function clearFitDropzoneHighlights() {
+      document.querySelectorAll('.fit-dropzone.over').forEach((el) => el.classList.remove('over'));
+    }
+
+    document.addEventListener('dragstart', (event) => {
+      const chip = event.target.closest('.fit-file-chip[data-fit-file-id]');
+      if (!chip) return;
+      event.dataTransfer.setData('text/plain', chip.dataset.fitFileId);
+      event.dataTransfer.effectAllowed = 'move';
+    });
+
+    document.addEventListener('dragover', (event) => {
+      const zone = event.target.closest('.fit-dropzone');
+      if (!zone) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      clearFitDropzoneHighlights();
+      zone.classList.add('over');
+    });
+
+    document.addEventListener('dragleave', (event) => {
+      const zone = event.target.closest('.fit-dropzone');
+      if (!zone) return;
+      zone.classList.remove('over');
+    });
+
+    document.addEventListener('drop', (event) => {
+      const zone = event.target.closest('.fit-dropzone');
+      if (!zone) return;
+      event.preventDefault();
+      clearFitDropzoneHighlights();
+      const fileId = parseInt(event.dataTransfer.getData('text/plain'), 10);
+      if (!Number.isFinite(fileId)) return;
+      const dropTarget = zone.dataset.dropTarget;
+      if (dropTarget === 'unassigned') { unassignFitFile(fileId); return; }
+      if (dropTarget === 'rider') { assignFitFileToRider(fileId); }
+    });
+
+    fitMetricSelect.addEventListener('change', (event) => { buildFitSeries(event.target.value); });
+
+    fitScaleControl.addEventListener('input', (event) => {
+      const raw = toNumeric(event.target.value);
+      if (raw === null) return;
+      fitSyncState.viewScale = clampValue(raw / 100, 0.2, 4);
+      updateFitControlLabels();
+      drawFitPlot();
+    });
+
+    fitSensitivityControl.addEventListener('input', (event) => {
+      const raw = toNumeric(event.target.value);
+      if (raw === null) return;
+      fitSyncState.dragSensitivity = clampValue(raw / 100, 0.05, 3);
+      updateFitControlLabels();
+    });
+
+    fitSnapBtn.addEventListener('click', () => snapFitSeriesToPlayhead());
+
+    fitPlot.addEventListener('contextmenu', (event) => { event.preventDefault(); });
+
+    fitPlot.addEventListener('pointerdown', (event) => {
+      if (!fitSyncState.drawingData) return;
+      fitPlot.setPointerCapture(event.pointerId);
+      fitSyncState.dragLastX = event.clientX;
+      if (event.button === 2) { fitSyncState.pointerMode = 'right'; return; }
+      if (event.button === 0) { fitSyncState.pointerMode = 'left'; }
+    });
+
+    fitPlot.addEventListener('pointermove', (event) => {
+      if (fitSyncState.pointerMode === 'none' || !fitSyncState.drawingData) return;
+      const dx = event.clientX - fitSyncState.dragLastX;
+      fitSyncState.dragLastX = event.clientX;
+      const secondsPerPixel = fitSyncState.drawingData.visibleSpan / (fitSyncState.drawingData.plotWidth || 1);
+      const deltaT = dx * secondsPerPixel * fitSyncState.dragSensitivity;
+      if (fitSyncState.pointerMode === 'right') {
+        for (const series of fitSyncState.series) {
+          series.offset = (series.offset || 0) + deltaT;
+          if (fitSyncState.stream) fitSyncState.stream.offset = series.offset;
+        }
+        updateFitStats();
+        drawFitPlot();
+        renderLapDataTables();
+      } else if (fitSyncState.pointerMode === 'left') {
+        const currentVideoT = Number.isFinite(video.currentTime) ? video.currentTime : 0;
+        const nextVideoT = currentVideoT - deltaT;
+        video.currentTime = Number.isFinite(video.duration)
+          ? clampValue(nextVideoT, 0, video.duration)
+          : Math.max(0, nextVideoT);
+        updateFitStats();
+        drawFitPlot();
+      }
+    });
+
+    function releaseFitPointer(event) {
+      if (fitPlot.hasPointerCapture(event.pointerId)) fitPlot.releasePointerCapture(event.pointerId);
+      fitSyncState.pointerMode = 'none';
+    }
+    fitPlot.addEventListener('pointerup', releaseFitPointer);
+    fitPlot.addEventListener('pointercancel', releaseFitPointer);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && reportModal.classList.contains('open')) {
+        closeReportModal();
+        return;
+      }
+      const tag = document.activeElement && document.activeElement.tagName;
+      const isTypingTarget = tag === 'INPUT' || tag === 'TEXTAREA';
+      if (isTypingTarget) return;
+
+      const key = e.key.toLowerCase();
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); e.stopPropagation(); }
+      if (e.ctrlKey && e.key === 'ArrowRight') { jumpForward(); return; }
+      if (e.ctrlKey && e.key === 'ArrowLeft') { jumpBackward(); return; }
+
+      if (e.key === 'ArrowRight') { stepNextFrame(); }
+      else if (e.key === 'ArrowLeft') { stepPrevFrame(); }
+      else if (key === 's') { startTiming(); }
+      else if (key === 'z') { addSplit('QUARTER', ''); }
+      else if (key === 't') { addSplit('FINISH', ''); }
+      else if (e.key === ' ') {
+        if (video.paused) video.play(); else video.pause();
+      } else { return; }
+
+      e.preventDefault();
+    });
+
+    video.addEventListener('timeupdate', () => {
+      currentTimeDisplay.textContent = video.currentTime.toFixed(2);
+      updateFitStats();
+      drawFitPlot();
+    });
+
+    video.addEventListener('loadedmetadata', () => {
+      updateFitStats();
+      drawFitPlot();
+    });
+
+    window.addEventListener('resize', () => {
+      renderReportChart();
+      drawFitPlot();
+    });
+
+    renderFitAssignments();
+    updateFitControlLabels();
+    updateFitStats();
+    updateSnapToStartAvailability();
+    renderFitLegend();
+    updateTitle();
+    resetSession();
+  </script>
+</body>
+</html>
