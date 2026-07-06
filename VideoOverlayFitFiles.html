@@ -419,6 +419,11 @@
 			color: #fff;
 		}
 
+		.btn-clear {
+			background: #475569;
+			color: #fff;
+		}
+
 		.record-indicator {
 			font-size: 0.82rem;
 			color: var(--muted);
@@ -447,6 +452,11 @@
 			background: #f9fafb;
 			display: grid;
 			gap: 10px;
+		}
+
+		.summary-sheet.active-segment {
+			border-color: rgba(217, 119, 6, 0.55);
+			background: #fffbeb;
 		}
 
 		.summary-sheet-head {
@@ -695,6 +705,62 @@
 				flex-direction: column;
 			}
 		}
+
+		.btn-ocr {
+			padding: 5px 10px;
+			border: 1px solid rgba(31, 41, 55, 0.2);
+			border-radius: 999px;
+			font-size: 0.78rem;
+			background: #f8fafc;
+			cursor: pointer;
+			color: var(--ink);
+			transition: background 0.15s;
+			font-family: inherit;
+		}
+		.btn-ocr:hover:not(:disabled) {
+			background: rgba(217, 72, 15, 0.08);
+		}
+		.btn-ocr:disabled {
+			opacity: 0.5;
+			cursor: default;
+		}
+
+		.auto-sync-bar {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			padding: 8px 12px;
+			border-top: 1px solid rgba(31, 41, 55, 0.08);
+			background: #fff;
+			flex-wrap: wrap;
+		}
+
+		.btn-auto-sync {
+			padding: 5px 12px;
+			border: 1px solid rgba(15, 118, 110, 0.45);
+			border-radius: 999px;
+			font-size: 0.78rem;
+			background: #f0fdf4;
+			cursor: pointer;
+			color: #0f766e;
+			font-weight: 600;
+			font-family: inherit;
+			transition: background 0.15s;
+			white-space: nowrap;
+		}
+		.btn-auto-sync:hover:not(:disabled) {
+			background: #dcfce7;
+		}
+		.btn-auto-sync:disabled {
+			opacity: 0.5;
+			cursor: default;
+		}
+
+		.auto-sync-result {
+			font-size: 0.82rem;
+			color: var(--muted);
+			flex: 1;
+		}
 	</style>
 </head>
 <body>
@@ -733,6 +799,8 @@
 			<span class="chip">Video frame rate: <strong id="videoFps">-</strong></span>
 			<span class="chip">Trace offset: <strong id="traceOffset">0.000s</strong></span>
 			<span class="chip">Video time: <strong id="videoTime">0.000s</strong></span>
+			<button id="btnReadTime" class="btn-ocr" title="OCR the Tissot timestamp from the top-right of the current video frame. Requires internet on first use to load Tesseract.js.">&#128247; Read video clock</button>
+			<span class="chip" id="ocrResultChip" style="display:none">Video clock: <strong id="ocrTime">—</strong></span>
 		</section>
 
 		<section class="stage">
@@ -768,6 +836,10 @@
 					</div>
 				</div>
 				<div id="syncTargets" class="sync-targets"></div>
+				<div id="autoSyncBar" class="auto-sync-bar" style="display:none">
+					<button id="btnAutoSync" class="btn-auto-sync" title="Read the Tissot timestamp from the current video frame via OCR and sync the selected FIT streams. Matches minutes and seconds only &#8212; safe when FIT timestamps are in a different timezone.">&#8635; Auto-sync FIT to video clock</button>
+					<span id="autoSyncResult" class="auto-sync-result">Pause the video on a frame showing the Tissot clock, then click to sync.</span>
+				</div>
 				<div id="status" class="status">Load a video and one or more FIT files to start.</div>
 			</div>
 
@@ -776,6 +848,7 @@
 				<div class="record-bar">
 					<button id="btnRecord" class="btn btn-record">&#9679; Record</button>
 					<button id="btnCalculate" class="btn btn-calc" disabled>Calculate Work</button>
+					<button id="btnClearSegments" class="btn btn-clear" disabled>Clear Segments</button>
 					<span id="recordIndicator" class="record-indicator">Not recording</span>
 				</div>
 				<div id="summaryGrid" class="summary-grid"></div>
@@ -885,6 +958,8 @@
 		</section>
 	</main>
 
+	<canvas id="ocrCanvas" style="display:none" aria-hidden="true"></canvas>
+
 	<script>
 
 		const SERIES_COLORS = ["#0f766e", "#1d4ed8", "#dc2626", "#d97706", "#7c3aed", "#0891b2", "#65a30d", "#be185d"];
@@ -916,7 +991,9 @@
 			recordingState: "idle",
 			recordStartVideoTime: null,
 			recordEndVideoTime: null,
-			recordSummary: null
+			recordSummary: null,
+			recordSegments: [],
+			segmentCounter: 0
 		};
 
 		const els = {
@@ -941,6 +1018,7 @@
 			plot: document.getElementById("plot"),
 			btnRecord: document.getElementById("btnRecord"),
 			btnCalculate: document.getElementById("btnCalculate"),
+			btnClearSegments: document.getElementById("btnClearSegments"),
 			recordIndicator: document.getElementById("recordIndicator"),
 			summaryGrid: document.getElementById("summaryGrid"),
 			snapBtn: document.getElementById("snapBtn"),
@@ -1390,6 +1468,8 @@
 		}
 
 		function renderSyncTargets() {
+			const autoSyncBar = document.getElementById("autoSyncBar");
+			if (autoSyncBar) autoSyncBar.style.display = state.series.length > 0 ? "" : "none";
 			if (state.series.length === 0) {
 				els.syncTargets.innerHTML = "";
 				return;
@@ -1636,6 +1716,7 @@
 					label: sheet.displayName || sheet.sheetName,
 					color: getSeriesColor(i),
 					offset: toNumber(state.streamOffsets[sheet.sheetName]) || 0,
+					baseTime,
 					times: points.map((point) => point.t - baseTime),
 					metricValues: points.map((point) => point.y)
 				});
@@ -1768,6 +1849,8 @@
 				ctx.lineTo(width - m.r, gy);
 			}
 			ctx.stroke();
+
+			drawSegmentHighlightsOnPlot(ctx, state.recordSegments, xFromT, viewMinT, viewMaxT, m, pw, ph, viewCenterT);
 
 			for (const series of state.series) {
 				ctx.strokeStyle = series.color;
@@ -1950,6 +2033,7 @@
 			estimateVideoFps();
 			trackVideoFrames();
 			updateStats();
+			if (exportUiSuspended()) return;
 			drawPlot();
 		});
 
@@ -1958,8 +2042,12 @@
 		});
 
 		els.video.addEventListener("timeupdate", () => {
+			if (exportUiSuspended()) return;
 			updateStats();
 			drawPlot();
+			if (state.recordSegments.length > 0 && els.summaryGrid.classList.contains("visible")) {
+				showSummary();
+			}
 		});
 
 		els.plot.addEventListener("contextmenu", (evt) => {
@@ -2019,6 +2107,9 @@
 		function releasePointer(evt) {
 			if (els.plot.hasPointerCapture(evt.pointerId)) {
 				els.plot.releasePointerCapture(evt.pointerId);
+			}
+			if (state.pointerMode === "right") {
+				refreshSummaryForCurrentMetric();
 			}
 			state.pointerMode = "none";
 		}
@@ -2088,6 +2179,7 @@
 				snappedCount += 1;
 			}
 			updateStats();
+			refreshSummaryForCurrentMetric();
 			drawPlot();
 			if (snappedCount === 0) {
 				setStatus("No non-zero values were found to the right of the playhead in the selected streams.");
@@ -2101,6 +2193,101 @@
 		els.snapBtn.addEventListener("click", snapFitSeriesToPlayhead);
 
 		// ── Recording helpers ────────────────────────────────────────────
+
+		function drawSegmentHighlightsOnPlot(targetCtx, segments, xFromT, viewMinT, viewMaxT, margin, plotWidth, plotHeight, playheadTime) {
+			if (!Array.isArray(segments) || segments.length === 0) return;
+			for (const segment of segments) {
+				const segStart = Math.min(segment.startTime, segment.endTime);
+				const segEnd = Math.max(segment.startTime, segment.endTime);
+				if (segEnd < viewMinT || segStart > viewMaxT) continue;
+
+				const x1 = clamp(xFromT(segStart), margin.l, margin.l + plotWidth);
+				const x2 = clamp(xFromT(segEnd), margin.l, margin.l + plotWidth);
+				const left = Math.min(x1, x2);
+				const w = Math.max(1, Math.abs(x2 - x1));
+				const isActive = Number.isFinite(playheadTime) && playheadTime >= segStart && playheadTime <= segEnd;
+
+				targetCtx.save();
+				targetCtx.fillStyle = isActive ? "rgba(217, 119, 6, 0.20)" : "rgba(15, 23, 42, 0.10)";
+				targetCtx.fillRect(left, margin.t, w, plotHeight);
+				targetCtx.strokeStyle = isActive ? "rgba(217, 119, 6, 0.9)" : "rgba(15, 23, 42, 0.35)";
+				targetCtx.lineWidth = isActive ? 2 : 1;
+				targetCtx.strokeRect(left, margin.t, w, plotHeight);
+				targetCtx.restore();
+			}
+		}
+
+		function getActiveSegmentAtTime(videoTime) {
+			if (!Array.isArray(state.recordSegments) || state.recordSegments.length === 0) return null;
+			const matches = state.recordSegments.filter((segment) => {
+				const segStart = Math.min(segment.startTime, segment.endTime);
+				const segEnd = Math.max(segment.startTime, segment.endTime);
+				return videoTime >= segStart && videoTime <= segEnd;
+			});
+			if (matches.length === 0) return null;
+			matches.sort((a, b) => a.startTime - b.startTime);
+			return matches[0];
+		}
+
+		function getSegmentPrimarySummary(segment) {
+			if (!segment || !Array.isArray(segment.summaries) || segment.summaries.length === 0) return null;
+			const primary = getPrimarySeries();
+			if (primary) {
+				const exact = segment.summaries.find((summary) => summary.sheetName === primary.sheetName);
+				if (exact) return exact;
+			}
+			return segment.summaries[0];
+		}
+
+		function drawActiveSegmentPopup(targetCtx, videoW, videoH, videoTime) {
+			const activeSegment = getActiveSegmentAtTime(videoTime);
+			if (!activeSegment) return;
+			const summary = getSegmentPrimarySummary(activeSegment);
+			if (!summary) return;
+
+			const metricName = state.metricColumnKey || "Metric";
+			const avgLabel = `Average ${metricName}: ${formatNum(summary.mean, 1)}`;
+			const durationLabel = `Duration: ${formatNum(summary.duration, 2)} s`;
+			const titleLabel = activeSegment.label || "Segment";
+
+			const font = Math.max(16, Math.round(videoH * 0.027));
+			const smallFont = Math.max(12, Math.round(font * 0.72));
+			const padX = Math.round(font * 0.55);
+			const padY = Math.round(font * 0.45);
+			const lineH = Math.round(font * 1.15);
+			const smallLineH = Math.round(smallFont * 1.2);
+
+			targetCtx.save();
+			targetCtx.textBaseline = "top";
+			targetCtx.font = `700 ${font}px Arial, Helvetica, sans-serif`;
+			const w1 = targetCtx.measureText(titleLabel).width;
+			const w2 = targetCtx.measureText(avgLabel).width;
+			targetCtx.font = `600 ${smallFont}px Arial, Helvetica, sans-serif`;
+			const w3 = targetCtx.measureText(durationLabel).width;
+
+			const boxW = Math.ceil(Math.max(w1, w2, w3) + padX * 2);
+			const boxH = Math.ceil(padY * 2 + lineH * 2 + smallLineH + 6);
+			const margin = Math.round(videoW * 0.02);
+			const bx = Math.max(0, videoW - boxW - margin);
+			const by = Math.max(0, margin);
+
+			targetCtx.fillStyle = "rgba(15, 23, 42, 0.72)";
+			targetCtx.fillRect(bx, by, boxW, boxH);
+			targetCtx.strokeStyle = "rgba(251, 146, 60, 0.9)";
+			targetCtx.lineWidth = Math.max(1, Math.round(videoH * 0.002));
+			targetCtx.strokeRect(bx, by, boxW, boxH);
+
+			targetCtx.font = `700 ${font}px Arial, Helvetica, sans-serif`;
+			targetCtx.fillStyle = "#fde68a";
+			targetCtx.fillText(titleLabel, bx + padX, by + padY);
+			targetCtx.fillStyle = "#ffffff";
+			targetCtx.fillText(avgLabel, bx + padX, by + padY + lineH);
+
+			targetCtx.font = `600 ${smallFont}px Arial, Helvetica, sans-serif`;
+			targetCtx.fillStyle = "#e2e8f0";
+			targetCtx.fillText(durationLabel, bx + padX, by + padY + lineH * 2 + 6);
+			targetCtx.restore();
+		}
 
 		function computeSeriesSummaryFromRange(series, startVideoTime, endVideoTime) {
 			if (!series) return null;
@@ -2148,40 +2335,97 @@
 				.filter(Boolean);
 		}
 
+		function sortAndClampRange(startVideoTime, endVideoTime) {
+			const start = Math.min(startVideoTime, endVideoTime);
+			const end = Math.max(startVideoTime, endVideoTime);
+			if (!Number.isFinite(els.video.duration) || els.video.duration <= 0) {
+				return { start, end };
+			}
+			return {
+				start: clamp(start, 0, els.video.duration),
+				end: clamp(end, 0, els.video.duration)
+			};
+		}
+
+		function createSegment(startVideoTime, endVideoTime) {
+			const range = sortAndClampRange(startVideoTime, endVideoTime);
+			if (!Number.isFinite(range.start) || !Number.isFinite(range.end)) return null;
+			if (Math.abs(range.end - range.start) < 0.01) return null;
+
+			const summaries = computeSummariesFromRange(range.start, range.end);
+			state.segmentCounter += 1;
+			return {
+				id: `segment-${state.segmentCounter}`,
+				label: `Segment ${state.segmentCounter}`,
+				startTime: range.start,
+				endTime: range.end,
+				summaries
+			};
+		}
+
+		function rebuildSegmentSummaries() {
+			if (!Array.isArray(state.recordSegments) || state.recordSegments.length === 0) return;
+			for (const segment of state.recordSegments) {
+				segment.summaries = computeSummariesFromRange(segment.startTime, segment.endTime);
+			}
+		}
+
 		function buildSummaryStat(label, value, highlighted = false) {
 			const highlightClass = highlighted ? " highlight" : "";
 			return `<div class="stat-card${highlightClass}"><div class="label">${label}</div><div class="value">${value}</div></div>`;
 		}
 
-		function showSummary(summaries) {
-			els.summaryGrid.innerHTML = summaries.map((summary) => {
+		function showSummary() {
+			if (!Array.isArray(state.recordSegments) || state.recordSegments.length === 0) {
+				clearSummary();
+				return;
+			}
+
+			const now = Number.isFinite(els.video.currentTime) ? els.video.currentTime : 0;
+			els.summaryGrid.innerHTML = state.recordSegments.map((segment) => {
+				const summary = getSegmentPrimarySummary(segment);
+				const segStart = Math.min(segment.startTime, segment.endTime);
+				const segEnd = Math.max(segment.startTime, segment.endTime);
+				const activeClass = now >= segStart && now <= segEnd ? " active-segment" : "";
+
+				if (!summary) {
+					return `
+						<div class="summary-sheet${activeClass}">
+							<div class="summary-sheet-head">
+								<span class="summary-sheet-title"><i style="background:#94a3b8"></i>${segment.label}</span>
+								<span class="summary-sheet-metric">${state.metricColumnKey || "Metric"}</span>
+							</div>
+							<div class="summary-stats">${buildSummaryStat("Status", "No data in range")}</div>
+						</div>
+					`;
+				}
+
 				const statsMarkup = [
-					buildSummaryStat("Video start time", `${formatNum(summary.startTime, 3)} s`),
-					buildSummaryStat("Video end time", `${formatNum(summary.endTime, 3)} s`),
-					buildSummaryStat("Data start time", `${formatNum(summary.dataStartTime, 3)} s`),
-					buildSummaryStat("Data end time", `${formatNum(summary.dataEndTime, 3)} s`),
+					buildSummaryStat("Video start", `${formatNum(segStart, 3)} s`),
+					buildSummaryStat("Video end", `${formatNum(segEnd, 3)} s`),
 					buildSummaryStat("Duration", `${formatNum(summary.duration, 3)} s`),
 					buildSummaryStat("Samples", `${summary.n}`),
-					buildSummaryStat("Mean", formatNum(summary.mean, 4)),
-					buildSummaryStat("Min", formatNum(summary.min, 4)),
-					buildSummaryStat("Max", formatNum(summary.max, 4)),
-					buildSummaryStat("Std Dev", formatNum(summary.std, 4))
+					buildSummaryStat("Average", formatNum(summary.mean, 3), true),
+					buildSummaryStat("Min", formatNum(summary.min, 3)),
+					buildSummaryStat("Max", formatNum(summary.max, 3)),
+					buildSummaryStat("Std Dev", formatNum(summary.std, 3))
 				];
 
 				if (state.summaryCalculated) {
-					statsMarkup.push(buildSummaryStat("Mean × Duration", formatNum(summary.mean * summary.duration, 4), true));
+					statsMarkup.push(buildSummaryStat("Mean × Duration", formatNum(summary.mean * summary.duration, 3), true));
 				}
 
 				return `
-					<div class="summary-sheet">
+					<div class="summary-sheet${activeClass}">
 						<div class="summary-sheet-head">
-							<span class="summary-sheet-title"><i style="background:${summary.color}"></i>${summary.sheetName}</span>
-							<span class="summary-sheet-metric">${state.metricColumnKey || "Metric"}</span>
+							<span class="summary-sheet-title"><i style="background:${summary.color}"></i>${segment.label}</span>
+							<span class="summary-sheet-metric">${summary.sheetName}</span>
 						</div>
 						<div class="summary-stats">${statsMarkup.join("")}</div>
 					</div>
 				`;
 			}).join("");
+
 			els.summaryGrid.classList.add("visible");
 		}
 
@@ -2190,61 +2434,69 @@
 			els.summaryGrid.classList.remove("visible");
 			state.summaryCalculated = false;
 			els.btnCalculate.disabled = true;
+			els.btnClearSegments.disabled = true;
 		}
 
 		function refreshSummaryForCurrentMetric() {
-			if (state.recordingState !== "done") return;
-			if (!Number.isFinite(state.recordStartVideoTime) || !Number.isFinite(state.recordEndVideoTime)) return;
-
-			const summaries = computeSummariesFromRange(state.recordStartVideoTime, state.recordEndVideoTime);
-			state.recordSummary = summaries;
-
-			if (summaries.length > 0) {
-				showSummary(summaries);
-				els.btnCalculate.disabled = false;
-				els.recordIndicator.textContent = `${summaries.length} stream result${summaries.length !== 1 ? "s" : ""} in range`;
-			} else {
+			rebuildSegmentSummaries();
+			if (!Array.isArray(state.recordSegments) || state.recordSegments.length === 0) {
 				clearSummary();
-				els.recordIndicator.textContent = "No metric data in that range for the selected streams.";
+				els.recordIndicator.textContent = state.recordingState === "recording" ? "Recording..." : "No segments saved yet.";
+				return;
 			}
+			showSummary();
+			els.btnCalculate.disabled = false;
+			els.btnClearSegments.disabled = false;
+			els.recordIndicator.textContent = `${state.recordSegments.length} segment${state.recordSegments.length !== 1 ? "s" : ""} saved`;
 		}
 
 		els.btnRecord.addEventListener("click", () => {
-			if (state.recordingState === "idle" || state.recordingState === "done") {
-				// Start fresh recording
-				clearSummary();
-				state.recordSummary = null;
+			if (state.recordingState === "idle") {
 				state.recordStartVideoTime = Number.isFinite(els.video.currentTime) ? els.video.currentTime : 0;
 				state.recordEndVideoTime = null;
 				state.recordingState = "recording";
 				els.btnRecord.classList.add("recording");
 				els.btnRecord.textContent = "\u23F9 Stop";
-				els.recordIndicator.textContent = "Recording\u2026";
+				els.recordIndicator.textContent = "Recording...";
 				els.recordIndicator.classList.add("active");
 				els.btnCalculate.disabled = true;
 			} else if (state.recordingState === "recording") {
-				// Stop — collect all data points in the recorded range
 				state.recordEndVideoTime = Number.isFinite(els.video.currentTime) ? els.video.currentTime : 0;
-				state.recordingState = "done";
+				state.recordingState = "idle";
 				els.btnRecord.classList.remove("recording");
-				els.btnRecord.textContent = "\u21BA Reset";
+				els.btnRecord.textContent = "\u25CF Record";
 				els.recordIndicator.classList.remove("active");
-				const summaries = computeSummariesFromRange(state.recordStartVideoTime, state.recordEndVideoTime);
-				state.recordSummary = summaries;
-				if (summaries.length > 0) {
-					els.recordIndicator.textContent = `${summaries.length} stream result${summaries.length !== 1 ? "s" : ""} in range`;
-					showSummary(summaries);
-					els.btnCalculate.disabled = false;
-				} else {
-					els.recordIndicator.textContent = "No metric data in that range — try again.";
+
+				const segment = createSegment(state.recordStartVideoTime, state.recordEndVideoTime);
+				if (!segment) {
+					els.recordIndicator.textContent = "Segment too short or invalid range — try again.";
+					drawPlot();
+					return;
 				}
+
+				state.recordSegments.push(segment);
+				state.recordSummary = segment.summaries;
+				refreshSummaryForCurrentMetric();
+				drawPlot();
 			}
 		});
 
+		els.btnClearSegments.addEventListener("click", () => {
+			state.recordSegments = [];
+			state.recordSummary = null;
+			state.recordStartVideoTime = null;
+			state.recordEndVideoTime = null;
+			state.summaryCalculated = false;
+			clearSummary();
+			els.recordIndicator.textContent = "No segments saved yet.";
+			drawPlot();
+			renderPreview();
+		});
+
 		els.btnCalculate.addEventListener("click", () => {
-			if (!Array.isArray(state.recordSummary) || state.recordSummary.length === 0) return;
+			if (!Array.isArray(state.recordSegments) || state.recordSegments.length === 0) return;
 			state.summaryCalculated = true;
-			showSummary(state.recordSummary);
+			showSummary();
 		});
 
 		// ── Export overlay ───────────────────────────────────────────────
@@ -2261,6 +2513,7 @@
 
 		const exportState = {
 			running: false,
+			suspendUiUpdates: false,
 			recorder: null,
 			chunks: [],
 			canvas: null,
@@ -2333,6 +2586,10 @@
 		function setProgress(pct) {
 			progressPct = Math.max(0, Math.min(100, pct));
 			if (els.exportProgressBar) els.exportProgressBar.style.width = `${progressPct}%`;
+		}
+
+		function exportUiSuspended() {
+			return exportState.running && exportState.suspendUiUpdates;
 		}
 
 		function updateExportEnabled() {
@@ -2477,6 +2734,8 @@
 				targetCtx.globalAlpha = 1;
 			}
 
+			drawActiveSegmentPopup(targetCtx, videoW, videoH, viewCenterT);
+
 			targetCtx.restore();
 		}
 
@@ -2492,6 +2751,7 @@
 		}
 
 		function renderPreview() {
+			if (exportUiSuspended()) return;
 			const vw = els.video.videoWidth || 0;
 			const vh = els.video.videoHeight || 0;
 			if (vw === 0 || vh === 0) {
@@ -2643,6 +2903,7 @@
 			const duration = Number.isFinite(els.video.duration) ? els.video.duration : 0;
 			if (duration <= 0) { setExportStatus("Video duration not known yet.", "error"); return; }
 			const totalFrames = Math.max(1, Math.ceil(duration * fps));
+			const progressStep = Math.max(1, Math.floor(totalFrames / 120));
 
 			const cv = document.createElement("canvas");
 			cv.width = vw; cv.height = vh;
@@ -2674,6 +2935,7 @@
 			if (!configured) { setExportStatus("No supported H.264 encoder configuration found in this browser.", "error"); return; }
 
 			exportState.running = true;
+			exportState.suspendUiUpdates = true;
 			exportState.pickedExtension = "mp4";
 			exportState.pickedMime = "video/mp4";
 			progressPct = 0;
@@ -2700,7 +2962,9 @@
 					try { encoder.encode(frame, { keyFrame }); }
 					finally { frame.close(); }
 					if (encoder.encodeQueueSize > 8) await new Promise(r => setTimeout(r, 0));
-					setProgress(100 * (i + 1) / totalFrames);
+					if (i === totalFrames - 1 || i % progressStep === 0) {
+						setProgress(100 * (i + 1) / totalFrames);
+					}
 					if (encoderError) throw encoderError;
 				}
 				if (exportState.running) {
@@ -2732,8 +2996,11 @@
 			} finally {
 				els.video.muted = prevMuted;
 				exportState.running = false;
+				exportState.suspendUiUpdates = false;
 				els.btnExport.classList.remove("exporting");
 				els.btnExport.textContent = "▶ Export with overlay";
+				drawPlot();
+				renderPreview();
 				updateExportEnabled();
 			}
 		}
@@ -2809,6 +3076,7 @@
 			};
 
 			exportState.running = true;
+			exportState.suspendUiUpdates = true;
 			progressPct = 0;
 			els.btnExport.classList.add("exporting");
 			els.btnExport.textContent = "■ Stop export";
@@ -2859,6 +3127,7 @@
 		function stopExport(cancelled) {
 			if (!exportState.running) return;
 			exportState.running = false;
+			exportState.suspendUiUpdates = false;
 			els.btnExport.classList.remove("exporting");
 			els.btnExport.textContent = "▶ Export with overlay";
 
@@ -2877,6 +3146,8 @@
 				try { exportState.recorder?.stop(); } catch (e) { /* ignore */ }
 				setExportStatus("Export cancelled.", "error");
 				exportState.chunks = [];
+				drawPlot();
+				renderPreview();
 				updateExportEnabled();
 				return;
 			}
@@ -2910,13 +3181,18 @@
 			const sizeMB = (blob.size / (1024 * 1024)).toFixed(1);
 			setExportStatus(`Exported ${fileName} (${sizeMB} MB).`, "ok");
 			setProgress(100);
+			drawPlot();
+			renderPreview();
 			updateExportEnabled();
 		}
 
 		const _origSetMetric = setMetric;
 		setMetric = function (k) { _origSetMetric(k); updateExportEnabled(); renderPreview(); };
 		const _origDrawPlot = drawPlot;
-		drawPlot = function () { _origDrawPlot(); renderPreview(); };
+		drawPlot = function () {
+			_origDrawPlot();
+			if (!exportUiSuspended()) renderPreview();
+		};
 
 		updateExportEnabled();
 		renderPreview();
@@ -2924,6 +3200,236 @@
 		drawPlot();
 		updateStats();
 		updateControlLabels();
+
+		// ── Tissot timestamp OCR ────────────────────────────────────────────────
+		let _tessWorker = null;
+
+		async function ensureTesseractLoaded() {
+			if (_tessWorker) return _tessWorker;
+			const urls = [
+				"https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.esm.min.js",
+				"https://unpkg.com/tesseract.js@5/dist/tesseract.esm.min.js"
+			];
+			let lastErr = null;
+			for (const url of urls) {
+				try {
+					const mod = await import(url);
+					const createWorker = mod.createWorker ?? mod.default?.createWorker;
+					if (!createWorker) continue;
+					const worker = await createWorker("eng");
+					await worker.setParameters({ tessedit_char_whitelist: "0123456789/:. " });
+					_tessWorker = worker;
+					return _tessWorker;
+				} catch (e) {
+					lastErr = e;
+				}
+			}
+			throw lastErr || new Error("Tesseract.js failed to load");
+		}
+
+		async function readVideoTimestamp() {
+			const video = els.video;
+			if (!video.src || video.readyState < 2) {
+				setStatus("Load a video first, then click Read video clock.");
+				return;
+			}
+			const btn = document.getElementById("btnReadTime");
+			const ocrChip = document.getElementById("ocrResultChip");
+			const ocrTimeEl = document.getElementById("ocrTime");
+			btn.disabled = true;
+			btn.textContent = "\u23F3 Reading\u2026";
+			ocrChip.style.display = "";
+			ocrTimeEl.textContent = "\u2026";
+			try {
+				const vw = video.videoWidth;
+				const vh = video.videoHeight;
+				if (!vw || !vh) throw new Error("Video dimensions not available.");
+
+				// Crop the top-right region where the Tissot clock appears
+				const cx = Math.floor(vw * 0.58);
+				const cy = Math.floor(vh * 0.08);
+				const cw = vw - cx;
+				const ch = Math.floor(vh * 0.25);
+
+				// Scale up 3x for better OCR accuracy
+				const scale = 3;
+				const canvas = document.getElementById("ocrCanvas");
+				canvas.width = cw * scale;
+				canvas.height = ch * scale;
+				const octx = canvas.getContext("2d");
+				octx.drawImage(video, cx, cy, cw, ch, 0, 0, cw * scale, ch * scale);
+
+				// Pre-process: convert to grayscale and invert
+				// (white text on dark bg → dark text on white bg for better OCR)
+				const imgData = octx.getImageData(0, 0, canvas.width, canvas.height);
+				const d = imgData.data;
+				for (let i = 0; i < d.length; i += 4) {
+					const grey = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+					const bin = grey > 110 ? 0 : 255; // invert: bright → black, dark → white
+					d[i] = d[i + 1] = d[i + 2] = bin;
+				}
+				octx.putImageData(imgData, 0, 0);
+
+				const worker = await ensureTesseractLoaded();
+				const { data: { text } } = await worker.recognize(canvas);
+				console.log("[OCR] raw text:", text);
+
+				// Try to extract HH:MM:SS.cs (Tissot format)
+				const timeMatch = text.match(/(\d{1,2}):(\d{2}):(\d{2}[.,]\d{1,2})/);
+				if (timeMatch) {
+					ocrTimeEl.textContent = timeMatch[0].replace(",", ".");
+				} else {
+					// Fallback: show cleaned raw text
+					const cleaned = text.replace(/\s+/g, " ").trim();
+					ocrTimeEl.textContent = cleaned || "(not recognised)";
+				}
+			} catch (err) {
+				console.error("[OCR] error:", err);
+				ocrTimeEl.textContent = "Error \u2014 check console";
+			} finally {
+				btn.disabled = false;
+				btn.textContent = "\uD83D\uDCF7 Read video clock";
+			}
+		}
+
+		document.getElementById("btnReadTime").addEventListener("click", readVideoTimestamp);
+
+		// ── Auto-sync FIT to video clock ────────────────────────────────────────
+		async function autoSyncFitToVideoFrame() {
+			const video = els.video;
+			if (!video.src || video.readyState < 2) {
+				setStatus("Load a video before auto-syncing.");
+				return;
+			}
+			if (state.series.length === 0) {
+				setStatus("Load FIT files and select a metric before auto-syncing.");
+				return;
+			}
+
+			const btn = document.getElementById("btnAutoSync");
+			const resultEl = document.getElementById("autoSyncResult");
+			btn.disabled = true;
+			btn.textContent = "\u23F3 Reading clock\u2026";
+			resultEl.style.color = "var(--muted)";
+			resultEl.textContent = "Running OCR on video frame\u2026";
+
+			try {
+				// 1. Capture and OCR the top-right region (same crop as readVideoTimestamp)
+				const vw = video.videoWidth;
+				const vh = video.videoHeight;
+				if (!vw || !vh) throw new Error("Video dimensions not available.");
+
+				const cx = Math.floor(vw * 0.58);
+				const cy = Math.floor(vh * 0.08);
+				const cw = vw - cx;
+				const ch = Math.floor(vh * 0.25);
+				const scale = 3;
+				const canvas = document.getElementById("ocrCanvas");
+				canvas.width = cw * scale;
+				canvas.height = ch * scale;
+				const octx = canvas.getContext("2d");
+				octx.drawImage(video, cx, cy, cw, ch, 0, 0, cw * scale, ch * scale);
+
+				const imgData = octx.getImageData(0, 0, canvas.width, canvas.height);
+				const d = imgData.data;
+				for (let i = 0; i < d.length; i += 4) {
+					const grey = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+					const bin = grey > 110 ? 0 : 255;
+					d[i] = d[i + 1] = d[i + 2] = bin;
+				}
+				octx.putImageData(imgData, 0, 0);
+
+				resultEl.textContent = "Recognising text\u2026";
+				const worker = await ensureTesseractLoaded();
+				const { data: { text } } = await worker.recognize(canvas);
+				console.log("[auto-sync OCR] raw text:", text);
+
+				// 2. Parse HH:MM:SS.cs from the OCR result
+				const timeMatch = text.match(/(\d{1,2}):(\d{2}):(\d{2}(?:[.,]\d+)?)/);
+				if (!timeMatch) {
+					resultEl.textContent = "\u26A0 Could not read a timestamp from the video frame. Try pausing on a clearer frame.";
+					resultEl.style.color = "var(--warn)";
+					return;
+				}
+
+				const parsedTime = timeMatch[0].replace(",", ".");
+				const mm = parseInt(timeMatch[2], 10);
+				const ss = parseFloat(timeMatch[3].replace(",", "."));
+				// Seconds within the current hour — identical regardless of timezone offset (which is always whole hours)
+				const targetSecsInHour = mm * 60 + ss;
+				const videoTime = Number.isFinite(video.currentTime) ? video.currentTime : 0;
+
+				// Update the read-clock chip too
+				document.getElementById("ocrResultChip").style.display = "";
+				document.getElementById("ocrTime").textContent = parsedTime;
+
+				// 3. Match each selected FIT stream by MM:SS and apply offset
+				const selectedSet = getSelectedSyncSheetNameSet();
+				let synced = 0;
+				const msgs = [];
+
+				for (const series of state.series) {
+					if (!selectedSet.has(series.sheetName)) continue;
+
+					const stream = getStreamByName(series.sheetName);
+					if (!stream || !stream.rows.length) continue;
+					if (!Number.isFinite(series.baseTime)) continue;
+
+					// Search all rows for the one whose (Time % 3600) is closest to targetSecsInHour.
+					// Modulo makes timezone hour-offsets irrelevant automatically.
+					let bestIdx = -1;
+					let bestDiff = Infinity;
+					for (let i = 0; i < stream.rows.length; i++) {
+						const t = stream.rows[i].Time;
+						if (!Number.isFinite(t)) continue;
+						const secsInHour = t % 3600;
+						const diff = Math.abs(secsInHour - targetSecsInHour);
+						// Handle wrap-around at the hour boundary (e.g. 3599 s vs 1 s)
+						const diffWrap = Math.min(diff, 3600 - diff);
+						if (diffWrap < bestDiff) {
+							bestDiff = diffWrap;
+							bestIdx = i;
+						}
+					}
+
+					if (bestIdx < 0 || bestDiff > 90) {
+						msgs.push(`${series.label}: no match within 90 s`);
+						continue;
+					}
+
+					// offset = videoTime - (matchedAbsTime - baseTime)
+					const matchedAbsTime = stream.rows[bestIdx].Time;
+					const relativeTime = matchedAbsTime - series.baseTime;
+					const newOffset = videoTime - relativeTime;
+
+					series.offset = newOffset;
+					state.streamOffsets[series.sheetName] = newOffset;
+					synced++;
+					msgs.push(`${series.label} \u2713 (\u00B1${bestDiff.toFixed(1)} s match)`);
+				}
+
+				if (synced > 0) {
+					updateStats();
+					refreshSummaryForCurrentMetric();
+					drawPlot();
+					resultEl.style.color = "var(--ok)";
+					resultEl.textContent = `Clock: ${parsedTime} \u2014 ${msgs.join(" \u00B7 ")}`;
+				} else {
+					resultEl.style.color = "var(--warn)";
+					resultEl.textContent = `Clock read (${parsedTime}) but no streams synced. ${msgs.join(" \u00B7 ")}`;
+				}
+			} catch (err) {
+				console.error("[auto-sync] error:", err);
+				resultEl.style.color = "#b91c1c";
+				resultEl.textContent = `Error: ${err.message}`;
+			} finally {
+				btn.disabled = false;
+				btn.textContent = "\u21BA Auto-sync FIT to video clock";
+			}
+		}
+
+		document.getElementById("btnAutoSync").addEventListener("click", autoSyncFitToVideoFrame);
+		// ────────────────────────────────────────────────────────────────────────
 	</script>
 </body>
 </html>

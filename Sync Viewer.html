@@ -1,0 +1,1900 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <script src="auth-gate.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sync Viewer</title>
+  <link rel="stylesheet" href="theme.css" />
+  <style>
+    body {
+      background: #f1f5f9;
+      margin: 0;
+    }
+
+    .page-shell {
+      max-width: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .page-frame {
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      background: transparent;
+    }
+
+    .page-header {
+      padding: 6px 10px;
+      border-bottom: 0;
+      background: linear-gradient(135deg, rgba(14, 65, 116, 0.96), rgba(26, 26, 26, 0.94));
+    }
+
+    .page-actions {
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .page-actions .btn {
+      min-width: 98px;
+      background: rgba(255, 255, 255, 0.96);
+      color: #0e4174;
+      border: 1px solid rgba(255, 255, 255, 0.85);
+      font-weight: 700;
+    }
+
+    .page-actions .btn:hover {
+      background: #ffffff;
+      color: #0b345d;
+      border-color: #ffffff;
+    }
+
+    .page-title {
+      margin: 0;
+      font-size: clamp(16px, 2vw, 22px);
+      line-height: 1.1;
+    }
+
+    .page-subtitle {
+      margin: 3px 0 0;
+      font-size: 12px;
+      line-height: 1.3;
+      max-width: none;
+    }
+
+    .page-body {
+      padding: 4px;
+      gap: 4px;
+    }
+
+    .panel {
+      padding: 4px;
+      border-radius: 0;
+      box-shadow: none;
+      border: 0;
+      background: transparent;
+    }
+
+    .panel-title {
+      margin: 0 0 2px;
+      font-size: 13px;
+    }
+
+    .sync-controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 6px;
+      align-items: end;
+    }
+
+    .slider-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .slider-row input[type="range"] {
+      width: 100%;
+      margin: 0;
+    }
+
+    .slider-value {
+      min-width: 34px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--color-text-secondary);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .field label {
+      font-size: 11px;
+    }
+
+    .field input,
+    .field select {
+      padding: 6px 8px;
+      border-radius: 6px;
+    }
+
+    #syncSummary {
+      margin: 6px 0 0;
+      padding: 6px 8px;
+      border-radius: 6px;
+      line-height: 1.35;
+      font-size: 12px;
+    }
+
+    .status-line {
+      margin: 4px 0 0;
+      font-size: 12px;
+      color: var(--color-text-secondary);
+    }
+
+    .video-shell {
+      border: 1px solid var(--color-border);
+      border-radius: 0;
+      background: #000;
+      overflow: hidden;
+      box-shadow: none;
+    }
+
+    .video-shell video {
+      display: block;
+      width: 100%;
+      max-height: 82vh;
+      background: #000;
+    }
+
+    #riderPanel {
+      margin-top: 0;
+      padding-top: 0;
+    }
+
+    #riderPanel .panel-title {
+      display: none;
+    }
+
+    .rider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 4px;
+    }
+
+    .rider-card {
+      border: 1px solid var(--color-border);
+      border-radius: 0;
+      background: #fff;
+      box-shadow: none;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    #splitPanel {
+      background: transparent;
+      overflow-y: auto;
+      overflow-x: hidden;
+      min-width: 0;
+    }
+
+    #splitPanel .panel-title {
+      margin: 0 0 4px;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--color-text-secondary);
+    }
+
+    .split-source {
+      margin: 0 0 6px;
+      font-size: 11px;
+      color: var(--color-text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .lap-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .lap-item {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 8px;
+      border: 1px solid var(--color-border);
+      background: #ffffff;
+      min-width: 0;
+    }
+
+    .lap-item.active {
+      outline: 2px solid rgba(14, 65, 116, 0.65);
+      outline-offset: -2px;
+    }
+
+    .lap-item-label {
+      margin: 0;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--color-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .lap-item-value {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--color-brand-blue);
+      white-space: nowrap;
+    }
+
+    body.has-split-data .page-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 200px;
+      grid-template-areas:
+        "controls controls"
+        "video splits"
+        "riders splits";
+      align-items: start;
+    }
+
+    body.has-split-data #controlsPanel { grid-area: controls; }
+    body.has-split-data #videoPanel { grid-area: video; }
+    body.has-split-data #riderPanel { grid-area: riders; }
+    body.has-split-data #splitPanel {
+      grid-area: splits;
+      align-self: stretch;
+      max-height: 100vh;
+      padding: 4px;
+    }
+
+    .trace-wrap {
+      padding: 2px;
+      background: #fff;
+    }
+
+    .trace-canvas {
+      display: block;
+      width: 100%;
+      height: 160px;
+      border: 1px solid var(--color-border);
+      border-radius: 0;
+      background: #ffffff;
+    }
+
+    .plot-file {
+      margin: 2px 4px 0;
+      padding: 2px 4px 3px;
+      font-size: 11px;
+      color: var(--color-text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .gauge-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 4px;
+      padding: 4px;
+      border-top: 1px solid var(--color-border);
+      background: var(--color-surface-alt);
+    }
+
+    .gauge-item {
+      padding: 6px;
+      border-radius: 0;
+      border: 1px solid var(--color-border);
+      background: #fff;
+      min-width: 0;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .gauge-item.primary {
+      border-color: rgba(14, 65, 116, 0.42);
+      background: rgba(14, 65, 116, 0.06);
+    }
+
+    .gauge-label {
+      margin: 0;
+      font-size: 16px;
+      text-transform: none;
+      letter-spacing: normal;
+      color: var(--color-text-secondary);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .gauge-value {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.35;
+      font-weight: 700;
+      color: var(--color-brand-blue);
+      white-space: normal;
+    }
+
+    .gauge-value.power {
+      color: #DB6B30;
+    }
+
+    .gauge-value.cadence {
+      color: #0E4174;
+    }
+
+    body.focus-mode .page-header,
+    body.focus-mode #controlsPanel {
+      display: none;
+    }
+
+    body.focus-mode #viewerFrame {
+      width: 100vw;
+      max-width: none;
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      background: #f1f5f9;
+      overflow: hidden;
+    }
+
+    body.focus-mode #viewerFrame:fullscreen {
+      width: 100vw;
+      height: 100vh;
+      max-width: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    body.focus-mode .page-body {
+      padding: 0;
+      gap: 0;
+      width: 100%;
+      height: 100%;
+      background: #f1f5f9;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    body.focus-mode .panel {
+      padding: 0;
+    }
+
+    body.focus-mode .video-shell {
+      border-width: 0;
+      height: 100%;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    body.focus-mode #videoPanel .panel-title {
+      display: none;
+    }
+
+    body.focus-mode .video-shell video {
+      width: 100%;
+      height: 100%;
+      max-height: 100%;
+      min-height: 0;
+      flex: 1 1 auto;
+      object-fit: contain;
+    }
+
+    body.focus-mode .trace-canvas {
+      height: 132px;
+    }
+
+    body.focus-mode #riderPanel {
+      width: 100%;
+      padding: 0;
+      margin: 0;
+      flex: 0 0 auto;
+      overflow-x: auto;
+      overflow-y: hidden;
+      border-bottom: 0;
+    }
+
+    body.focus-mode #videoPanel {
+      width: 100%;
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      padding-bottom: 8px;
+      box-sizing: border-box;
+      overflow: hidden;
+      background: #f1f5f9;
+    }
+
+    body.focus-mode .rider-grid {
+      width: 100%;
+      gap: 0;
+      align-items: start;
+    }
+
+    body.focus-mode .rider-card {
+      border-width: 1px 1px 0 1px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    body.focus-mode .gauge-grid {
+      --visible-metric-rows: 1;
+      grid-template-rows: repeat(var(--visible-metric-rows), minmax(0, auto));
+      padding: 4px 4px 0;
+      min-height: calc(var(--visible-metric-rows) * 42px + 4px);
+      align-content: start;
+    }
+
+    body.focus-mode.has-split-data .page-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 220px;
+      grid-template-rows: minmax(0, 1fr) auto;
+      grid-template-areas:
+        "video splits"
+        "riders splits";
+    }
+
+    body.focus-mode.has-split-data #videoPanel {
+      grid-area: video;
+      width: auto;
+    }
+
+    body.focus-mode.has-split-data #riderPanel {
+      grid-area: riders;
+      width: auto;
+    }
+
+    body.focus-mode.has-split-data #splitPanel {
+      grid-area: splits;
+      max-height: 100vh;
+      background: #f1f5f9;
+      padding: 6px;
+    }
+
+    @media (max-width: 700px) {
+      .page-header {
+        padding: 5px 6px;
+      }
+
+      .page-body {
+        padding: 2px;
+        gap: 2px;
+      }
+
+      .trace-canvas {
+        height: 132px;
+      }
+
+      .gauge-label {
+        font-size: 14px;
+      }
+
+      .gauge-value {
+        font-size: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <section id="viewerFrame" class="page-frame">
+      <header class="page-header">
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">Sync Viewer</h1>
+            <p class="page-subtitle">Load a video and a sync file created by a report builder, then review rider metrics in time with the footage.</p>
+          </div>
+          <div class="page-actions">
+            <button id="selectAllFilesBtn" type="button" class="btn btn-ghost">Select All Files</button>
+            <button id="focusBtn" type="button" class="btn btn-ghost">Focus</button>
+            <a class="btn btn-ghost" href="index.html">Back to Tools</a>
+          </div>
+        </div>
+      </header>
+
+      <div class="page-body grid-stack">
+        <section id="controlsPanel" class="panel">
+          <h2 class="panel-title">Inputs</h2>
+          <div class="sync-controls">
+            <div class="field">
+              <label for="videoInput">Video File</label>
+              <input id="videoInput" type="file" accept="video/*" />
+            </div>
+            <div class="field">
+              <label for="syncInput">Sync File (.sync)</label>
+              <input id="syncInput" type="file" accept=".sync,.ipsync,.tpsync,.mdsync,.json,application/json" />
+            </div>
+            <div class="field">
+              <label for="splitInput">Split CSV</label>
+              <input id="splitInput" type="file" accept=".csv,text/csv" />
+            </div>
+            <div class="field">
+              <label for="metricSelect">Trace Metric</label>
+              <select id="metricSelect" disabled></select>
+            </div>
+            <div class="field slider-field">
+              <label for="smoothSecondsInput">Smoothing Window</label>
+              <div class="slider-row">
+                <input id="smoothSecondsInput" type="range" min="1" max="15" step="1" value="3" />
+                <span id="smoothSecondsValue" class="slider-value">3s</span>
+              </div>
+            </div>
+          </div>
+          <p id="syncSummary" class="note">Load a sync file to build rider traces. Load a video to start synced playback.</p>
+          <p id="statusLine" class="status-line">Waiting for files.</p>
+          <p id="splitSummary" class="status-line">No split CSV loaded.</p>
+        </section>
+
+        <section id="videoPanel" class="panel">
+          <div class="video-shell">
+            <video id="videoPlayer" controls preload="metadata"></video>
+          </div>
+        </section>
+
+        <section id="riderPanel" class="panel hidden">
+          <h2 class="panel-title">Rider Metric Traces</h2>
+          <div id="riderGrid" class="rider-grid"></div>
+        </section>
+
+        <aside id="splitPanel" class="panel hidden">
+          <h2 class="panel-title">Laps</h2>
+          <p id="splitSource" class="split-source"></p>
+          <div id="lapList" class="lap-list"></div>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const TRACE_COLORS = {
+      cadence: "#0E4174",
+      power: "#DB6B30",
+      torque: "#6b7280"
+    };
+    const preferredGaugeOrder = ["power", "cadence", "heart_rate", "speed", "torque"];
+    const TRACE_MODE_OPTIONS = [
+      { value: "power+cadence", label: "Power + Cadence" },
+      { value: "power", label: "Power" },
+      { value: "cadence", label: "Cadence" }
+    ];
+
+    const state = {
+      videoUrl: null,
+      syncPayload: null,
+      riders: [],
+      syncType: null,
+      metricOptions: [],
+      selectedMetric: "power+cadence",
+      smoothingSeconds: 3,
+      splitData: null,
+      splitRender: null,
+      running: false,
+      rafId: null,
+      videoFrameId: null,
+      usingVideoFrames: false,
+      detectedFrameRate: NaN,
+      fpsSample: null
+    };
+
+    const ui = {
+      videoInput: document.getElementById("videoInput"),
+      syncInput: document.getElementById("syncInput"),
+      splitInput: document.getElementById("splitInput"),
+      selectAllFilesBtn: document.getElementById("selectAllFilesBtn"),
+      metricSelect: document.getElementById("metricSelect"),
+      smoothSecondsInput: document.getElementById("smoothSecondsInput"),
+      smoothSecondsValue: document.getElementById("smoothSecondsValue"),
+      syncSummary: document.getElementById("syncSummary"),
+      statusLine: document.getElementById("statusLine"),
+      splitSummary: document.getElementById("splitSummary"),
+      video: document.getElementById("videoPlayer"),
+      focusBtn: document.getElementById("focusBtn"),
+      viewerFrame: document.getElementById("viewerFrame"),
+      riderPanel: document.getElementById("riderPanel"),
+      riderGrid: document.getElementById("riderGrid"),
+      splitPanel: document.getElementById("splitPanel"),
+      splitSource: document.getElementById("splitSource"),
+      lapList: document.getElementById("lapList")
+    };
+
+    function setStatus(text) {
+      ui.statusLine.textContent = text;
+    }
+
+    function resetFrameRateEstimate() {
+      state.detectedFrameRate = NaN;
+      state.fpsSample = null;
+    }
+
+    function getEffectiveFrameRate() {
+      const fps = Number(state.detectedFrameRate);
+      if (Number.isFinite(fps) && fps >= 10 && fps <= 240) return fps;
+      return 50;
+    }
+
+    function updateFrameRateEstimate(sampleFps) {
+      const fps = Number(sampleFps);
+      if (!Number.isFinite(fps) || fps < 10 || fps > 240) return;
+      if (Number.isFinite(state.detectedFrameRate)) {
+        state.detectedFrameRate = (state.detectedFrameRate * 0.7) + (fps * 0.3);
+      } else {
+        state.detectedFrameRate = fps;
+      }
+    }
+
+    function updateFrameRateFromVideoFrameMetadata(metadata) {
+      if (!metadata) return;
+      const mediaTime = Number(metadata.mediaTime);
+      const presentedFrames = Number(metadata.presentedFrames);
+      if (!Number.isFinite(mediaTime) || !Number.isFinite(presentedFrames)) return;
+
+      if (!state.fpsSample || mediaTime <= state.fpsSample.mediaTime || presentedFrames <= state.fpsSample.presentedFrames) {
+        state.fpsSample = { mediaTime, presentedFrames };
+        return;
+      }
+
+      const deltaTime = mediaTime - state.fpsSample.mediaTime;
+      const deltaFrames = presentedFrames - state.fpsSample.presentedFrames;
+      if (deltaTime >= 0.4 && deltaFrames >= 8) {
+        updateFrameRateEstimate(deltaFrames / deltaTime);
+        state.fpsSample = { mediaTime, presentedFrames };
+      }
+    }
+
+    function updateFrameRateFromPlaybackQuality() {
+      if (typeof ui.video.getVideoPlaybackQuality !== "function") return;
+      const quality = ui.video.getVideoPlaybackQuality();
+      if (!quality) return;
+      const totalFrames = Number(quality.totalVideoFrames);
+      const time = Number(ui.video.currentTime);
+      if (!Number.isFinite(totalFrames) || !Number.isFinite(time) || time < 0.5 || totalFrames < 10) return;
+      updateFrameRateEstimate(totalFrames / time);
+    }
+
+    function normalizeMetricName(key) {
+      if (!key) return "metric";
+      return String(key).trim().toLowerCase();
+    }
+
+    function metricRole(key) {
+      const normalized = normalizeMetricName(key);
+      if (normalized === "power" || normalized.includes("power")) return "power";
+      if (normalized === "cadence" || normalized.includes("cadence")) return "cadence";
+      if (normalized === "torque" || normalized.includes("torque")) return "torque";
+      return normalized;
+    }
+
+    function metricLabel(key) {
+      const map = {
+        power: "Power",
+        cadence: "Cadence",
+        heart_rate: "Heart Rate",
+        heartrate: "Heart Rate",
+        speed: "Speed",
+        torque: "Torque"
+      };
+      return map[normalizeMetricName(key)] || String(key);
+    }
+
+    function metricUnit(key) {
+      const map = {
+        power: "W",
+        cadence: "rpm",
+        heart_rate: "bpm",
+        heartrate: "bpm",
+        speed: "km/h",
+        torque: "N.m"
+      };
+      return map[normalizeMetricName(key)] || "";
+    }
+
+    function formatSplitTime(seconds) {
+      if (!Number.isFinite(seconds)) return "--";
+      return seconds.toFixed(2) + "s";
+    }
+
+    function getSplitRowEndTime(row) {
+      if (!row || typeof row !== "object") return NaN;
+      const value = Number(row.endTime);
+      return Number.isFinite(value) ? value : NaN;
+    }
+
+    function getMetricSeriesByName(rider, metricName) {
+      if (!rider || !rider.seriesByMetric) return null;
+      const lookup = normalizeMetricName(metricName);
+      const foundKey = Object.keys(rider.seriesByMetric).find((key) => {
+        const normalized = normalizeMetricName(key);
+        return normalized === lookup || metricRole(normalized) === lookup;
+      });
+      return foundKey ? rider.seriesByMetric[foundKey] : null;
+    }
+
+    function getMetricKeyForRole(rider, role) {
+      if (!rider) return null;
+      const fromAvailable = (rider.availableMetrics || []).find((metric) => metricRole(metric) === role);
+      if (fromAvailable) return fromAvailable;
+      const fromSeries = Object.keys(rider.seriesByMetric || {}).find((metric) => metricRole(metric) === role);
+      return fromSeries || null;
+    }
+
+    function classifySelectedFile(file) {
+      const name = String(file && file.name ? file.name : "").toLowerCase();
+      if (/\.(mp4|webm|mov|m4v|mkv|avi)$/i.test(name)) return "video";
+      if (/\.(sync|ipsync|tpsync|mdsync|json)$/i.test(name)) return "sync";
+      if (/\.csv$/i.test(name)) return "split";
+      return "unknown";
+    }
+
+    function parseCsvRow(line) {
+      const cells = [];
+      let cell = "";
+      let inQuotes = false;
+
+      for (let i = 0; i < line.length; i += 1) {
+        const char = line[i];
+        if (inQuotes) {
+          if (char === '"') {
+            const nextChar = line[i + 1];
+            if (nextChar === '"') {
+              cell += '"';
+              i += 1;
+            } else {
+              inQuotes = false;
+            }
+          } else {
+            cell += char;
+          }
+        } else if (char === ',') {
+          cells.push(cell);
+          cell = "";
+        } else if (char === '"') {
+          inQuotes = true;
+        } else {
+          cell += char;
+        }
+      }
+
+      cells.push(cell);
+      return cells;
+    }
+
+    function parseSplitCsv(text) {
+      const metadata = {};
+      const rows = [];
+      const lines = String(text || "").split(/\r?\n/);
+      let headers = null;
+
+      for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) continue;
+
+        if (line.startsWith("#")) {
+          const metaCells = parseCsvRow(line.slice(1).trim());
+          if (metaCells.length >= 2) {
+            const key = metaCells[0].trim();
+            const value = metaCells.slice(1).join(",").trim();
+            if (key) metadata[key] = value;
+          }
+          continue;
+        }
+
+        const cells = parseCsvRow(rawLine);
+        if (!headers) {
+          headers = cells.map((cell) => cell.trim());
+          continue;
+        }
+
+        const row = {};
+        for (let i = 0; i < headers.length; i += 1) {
+          row[headers[i]] = cells[i] != null ? cells[i] : "";
+        }
+
+        const quarterTime = Number(row["Quarter Time (s)"] ?? row["Quarter Time"] ?? row.quarterTime);
+        const runningTime = Number(row["Running Time (s)"] ?? row["Running Time"] ?? row.runningTime);
+        const speed = Number(row["Speed (km/h)"] ?? row.Speed ?? row.speed);
+        const endTime = Number(row.endTime ?? row.EndTime ?? row["end time"]);
+        const splitLabel = String(row.Split ?? row.split ?? "").trim();
+        const splitType = String(row.splitType ?? row["splitType"] ?? "").trim();
+        const event = String(row.Event ?? row.event ?? "").trim();
+
+        if (!splitLabel && !Number.isFinite(quarterTime) && !Number.isFinite(endTime)) continue;
+
+        rows.push({
+          splitLabel,
+          quarterTime,
+          runningTime,
+          speed,
+          endTime,
+          splitType,
+          event
+        });
+      }
+
+      rows.sort((a, b) => {
+        const aTime = getSplitRowEndTime(a);
+        const bTime = getSplitRowEndTime(b);
+        const safeATime = Number.isFinite(aTime) ? aTime : Number.POSITIVE_INFINITY;
+        const safeBTime = Number.isFinite(bTime) ? bTime : Number.POSITIVE_INFINITY;
+        if (safeATime !== safeBTime) return safeATime - safeBTime;
+        return a.runningTime - b.runningTime;
+      });
+
+      return { metadata, rows };
+    }
+
+    function getCurrentSplitLap(videoTime) {
+      if (!state.splitData || !state.splitData.rows.length) return null;
+
+      const rows = state.splitData.rows;
+      if (!Number.isFinite(videoTime)) {
+        const lastIndex = rows.length - 1;
+        const lapStart = Math.floor(lastIndex / 4) * 4;
+        const lapRows = rows.slice(lapStart, lapStart + 4);
+        const lapNumber = Math.floor(lapStart / 4) + 1;
+        return { lapNumber, lapStart, lapRows, activeIndex: lastIndex };
+      }
+
+      let activeIndex = rows.length - 1;
+      for (let i = 0; i < rows.length; i += 1) {
+        const rowEndTime = getSplitRowEndTime(rows[i]);
+        if (!Number.isFinite(rowEndTime)) continue;
+        if (videoTime < rowEndTime) {
+          activeIndex = i;
+          break;
+        }
+      }
+
+      const lapStart = Math.floor(activeIndex / 4) * 4;
+      const lapRows = rows.slice(lapStart, lapStart + 4);
+      const lapNumber = Math.floor(lapStart / 4) + 1;
+      return { lapNumber, lapStart, lapRows, activeIndex };
+    }
+
+    function computeLapGroups() {
+      if (!state.splitData || !Array.isArray(state.splitData.rows) || !state.splitData.rows.length) return [];
+      const rows = state.splitData.rows;
+      const laps = [];
+      for (let start = 0; start < rows.length; start += 4) {
+        const lapRows = rows.slice(start, start + 4);
+        let total = 0;
+        let hasAny = false;
+        for (const row of lapRows) {
+          if (row && typeof row === "object" && Number.isFinite(Number(row.quarterTime))) {
+            total += Number(row.quarterTime);
+            hasAny = true;
+          }
+        }
+        const lastRow = lapRows[lapRows.length - 1];
+        const endTime = getSplitRowEndTime(lastRow);
+        laps.push({
+          lapNumber: laps.length + 1,
+          startIndex: start,
+          rows: lapRows,
+          total: hasAny ? total : NaN,
+          endTime
+        });
+      }
+      return laps;
+    }
+
+    function buildLapList() {
+      ui.lapList.innerHTML = "";
+      if (!state.splitData) {
+        state.splitRender = null;
+        return;
+      }
+
+      const sourceLabel = state.splitData.metadata.title
+        || state.splitData.metadata.Title
+        || state.splitData.sourceName
+        || "Split CSV";
+      ui.splitSource.textContent = sourceLabel;
+      ui.splitSource.title = sourceLabel;
+
+      const laps = computeLapGroups();
+      const frag = document.createDocumentFragment();
+      const lapRefs = [];
+
+      for (const lap of laps) {
+        const item = document.createElement("article");
+        item.className = "lap-item";
+
+        const label = document.createElement("p");
+        label.className = "lap-item-label";
+        label.textContent = `Lap ${lap.lapNumber}`;
+
+        const value = document.createElement("p");
+        value.className = "lap-item-value";
+        value.textContent = formatSplitTime(lap.total);
+
+        item.appendChild(label);
+        item.appendChild(value);
+        frag.appendChild(item);
+        lapRefs.push({ item, label, value, lap });
+      }
+
+      ui.lapList.appendChild(frag);
+      state.splitRender = { lapRefs };
+    }
+
+    function updateSplitDisplay(videoTime) {
+      if (!state.splitData) {
+        ui.splitPanel.classList.add("hidden");
+        document.body.classList.remove("has-split-data");
+        return;
+      }
+
+      ui.splitPanel.classList.remove("hidden");
+      document.body.classList.add("has-split-data");
+
+      if (!state.splitRender || !Array.isArray(state.splitRender.lapRefs)) return;
+
+      const lapRefs = state.splitRender.lapRefs;
+      if (!lapRefs.length) return;
+
+      const totals = lapRefs
+        .slice(1)
+        .map((refs) => refs.lap.total)
+        .filter((value) => Number.isFinite(value));
+      const minTotal = totals.length ? Math.min(...totals) : NaN;
+      const maxTotal = totals.length ? Math.max(...totals) : NaN;
+      const range = maxTotal - minTotal;
+
+      let activeLapIndex = -1;
+      if (Number.isFinite(videoTime)) {
+        for (let i = 0; i < lapRefs.length; i += 1) {
+          const end = lapRefs[i].lap.endTime;
+          if (Number.isFinite(end) && videoTime < end) {
+            activeLapIndex = i;
+            break;
+          }
+        }
+        if (activeLapIndex === -1) activeLapIndex = lapRefs.length - 1;
+      } else {
+        activeLapIndex = lapRefs.length - 1;
+      }
+
+      for (let i = 0; i < lapRefs.length; i += 1) {
+        const refs = lapRefs[i];
+        const total = refs.lap.total;
+        refs.value.textContent = formatSplitTime(total);
+
+        if (i > 0 && Number.isFinite(total) && Number.isFinite(minTotal) && Number.isFinite(maxTotal)) {
+          const normalized = range > 0 ? (total - minTotal) / range : 0.5;
+          const hue = (1 - normalized) * 120;
+          refs.item.style.background = `hsl(${hue.toFixed(0)} 72% 92%)`;
+          refs.item.style.borderColor = `hsl(${hue.toFixed(0)} 52% 48%)`;
+          refs.value.style.color = `hsl(${hue.toFixed(0)} 80% 26%)`;
+        } else {
+          refs.item.style.background = "#ffffff";
+          refs.item.style.borderColor = "var(--color-border)";
+          refs.value.style.color = "var(--color-brand-blue)";
+        }
+
+        refs.item.classList.toggle("active", i === activeLapIndex);
+      }
+    }
+
+    function formatMetricValue(key, value) {
+      if (!Number.isFinite(value)) return "-";
+      const unit = metricUnit(key);
+      const precision = normalizeMetricName(key) === "speed" ? 1 : 0;
+      return value.toFixed(precision) + (unit ? unit : "");
+    }
+
+    function getRowTime(row, timeColumnKey) {
+      const keys = [timeColumnKey, "Time", "time", "timestamp", "Timestamp", "elapsed_time", "Elapsed Time", "timer_time", "Timer Time"];
+      for (const key of keys) {
+        if (!key) continue;
+        const value = Number(row[key]);
+        if (Number.isFinite(value)) return value;
+      }
+      return NaN;
+    }
+
+    function detectMetricsFromRows(rows, timeColumnKey) {
+      const metricSet = new Set();
+      const blocked = new Set([
+        normalizeMetricName(timeColumnKey),
+        "time",
+        "timestamp",
+        "date_time",
+        "lat",
+        "lon",
+        "latitude",
+        "longitude"
+      ]);
+
+      for (const row of rows) {
+        const entries = Object.entries(row || {});
+        for (const [key, raw] of entries) {
+          const normalized = normalizeMetricName(key);
+          if (blocked.has(normalized)) continue;
+          const value = Number(raw);
+          if (Number.isFinite(value)) metricSet.add(key);
+        }
+      }
+      return metricSet;
+    }
+
+    function binarySearchLowerBound(array, target) {
+      let lo = 0;
+      let hi = array.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (array[mid] < target) lo = mid + 1;
+        else hi = mid;
+      }
+      return lo;
+    }
+
+    function buildMetricSeries(rows, metricKey, timeColumnKey) {
+      const points = [];
+      for (const row of rows) {
+        const time = getRowTime(row, timeColumnKey);
+        const value = Number(row[metricKey]);
+        if (!Number.isFinite(time) || !Number.isFinite(value)) continue;
+        points.push([time, value]);
+      }
+      points.sort((a, b) => a[0] - b[0]);
+
+      const times = new Float64Array(points.length);
+      const values = new Float32Array(points.length);
+      let min = Number.POSITIVE_INFINITY;
+      let max = Number.NEGATIVE_INFINITY;
+      for (let i = 0; i < points.length; i += 1) {
+        times[i] = points[i][0];
+        values[i] = points[i][1];
+        if (points[i][1] < min) min = points[i][1];
+        if (points[i][1] > max) max = points[i][1];
+      }
+
+      if (!Number.isFinite(min) || !Number.isFinite(max)) {
+        min = 0;
+        max = 1;
+      }
+
+      return { times, values, min, max };
+    }
+
+    function getSeriesValueAtVideoTime(series, offset, videoTime, timeShift = 0) {
+      if (!series || !series.times || series.times.length === 0) return NaN;
+      const targetTime = (videoTime - offset) + timeShift;
+      const times = series.times;
+      const values = series.values;
+
+      if (targetTime <= times[0]) return values[0];
+      const lastIndex = times.length - 1;
+      if (targetTime >= times[lastIndex]) return values[lastIndex];
+
+      const hi = binarySearchLowerBound(times, targetTime);
+      if (hi <= 0) return values[0];
+      if (hi >= times.length) return values[lastIndex];
+      const lo = hi - 1;
+
+      const t0 = times[lo];
+      const t1 = times[hi];
+      const v0 = values[lo];
+      const v1 = values[hi];
+      if (t1 === t0) return v1;
+      const alpha = (targetTime - t0) / (t1 - t0);
+      return v0 + alpha * (v1 - v0);
+    }
+
+    function getNearestSeriesSampleAtVideoTime(series, offset, videoTime, timeShift = 0) {
+      if (!series || !series.times || series.times.length === 0) return NaN;
+      const targetTime = (videoTime - offset) + timeShift;
+      const times = series.times;
+      const values = series.values;
+
+      if (targetTime <= times[0]) return values[0];
+      const lastIndex = times.length - 1;
+      if (targetTime >= times[lastIndex]) return values[lastIndex];
+
+      const hi = binarySearchLowerBound(times, targetTime);
+      if (hi <= 0) return values[0];
+      if (hi >= times.length) return values[lastIndex];
+      const lo = hi - 1;
+
+      const loDelta = Math.abs(targetTime - times[lo]);
+      const hiDelta = Math.abs(times[hi] - targetTime);
+      return loDelta <= hiDelta ? values[lo] : values[hi];
+    }
+
+    function getSmoothedSeriesValueAtVideoTime(series, offset, videoTime, smoothingSeconds, timeShift = 0) {
+      if (!series || !series.times || series.times.length === 0) return NaN;
+      const targetTime = (videoTime - offset) + timeShift;
+      const halfWindow = Math.max(0.5, Number(smoothingSeconds) / 2);
+      const from = targetTime - halfWindow;
+      const to = targetTime + halfWindow;
+
+      const start = Math.max(0, binarySearchLowerBound(series.times, from));
+      const end = Math.min(series.times.length - 1, binarySearchLowerBound(series.times, to));
+
+      if (start > end) {
+        return getNearestSeriesSampleAtVideoTime(series, offset, videoTime, timeShift);
+      }
+
+      let sum = 0;
+      let count = 0;
+      for (let i = start; i <= end; i += 1) {
+        const t = series.times[i];
+        if (t < from || t > to) continue;
+        sum += series.values[i];
+        count += 1;
+      }
+
+      if (!count) {
+        return getNearestSeriesSampleAtVideoTime(series, offset, videoTime, timeShift);
+      }
+
+      return sum / count;
+    }
+
+    function getSeriesLapAverage(series, rider, lapInfo) {
+      if (!series || !series.times || series.times.length === 0 || !lapInfo) return NaN;
+      const rows = lapInfo.lapRows || [];
+      if (!rows.length) return NaN;
+
+      const lapStartRow = lapInfo.lapStart > 0 && state.splitData && state.splitData.rows
+        ? state.splitData.rows[lapInfo.lapStart - 1]
+        : null;
+      const startVideo = getSplitRowEndTime(lapStartRow);
+      const safeStartVideo = Number.isFinite(startVideo) ? startVideo : 0;
+      const endRow = rows[rows.length - 1];
+      const endVideo = getSplitRowEndTime(endRow);
+      if (!Number.isFinite(endVideo)) return NaN;
+
+      let fitStart = (safeStartVideo - rider.offset) + (rider.timeShift || 0);
+      let fitEnd = (endVideo - rider.offset) + (rider.timeShift || 0);
+      if (fitEnd < fitStart) {
+        const tmp = fitStart;
+        fitStart = fitEnd;
+        fitEnd = tmp;
+      }
+
+      const startIndex = Math.max(0, binarySearchLowerBound(series.times, fitStart));
+      const endIndex = Math.min(series.times.length - 1, binarySearchLowerBound(series.times, fitEnd));
+      if (startIndex > endIndex) return NaN;
+
+      let sum = 0;
+      let count = 0;
+      for (let i = startIndex; i <= endIndex; i += 1) {
+        const t = series.times[i];
+        if (t < fitStart || t > fitEnd) continue;
+        sum += series.values[i];
+        count += 1;
+      }
+
+      return count ? sum / count : NaN;
+    }
+
+    function drawSeriesPanel(ctx, series, metricKey, bounds, color, dashPattern, axisSide = "left") {
+      if (!series || series.times.length < 2) return false;
+
+      const { leftPad, rightPad, topPad, plotW, plotH, fromFitTime, toFitTime } = bounds;
+      const startIndex = Math.max(0, binarySearchLowerBound(series.times, fromFitTime) - 1);
+      const endIndex = Math.min(series.times.length - 1, binarySearchLowerBound(series.times, toFitTime) + 1);
+
+      let yMin = Number.isFinite(series.min) ? series.min : 0;
+      let yMax = Number.isFinite(series.max) ? series.max : 1;
+      if (yMin === yMax) {
+        yMin -= 1;
+        yMax += 1;
+      }
+      const yPad = (yMax - yMin) * 0.1;
+      yMin -= yPad;
+      yMax += yPad;
+
+      if (Array.isArray(dashPattern)) ctx.setLineDash(dashPattern);
+      ctx.beginPath();
+      let moved = false;
+      for (let i = startIndex; i <= endIndex; i += 1) {
+        const fitTime = series.times[i];
+        const value = series.values[i];
+        const rel = (fitTime - fromFitTime) / (toFitTime - fromFitTime);
+        const x = leftPad + rel * plotW;
+        const y = topPad + ((yMax - value) / (yMax - yMin)) * plotH;
+        if (!moved) {
+          ctx.moveTo(x, y);
+          moved = true;
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      if (moved) ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = color;
+      ctx.font = "10px Arial";
+      if (axisSide === "right") {
+        const rightX = leftPad + plotW + 4;
+        ctx.textAlign = "right";
+        ctx.fillText(yMax.toFixed(0), rightX + 26, topPad + 8);
+        ctx.fillText(yMin.toFixed(0), rightX + 26, topPad + plotH);
+        ctx.textAlign = "left";
+      } else {
+        ctx.textAlign = "left";
+        ctx.fillText(yMax.toFixed(0), 3, topPad + 8);
+        ctx.fillText(yMin.toFixed(0), 3, topPad + plotH);
+      }
+
+      return true;
+    }
+
+    function drawTraceForRider(rider, videoTime) {
+      const mode = state.selectedMetric || "power+cadence";
+      const powerMetricKey = getMetricKeyForRole(rider, "power");
+      const cadenceMetricKey = getMetricKeyForRole(rider, "cadence");
+      const torqueMetricKey = getMetricKeyForRole(rider, "torque");
+      const powerSeries = getMetricSeriesByName(rider, powerMetricKey || "power");
+      const cadenceSeries = getMetricSeriesByName(rider, cadenceMetricKey || "cadence");
+      const torqueSeries = getMetricSeriesByName(rider, torqueMetricKey || "torque");
+      const canvas = rider.render.canvas;
+      const ctx = canvas.getContext("2d");
+
+      const dpr = window.devicePixelRatio || 1;
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      const targetWidth = Math.max(1, Math.round(width * dpr));
+      const targetHeight = Math.max(1, Math.round(height * dpr));
+      if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, width, height);
+
+      const leftPad = 34;
+      const rightPad = mode === "power+cadence" ? 34 : 8;
+      const topPad = 10;
+      const bottomPad = 18;
+      const plotW = width - leftPad - rightPad;
+      const plotH = height - topPad - bottomPad;
+      if (plotW <= 0 || plotH <= 0) return;
+
+      ctx.strokeStyle = "#e5e7eb";
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i += 1) {
+        const y = topPad + (plotH * i) / 4;
+        ctx.beginPath();
+        ctx.moveTo(leftPad, y);
+        ctx.lineTo(leftPad + plotW, y);
+        ctx.stroke();
+      }
+
+      for (let i = 0; i <= 6; i += 1) {
+        const x = leftPad + (plotW * i) / 6;
+        ctx.beginPath();
+        ctx.moveTo(x, topPad);
+        ctx.lineTo(x, topPad + plotH);
+        ctx.stroke();
+      }
+
+      if ((mode === "power" && (!powerSeries || powerSeries.times.length < 2)) ||
+          (mode === "cadence" && (!cadenceSeries || cadenceSeries.times.length < 2)) ||
+          (mode === "torque" && (!torqueSeries || torqueSeries.times.length < 2)) ||
+          (mode === "power+cadence" && (!powerSeries || powerSeries.times.length < 2) && (!cadenceSeries || cadenceSeries.times.length < 2))) {
+        ctx.fillStyle = "#6b7280";
+        ctx.font = "12px Arial";
+        ctx.fillText("No metric samples", leftPad + 8, topPad + 16);
+        return;
+      }
+
+      const centerFitTime = (videoTime - rider.offset) + (rider.timeShift || 0);
+      const halfWindow = 30;
+      const fromFitTime = centerFitTime - halfWindow;
+      const toFitTime = centerFitTime + halfWindow;
+
+      const bounds = { leftPad, rightPad, topPad, plotW, plotH, fromFitTime, toFitTime };
+      if (mode === "power+cadence") {
+        if (powerSeries) drawSeriesPanel(ctx, powerSeries, powerMetricKey || "power", bounds, TRACE_COLORS.power, [], "left");
+        if (cadenceSeries) drawSeriesPanel(ctx, cadenceSeries, cadenceMetricKey || "cadence", bounds, TRACE_COLORS.cadence, [6, 4], "right");
+      } else if (mode === "power") {
+        drawSeriesPanel(ctx, powerSeries, powerMetricKey || "power", bounds, TRACE_COLORS.power, [], "left");
+      } else if (mode === "cadence") {
+        drawSeriesPanel(ctx, cadenceSeries, cadenceMetricKey || "cadence", bounds, TRACE_COLORS.cadence, [], "left");
+      } else if (mode === "torque") {
+        drawSeriesPanel(ctx, torqueSeries, torqueMetricKey || "torque", bounds, TRACE_COLORS.torque, [], "left");
+      }
+
+      const playheadX = leftPad + plotW / 2;
+      ctx.strokeStyle = "#ef4444";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(playheadX, topPad);
+      ctx.lineTo(playheadX, topPad + plotH);
+      ctx.stroke();
+
+      ctx.fillStyle = "#4b5563";
+      ctx.font = "10px Arial";
+      ctx.fillText("-30s", leftPad, topPad + plotH + 14);
+      ctx.fillText("+30s", leftPad + plotW - 24, topPad + plotH + 14);
+      ctx.fillText("Now", playheadX - 10, topPad + plotH + 14);
+    }
+
+    function gaugeMetricOrder(allMetrics) {
+      const ordered = [];
+      for (const key of preferredGaugeOrder) {
+        const found = allMetrics.find((metric) => normalizeMetricName(metric) === key);
+        if (found) ordered.push(found);
+      }
+      for (const metric of allMetrics) {
+        if (!ordered.includes(metric)) ordered.push(metric);
+      }
+      return ordered;
+    }
+
+    function isDisplayMetric(metricKey) {
+      const role = metricRole(metricKey);
+      return role === "power" || role === "cadence";
+    }
+
+    function buildRiderCards() {
+      ui.riderGrid.innerHTML = "";
+      const frag = document.createDocumentFragment();
+
+      for (const rider of state.riders) {
+        const card = document.createElement("article");
+        card.className = "rider-card";
+
+        const traceWrap = document.createElement("div");
+        traceWrap.className = "trace-wrap";
+        const canvas = document.createElement("canvas");
+        canvas.className = "trace-canvas";
+        traceWrap.appendChild(canvas);
+
+        const fileLabel = document.createElement("p");
+        fileLabel.className = "plot-file";
+        fileLabel.title = rider.fileName;
+        fileLabel.textContent = rider.fileName;
+
+        const gaugeWrap = document.createElement("div");
+        gaugeWrap.className = "gauge-grid";
+
+        const metricRefs = {};
+        const order = gaugeMetricOrder(rider.availableMetrics).filter(isDisplayMetric);
+        for (const metricKey of order) {
+          const gauge = document.createElement("div");
+          gauge.className = "gauge-item";
+
+          const value = document.createElement("p");
+          const role = metricRole(metricKey);
+          value.className = "gauge-value " + role;
+          value.textContent = "-";
+
+          gauge.appendChild(value);
+          gaugeWrap.appendChild(gauge);
+
+          metricRefs[metricKey] = { item: gauge, value };
+        }
+
+        card.appendChild(traceWrap);
+        card.appendChild(fileLabel);
+        card.appendChild(gaugeWrap);
+        frag.appendChild(card);
+
+        rider.render = {
+          card,
+          canvas,
+          gaugeWrap,
+          metricRefs
+        };
+      }
+
+      if (state.splitData) {
+        buildLapList();
+      } else {
+        state.splitRender = null;
+        ui.lapList.innerHTML = "";
+        ui.splitSource.textContent = "";
+      }
+
+      if (frag.childNodes.length) {
+        ui.riderGrid.appendChild(frag);
+      }
+
+      ui.riderPanel.classList.toggle("hidden", state.riders.length === 0);
+      ui.splitPanel.classList.toggle("hidden", !state.splitData);
+      document.body.classList.toggle("has-split-data", Boolean(state.splitData));
+    }
+
+    function applyMetricHighlight() {
+      const mode = state.selectedMetric || "power+cadence";
+      for (const rider of state.riders) {
+        if (!rider.render || !rider.render.metricRefs) continue;
+        const powerKey = getMetricKeyForRole(rider, "power");
+        const cadenceKey = getMetricKeyForRole(rider, "cadence");
+        let visibleCount = 0;
+        for (const [metricKey, refs] of Object.entries(rider.render.metricRefs)) {
+          const shouldShow =
+            (mode === "power+cadence" && (metricKey === powerKey || metricKey === cadenceKey)) ||
+            (mode === "power" && metricKey === powerKey) ||
+            (mode === "cadence" && metricKey === cadenceKey);
+          const isPrimary =
+            (mode === "power+cadence" && metricKey === powerKey) ||
+            (mode !== "power+cadence" && shouldShow);
+          refs.item.classList.toggle("primary", isPrimary);
+          refs.item.style.display = shouldShow ? "" : "none";
+          if (shouldShow) visibleCount += 1;
+        }
+
+        if (rider.render.gaugeWrap) {
+          const rows = Math.max(1, visibleCount);
+          rider.render.gaugeWrap.style.setProperty("--visible-metric-rows", String(rows));
+        }
+      }
+    }
+
+    function updateMetricSelector() {
+      ui.metricSelect.innerHTML = "";
+      const frag = document.createDocumentFragment();
+
+      for (const metric of TRACE_MODE_OPTIONS) {
+        const option = document.createElement("option");
+        option.value = metric.value;
+        option.textContent = metric.label;
+        frag.appendChild(option);
+      }
+
+      ui.metricSelect.appendChild(frag);
+      ui.metricSelect.disabled = false;
+
+      const allowedModes = new Set(TRACE_MODE_OPTIONS.map((option) => option.value));
+      if (!allowedModes.has(state.selectedMetric)) {
+        state.selectedMetric = "power+cadence";
+      }
+      ui.metricSelect.value = state.selectedMetric;
+    }
+
+    function updateDisplay(videoTime) {
+      const lapInfo = getCurrentSplitLap(videoTime);
+      for (const rider of state.riders) {
+        for (const metricKey of rider.availableMetrics) {
+          const refs = rider.render.metricRefs[metricKey];
+          if (!refs) continue;
+          const series = rider.seriesByMetric[metricKey];
+          const raw1Hz = getNearestSeriesSampleAtVideoTime(series, rider.offset, videoTime, rider.timeShift || 0);
+          const smoothed = getSmoothedSeriesValueAtVideoTime(series, rider.offset, videoTime, state.smoothingSeconds, rider.timeShift || 0);
+          const lapAverage = getSeriesLapAverage(series, rider, lapInfo);
+          refs.value.textContent =
+            `1Hz: ${formatMetricValue(metricKey, raw1Hz)}  |  ${state.smoothingSeconds}s: ${formatMetricValue(metricKey, smoothed)}  |  Lap: ${formatMetricValue(metricKey, lapAverage)}`;
+        }
+        drawTraceForRider(rider, videoTime);
+      }
+      updateSplitDisplay(videoTime);
+      const fps = getEffectiveFrameRate();
+      const fpsText = Number.isFinite(state.detectedFrameRate)
+        ? "" + fps.toFixed(2) + "fps"
+        : "estimating fps (default 50)";
+      setStatus("Playback at " + videoTime.toFixed(2) + "s | " + fpsText);
+    }
+
+    function tickFrame() {
+      if (!state.running) return;
+      updateDisplay(ui.video.currentTime || 0);
+      state.rafId = requestAnimationFrame(tickFrame);
+    }
+
+    function handleVideoFrame(_now, metadata) {
+      if (!state.running || typeof ui.video.requestVideoFrameCallback !== "function") return;
+      updateFrameRateFromVideoFrameMetadata(metadata);
+      updateDisplay(ui.video.currentTime || 0);
+      state.videoFrameId = ui.video.requestVideoFrameCallback(handleVideoFrame);
+    }
+
+    function stopRenderLoop() {
+      state.running = false;
+      if (state.rafId) {
+        cancelAnimationFrame(state.rafId);
+        state.rafId = null;
+      }
+      if (state.videoFrameId && typeof ui.video.cancelVideoFrameCallback === "function") {
+        ui.video.cancelVideoFrameCallback(state.videoFrameId);
+        state.videoFrameId = null;
+      }
+    }
+
+    function startRenderLoop() {
+      if (!state.riders.length) return;
+      stopRenderLoop();
+      state.running = true;
+      if (typeof ui.video.requestVideoFrameCallback === "function") {
+        state.usingVideoFrames = true;
+        state.videoFrameId = ui.video.requestVideoFrameCallback(handleVideoFrame);
+      } else {
+        state.usingVideoFrames = false;
+        state.rafId = requestAnimationFrame(tickFrame);
+      }
+    }
+
+    function resetSyncView(message) {
+      state.syncPayload = null;
+      state.riders = [];
+      state.metricOptions = [];
+      state.selectedMetric = null;
+      ui.riderGrid.innerHTML = "";
+      ui.riderPanel.classList.add("hidden");
+      ui.metricSelect.innerHTML = "";
+      ui.metricSelect.disabled = true;
+      ui.syncSummary.textContent = message;
+      setStatus("Waiting for files.");
+      stopRenderLoop();
+    }
+
+    function resetSplitView(message) {
+      state.splitData = null;
+      state.splitRender = null;
+      ui.splitSummary.textContent = message;
+      buildRiderCards();
+      updateDisplay(ui.video.currentTime || 0);
+    }
+
+    function buildRidersFromPayload(payload) {
+      if (!payload || !Array.isArray(payload.files)) {
+        throw new Error("Sync file is missing a files array.");
+      }
+
+      const riderNames = Array.isArray(payload.riderNames)
+        ? payload.riderNames.slice()
+        : [payload.riderName || "Rider 1"];
+
+      const rawFiles = payload.files.filter((entry) => entry && Array.isArray(entry.rows));
+      const mapped = [];
+
+      for (const entry of rawFiles) {
+        const slot = Number(entry.assignedRiderIndex);
+        if (!Number.isFinite(slot) || slot < 0) continue;
+        const rows = entry.rows.slice();
+        const timeColumnKey = entry.timeColumnKey || "Time";
+        rows.sort((a, b) => getRowTime(a, timeColumnKey) - getRowTime(b, timeColumnKey));
+
+        const metricSet = new Set();
+        if (Array.isArray(entry.metricColumns)) {
+          for (const metric of entry.metricColumns) {
+            if (typeof metric === "string" && metric.trim()) metricSet.add(metric);
+          }
+        }
+        for (const metric of detectMetricsFromRows(rows, timeColumnKey)) {
+          metricSet.add(metric);
+        }
+
+        const seriesByMetric = {};
+        for (const metricKey of metricSet) {
+          seriesByMetric[metricKey] = buildMetricSeries(rows, metricKey, timeColumnKey);
+        }
+
+        let firstTime = NaN;
+        if (rows.length > 0) {
+          firstTime = getRowTime(rows[0], timeColumnKey);
+        }
+        const offset = Number(entry.offset) || 0;
+        const timeShift = Number.isFinite(firstTime) && firstTime > 1e6 && Math.abs(offset) < 3600 ? firstTime : 0;
+
+        mapped.push({
+          name: riderNames[slot] || "Rider " + (slot + 1),
+          slot,
+          fileName: String(entry.fileName || "Sync Source"),
+          offset,
+          timeShift,
+          timeColumnKey,
+          availableMetrics: Array.from(metricSet),
+          seriesByMetric
+        });
+      }
+
+      mapped.sort((a, b) => a.slot - b.slot);
+      if (!mapped.length) {
+        throw new Error("No rider data with assigned slots was found in the sync file.");
+      }
+
+      const metricIntersection = new Set(mapped[0].availableMetrics);
+      for (let i = 1; i < mapped.length; i += 1) {
+        const set = new Set(mapped[i].availableMetrics);
+        for (const metric of Array.from(metricIntersection)) {
+          if (!set.has(metric)) metricIntersection.delete(metric);
+        }
+      }
+
+      let metricOptions = Array.from(metricIntersection);
+      if (!metricOptions.length) {
+        const union = new Set();
+        for (const rider of mapped) {
+          for (const metric of rider.availableMetrics) union.add(metric);
+        }
+        metricOptions = Array.from(union);
+      }
+
+      return {
+        riders: mapped,
+        metricOptions
+      };
+    }
+
+    async function handleSplitFile(file) {
+      const text = await file.text();
+      const parsed = parseSplitCsv(text);
+      if (!parsed.rows.length) {
+        throw new Error("Split CSV did not contain any split rows.");
+      }
+
+      state.splitData = {
+        metadata: parsed.metadata,
+        rows: parsed.rows,
+        sourceName: file.name
+      };
+
+      ui.splitSummary.textContent = `Loaded ${file.name} with ${parsed.rows.length} split rows.`;
+      buildRiderCards();
+      applyMetricHighlight();
+      updateDisplay(ui.video.currentTime || 0);
+    }
+
+    async function handleSelectedFiles(files) {
+      const picked = Array.from(files || []);
+      if (!picked.length) return;
+
+      const byType = { video: null, sync: null, split: null };
+      const unknown = [];
+
+      for (const file of picked) {
+        const kind = classifySelectedFile(file);
+        if (kind === "unknown") {
+          unknown.push(file.name);
+          continue;
+        }
+        if (!byType[kind]) byType[kind] = file;
+      }
+
+      if (byType.video) handleVideoFile(byType.video);
+
+      if (byType.sync) {
+        await handleSyncFile(byType.sync);
+      }
+
+      if (byType.split) {
+        await handleSplitFile(byType.split);
+      }
+
+      const loaded = [];
+      if (byType.video) loaded.push("video");
+      if (byType.sync) loaded.push("sync");
+      if (byType.split) loaded.push("split CSV");
+
+      const summary = loaded.length
+        ? `Quick loaded ${loaded.join(", ")}.`
+        : "No supported files were selected.";
+
+      ui.syncSummary.textContent = summary;
+      if (unknown.length) {
+        setStatus(`Ignored ${unknown.length} unsupported file${unknown.length === 1 ? "" : "s"}.`);
+      }
+    }
+
+    async function handleSyncFile(file) {
+      const text = await file.text();
+      let payload;
+      try {
+        payload = JSON.parse(text);
+      } catch (error) {
+        throw new Error("Sync file is not valid JSON.");
+      }
+
+      const { riders, metricOptions } = buildRidersFromPayload(payload);
+      state.syncPayload = payload;
+      state.riders = riders;
+      state.metricOptions = metricOptions;
+      state.syncType = Array.isArray(payload.riderNames) ? "TP" : "IP";
+
+      const requestedMetric = typeof payload.metricKey === "string" ? payload.metricKey : null;
+      const requestedMode = normalizeMetricName(requestedMetric) === "power+cadence" ? "power+cadence" : requestedMetric;
+      state.selectedMetric = TRACE_MODE_OPTIONS.some((option) => option.value === requestedMode)
+        ? requestedMode
+        : "power+cadence";
+
+      updateMetricSelector();
+      buildRiderCards();
+      applyMetricHighlight();
+      ui.riderPanel.classList.remove("hidden");
+
+      const riderCount = riders.length;
+      ui.syncSummary.textContent =
+        "Loaded " + file.name + " as " + state.syncType + " sync with " + riderCount + " rider" + (riderCount === 1 ? "" : "s") +
+        " and " + metricOptions.length + " shared metric" + (metricOptions.length === 1 ? "" : "s") + ".";
+
+      updateDisplay(ui.video.currentTime || 0);
+    }
+
+    function handleVideoFile(file) {
+      if (state.videoUrl) {
+        URL.revokeObjectURL(state.videoUrl);
+      }
+      resetFrameRateEstimate();
+      state.videoUrl = URL.createObjectURL(file);
+      ui.video.src = state.videoUrl;
+      setStatus("Video loaded: " + file.name);
+      ui.video.load();
+    }
+
+    function syncFocusButtonLabel() {
+      const isFocused = document.fullscreenElement === ui.viewerFrame;
+      ui.focusBtn.textContent = isFocused ? "Exit Focus" : "Focus";
+      document.body.classList.toggle("focus-mode", isFocused);
+    }
+
+    function isTypingTarget(target) {
+      return target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable);
+    }
+
+    function stepVideoByFrame(direction) {
+      const frameStep = 1 / getEffectiveFrameRate();
+      const duration = Number(ui.video.duration);
+      const current = Number(ui.video.currentTime) || 0;
+      const next = current + (direction * frameStep);
+      const clamped = Number.isFinite(duration)
+        ? Math.min(Math.max(next, 0), duration)
+        : Math.max(next, 0);
+
+      if (!ui.video.paused) {
+        ui.video.pause();
+      }
+
+      ui.video.currentTime = clamped;
+      updateDisplay(clamped);
+    }
+
+    ui.videoInput.addEventListener("change", (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      handleVideoFile(file);
+    });
+
+    ui.syncInput.addEventListener("change", async (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      try {
+        await handleSyncFile(file);
+      } catch (error) {
+        resetSyncView(error && error.message ? error.message : "Unable to read sync file.");
+      }
+    });
+
+    ui.splitInput.addEventListener("change", async (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      try {
+        await handleSplitFile(file);
+      } catch (error) {
+        resetSplitView(error && error.message ? error.message : "Unable to read split CSV.");
+      }
+    });
+
+    ui.selectAllFilesBtn.addEventListener("click", () => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.multiple = true;
+      input.accept = "video/*,.sync,.ipsync,.tpsync,.mdsync,.json,application/json,.csv,text/csv";
+      input.addEventListener("change", async (event) => {
+        try {
+          await handleSelectedFiles(event.target.files);
+        } catch (error) {
+          setStatus(error && error.message ? error.message : "Unable to load selected files.");
+        }
+      });
+      input.click();
+    });
+
+    ui.metricSelect.addEventListener("change", () => {
+      state.selectedMetric = ui.metricSelect.value;
+      applyMetricHighlight();
+      updateDisplay(ui.video.currentTime || 0);
+    });
+
+    ui.smoothSecondsInput.addEventListener("input", () => {
+      const value = Math.max(1, Math.min(15, Number(ui.smoothSecondsInput.value) || 3));
+      state.smoothingSeconds = value;
+      ui.smoothSecondsValue.textContent = value + "s";
+      updateDisplay(ui.video.currentTime || 0);
+    });
+
+    ui.focusBtn.addEventListener("click", async () => {
+      try {
+        if (document.fullscreenElement === ui.viewerFrame) {
+          await document.exitFullscreen();
+        } else {
+          await ui.viewerFrame.requestFullscreen();
+        }
+      } catch (_) {
+        // Ignore fullscreen API failures.
+      }
+      syncFocusButtonLabel();
+      updateDisplay(ui.video.currentTime || 0);
+    });
+
+    ui.video.addEventListener("play", () => {
+      startRenderLoop();
+    });
+
+    ui.video.addEventListener("pause", () => {
+      stopRenderLoop();
+      updateDisplay(ui.video.currentTime || 0);
+    });
+
+    ui.video.addEventListener("seeking", () => {
+      updateDisplay(ui.video.currentTime || 0);
+    });
+
+    ui.video.addEventListener("timeupdate", () => {
+      if (!state.usingVideoFrames && !ui.video.paused) {
+        updateFrameRateFromPlaybackQuality();
+      }
+      if (!state.running) updateDisplay(ui.video.currentTime || 0);
+    });
+
+    ui.video.addEventListener("loadedmetadata", () => {
+      updateDisplay(ui.video.currentTime || 0);
+    });
+
+    document.addEventListener("fullscreenchange", () => {
+      syncFocusButtonLabel();
+      updateDisplay(ui.video.currentTime || 0);
+    });
+
+    window.addEventListener("resize", () => {
+      updateDisplay(ui.video.currentTime || 0);
+    });
+
+    function handleGlobalKeydown(event) {
+      if (isTypingTarget(event.target)) return;
+
+      const code = event.code || event.key;
+
+      if (code === "ArrowLeft" || code === "Left") {
+        event.preventDefault();
+        event.stopPropagation();
+        stepVideoByFrame(-1);
+        return;
+      }
+
+      if (code === "ArrowRight" || code === "Right") {
+        event.preventDefault();
+        event.stopPropagation();
+        stepVideoByFrame(1);
+        return;
+      }
+
+      if (code === "Space" || code === " ") {
+        event.preventDefault();
+        event.stopPropagation();
+        if (ui.video.paused) ui.video.play();
+        else ui.video.pause();
+      }
+    }
+
+    window.addEventListener("keydown", handleGlobalKeydown, true);
+    ui.video.addEventListener("keydown", handleGlobalKeydown);
+
+    ui.smoothSecondsValue.textContent = state.smoothingSeconds + "s";
+  </script>
+</body>
+</html>

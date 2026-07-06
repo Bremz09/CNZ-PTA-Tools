@@ -4662,7 +4662,7 @@
       const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = `${videoFileName || 'video'} Synced FIT.tpsync`;
+      link.download = `${videoFileName || 'video'} Synced FIT.sync`;
       link.click();
       URL.revokeObjectURL(link.href);
       setFitStatus('Synced FIT file saved.', 'ok');

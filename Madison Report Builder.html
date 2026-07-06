@@ -2260,7 +2260,7 @@
       const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = `${videoFileName || 'session'} Synced FIT.mdsync`;
+      link.download = `${videoFileName || 'session'} Synced FIT.sync`;
       link.click();
       URL.revokeObjectURL(link.href);
       setFitStatus('Synced FIT file saved.', 'ok');

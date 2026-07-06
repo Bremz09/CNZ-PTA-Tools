@@ -3,7 +3,7 @@
 <head>
   <script src="auth-gate.js"></script>
   <meta charset="UTF-8">
-  <title>Team Pursuit Video Timing</title>
+  <title>Kilo Video Timing</title>
   <style>
     body {
       font-family: sans-serif;
@@ -152,7 +152,7 @@
     }
     .fit-assignment-layout {
       display: grid;
-      grid-template-columns: minmax(260px, 1fr) minmax(320px, 2fr);
+      grid-template-columns: minmax(260px, 1fr) minmax(260px, 1fr);
       gap: 12px;
       margin-bottom: 12px;
     }
@@ -181,11 +181,6 @@
     .fit-dropzone.over {
       border-color: #0f766e;
       background: #ecfdf5;
-    }
-    .fit-rider-slots {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(160px, 1fr));
-      gap: 8px;
     }
     .fit-slot {
       border: 1px solid #dbe2ea;
@@ -414,6 +409,41 @@
       padding: 8px 10px;
       background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
     }
+    .scatter-card {
+      border: 1px solid #dbe2ea;
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+      margin-top: 8px;
+    }
+    .scatter-card h4 {
+      margin: 0 0 5px;
+      font-size: 14px;
+    }
+    .scatter-wrapper {
+      position: relative;
+      width: 100%;
+      min-height: 300px;
+    }
+    .scatter-wrapper canvas {
+      width: 100%;
+      height: 300px;
+      display: block;
+    }
+    .scatter-empty {
+      min-height: 300px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+      text-align: center;
+      padding: 20px;
+    }
+    .scatter-equation {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #334155;
+    }
     .dashboard-top {
       display: flex;
       gap: 10px;
@@ -525,17 +555,28 @@
     .lap-table-wrap {
       overflow-x: auto;
     }
-    #lapSummaryTable {
-      width: 100%;
+    #lapMergedTable {
+      width: auto;
       border-collapse: collapse;
       font-size: 14px;
     }
-    #lapSummaryTable th,
-    #lapSummaryTable td {
+    #lapMergedTable th,
+    #lapMergedTable td {
       border: 1px solid #dbe2ea;
       padding: 8px 10px;
-      text-align: left;
+      text-align: center;
       white-space: nowrap;
+    }
+    #lapMergedTable thead th {
+      background: #f8fafc;
+    }
+    #lapMergedTable tbody th {
+      background: #f8fafc;
+      text-align: left;
+      font-weight: 600;
+      position: sticky;
+      left: 0;
+      z-index: 1;
     }
     #firstLapTable {
       width: auto;
@@ -545,19 +586,6 @@
     }
     #firstLapTable th,
     #firstLapTable td {
-      border: 1px solid #dbe2ea;
-      padding: 8px 10px;
-      text-align: left;
-      white-space: nowrap;
-    }
-    #riderCadenceLapTable {
-      width: auto;
-      border-collapse: collapse;
-      font-size: 14px;
-      margin-top: 8px;
-    }
-    #riderCadenceLapTable th,
-    #riderCadenceLapTable td {
       border: 1px solid #dbe2ea;
       padding: 8px 10px;
       text-align: left;
@@ -576,18 +604,8 @@
       text-align: left;
       white-space: nowrap;
     }
-    #lapSummaryTable th {
-      background: #f8fafc;
-    }
-    #firstLapTable th {
-      background: #f8fafc;
-    }
-    #riderCadenceLapTable th {
-      background: #f8fafc;
-    }
-    #lapAveragesTable th {
-      background: #f8fafc;
-    }
+    #firstLapTable th { background: #f8fafc; }
+    #lapAveragesTable th { background: #f8fafc; }
     #kiloSplitsTable {
       width: auto;
       border-collapse: collapse;
@@ -600,28 +618,7 @@
       text-align: left;
       white-space: nowrap;
     }
-    #kiloSplitsTable th {
-      background: #f8fafc;
-    }
-    #leadLapsTable {
-      width: auto;
-      border-collapse: collapse;
-      font-size: 14px;
-    }
-    #leadLapsTable th,
-    #leadLapsTable td {
-      border: 1px solid #dbe2ea;
-      padding: 7px 9px;
-      text-align: right;
-      white-space: nowrap;
-    }
-    #leadLapsTable th:first-child,
-    #leadLapsTable td:first-child {
-      text-align: left;
-    }
-    #leadLapsTable th {
-      background: #f8fafc;
-    }
+    #kiloSplitsTable th { background: #f8fafc; }
     .table-empty {
       color: #64748b;
       padding: 12px 0 2px;
@@ -635,136 +632,57 @@
       font-size: 18px;
       line-height: 1;
     }
-    /* Large tablets and landscape */
     @media (max-width: 1200px) {
-      .lap-splits-panel {
-        flex: 0 0 280px;
-      }
-      #lapSummaryTable th,
-      #lapSummaryTable td,
-      #firstLapTable th,
-      #firstLapTable td,
-      #riderCadenceLapTable th,
-      #riderCadenceLapTable td,
-      #lapAveragesTable th,
-      #lapAveragesTable td,
-      #kiloSplitsTable th,
-      #kiloSplitsTable td {
+      .lap-splits-panel { flex: 0 0 280px; }
+      #lapMergedTable th, #lapMergedTable td,
+      #firstLapTable th, #firstLapTable td,
+      #lapAveragesTable th, #lapAveragesTable td,
+      #kiloSplitsTable th, #kiloSplitsTable td {
         padding: 6px 8px;
         font-size: 13px;
       }
     }
-    /* Tablets and landscape phones */
     @media (max-width: 768px) {
-      .modal-panel {
-        padding: 8px;
-      }
-      .dashboard-top {
-        flex-direction: column;
-      }
-      .lap-splits-panel {
-        width: 100%;
-        flex: 1 1 auto;
-      }
-      .chart-and-tables {
-        width: 100%;
-      }
-      .chart-wrapper,
-      .chart-empty,
-      .chart-wrapper canvas {
-        min-height: 280px;
-        height: 280px;
-      }
-      .bottom-tables-row {
-        flex-direction: column;
-      }
-      .table-card-stack {
-        width: 100%;
-        min-width: 0;
-      }
-      .bottom-tables-row .table-card {
-        width: 100%;
-        flex: 1 1 auto;
-      }
-      #lapSummaryTable th,
-      #lapSummaryTable td,
-      #firstLapTable th,
-      #firstLapTable td,
-      #riderCadenceLapTable th,
-      #riderCadenceLapTable td,
-      #lapAveragesTable th,
-      #lapAveragesTable td,
-      #kiloSplitsTable th,
-      #kiloSplitsTable td {
+      .modal-panel { padding: 8px; }
+      .dashboard-top { flex-direction: column; }
+      .lap-splits-panel { width: 100%; flex: 1 1 auto; }
+      .chart-and-tables { width: 100%; }
+      .chart-wrapper, .chart-empty, .chart-wrapper canvas { min-height: 280px; height: 280px; }
+      #lapMergedTable th, #lapMergedTable td,
+      #firstLapTable th, #firstLapTable td,
+      #lapAveragesTable th, #lapAveragesTable td,
+      #kiloSplitsTable th, #kiloSplitsTable td {
         padding: 6px 8px;
         font-size: 12px;
       }
     }
-    /* Mobile phones */
     @media (max-width: 480px) {
-      .modal-panel {
-        padding: 6px;
-      }
-      .fit-sync-panel {
-        margin: 14px 8px 0;
-        padding: 10px;
-      }
-      .fit-assignment-layout {
-        grid-template-columns: 1fr;
-      }
-      .fit-rider-slots {
-        grid-template-columns: 1fr;
-      }
-      .lap-splits-panel {
-        width: 100%;
-      }
-      .table-card,
-      .chart-card {
-        padding: 6px 8px;
-      }
-      .table-card h4,
-      .chart-card h4 {
-        font-size: 13px;
-        margin-bottom: 4px;
-      }
-      #lapSummaryTable th,
-      #lapSummaryTable td,
-      #firstLapTable th,
-      #firstLapTable td,
-      #riderCadenceLapTable th,
-      #riderCadenceLapTable td,
-      #lapAveragesTable th,
-      #lapAveragesTable td,
-      #kiloSplitsTable th,
-      #kiloSplitsTable td {
+      .modal-panel { padding: 6px; }
+      .fit-sync-panel { margin: 14px 8px 0; padding: 10px; }
+      .fit-assignment-layout { grid-template-columns: 1fr; }
+      .lap-splits-panel { width: 100%; }
+      .table-card, .chart-card { padding: 6px 8px; }
+      .table-card h4, .chart-card h4 { font-size: 13px; margin-bottom: 4px; }
+      #lapMergedTable th, #lapMergedTable td,
+      #firstLapTable th, #firstLapTable td,
+      #lapAveragesTable th, #lapAveragesTable td,
+      #kiloSplitsTable th, #kiloSplitsTable td {
         padding: 4px 6px;
         font-size: 11px;
       }
-      .chart-wrapper,
-      .chart-empty,
-      .chart-wrapper canvas {
-        min-height: 240px;
-        height: 240px;
-      }
-      .chart-legend {
-        gap: 8px;
-        font-size: 12px;
-      }
-      .inputs-grid {
-        grid-template-columns: 1fr;
-      }
-      .fit-plot {
-        height: 240px;
-      }
+      .chart-wrapper, .chart-empty, .chart-wrapper canvas { min-height: 240px; height: 240px; }
+      .chart-legend { gap: 8px; font-size: 12px; }
+      .inputs-grid { grid-template-columns: 1fr; }
+      .fit-plot { height: 240px; }
     }
   </style>
 </head>
 <body>
-  <h2>Team Pursuit Video Timing</h2>
-  <h3>Keys: S start, Z quarter lap, C change, D drop, R rider finish, T team finish, Space play/pause, arrows frame-step, Ctrl+arrows jump.</h3>
+  <h2>Kilo Video Timing</h2>
+  <h3>Keys: S start, Z quarter, T finish, Space play/pause, arrows frame-step, Ctrl+arrows jump.</h3>
   <input type="file" accept="video/mp4,video/quicktime" id="videoInput">
-  <button id="uploadAllBtn" type="button" title="Upload video (.mp4/.mov), timing data (.csv) and FIT sync (.tpsync) together — snaps to start automatically">Upload all files</button>
-  <input type="file" id="uploadAllInput" accept="video/mp4,video/quicktime,.csv,.json,.tpsync,application/octet-stream" multiple style="display:none;"><br><br>
+  <button id="uploadAllBtn" type="button" title="Upload video (.mp4/.mov), timing data (.csv) and FIT sync (.ipsync) together — snaps to start automatically">Upload all files</button>
+  <input type="file" id="uploadAllInput" accept="video/mp4,video/quicktime,.csv,.json,.ipsync,application/octet-stream" multiple style="display:none;"><br><br>
 
   <div class="container">
     <div class="video-section">
@@ -777,18 +695,14 @@
         <button id="nextFrame">⏩ Next Frame</button>
         <button id="startBtn">Start (S)</button>
         <button id="quarterBtn">Quarter (Z)</button>
-        <button id="changeBtn">Change (C)</button>
-        <button id="dropBtn">Drop (D)</button>
-        <button id="riderFinishBtn">Rider Finish (R)</button>
-        <button id="teamFinishBtn">Team Finish (T)</button>
+        <button id="finishBtn">Finish (T)</button>
         <button id="resetBtn">Reset</button>
         <button id="deleteLastBtn">Delete Last Row</button>
-        <button id="p1toP3Btn" style="background: #f0f0f0; border: 2px solid #ccc;">P1 to P3</button>
       </div>
 
       <div id="info">Current Time: <span id="currentTime">0.00</span>s</div>
       <div id="status">Status: Waiting for start.</div>
-      <div class="small-note">Team speed and delivery speed are calculated from 62.5m split distance.</div>
+      <div class="small-note">Speed is calculated from 62.5m split distance.</div>
     </div>
 
     <div class="report-section">
@@ -806,24 +720,12 @@
           <input id="jumpFramesInput" type="number" min="1" value="160">
         </div>
         <div>
-          <label for="rider1Input">Rider 1</label>
-          <input id="rider1Input" type="text" placeholder="Rider 1">
+          <label for="raceDistanceInput">Race Distance (m)</label>
+          <input id="raceDistanceInput" type="number" min="500" max="10000" step="500" value="1000">
         </div>
         <div>
-          <label for="changeTimeInput">Change Time (s)</label>
-          <input id="changeTimeInput" type="number" min="0" step="0.01" value="0.12">
-        </div>
-        <div>
-          <label for="rider2Input">Rider 2</label>
-          <input id="rider2Input" type="text" placeholder="Rider 2">
-        </div>
-        <div>
-          <label for="rider3Input">Rider 3</label>
-          <input id="rider3Input" type="text" placeholder="Rider 3">
-        </div>
-        <div>
-          <label for="rider4Input">Rider 4</label>
-          <input id="rider4Input" type="text" placeholder="Rider 4">
+          <label for="rider1Input">Rider Name</label>
+          <input id="rider1Input" type="text" placeholder="Rider name">
         </div>
       </div>
       <div class="report-actions">
@@ -837,17 +739,15 @@
         <input type="file" id="csvUploadInput" accept=".csv" style="display:none;">
       </div>
 
-      <h3 id="reportTitle">Team Pursuit Report</h3>
+      <h3 id="reportTitle">Kilo Report</h3>
       <div class="report-table-wrap">
         <table id="reportTable">
           <thead>
             <tr>
               <th>Split</th>
-              <th>Athlete In Front</th>
               <th>Quarter Time (s)</th>
               <th>Running Time (s)</th>
-              <th>Team Speed (km/h)</th>
-              <th>Delivery Speed (km/h)</th>
+              <th>Speed (km/h)</th>
               <th>Event</th>
             </tr>
           </thead>
@@ -859,20 +759,20 @@
 
   <section class="fit-sync-panel">
     <h3>FIT Sync</h3>
-    <p>Select FIT files in one go, then drag each file onto the correct rider slot. Choose a shared metric, then left-drag to scrub video or right-drag to sync selected riders.</p>
+    <p>Select a FIT file, then drag it onto the rider slot. Choose a metric, then left-drag to scrub video or right-drag to sync the FIT trace.</p>
     <div class="fit-sync-grid">
       <div class="fit-field">
-        <label for="fitFilesInput">FIT files (.fit)</label>
+        <label for="fitFilesInput">FIT file (.fit)</label>
         <input id="fitFilesInput" type="file" accept=".fit,application/octet-stream" multiple>
-        <div class="fit-file-note">Load multiple FIT files, then drag chips to rider slots below.</div>
+        <div class="fit-file-note">Load a FIT file, then drag the chip to the rider slot below.</div>
         <div class="fit-control-row" style="margin-top:8px;">
           <button id="fitSaveSyncBtn" type="button">Save sync</button>
           <button id="fitUploadSyncBtn" type="button">Upload synced fit file</button>
         </div>
-        <input id="fitSyncedUploadInput" type="file" accept=".json,.tpsync" style="display:none;">
+        <input id="fitSyncedUploadInput" type="file" accept=".json,.ipsync" style="display:none;">
       </div>
       <div class="fit-field">
-        <label for="fitMetricSelect">Shared FIT Metric</label>
+        <label for="fitMetricSelect">FIT Metric</label>
         <select id="fitMetricSelect" disabled>
           <option value="">Select metric</option>
         </select>
@@ -887,23 +787,9 @@
       </div>
       <div class="fit-assignment-card">
         <h4>Rider FIT assignment</h4>
-        <div class="fit-rider-slots">
-          <div class="fit-slot">
-            <div class="fit-slot-title" id="fitSlotTitle0">Rider 1</div>
-            <div id="fitRiderSlot0" class="fit-dropzone" data-drop-target="rider" data-rider-index="0"></div>
-          </div>
-          <div class="fit-slot">
-            <div class="fit-slot-title" id="fitSlotTitle1">Rider 2</div>
-            <div id="fitRiderSlot1" class="fit-dropzone" data-drop-target="rider" data-rider-index="1"></div>
-          </div>
-          <div class="fit-slot">
-            <div class="fit-slot-title" id="fitSlotTitle2">Rider 3</div>
-            <div id="fitRiderSlot2" class="fit-dropzone" data-drop-target="rider" data-rider-index="2"></div>
-          </div>
-          <div class="fit-slot">
-            <div class="fit-slot-title" id="fitSlotTitle3">Rider 4</div>
-            <div id="fitRiderSlot3" class="fit-dropzone" data-drop-target="rider" data-rider-index="3"></div>
-          </div>
+        <div class="fit-slot">
+          <div class="fit-slot-title" id="fitSlotTitle0">Rider</div>
+          <div id="fitRiderSlot0" class="fit-dropzone" data-drop-target="rider" data-rider-index="0"></div>
         </div>
       </div>
     </div>
@@ -941,7 +827,7 @@
       </div>
     </div>
     <div id="fitSyncTargets" class="sync-targets"></div>
-    <div id="fitStatus" class="fit-status">Assign one or more FIT files to start syncing.</div>
+    <div id="fitStatus" class="fit-status">Assign a FIT file to start syncing.</div>
   </section>
 
   <div id="reportModal" class="modal-overlay" aria-hidden="true">
@@ -952,13 +838,7 @@
             <input type="checkbox" id="flyingToggle"> Fly
           </label>
           <label class="flying-toggle">
-            <input type="checkbox" id="includeL1PowerToggle" checked> L1 Pow
-          </label>
-          <label class="flying-toggle">
-            <input type="checkbox" id="recovOnlyToggle" checked> Recov only
-          </label>
-          <label class="flying-toggle">
-            <input type="checkbox" id="hlToggle" checked> HL
+            <input type="checkbox" id="hlToggle"> HL
           </label>
           <div style="display:inline-flex;align-items:center;gap:6px;font-size:13px;">
             <label for="chartYMinInput" style="white-space:nowrap;">Y min</label>
@@ -973,18 +853,18 @@
         <button id="closeReportBtn" class="modal-close" type="button" aria-label="Close report dashboard">×</button>
       </div>
       <div class="dashboard-top">
-        <!-- LEFT: Lap Splits -->
+        <!-- LEFT: Quarter splits and averages -->
         <div class="lap-splits-panel">
           <div class="table-card">
-            <h4>Lap Splits</h4>
-            <div id="lapSummaryEmpty" class="table-empty">No laps yet.</div>
+            <h4>Lap 1 Quarter Splits</h4>
+            <div id="firstLapEmpty" class="table-empty">Add quarter splits to see first lap detail.</div>
             <div class="lap-table-wrap">
-              <table id="lapSummaryTable" hidden>
+              <table id="firstLapTable" hidden>
                 <thead>
                   <tr>
-                    <th>Lap</th>
-                    <th>Total (s)</th>
-                    <th>Diff (s)</th>
+                    <th>Q</th>
+                    <th>Time (s)</th>
+                    <th>Run Time (s)</th>
                   </tr>
                 </thead>
                 <tbody></tbody>
@@ -1017,60 +897,29 @@
             <div id="reportChartEmpty" class="chart-empty" hidden>Add quarter splits to generate the speed dashboard.</div>
             <div id="chartLegend" class="chart-legend"></div>
           </div>
-          <div class="bottom-tables-row">
-            <div class="table-card compact-table-card">
-              <h4>Kilo Splits</h4>
-              <div id="kiloSplitsEmpty" class="table-empty">Complete a kilometre to see kilo splits.</div>
+          <div style="display:flex;gap:8px;margin-top:8px;align-items:flex-start;flex-wrap:wrap;">
+            <div class="table-card" style="overflow-x:auto;flex:1 1 auto;min-width:0;">
+              <h4>Lap Splits</h4>
+              <div id="lapMergedEmpty" class="table-empty">No laps yet.</div>
               <div class="lap-table-wrap">
-                <table id="kiloSplitsTable" hidden>
-                  <thead>
-                    <tr>
-                      <th>Kilo</th>
-                      <th>Time (s)</th>
-                      <th>Speed (km/h)</th>
-                    </tr>
-                  </thead>
-                  <tbody></tbody>
-                </table>
-              </div>
-            </div>
-            <div class="table-card compact-table-card">
-              <h4>Lead Laps by Rider</h4>
-              <div id="leadLapsEmpty" class="table-empty">Add quarter splits to see lead lap data.</div>
-              <div class="lap-table-wrap">
-                <table id="leadLapsTable" hidden>
+                <table id="lapMergedTable" hidden>
                   <thead><tr></tr></thead>
                   <tbody></tbody>
                 </table>
               </div>
             </div>
-          </div>
-          <div class="cadence-row" id="cadenceRowContainer">
-            <div class="table-card">
-              <h4>Lap 1 Quarter Splits</h4>
-              <div id="firstLapEmpty" class="table-empty">Add quarter splits to see first lap detail.</div>
-              <div class="lap-table-wrap">
-                <table id="firstLapTable" hidden>
-                  <thead>
-                    <tr>
-                      <th>Q</th>
-                      <th>Time (s)</th>
-                      <th>Run Time (s)</th>
-                    </tr>
-                  </thead>
-                  <tbody></tbody>
-                </table>
-              </div>
-            </div>
-            <div class="table-card">
-              <h4>Average Cadence by Lap</h4>
-              <div id="riderCadenceLapEmpty" class="table-empty">Assign rider FIT files with cadence data and complete laps to see cadence averages.</div>
-              <div class="lap-table-wrap">
-                <table id="riderCadenceLapTable" hidden>
-                  <thead><tr></tr></thead>
-                  <tbody></tbody>
-                </table>
-              </div>
+            <div class="table-card" id="fitAvgCard" style="flex:0 0 auto;" hidden>
+              <h4>Averages</h4>
+              <table id="fitAvgTable" style="border-collapse:collapse;font-size:14px;white-space:nowrap;">
+                <thead>
+                  <tr>
+                    <th style="border:1px solid #dbe2ea;padding:8px 10px;background:#f8fafc;text-align:left;">Metric</th>
+                    <th style="border:1px solid #dbe2ea;padding:8px 10px;background:#f8fafc;text-align:center;">Overall</th>
+                    <th style="border:1px solid #dbe2ea;padding:8px 10px;background:#f8fafc;text-align:center;">After Lap 1</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -1081,7 +930,8 @@
   <script>
     const SPLIT_DISTANCE_METERS = 62.5;
     const LAP_DISTANCE_METERS = SPLIT_DISTANCE_METERS * 4;
-    const QUARTERS_PER_KILO = 16; // 4 laps × 4 quarters = 1000 m
+    const BAR_COLOR = '#2563eb';
+    const AVERAGE_LINE_COLOR = '#f7ea48';
 
     const video = document.getElementById('video');
     const videoInput = document.getElementById('videoInput');
@@ -1090,26 +940,17 @@
 
     const fpsInput = document.getElementById('fpsInput');
     const jumpFramesInput = document.getElementById('jumpFramesInput');
-    const changeTimeInput = document.getElementById('changeTimeInput');
     const airDensityInput = document.getElementById('airDensityInput');
+    const raceDistanceInput = document.getElementById('raceDistanceInput');
 
     const countryInput = document.getElementById('countryInput');
-    const riderInputs = [
-      document.getElementById('rider1Input'),
-      document.getElementById('rider2Input'),
-      document.getElementById('rider3Input'),
-      document.getElementById('rider4Input')
-    ];
+    const rider1Input = document.getElementById('rider1Input');
 
     const startBtn = document.getElementById('startBtn');
     const quarterBtn = document.getElementById('quarterBtn');
-    const changeBtn = document.getElementById('changeBtn');
-    const dropBtn = document.getElementById('dropBtn');
-    const riderFinishBtn = document.getElementById('riderFinishBtn');
-    const teamFinishBtn = document.getElementById('teamFinishBtn');
+    const finishBtn = document.getElementById('finishBtn');
     const resetBtn = document.getElementById('resetBtn');
     const deleteLastBtn = document.getElementById('deleteLastBtn');
-    const p1toP3Btn = document.getElementById('p1toP3Btn');
     const updateBtn = document.getElementById('updateBtn');
     const downloadBtn = document.getElementById('downloadBtn');
     const createReportBtn = document.getElementById('createReportBtn');
@@ -1137,41 +978,21 @@
     const reportChartEmpty = document.getElementById('reportChartEmpty');
     const reportChartContext = reportChart.getContext('2d');
     const chartLegend = document.getElementById('chartLegend');
-    const lapSummaryTable = document.getElementById('lapSummaryTable');
-    const lapSummaryTableBody = lapSummaryTable.querySelector('tbody');
-    const lapSummaryEmpty = document.getElementById('lapSummaryEmpty');
+    const lapMergedTable = document.getElementById('lapMergedTable');
+    const lapMergedEmpty = document.getElementById('lapMergedEmpty');
     const firstLapTable = document.getElementById('firstLapTable');
     const firstLapTableBody = firstLapTable.querySelector('tbody');
     const firstLapEmpty = document.getElementById('firstLapEmpty');
-    const riderCadenceLapTable = document.getElementById('riderCadenceLapTable');
-    const riderCadenceLapTableHeadRow = riderCadenceLapTable.querySelector('thead tr');
-    const riderCadenceLapTableBody = riderCadenceLapTable.querySelector('tbody');
-    const riderCadenceLapEmpty = document.getElementById('riderCadenceLapEmpty');
     const lapAveragesTable = document.getElementById('lapAveragesTable');
     const lapAveragesTableBody = lapAveragesTable.querySelector('tbody');
-    const kiloSplitsTable = document.getElementById('kiloSplitsTable');
-    const kiloSplitsTableBody = kiloSplitsTable.querySelector('tbody');
-    const kiloSplitsEmpty = document.getElementById('kiloSplitsEmpty');
-    const leadLapsTable = document.getElementById('leadLapsTable');
-    const leadLapsEmpty = document.getElementById('leadLapsEmpty');
+    const fitAvgCard = document.getElementById('fitAvgCard');
+    const fitAvgTable = document.getElementById('fitAvgTable');
     const flyingToggle = document.getElementById('flyingToggle');
-    const includeL1PowerToggle = document.getElementById('includeL1PowerToggle');
-    const recovOnlyToggle = document.getElementById('recovOnlyToggle');
     const hlToggle = document.getElementById('hlToggle');
     const fitFilesInput = document.getElementById('fitFilesInput');
     const fitUnassignedList = document.getElementById('fitUnassignedList');
-    const fitRiderSlots = [
-      document.getElementById('fitRiderSlot0'),
-      document.getElementById('fitRiderSlot1'),
-      document.getElementById('fitRiderSlot2'),
-      document.getElementById('fitRiderSlot3')
-    ];
-    const fitSlotTitles = [
-      document.getElementById('fitSlotTitle0'),
-      document.getElementById('fitSlotTitle1'),
-      document.getElementById('fitSlotTitle2'),
-      document.getElementById('fitSlotTitle3')
-    ];
+    const fitRiderSlot0 = document.getElementById('fitRiderSlot0');
+    const fitSlotTitle0 = document.getElementById('fitSlotTitle0');
     const fitMetricSelect = document.getElementById('fitMetricSelect');
     const fitSaveSyncBtn = document.getElementById('fitSaveSyncBtn');
     const fitUploadSyncBtn = document.getElementById('fitUploadSyncBtn');
@@ -1192,35 +1013,23 @@
     const fitSyncTargets = document.getElementById('fitSyncTargets');
     const fitStatusDisplay = document.getElementById('fitStatus');
 
-    const riderPalette = ['#ff7f41', '#2dc84d', '#147bd1', '#753bbd'];
-    const deliverySpeedColor = '#e03c31';
-    const averageLineColor = '#f7ea48';
-    const inactiveRiderColor = '#94a3b8';
     let flyingMode = false;
     let FitParserClass = null;
 
     // Session state
     let startTime = null;
     let lastMarkerTime = null;
-    let teamFinished = false;
-    let pendingDeliveryAdjustment = false; // used only by Rider Finish (R)
-    let pendingRiderFinishTime = null;
-    let currentEventLabel = '';
+    let finished = false;
     let uploadedCsvStartTime = null;
     let hasUploadedTimingData = false;
     let hasVideoLoaded = false;
 
-    // Rider rotation: stores indices 0-3 into riderInputs
-    let riderOrder = [0, 1, 2, 3];
-    let frontPosition = 0;
-    let useP1toP3Mode = false; // Toggle for P1→P3 rotation instead of P1→P2
     const fitSyncState = {
-      streams: [null, null, null, null],
+      stream: null,       // single stream for the one rider
       parsedFiles: [],
       nextParsedFileId: 1,
       metricKey: '',
-      series: [],
-      syncTargetRiderIndexes: [],
+      series: [],         // 0 or 1 entries
       samplingDisplay: '-',
       dragLastX: 0,
       pointerMode: 'none',
@@ -1229,7 +1038,7 @@
       dragSensitivity: 0.2
     };
 
-    // Each row: { splitType, splitLabel, endTime, frontRiderIndex, quarterTime, teamSpeed, deliverySpeed, eventLabel, deliveryAdjusted }
+    // Each row: { splitType, splitLabel, endTime, quarterTime, speed, eventLabel }
     const splitRows = [];
 
     // --- Helpers ---
@@ -1237,14 +1046,9 @@
     function getFps() { return parseInt(fpsInput.value, 10) || 50; }
     function frameDuration() { return 1 / getFps(); }
     function getJumpSeconds() { return (parseInt(jumpFramesInput.value, 10) || 160) / getFps(); }
-    function getChangeTimeSeconds() {
-      const v = parseFloat(changeTimeInput.value);
-      return Number.isFinite(v) ? Math.max(0, v) : 0.12;
-    }
-    function getRiderNames() {
-      return riderInputs.map((inp, i) => inp.value.trim() || `Rider ${i + 1}`);
-    }
+    function getRiderName() { return rider1Input.value.trim() || 'Rider'; }
     function getTitleText() { return countryInput.value.trim() || 'Untitled Session'; }
+    function getRaceDistance() { return parseInt(raceDistanceInput.value, 10) || 1000; }
     function speedFromTime(s) { return s > 0 ? (SPLIT_DISTANCE_METERS / s) * 3.6 : 0; }
     function speedFromDistanceTime(distanceMeters, seconds) {
       return seconds > 0 ? (distanceMeters / seconds) * 3.6 : 0;
@@ -1284,8 +1088,8 @@
       fitScaleValue.textContent = `${Math.round(fitSyncState.viewScale * 100)}%`;
       fitSensitivityValue.textContent = `${formatFitNum(fitSyncState.dragSensitivity, 2)}x`;
     }
-    function getLoadedFitStreams() {
-      return fitSyncState.streams.filter(Boolean);
+    function getLoadedFitStream() {
+      return fitSyncState.stream || null;
     }
     function toTimestampSeconds(value) {
       if (value instanceof Date) return value.getTime() / 1000;
@@ -1330,10 +1134,7 @@
           mode: 'both'
         });
         parser.parse(new Uint8Array(buffer), (error, fitData) => {
-          if (error) {
-            reject(error);
-            return;
-          }
+          if (error) { reject(error); return; }
           resolve(fitData || {});
         });
       });
@@ -1396,73 +1197,55 @@
         }
       }
     }
-    function intersectMetricColumns(streams) {
-      if (streams.length === 0) return [];
-      let common = [...streams[0].metricColumns];
-      for (let i = 1; i < streams.length; i++) {
-        const metricSet = new Set(streams[i].metricColumns);
-        common = common.filter((column) => metricSet.has(column));
-      }
-      return common.sort((a, b) => a.localeCompare(b));
+    function formatSamplingDisplay(stream) {
+      if (!stream || !Number.isFinite(stream.samplingHz)) return '-';
+      return `${formatFitNum(stream.samplingHz, 3)} Hz`;
     }
-    function formatSamplingDisplay(streams) {
-      const values = streams.map((stream) => stream.samplingHz).filter(Number.isFinite);
-      if (values.length === 0) return '-';
-      const min = Math.min(...values);
-      const max = Math.max(...values);
-      return Math.abs(max - min) < 1e-6
-        ? `${formatFitNum(min, 3)} Hz`
-        : `${formatFitNum(min, 3)}-${formatFitNum(max, 3)} Hz`;
+    function getFitSeriesLabel() {
+      return getRiderName();
     }
-    function getFitSeriesLabel(riderIndex) {
-      return getRiderNames()[riderIndex] || `Rider ${riderIndex + 1}`;
+    function getAssignedFitFile() {
+      return fitSyncState.parsedFiles.find((file) => file.assignedRiderIndex === 0) || null;
     }
-    function getAssignedFitFile(riderIndex) {
-      return fitSyncState.parsedFiles.find((file) => file.assignedRiderIndex === riderIndex) || null;
-    }
-    function syncStreamsFromAssignments() {
-      fitSyncState.streams = [null, null, null, null];
+    function syncStreamFromAssignment() {
+      fitSyncState.stream = null;
       for (const file of fitSyncState.parsedFiles) {
-        if (!Number.isInteger(file.assignedRiderIndex) || file.assignedRiderIndex < 0 || file.assignedRiderIndex > 3) continue;
-        file.riderIndex = file.assignedRiderIndex;
-        fitSyncState.streams[file.assignedRiderIndex] = file;
+        if (file.assignedRiderIndex === 0) {
+          file.riderIndex = 0;
+          fitSyncState.stream = file;
+          break;
+        }
       }
     }
     function getFitFileChipHtml(file) {
       return `<span class="fit-file-chip" draggable="true" data-fit-file-id="${file.id}" title="${file.fileName}">${file.fileName}</span>`;
     }
     function renderFitAssignments({ rebuild = true } = {}) {
-      fitSlotTitles.forEach((slotTitle, riderIndex) => {
-        slotTitle.textContent = getFitSeriesLabel(riderIndex);
-      });
+      fitSlotTitle0.textContent = getFitSeriesLabel();
 
-      const unassigned = fitSyncState.parsedFiles.filter((file) => !Number.isInteger(file.assignedRiderIndex));
+      const unassigned = fitSyncState.parsedFiles.filter((file) => file.assignedRiderIndex !== 0);
       fitUnassignedList.innerHTML = unassigned.length > 0
         ? unassigned.map(getFitFileChipHtml).join('')
         : '<span class="fit-slot-placeholder">No unassigned FIT files.</span>';
 
-      fitRiderSlots.forEach((slot, riderIndex) => {
-        const assigned = getAssignedFitFile(riderIndex);
-        slot.innerHTML = assigned
-          ? getFitFileChipHtml(assigned)
-          : '<span class="fit-slot-placeholder">Drop FIT file here</span>';
-      });
+      const assigned = getAssignedFitFile();
+      fitRiderSlot0.innerHTML = assigned
+        ? getFitFileChipHtml(assigned)
+        : '<span class="fit-slot-placeholder">Drop FIT file here</span>';
 
-      syncStreamsFromAssignments();
-      if (rebuild) {
-        rebuildFitMetricOptions();
-      }
+      syncStreamFromAssignment();
+      if (rebuild) rebuildFitMetricOptions();
     }
     function buildSyncedFitExportPayload() {
       return {
         version: 1,
         createdAt: new Date().toISOString(),
         metricKey: fitSyncState.metricKey || '',
-        riderNames: getRiderNames(),
+        riderName: getRiderName(),
         files: fitSyncState.parsedFiles.map((file) => ({
           id: file.id,
           fileName: file.fileName,
-          assignedRiderIndex: Number.isInteger(file.assignedRiderIndex) ? file.assignedRiderIndex : null,
+          assignedRiderIndex: file.assignedRiderIndex === 0 ? 0 : null,
           offset: Number.isFinite(file.offset) ? file.offset : 0,
           timeColumnKey: file.timeColumnKey,
           metricColumns: Array.isArray(file.metricColumns) ? file.metricColumns : [],
@@ -1483,20 +1266,17 @@
         metricColumns: Array.isArray(file.metricColumns) ? file.metricColumns : [],
         samplingHz: Number.isFinite(file.samplingHz) ? file.samplingHz : null,
         offset: Number.isFinite(file.offset) ? file.offset : 0,
-        assignedRiderIndex: Number.isInteger(file.assignedRiderIndex) ? file.assignedRiderIndex : null,
-        riderIndex: Number.isInteger(file.assignedRiderIndex) ? file.assignedRiderIndex : null
+        assignedRiderIndex: file.assignedRiderIndex === 0 ? 0 : null,
+        riderIndex: file.assignedRiderIndex === 0 ? 0 : null
       }));
       fitSyncState.nextParsedFileId = fitSyncState.parsedFiles.reduce((maxId, file) => Math.max(maxId, file.id), 0) + 1;
-      if (Array.isArray(payload.riderNames)) {
-        payload.riderNames.slice(0, riderInputs.length).forEach((name, index) => {
-          if (typeof name === 'string' && name.trim()) riderInputs[index].value = name;
-        });
+      if (typeof payload.riderName === 'string' && payload.riderName.trim()) {
+        rider1Input.value = payload.riderName;
       }
       renderFitAssignments();
       if (payload.metricKey) {
-        const streams = getLoadedFitStreams();
-        const commonMetricColumns = intersectMetricColumns(streams);
-        if (commonMetricColumns.includes(payload.metricKey)) {
+        const stream = getLoadedFitStream();
+        if (stream && Array.isArray(stream.metricColumns) && stream.metricColumns.includes(payload.metricKey)) {
           fitMetricSelect.value = payload.metricKey;
           buildFitSeries(payload.metricKey);
         }
@@ -1517,50 +1297,29 @@
     }
     function renderFitLegend() {
       if (fitSyncState.series.length === 0) {
-        fitLegend.innerHTML = '<span class="fit-swatch"><i style="background:#94a3b8"></i>No active FIT streams</span>';
+        fitLegend.innerHTML = '<span class="fit-swatch"><i style="background:#94a3b8"></i>No active FIT stream</span>';
         return;
       }
       fitLegend.innerHTML = fitSyncState.series
         .map((series) => `<span class="fit-swatch"><i style="background:${series.color}"></i>${series.label}</span>`)
         .join('');
     }
-    function getSelectedFitTargetSet() {
-      const selected = new Set(fitSyncState.syncTargetRiderIndexes || []);
-      if (selected.size === 0) {
-        for (const series of fitSyncState.series) selected.add(series.riderIndex);
-      }
-      return selected;
-    }
     function renderFitSyncTargets() {
       if (fitSyncState.series.length === 0) {
         fitSyncTargets.innerHTML = '';
         return;
       }
-      const selectedSet = getSelectedFitTargetSet();
-      const allSelected = fitSyncState.series.every((series) => selectedSet.has(series.riderIndex));
-      const buttons = [
-        `<button type="button" class="target-btn ${allSelected ? 'active' : ''}" data-target="all">All riders</button>`
-      ];
-      for (const series of fitSyncState.series) {
-        const isActive = selectedSet.has(series.riderIndex);
-        buttons.push(`<button type="button" class="target-btn ${isActive ? 'active' : ''}" data-target="${series.riderIndex}">${series.label}</button>`);
-      }
-      fitSyncTargets.innerHTML = buttons.join('');
+      fitSyncTargets.innerHTML = fitSyncState.series
+        .map((series) => `<button type="button" class="target-btn active" data-target="${series.riderIndex}">${series.label}</button>`)
+        .join('');
     }
     function getFitOffsetLabel() {
       if (fitSyncState.series.length === 0) return '0.000s';
-      const selectedSet = getSelectedFitTargetSet();
-      const offsets = fitSyncState.series
-        .filter((series) => selectedSet.has(series.riderIndex))
-        .map((series) => series.offset || 0);
-      if (offsets.length === 0) return '0.000s';
-      const min = Math.min(...offsets);
-      const max = Math.max(...offsets);
-      if (Math.abs(max - min) < 1e-6) return `${formatFitNum(offsets[0], 3)}s`;
-      return 'mixed';
+      const offset = fitSyncState.series[0].offset || 0;
+      return `${formatFitNum(offset, 3)}s`;
     }
     function updateFitStats() {
-      fitSamplingHz.textContent = fitSyncState.samplingDisplay;
+      fitSamplingHz.textContent = formatSamplingDisplay(fitSyncState.stream);
       fitVideoFps.textContent = `${getFps()} fps`;
       fitTraceOffset.textContent = getFitOffsetLabel();
       fitVideoTime.textContent = `${formatFitNum(video.currentTime || 0, 3)}s`;
@@ -1569,8 +1328,7 @@
       const { preserveMetricOptions = false } = options;
       fitSyncState.metricKey = '';
       fitSyncState.series = [];
-      fitSyncState.syncTargetRiderIndexes = [];
-      fitSyncState.samplingDisplay = getLoadedFitStreams().length ? formatSamplingDisplay(getLoadedFitStreams()) : '-';
+      fitSyncState.samplingDisplay = fitSyncState.stream ? formatSamplingDisplay(fitSyncState.stream) : '-';
       if (!preserveMetricOptions) populateFitMetricSelect([]);
       else fitMetricSelect.value = '';
       fitCurrentValues.textContent = 'Values @ playhead: -';
@@ -1580,80 +1338,87 @@
       drawFitPlot();
     }
     function rebuildFitMetricOptions() {
-      const streams = getLoadedFitStreams();
-      fitSyncState.samplingDisplay = formatSamplingDisplay(streams);
-      if (streams.length === 0) {
+      const stream = getLoadedFitStream();
+      fitSyncState.samplingDisplay = formatSamplingDisplay(stream);
+      if (!stream) {
         resetFitMetricAndPlot();
-        renderRiderCadenceLapTable();
-        setFitStatus('Assign one or more FIT files to start syncing.');
+        renderLapDataTables();
+        setFitStatus('Assign a FIT file to start syncing.');
         return;
       }
-      const commonMetricColumns = intersectMetricColumns(streams);
+      const metricColumns = Array.isArray(stream.metricColumns) ? [...stream.metricColumns].sort((a, b) => a.localeCompare(b)) : [];
       const previousMetric = fitSyncState.metricKey;
-      populateFitMetricSelect(commonMetricColumns, previousMetric);
+      populateFitMetricSelect(metricColumns, previousMetric);
       updateFitStats();
-      if (commonMetricColumns.length === 0) {
+      if (metricColumns.length === 0) {
         resetFitMetricAndPlot();
-        renderRiderCadenceLapTable();
-        setFitStatus('No common numeric metrics were found across the assigned FIT files.');
+        renderLapDataTables();
+        setFitStatus('No numeric metrics found in the FIT file.');
         return;
       }
-      if (previousMetric && commonMetricColumns.includes(previousMetric)) {
+      if (previousMetric && metricColumns.includes(previousMetric)) {
         buildFitSeries(previousMetric);
-        renderRiderCadenceLapTable();
-        setFitStatus(`${streams.length} FIT stream(s) ready. Overlaying ${previousMetric}.`, 'ok');
+        renderLapDataTables();
+        setFitStatus(`FIT stream ready. Overlaying ${previousMetric}.`, 'ok');
         return;
       }
       resetFitMetricAndPlot({ preserveMetricOptions: true });
-      renderRiderCadenceLapTable();
-      setFitStatus(`${streams.length} FIT stream(s) loaded. Choose a shared metric.`, 'ok');
+      renderLapDataTables();
+      setFitStatus('FIT stream loaded. Choose a metric.', 'ok');
     }
     function buildFitSeries(metricKey) {
       if (!metricKey) {
         resetFitMetricAndPlot({ preserveMetricOptions: true });
+        renderLapDataTables();
         return;
       }
-      const series = [];
-      for (const stream of getLoadedFitStreams()) {
-        const points = [];
-        for (const row of stream.rows) {
-          const t = toNumeric(row[stream.timeColumnKey]);
-          const y = toNumeric(row[metricKey]);
-          if (t !== null && y !== null) points.push({ t, y });
-        }
-        points.sort((a, b) => a.t - b.t);
-        if (points.length < 2) continue;
-        const baseTime = points[0].t;
-        series.push({
-          riderIndex: stream.riderIndex,
-          label: getFitSeriesLabel(stream.riderIndex),
-          fileName: stream.fileName,
-          color: riderPalette[stream.riderIndex % riderPalette.length],
-          offset: toNumeric(stream.offset) || 0,
-          times: points.map((point) => point.t - baseTime),
-          metricValues: points.map((point) => point.y)
-        });
+      const stream = getLoadedFitStream();
+      if (!stream) {
+        resetFitMetricAndPlot({ preserveMetricOptions: true });
+        renderLapDataTables();
+        return;
       }
-      fitSyncState.series = series;
+      const points = [];
+      for (const row of stream.rows) {
+        const t = toNumeric(row[stream.timeColumnKey]);
+        const y = toNumeric(row[metricKey]);
+        if (t !== null && y !== null) points.push({ t, y });
+      }
+      points.sort((a, b) => a.t - b.t);
+      if (points.length < 2) {
+        fitSyncState.series = [];
+        fitSyncState.metricKey = metricKey;
+        renderFitLegend();
+        renderFitSyncTargets();
+        updateFitStats();
+        drawFitPlot();
+        renderLapDataTables();
+        setFitStatus('The selected metric does not have enough numeric points to plot.');
+        return;
+      }
+      const baseTime = points[0].t;
+      fitSyncState.series = [{
+        riderIndex: 0,
+        label: getFitSeriesLabel(),
+        fileName: stream.fileName,
+        color: BAR_COLOR,
+        offset: toNumeric(stream.offset) || 0,
+        times: points.map((point) => point.t - baseTime),
+        metricValues: points.map((point) => point.y)
+      }];
       fitSyncState.metricKey = metricKey;
-      fitSyncState.syncTargetRiderIndexes = series.map((item) => item.riderIndex);
       renderFitLegend();
       renderFitSyncTargets();
       updateFitStats();
       drawFitPlot();
-      if (series.length > 0) {
-        setFitStatus(`Loaded ${series.length} rider FIT stream(s). Left drag scrubs video, right drag syncs selected rider traces.`, 'ok');
-      } else {
-        setFitStatus('The selected metric does not have enough numeric points to plot.');
-      }
+      renderLapDataTables();
+      setFitStatus('FIT stream loaded. Left drag scrubs video, right drag syncs the trace.', 'ok');
     }
     async function loadFitFilesToPool(files) {
       if (!files || files.length === 0) return;
       setFitStatus('Loading FIT file(s)...', 'ok');
-
       const loadedNames = [];
       const failedNames = [];
-
       for (const file of files) {
         try {
           const buffer = await file.arrayBuffer();
@@ -1668,7 +1433,6 @@
           if (!timeColumnKey || rows.length < 2) {
             throw new Error(`No readable timestamp series found in ${file.name}.`);
           }
-
           const timeValues = [];
           for (const row of rows) {
             const value = toNumeric(row[timeColumnKey]);
@@ -1679,10 +1443,7 @@
             const dt = timeValues[i] - timeValues[i - 1];
             if (Number.isFinite(dt) && dt > 0) dts.push(dt);
           }
-          if (dts.length === 0) {
-            throw new Error(`Timestamps are not increasing in ${file.name}.`);
-          }
-
+          if (dts.length === 0) throw new Error(`Timestamps are not increasing in ${file.name}.`);
           const meanDt = dts.reduce((sum, value) => sum + value, 0) / dts.length;
           fitSyncState.parsedFiles.push({
             id: fitSyncState.nextParsedFileId++,
@@ -1701,28 +1462,23 @@
           failedNames.push(file.name);
         }
       }
-
       renderFitAssignments();
       if (loadedNames.length > 0 && failedNames.length > 0) {
-        setFitStatus(`Loaded ${loadedNames.length} FIT file(s). ${failedNames.length} failed. Drag files into rider slots.`, 'ok');
+        setFitStatus(`Loaded ${loadedNames.length} FIT file(s). ${failedNames.length} failed. Drag file into rider slot.`, 'ok');
       } else if (loadedNames.length > 0) {
-        setFitStatus(`Loaded ${loadedNames.length} FIT file(s). Drag files into rider slots.`, 'ok');
+        setFitStatus(`Loaded ${loadedNames.length} FIT file(s). Drag file into rider slot.`, 'ok');
       } else {
         setFitStatus('No FIT files were loaded successfully.');
       }
     }
-
-    function assignFitFileToRider(fileId, riderIndex) {
+    function assignFitFileToRider(fileId) {
       const file = fitSyncState.parsedFiles.find((item) => item.id === fileId);
       if (!file) return;
-      const currentForRider = getAssignedFitFile(riderIndex);
-      if (currentForRider && currentForRider.id !== file.id) {
-        currentForRider.assignedRiderIndex = null;
-      }
-      file.assignedRiderIndex = riderIndex;
+      const current = getAssignedFitFile();
+      if (current && current.id !== file.id) current.assignedRiderIndex = null;
+      file.assignedRiderIndex = 0;
       renderFitAssignments();
     }
-
     function unassignFitFile(fileId) {
       const file = fitSyncState.parsedFiles.find((item) => item.id === fileId);
       if (!file) return;
@@ -1732,8 +1488,7 @@
     function getFitSeriesValueAtVideoTime(series, videoTime) {
       if (!series || series.times.length === 0 || series.metricValues.length === 0) return null;
       const metricT = videoTime - (series.offset || 0);
-      let lo = 0;
-      let hi = series.times.length - 1;
+      let lo = 0, hi = series.times.length - 1;
       while (lo < hi) {
         const mid = (lo + hi) >> 1;
         if (series.times[mid] < metricT) lo = mid + 1;
@@ -1746,46 +1501,33 @@
     }
     function snapFitSeriesToPlayhead() {
       if (fitSyncState.series.length === 0) {
-        setFitStatus('Load FIT streams and select a metric before snapping.');
+        setFitStatus('Load a FIT stream and select a metric before snapping.');
         return;
       }
       const playhead = Number.isFinite(video.currentTime) ? video.currentTime : 0;
-      let snappedCount = 0;
-      let skippedCount = 0;
-      for (const series of fitSyncState.series) {
-        const metricT = playhead - (series.offset || 0);
-        let targetIdx = -1;
-        for (let i = 0; i < series.times.length; i++) {
-          if (series.times[i] < metricT) continue;
-          if (Math.abs(series.metricValues[i]) <= 1e-9) continue;
-          targetIdx = i;
-          break;
-        }
-        if (targetIdx < 0) {
-          skippedCount++;
-          continue;
-        }
-        const targetTime = series.times[targetIdx];
-        const newOffset = playhead - targetTime;
-        series.offset = newOffset;
-        const stream = fitSyncState.streams[series.riderIndex];
-        if (stream) stream.offset = newOffset;
-        snappedCount++;
+      const series = fitSyncState.series[0];
+      const metricT = playhead - (series.offset || 0);
+      let targetIdx = -1;
+      for (let i = 0; i < series.times.length; i++) {
+        if (series.times[i] < metricT) continue;
+        if (Math.abs(series.metricValues[i]) <= 1e-9) continue;
+        targetIdx = i;
+        break;
       }
+      if (targetIdx < 0) {
+        setFitStatus('No non-zero values found to the right of the playhead in the loaded stream.');
+        return;
+      }
+      const newOffset = playhead - series.times[targetIdx];
+      series.offset = newOffset;
+      if (fitSyncState.stream) fitSyncState.stream.offset = newOffset;
       updateFitStats();
       drawFitPlot();
-      renderRiderCadenceLapTable();
-      if (snappedCount === 0) {
-        setFitStatus('No non-zero values were found to the right of the playhead in loaded streams.');
-      } else if (skippedCount > 0) {
-        setFitStatus(`Snapped ${snappedCount} stream(s). ${skippedCount} stream(s) had no non-zero value right of playhead.`, 'ok');
-      } else {
-        setFitStatus(`Snapped ${snappedCount} stream(s) to the playhead.`, 'ok');
-      }
+      renderLapDataTables();
+      setFitStatus('Snapped stream to the playhead.', 'ok');
     }
     function findFitBounds(values) {
-      let min = Infinity;
-      let max = -Infinity;
+      let min = Infinity, max = -Infinity;
       for (const value of values) {
         if (value < min) min = value;
         if (value > max) max = value;
@@ -1823,14 +1565,13 @@
       if (fitSyncState.series.length === 0) {
         fitPlotContext.fillStyle = '#64748b';
         fitPlotContext.font = '14px sans-serif';
-        fitPlotContext.fillText('Load rider FIT files and choose a shared metric to draw traces.', 14, 28);
+        fitPlotContext.fillText('Load a FIT file and choose a metric to draw the trace.', 14, 28);
         fitSyncState.drawingData = null;
         fitCurrentValues.textContent = 'Values @ playhead: -';
         return;
       }
       const allValues = [];
-      let minDisplayTime = Infinity;
-      let maxDisplayTime = -Infinity;
+      let minDisplayTime = Infinity, maxDisplayTime = -Infinity;
       for (const series of fitSyncState.series) {
         if (series.times.length < 2 || series.metricValues.length < 2) continue;
         allValues.push(...series.metricValues);
@@ -1899,81 +1640,42 @@
       const v = parseFloat(airDensityInput.value);
       return Number.isFinite(v) && v > 0 ? v : 1.169;
     }
-
     function isStandardizationEnabled() {
       return Math.abs(getAirDensity() - 1.169) > 0.0000001;
     }
-
     function getStandardizationFactor() {
       const x = getAirDensity();
       return Math.pow(1.169 / x, 0.3277);
     }
-
     function getStandardizedQuarterTimeAt(index) {
       const row = splitRows[index];
       if (!row) return null;
       if (!isStandardizationEnabled()) return row.quarterTime;
       const factor = getStandardizationFactor();
-      // Flying start: standardize all quarters. Standing start: exclude first lap.
       const apply = flyingMode || index >= 4;
       return apply ? row.quarterTime * factor : row.quarterTime;
     }
-
-    function getStandardizedRunningTimeForIndex(index) {
+    function getStandardizedLapTotal(lapStart, lapRows) {
       let total = 0;
-      for (let i = 0; i <= index; i++) {
+      for (let i = 0; i < lapRows.length; i++) {
+        const t = getStandardizedQuarterTimeAt(lapStart + i);
+        if (Number.isFinite(t)) total += t;
+      }
+      return total;
+    }
+    function getStandardizedTotalTime() {
+      if (splitRows.length === 0) return null;
+      let total = 0;
+      for (let i = 0; i < splitRows.length; i++) {
         const t = getStandardizedQuarterTimeAt(i);
         if (Number.isFinite(t)) total += t;
       }
       return total;
     }
-
-    function getStandardizedLapTotal(lapStart, lapRows) {
-      let total = 0;
-      for (let i = 0; i < lapRows.length; i++) {
-        const idx = lapStart + i;
-        const t = getStandardizedQuarterTimeAt(idx);
-        if (Number.isFinite(t)) total += t;
-      }
-      return total;
-    }
-
-    function getStandardizedTotalTime() {
-      if (splitRows.length === 0) return null;
-      return getStandardizedRunningTimeForIndex(splitRows.length - 1);
-    }
-
     function getRawTotalTime() {
       if (splitRows.length === 0) return null;
       return splitRows.reduce((acc, row) => acc + row.quarterTime, 0);
     }
-
-    function getCurrentFrontRiderIndex() {
-      return riderOrder.length > 0 ? riderOrder[frontPosition] : -1;
-    }
-
-    function updateTitle() {
-      const rawTotal = getRawTotalTime();
-      const stdTotal = getStandardizedTotalTime();
-      const totalText = Number.isFinite(rawTotal)
-        ? (isStandardizationEnabled() && Number.isFinite(stdTotal)
-          ? ` (Raw/Std): ${formatClockTime(rawTotal)} / ${formatClockTime(stdTotal)} (ρ=${getAirDensity().toFixed(3)} kg/m³)`
-          : ` ${formatClockTime(rawTotal)}`)
-        : '';
-      reportTitle.textContent = `${getTitleText()} Team Pursuit Report${totalText}`;
-      reportDashboardTitle.textContent = `${getTitleText()} ${totalText}`;
-    }
-
-    function setStatus(msg) { statusDisplay.textContent = `Status: ${msg}`; }
-
-    function renumberRows() {
-      let n = 0;
-      for (const row of splitRows) {
-        n++;
-        row.splitLabel = row.splitType === 'TEAM_FINISH' ? `Q${n} (Finish)` : `Q${n}`;
-      }
-    }
-
     function getLapTotals() {
       const lapTotals = [];
       for (let lapStart = 0; lapStart < splitRows.length; lapStart += 4) {
@@ -1984,20 +1686,15 @@
       }
       return lapTotals;
     }
-
     function getAverageLapSplitOverall(lapTotals = getLapTotals()) {
       if (lapTotals.length === 0) return null;
-      const sum = lapTotals.reduce((acc, v) => acc + v, 0);
-      return sum / lapTotals.length;
+      return lapTotals.reduce((acc, v) => acc + v, 0) / lapTotals.length;
     }
-
     function getAverageLapSplitAfterFirstLap(lapTotals = getLapTotals()) {
       if (lapTotals.length <= 1) return null;
       const postFirst = lapTotals.slice(1);
-      const sum = postFirst.reduce((acc, v) => acc + v, 0);
-      return sum / postFirst.length;
+      return postFirst.reduce((acc, v) => acc + v, 0) / postFirst.length;
     }
-
     function getRunningTimeForRow(row, index) {
       if (Number.isFinite(startTime) && Number.isFinite(row.endTime)) {
         return Math.max(0, row.endTime - startTime);
@@ -2006,23 +1703,36 @@
       for (let i = 0; i <= index; i++) running += splitRows[i].quarterTime;
       return running;
     }
-
+    function updateTitle() {
+      const rawTotal = getRawTotalTime();
+      const stdTotal = getStandardizedTotalTime();
+      const riderName = getRiderName();
+      const totalText = Number.isFinite(rawTotal)
+        ? (isStandardizationEnabled() && Number.isFinite(stdTotal)
+          ? ` (Raw/Std): ${formatClockTime(rawTotal)} / ${formatClockTime(stdTotal)} (ρ=${getAirDensity().toFixed(3)} kg/m³)`
+          : ` ${formatClockTime(rawTotal)}`)
+        : '';
+      reportTitle.textContent = `${getTitleText()} — ${riderName} Kilo Report${totalText}`;
+      reportDashboardTitle.textContent = `${getTitleText()} — ${riderName}${totalText}`;
+    }
+    function setStatus(msg) { statusDisplay.textContent = `Status: ${msg}`; }
+    function renumberRows() {
+      let n = 0;
+      for (const row of splitRows) {
+        n++;
+        row.splitLabel = row.splitType === 'FINISH' ? `Q${n} (Finish)` : `Q${n}`;
+      }
+    }
     function renderRows() {
-      const names = getRiderNames();
       reportTableBody.innerHTML = '';
       for (let i = splitRows.length - 1; i >= 0; i--) {
         const row = splitRows[i];
-        const riderName = row.frontRiderIndex >= 0
-          ? (names[row.frontRiderIndex] || `Rider ${row.frontRiderIndex + 1}`)
-          : 'No Active Rider';
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${row.splitLabel}</td>
-          <td>${riderName}</td>
           <td>${formatTime(row.quarterTime)}</td>
           <td>${formatTime(getRunningTimeForRow(row, i))}</td>
-          <td>${row.teamSpeed.toFixed(3)}</td>
-          <td>${row.deliverySpeed.toFixed(3)}</td>
+          <td>${row.speed.toFixed(3)}</td>
           <td>${row.eventLabel}</td>
         `;
         reportTableBody.appendChild(tr);
@@ -2030,57 +1740,29 @@
       reportTable.style.display = splitRows.length > 0 ? 'table' : 'none';
       updateTitle();
       renderReportChart();
-      renderLapSummaryTable();
+      renderLapDataTables();
       renderFirstLapTable();
-      renderKiloSplitsTable();
-      renderLeadLapsTable();
     }
 
     function getChartRows() {
       return splitRows.map((row) => ({
         label: row.splitLabel,
-        riderIndex: row.frontRiderIndex,
-        riderName: getRiderNames()[row.frontRiderIndex] || 'No Active Rider',
-        teamSpeed: row.teamSpeed,
-        deliverySpeed: row.deliverySpeed,
-        quarterTime: row.quarterTime,
-        deliveryAdjusted: row.deliveryAdjusted
+        speed: row.speed,
+        quarterTime: row.quarterTime
       }));
     }
 
-    function getRiderColor(riderIndex) {
-      return riderIndex >= 0 ? riderPalette[riderIndex % riderPalette.length] : inactiveRiderColor;
-    }
-
-    function renderChartLegend(rows, showPostFirstLapAverageLine) {
-      const names = getRiderNames();
+    function renderChartLegend(showAverageLine) {
       chartLegend.innerHTML = '';
-
-      const riderIndexes = [...new Set(rows.map((row) => row.riderIndex).filter((idx) => idx >= 0))];
-      riderIndexes.forEach((riderIndex) => {
-        const item = document.createElement('span');
-        item.className = 'legend-item';
-        item.innerHTML = `<span class="legend-swatch" style="background:${getRiderColor(riderIndex)}"></span>${names[riderIndex] || `Rider ${riderIndex + 1}`}`;
-        chartLegend.appendChild(item);
-      });
-
-      if (rows.some((row) => row.riderIndex < 0)) {
-        const item = document.createElement('span');
-        item.className = 'legend-item';
-        item.innerHTML = `<span class="legend-swatch" style="background:${inactiveRiderColor}"></span>No Active Rider`;
-        chartLegend.appendChild(item);
-      }
-
-      const deliveryItem = document.createElement('span');
-      deliveryItem.className = 'legend-item';
-      deliveryItem.innerHTML = '<span class="legend-dot"></span>Delivery speed';
-      chartLegend.appendChild(deliveryItem);
-
-      if (showPostFirstLapAverageLine) {
-        const averageItem = document.createElement('span');
-        averageItem.className = 'legend-item';
-        averageItem.innerHTML = '<span class="legend-line"></span>Post-lap-1 average';
-        chartLegend.appendChild(averageItem);
+      const speedItem = document.createElement('span');
+      speedItem.className = 'legend-item';
+      speedItem.innerHTML = `<span class="legend-swatch" style="background:${BAR_COLOR}"></span>Speed`;
+      chartLegend.appendChild(speedItem);
+      if (showAverageLine) {
+        const avgItem = document.createElement('span');
+        avgItem.className = 'legend-item';
+        avgItem.innerHTML = '<span class="legend-line"></span>Post-lap-1 average';
+        chartLegend.appendChild(avgItem);
       }
     }
 
@@ -2102,7 +1784,6 @@
       if (speedProfileTitle) speedProfileTitle.textContent = hlMode ? 'Half Lap Speed Profile' : 'Quarter Split Speed Profile';
       const quarterRows = flyingMode ? allRows : allRows.slice(4);
 
-      // In HL mode: skip first and last quarters, pair up remaining into half-laps
       let rows;
       if (hlMode && quarterRows.length >= 3) {
         const inner = quarterRows.slice(1, quarterRows.length - 1);
@@ -2111,17 +1792,10 @@
           const a = inner[p];
           const b = inner[p + 1];
           const combinedTime = (a.quarterTime || 0) + (b.quarterTime || 0);
-          const hlTeamSpeed = combinedTime > 0 ? (125 / combinedTime) * 3.6 : 0;
-          const hasChangeOrDrop = a.deliveryAdjusted || b.deliveryAdjusted;
-          const hlDeliverySpeed = hasChangeOrDrop
-            ? (125 / Math.max(combinedTime - getChangeTimeSeconds(), 0.001)) * 3.6
-            : hlTeamSpeed;
+          const hlSpeed = combinedTime > 0 ? (125 / combinedTime) * 3.6 : 0;
           rows.push({
             label: b.label,
-            riderIndex: a.riderIndex,
-            riderName: a.riderName,
-            teamSpeed: hlTeamSpeed,
-            deliverySpeed: hlDeliverySpeed,
+            speed: hlSpeed,
             _hlIndex: p / 2,
             _hlEndQuarterIndex: globalStartIndex + 1 + p + 1
           });
@@ -2129,6 +1803,7 @@
       } else {
         rows = quarterRows;
       }
+
       const hasRows = rows.length > 0;
       const postFirstLapAverage = getAverageLapSplitAfterFirstLap();
       const postFirstLapAverageSpeed = Number.isFinite(postFirstLapAverage)
@@ -2136,31 +1811,26 @@
         : null;
       reportChartWrapper.hidden = !hasRows;
       reportChartEmpty.hidden = hasRows;
-      renderChartLegend(rows, Number.isFinite(postFirstLapAverageSpeed));
+      renderChartLegend(Number.isFinite(postFirstLapAverageSpeed));
 
       const { width, height } = resizeChartCanvas();
       reportChartContext.clearRect(0, 0, width, height);
       if (!hasRows) return;
 
-      const padding = {
-        top: 22,
-        right: 18,
-        bottom: 80,
-        left: 68
-      };
+      const padding = { top: 22, right: 18, bottom: 80, left: 68 };
       const chartWidth = width - padding.left - padding.right;
       const chartHeight = height - padding.top - padding.bottom;
-      const maxDeliverySpeed = Math.max(...rows.map((row) => row.deliverySpeed), 1);
-      const minTeamSpeed = Math.min(...rows.map((row) => row.teamSpeed));
+      const maxSpeed = Math.max(...rows.map((row) => row.speed), 1);
+      const minSpeed = Math.min(...rows.map((row) => row.speed));
       const userYMin = parseFloat(document.getElementById('chartYMinInput').value);
       const userYMax = parseFloat(document.getElementById('chartYMaxInput').value);
-      const axisMin = Number.isFinite(userYMin) ? userYMin : minTeamSpeed - 1;
-      const axisMax = Number.isFinite(userYMax) ? Math.max(userYMax, axisMin + 1) : Math.max(maxDeliverySpeed + 1, axisMin + 1);
+      const axisMin = Number.isFinite(userYMin) ? userYMin : minSpeed - 1;
+      const axisMax = Number.isFinite(userYMax) ? Math.max(userYMax, axisMin + 1) : Math.max(maxSpeed + 1, axisMin + 1);
       const axisRange = Math.max(0.001, axisMax - axisMin);
       const tickCount = 5;
       const baseY = padding.top + chartHeight;
       const barSlot = chartWidth / rows.length;
-      const barWidth = Math.min(30, Math.max(8, barSlot * 0.35));
+      const barWidth = Math.min(30, Math.max(8, barSlot * 0.55));
 
       reportChartContext.font = '12px sans-serif';
       reportChartContext.textAlign = 'right';
@@ -2195,13 +1865,10 @@
       reportChartContext.fillText('Speed (km/h)', 0, 0);
       reportChartContext.restore();
 
-      reportChartContext.textAlign = 'center';
-      reportChartContext.textBaseline = 'top';
-
       if (Number.isFinite(postFirstLapAverageSpeed)) {
         const avgY = baseY - ((postFirstLapAverageSpeed - axisMin) / axisRange) * chartHeight;
         reportChartContext.save();
-        reportChartContext.strokeStyle = averageLineColor;
+        reportChartContext.strokeStyle = AVERAGE_LINE_COLOR;
         reportChartContext.lineWidth = 2;
         reportChartContext.setLineDash([6, 6]);
         reportChartContext.beginPath();
@@ -2213,18 +1880,12 @@
 
       rows.forEach((row, index) => {
         const centerX = padding.left + barSlot * index + barSlot / 2;
-        const barHeight = ((row.teamSpeed - axisMin) / axisRange) * chartHeight;
+        const barHeight = ((row.speed - axisMin) / axisRange) * chartHeight;
         const barX = centerX - barWidth / 2;
         const barY = baseY - barHeight;
-        const dotY = baseY - ((row.deliverySpeed - axisMin) / axisRange) * chartHeight;
 
-        reportChartContext.fillStyle = getRiderColor(row.riderIndex);
+        reportChartContext.fillStyle = BAR_COLOR;
         reportChartContext.fillRect(barX, barY, barWidth, barHeight);
-
-        reportChartContext.fillStyle = deliverySpeedColor;
-        reportChartContext.beginPath();
-        reportChartContext.arc(centerX, dotY, 5, 0, Math.PI * 2);
-        reportChartContext.fill();
 
         reportChartContext.save();
         reportChartContext.translate(centerX, baseY + 8);
@@ -2240,91 +1901,205 @@
       });
     }
 
-    function renderLapSummaryTable() {
-      lapSummaryTableBody.innerHTML = '';
-      const completedLaps = []; // { total, riderIndices }
-      for (let lapStart = 0; lapStart < splitRows.length; lapStart += 4) {
-        const lapRows = splitRows.slice(lapStart, lapStart + 4);
-        if (lapRows.length < 4) continue;
-        let lapTotal = 0;
-        for (const row of lapRows) lapTotal += row.quarterTime;
-        completedLaps.push({ total: lapTotal, riderIndices: lapRows.map((r) => r.frontRiderIndex) });
-      }
-      const completedLapTotals = completedLaps.map((l) => l.total);
-      const postFirstLapAverage = getAverageLapSplitAfterFirstLap(completedLapTotals);
+    function renderMergedLapTable() {
+      const tbody = lapMergedTable.querySelector('tbody');
+      const headRow = lapMergedTable.querySelector('thead tr');
+      tbody.innerHTML = '';
 
-      if (completedLaps.length === 0) {
-        lapSummaryTable.hidden = true;
-        lapSummaryEmpty.hidden = false;
+      if (splitRows.length === 0) {
+        lapMergedTable.hidden = true;
+        lapMergedEmpty.hidden = false;
         return;
       }
 
-      // For conditional colouring, only look at laps 2+ (exclude first lap)
-      const postFirstTotals = completedLapTotals.slice(1);
-      const minTotal = postFirstTotals.length > 0 ? Math.min(...postFirstTotals) : 0;
-      const maxTotal = postFirstTotals.length > 0 ? Math.max(...postFirstTotals) : 0;
+      const DISPLAY_QUARTERS = 16;
+      const quarterCount = Math.min(splitRows.length, DISPLAY_QUARTERS);
 
-      // Diffs for laps 2+ (lap 1 has no meaningful diff vs post-lap-1 avg)
-      const postFirstDiffs = Number.isFinite(postFirstLapAverage)
-        ? postFirstTotals.map((t) => t - postFirstLapAverage)
-        : [];
-      const maxAbsDiff = postFirstDiffs.length > 0 ? Math.max(...postFirstDiffs.map(Math.abs)) : 0;
+      headRow.innerHTML = '<th></th>' + Array.from({ length: DISPLAY_QUARTERS }, (_, i) => `<th>Q${i + 1}</th>`).join('');
 
-      // Returns an rgba colour interpolated green→white→red (t: -1=green, 0=white, 1=red)
-      function heatColor(t) {
-        // t in [0,1]: 0=green, 0.5=white, 1=red  OR  for diff: t in [-1,1]
-        // Normalise to [0,1]
-        const n = Math.max(0, Math.min(1, (t + 1) / 2));
-        const r = n < 0.5 ? Math.round(n * 2 * 255) : 255;
-        const g = n < 0.5 ? 255 : Math.round((1 - (n - 0.5) * 2) * 255);
-        return `rgba(${r},${g},80,0.45)`;
+      const quarterSplits = Array(DISPLAY_QUARTERS).fill(null);
+      for (let i = 0; i < quarterCount; i++) quarterSplits[i] = splitRows[i].quarterTime;
+
+      const halfLapSplits = Array(DISPLAY_QUARTERS).fill(null);
+      for (let end = 1; end < quarterCount; end += 2) {
+        halfLapSplits[end] = splitRows[end - 1].quarterTime + splitRows[end].quarterTime;
       }
 
-      // Normalise a lap total to [-1,1] where -1=fastest, +1=slowest
-      function totalHeat(v) {
-        if (maxTotal === minTotal) return 0;
-        return ((v - minTotal) / (maxTotal - minTotal)) * 2 - 1;
+      const lapSplits = Array(DISPLAY_QUARTERS).fill(null);
+      for (let end = 3; end < quarterCount; end += 4) {
+        let total = 0;
+        for (let i = end - 3; i <= end; i++) total += splitRows[i].quarterTime;
+        lapSplits[end] = total;
       }
 
-      for (let i = 0; i < completedLaps.length; i++) {
-        const { total: lapTotal, riderIndices } = completedLaps[i];
-        const diff = Number.isFinite(postFirstLapAverage) ? lapTotal - postFirstLapAverage : null;
-        const diffText = diff !== null ? formatSignedTime(diff) : '--';
+      const fiveHundredSplits = Array(DISPLAY_QUARTERS).fill(null);
+      for (let end = 7; end < quarterCount; end += 8) {
+        let total = 0;
+        for (let i = end - 7; i <= end; i++) total += splitRows[i].quarterTime;
+        fiveHundredSplits[end] = total;
+      }
 
-        // Build a 4-section colour gradient for the Lap cell
-        const c = riderIndices.map((idx) => getRiderColor(idx));
-        const gradient = `linear-gradient(to right, ${c[0]} 25%, ${c[1]} 25% 50%, ${c[2]} 50% 75%, ${c[3]} 75%)`;
-
-        const isFirstLap = i === 0;
-
-        // Total cell background
-        const totalBg = !isFirstLap ? heatColor(totalHeat(lapTotal)) : '';
-        // Diff cell background: negative = green (fast), positive = red (slow)
-        const diffBg = (!isFirstLap && diff !== null && maxAbsDiff > 0)
-          ? heatColor(diff / maxAbsDiff)
-          : '';
-
+      function addRow(label, values, formatter = formatTime, options = {}) {
+        const { applyHeat = false, invertHeat = false, heatStartIndex = 0 } = options;
         const tr = document.createElement('tr');
-        const lapTd = document.createElement('td');
-        lapTd.style.cssText = `background:${gradient};padding:0;`;
-        lapTd.innerHTML = `<span style="display:block;padding:8px 10px;font-weight:600;color:#0f172a;text-shadow:0 0 3px rgba(255,255,255,0.9),0 0 6px rgba(255,255,255,0.6);">Lap ${i + 1}</span>`;
-        tr.appendChild(lapTd);
+        const numericValues = values
+          .slice(Math.max(0, heatStartIndex))
+          .filter((v) => Number.isFinite(v));
+        const min = numericValues.length > 0 ? Math.min(...numericValues) : null;
+        const max = numericValues.length > 0 ? Math.max(...numericValues) : null;
 
-        const totalTd = document.createElement('td');
-        totalTd.textContent = formatTime(lapTotal);
-        if (totalBg) totalTd.style.background = totalBg;
-        tr.appendChild(totalTd);
+        const rowLabelCell = document.createElement('th');
+        rowLabelCell.textContent = label;
+        tr.appendChild(rowLabelCell);
 
-        const diffTd = document.createElement('td');
-        diffTd.textContent = diffText;
-        if (diffBg) diffTd.style.background = diffBg;
-        tr.appendChild(diffTd);
+        for (let i = 0; i < values.length; i++) {
+          const value = values[i];
+          const cell = document.createElement('td');
+          cell.textContent = value == null ? '' : formatter(value);
 
-        lapSummaryTableBody.appendChild(tr);
+          if (applyHeat && i >= heatStartIndex && Number.isFinite(value) && min != null && max != null) {
+            let ratio = max === min ? 0.5 : (value - min) / (max - min);
+            if (invertHeat) ratio = 1 - ratio;
+            const hue = 120 * ratio; // 0 = red, 120 = green
+            cell.style.backgroundColor = `hsl(${hue.toFixed(1)}, 70%, 72%)`;
+          }
+
+          tr.appendChild(cell);
+        }
+        tbody.appendChild(tr);
       }
 
-      lapSummaryTable.hidden = false;
-      lapSummaryEmpty.hidden = true;
+      addRow('Splits (s)', quarterSplits, formatTime, { applyHeat: true, invertHeat: true, heatStartIndex: 4 });
+      addRow('Half Laps', halfLapSplits);
+      addRow('Laps', lapSplits);
+      addRow('500s', fiveHundredSplits);
+
+      const stream = fitSyncState.stream;
+      const cadenceKey = getCadenceColumnKeyForStream(stream);
+      const powerKey = getPowerColumnKeyForStream(stream);
+      const timingStart = Number.isFinite(startTime)
+        ? startTime
+        : (splitRows[0] && Number.isFinite(splitRows[0].endTime)
+          ? splitRows[0].endTime - splitRows[0].quarterTime
+          : null);
+
+      if (stream && Number.isFinite(timingStart) && (cadenceKey || powerKey)) {
+        const quarterBounds = [];
+        let prevEndTime = timingStart;
+        for (let i = 0; i < quarterCount; i++) {
+          const row = splitRows[i];
+          const endTime = Number.isFinite(row.endTime) ? row.endTime : (prevEndTime + row.quarterTime);
+          quarterBounds.push({ start: prevEndTime, end: endTime });
+          prevEndTime = endTime;
+        }
+
+        if (cadenceKey) {
+          const cadenceValues = Array(DISPLAY_QUARTERS).fill(null);
+          for (let i = 0; i < quarterBounds.length; i++) {
+            const bound = quarterBounds[i];
+            cadenceValues[i] = getAverageMetricForVideoInterval(stream, cadenceKey, bound.start, bound.end);
+          }
+          addRow('Cadence (rpm)', cadenceValues, (v) => Number.isFinite(v) ? v.toFixed(1) : '', { applyHeat: true, invertHeat: false, heatStartIndex: 4 });
+        }
+
+        if (powerKey) {
+          const powerValues = Array(DISPLAY_QUARTERS).fill(null);
+          for (let i = 0; i < quarterBounds.length; i++) {
+            const bound = quarterBounds[i];
+            powerValues[i] = getAverageMetricForVideoInterval(stream, powerKey, bound.start, bound.end);
+          }
+          addRow('Power (W)', powerValues, (v) => Number.isFinite(v) ? v.toFixed(0) : '', { applyHeat: true, invertHeat: false, heatStartIndex: 4 });
+        }
+      }
+
+      lapMergedTable.hidden = false;
+      lapMergedEmpty.hidden = true;
+    }
+
+    function renderFitAveragesTable() {
+      const tbody = fitAvgTable.querySelector('tbody');
+      tbody.innerHTML = '';
+
+      const stream = fitSyncState.stream;
+      const cadenceKey = getCadenceColumnKeyForStream(stream);
+      const powerKey = getPowerColumnKeyForStream(stream);
+      const completedLapCount = Math.floor(splitRows.length / 4);
+
+      if (!stream || (!cadenceKey && !powerKey) || completedLapCount === 0) {
+        fitAvgCard.hidden = true;
+        return;
+      }
+
+      // Build lap bounds
+      const lapBounds = [];
+      let elapsed = 0;
+      for (let lap = 0; lap < completedLapCount; lap++) {
+        let dur = 0;
+        for (let q = 0; q < 4; q++) dur += splitRows[lap * 4 + q].quarterTime;
+        lapBounds.push({
+          start: (Number.isFinite(startTime) ? startTime : 0) + elapsed,
+          end: (Number.isFinite(startTime) ? startTime : 0) + elapsed + dur
+        });
+        elapsed += dur;
+      }
+
+      function avgOf(values) {
+        const valid = values.filter(v => v != null);
+        return valid.length > 0 ? valid.reduce((s, v) => s + v, 0) / valid.length : null;
+      }
+
+      const tdStyle = 'border:1px solid #dbe2ea;padding:8px 10px;text-align:center;';
+      const thStyle = 'border:1px solid #dbe2ea;padding:8px 10px;text-align:left;font-weight:600;background:#f8fafc;';
+      let hasData = false;
+
+      if (cadenceKey) {
+        const vals = lapBounds.map(b => getAverageMetricForVideoInterval(stream, cadenceKey, b.start, b.end));
+        const overall = avgOf(vals);
+        const postFirst = avgOf(vals.slice(1));
+        if (overall != null || postFirst != null) {
+          hasData = true;
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<th style="${thStyle}">Cadence (rpm)</th>` +
+            `<td style="${tdStyle}">${overall != null ? overall.toFixed(1) : '--'}</td>` +
+            `<td style="${tdStyle}">${postFirst != null ? postFirst.toFixed(1) : '--'}</td>`;
+          tbody.appendChild(tr);
+        }
+
+        const lapOneEnd = lapBounds[0] ? lapBounds[0].end : null;
+        const firstReachTime = getFirstCadenceReachTimeAfterLapOne(stream, cadenceKey, lapOneEnd, postFirst);
+        const firstReachElapsed = (firstReachTime != null && Number.isFinite(startTime))
+          ? Math.max(0, firstReachTime - startTime)
+          : null;
+        if (postFirst != null) {
+          hasData = true;
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<th style="${thStyle}">Time to avg cadence</th>` +
+            `<td style="${tdStyle}">--</td>` +
+            `<td style="${tdStyle}">${firstReachElapsed != null ? formatClockTime(firstReachElapsed) : 'Not reached'}</td>`;
+          tbody.appendChild(tr);
+        }
+      }
+
+      if (powerKey) {
+        const vals = lapBounds.map(b => getAverageMetricForVideoInterval(stream, powerKey, b.start, b.end));
+        const overall = avgOf(vals);
+        const postFirst = avgOf(vals.slice(1));
+        if (overall != null || postFirst != null) {
+          hasData = true;
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<th style="${thStyle}">Power (W)</th>` +
+            `<td style="${tdStyle}">${overall != null ? overall.toFixed(0) : '--'}</td>` +
+            `<td style="${tdStyle}">${postFirst != null ? postFirst.toFixed(0) : '--'}</td>`;
+          tbody.appendChild(tr);
+        }
+      }
+
+      fitAvgCard.hidden = !hasData;
+    }
+
+    function renderLapDataTables() {
+      renderMergedLapTable();
+      renderFitAveragesTable();
     }
 
     function renderFirstLapTable() {
@@ -2358,6 +2133,7 @@
         lapAveragesTable.hidden = true;
         return;
       }
+
       firstLap.forEach((row, i) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${i + 1}</td><td>${formatTime(row.quarterTime)}</td><td>${formatTime(getRunningTimeForRow(row, i))}</td>`;
@@ -2393,28 +2169,20 @@
       }
       return null;
     }
-
     function getCadenceColumnKeyForStream(stream) {
       return getPreferredMetricColumnKeyForStream(
-        stream,
-        ['cadence', 'enhanced_cadence', 'bike_cadence', 'avg_cadence'],
-        'cadence'
+        stream, ['cadence', 'enhanced_cadence', 'bike_cadence', 'avg_cadence'], 'cadence'
       );
     }
-
     function getPowerColumnKeyForStream(stream) {
       return getPreferredMetricColumnKeyForStream(
-        stream,
-        ['power', 'enhanced_power', 'bike_power', 'avg_power'],
-        'power'
+        stream, ['power', 'enhanced_power', 'bike_power', 'avg_power'], 'power'
       );
     }
-
     function getAverageMetricForVideoInterval(stream, metricKey, startVideoTime, endVideoTime) {
       if (!stream || !metricKey || !Array.isArray(stream.rows) || stream.rows.length === 0 || !stream.timeColumnKey) return null;
       const offset = Number.isFinite(stream.offset) ? stream.offset : 0;
       const timeColumnKey = stream.timeColumnKey;
-
       const sampleTimes = [];
       for (const row of stream.rows) {
         const t = toNumeric(row[timeColumnKey]);
@@ -2422,9 +2190,7 @@
       }
       if (sampleTimes.length === 0) return null;
       const baseTime = Math.min(...sampleTimes);
-
-      let sum = 0;
-      let count = 0;
+      let sum = 0, count = 0;
       for (const row of stream.rows) {
         const rawT = toNumeric(row[timeColumnKey]);
         const metricValue = toNumeric(row[metricKey]);
@@ -2438,436 +2204,50 @@
       return count > 0 ? sum / count : null;
     }
 
-    function renderRiderCadenceLapTable() {
-      riderCadenceLapTableHeadRow.innerHTML = '';
-      riderCadenceLapTableBody.innerHTML = '';
+    function getFirstCadenceReachTimeAfterLapOne(stream, cadenceKey, lapOneEndVideoTime, targetCadence) {
+      if (!stream || !cadenceKey || !Number.isFinite(lapOneEndVideoTime) || !Number.isFinite(targetCadence)) return null;
+      if (!Array.isArray(stream.rows) || stream.rows.length === 0 || !stream.timeColumnKey) return null;
 
-      const cadenceContainer = document.getElementById('cadenceRowContainer');
-      if (getLoadedFitStreams().length === 0) {
-        if (cadenceContainer) cadenceContainer.hidden = true;
-        return;
+      const offset = Number.isFinite(stream.offset) ? stream.offset : 0;
+      const timeColumnKey = stream.timeColumnKey;
+      const sampleTimes = [];
+      for (const row of stream.rows) {
+        const t = toNumeric(row[timeColumnKey]);
+        if (t !== null) sampleTimes.push(t);
       }
-      if (cadenceContainer) cadenceContainer.hidden = false;
+      if (sampleTimes.length === 0) return null;
+      const baseTime = Math.min(...sampleTimes);
 
-      const completedLapCount = Math.floor(splitRows.length / 4);
-      if (completedLapCount === 0) {
-        riderCadenceLapTable.hidden = true;
-        riderCadenceLapEmpty.hidden = false;
-        return;
+      const samples = [];
+      for (const row of stream.rows) {
+        const rawT = toNumeric(row[timeColumnKey]);
+        const cadence = toNumeric(row[cadenceKey]);
+        if (rawT === null || cadence === null) continue;
+        const alignedVideoTime = (rawT - baseTime) + offset;
+        if (alignedVideoTime >= lapOneEndVideoTime) samples.push({ t: alignedVideoTime, v: cadence });
       }
+      if (samples.length === 0) return null;
+      samples.sort((a, b) => a.t - b.t);
 
-      const lapBounds = [];
-      let elapsed = 0;
-      for (let lap = 0; lap < completedLapCount; lap++) {
-        const lapStartElapsed = elapsed;
-        let lapDuration = 0;
-        for (let q = 0; q < 4; q++) {
-          lapDuration += splitRows[lap * 4 + q].quarterTime;
+      let prev = null;
+      for (const sample of samples) {
+        if (sample.v >= targetCadence) {
+          if (!prev || prev.v >= targetCadence || sample.v === prev.v) return sample.t;
+          const frac = (targetCadence - prev.v) / (sample.v - prev.v);
+          return prev.t + frac * (sample.t - prev.t);
         }
-        const lapEndElapsed = lapStartElapsed + lapDuration;
-        lapBounds.push({
-          start: (Number.isFinite(startTime) ? startTime : 0) + lapStartElapsed,
-          end: (Number.isFinite(startTime) ? startTime : 0) + lapEndElapsed
-        });
-        elapsed = lapEndElapsed;
+        prev = sample;
       }
-
-      // Determine the first lap (0-indexed) at which each rider drops out.
-      const riderDropLap = {};
-      for (let i = 0; i < splitRows.length; i++) {
-        if (splitRows[i].eventLabel === 'Drop') {
-          const droppedRider = splitRows[i].frontRiderIndex;
-          if (droppedRider >= 0 && !(droppedRider in riderDropLap)) {
-            riderDropLap[droppedRider] = Math.floor(i / 4);
-          }
-        }
-      }
-
-      const headerCells = ['<th>Rider</th>'];
-      for (let lap = 1; lap <= completedLapCount; lap++) {
-        headerCells.push(`<th>Lap ${lap}</th>`);
-      }
-      riderCadenceLapTableHeadRow.innerHTML = headerCells.join('');
-
-      const riderNames = getRiderNames();
-      let hasAnyCadence = false;
-      const cadenceHeatValues = [];
-
-      for (let riderIndex = 0; riderIndex < 4; riderIndex++) {
-        const stream = fitSyncState.streams[riderIndex];
-        const cadenceKey = getCadenceColumnKeyForStream(stream);
-        if (!stream || !cadenceKey) continue;
-        for (let lapIndex = 1; lapIndex < lapBounds.length; lapIndex++) {
-          if (riderDropLap[riderIndex] != null && lapIndex >= riderDropLap[riderIndex]) continue;
-          const avgCadence = getAverageMetricForVideoInterval(stream, cadenceKey, lapBounds[lapIndex].start, lapBounds[lapIndex].end);
-          if (avgCadence != null) cadenceHeatValues.push(avgCadence);
-        }
-      }
-
-      const minCadence = cadenceHeatValues.length > 0 ? Math.min(...cadenceHeatValues) : null;
-      const maxCadence = cadenceHeatValues.length > 0 ? Math.max(...cadenceHeatValues) : null;
-      function cadenceHeatColor(value) {
-        if (!Number.isFinite(value) || minCadence == null || maxCadence == null || maxCadence === minCadence) return '';
-        const normalized = (value - minCadence) / (maxCadence - minCadence);
-        const t = 1 - normalized * 2;
-        const n = Math.max(0, Math.min(1, (t + 1) / 2));
-        const r = n < 0.5 ? Math.round(n * 2 * 255) : 255;
-        const g = n < 0.5 ? 255 : Math.round((1 - (n - 0.5) * 2) * 255);
-        return `rgba(${r},${g},80,0.45)`;
-      }
-
-      for (let riderIndex = 0; riderIndex < 4; riderIndex++) {
-        const stream = fitSyncState.streams[riderIndex];
-        const cadenceKey = getCadenceColumnKeyForStream(stream);
-        const tr = document.createElement('tr');
-        const nameTd = document.createElement('td');
-        nameTd.textContent = riderNames[riderIndex];
-        tr.appendChild(nameTd);
-
-        if (!stream || !cadenceKey || !Array.isArray(stream.rows) || stream.rows.length === 0 || !stream.timeColumnKey) {
-          for (let lap = 0; lap < completedLapCount; lap++) {
-            const td = document.createElement('td');
-            if (riderDropLap[riderIndex] != null && lap >= riderDropLap[riderIndex]) {
-              td.style.background = '#f0f0f0';
-            } else {
-              td.textContent = '--';
-            }
-            tr.appendChild(td);
-          }
-          riderCadenceLapTableBody.appendChild(tr);
-          continue;
-        }
-
-        lapBounds.forEach((bound, lapIndex) => {
-          const td = document.createElement('td');
-          if (riderDropLap[riderIndex] != null && lapIndex >= riderDropLap[riderIndex]) {
-            td.style.background = '#f0f0f0';
-            tr.appendChild(td);
-            return;
-          }
-          const avgCadence = getAverageMetricForVideoInterval(stream, cadenceKey, bound.start, bound.end);
-          if (avgCadence != null) {
-            hasAnyCadence = true;
-            td.textContent = avgCadence.toFixed(1);
-            if (lapIndex > 0) {
-              const bg = cadenceHeatColor(avgCadence);
-              if (bg) td.style.background = bg;
-            }
-          } else {
-            td.textContent = '--';
-          }
-          tr.appendChild(td);
-        });
-        riderCadenceLapTableBody.appendChild(tr);
-      }
-
-      riderCadenceLapTable.hidden = !hasAnyCadence;
-      riderCadenceLapEmpty.hidden = hasAnyCadence;
-    }
-
-    function renderKiloSplitsTable() {
-      kiloSplitsTableBody.innerHTML = '';
-      const kilos = []; // { total, riderIndices }
-      for (let start = 0; start < splitRows.length; start += QUARTERS_PER_KILO) {
-        const kiloRows = splitRows.slice(start, start + QUARTERS_PER_KILO);
-        if (kiloRows.length < QUARTERS_PER_KILO) break;
-        let total = 0;
-        for (const row of kiloRows) total += row.quarterTime;
-        kilos.push({
-          total,
-          riderIndices: kiloRows.map((r) => r.frontRiderIndex)
-        });
-      }
-      if (kilos.length === 0) {
-        kiloSplitsTable.hidden = true;
-        kiloSplitsEmpty.hidden = false;
-        return;
-      }
-      kilos.forEach(({ total: time, riderIndices }, i) => {
-        const speed = speedFromDistanceTime(1000, time);
-        // Build 16-stop gradient (one segment per quarter = 1/16 = 6.25% each)
-        const pct = 100 / QUARTERS_PER_KILO;
-        const stops = [];
-        riderIndices.forEach((idx, q) => {
-          const color = getRiderColor(idx);
-          stops.push(`${color} ${(q * pct).toFixed(4)}% ${((q + 1) * pct).toFixed(4)}%`);
-        });
-        const gradient = `linear-gradient(to right, ${stops.join(', ')})`;
-
-        const tr = document.createElement('tr');
-        const kmTd = document.createElement('td');
-        kmTd.style.cssText = `background:${gradient};padding:0;`;
-        kmTd.innerHTML = `<span style="display:block;padding:8px 10px;font-weight:600;color:#0f172a;text-shadow:0 0 3px rgba(255,255,255,0.9),0 0 6px rgba(255,255,255,0.6);">${i + 1} km</span>`;
-        tr.appendChild(kmTd);
-        tr.insertAdjacentHTML('beforeend', `<td>${formatTime(time)}</td><td>${speed.toFixed(2)}</td>`);
-        kiloSplitsTableBody.appendChild(tr);
-      });
-      kiloSplitsTable.hidden = false;
-      kiloSplitsEmpty.hidden = true;
-    }
-
-    function renderLeadLapsTable() {
-      const names = getRiderNames();
-      const includeL1Power = includeL1PowerToggle ? includeL1PowerToggle.checked : true;
-      const recovOnly = recovOnlyToggle ? recovOnlyToggle.checked : true;
-
-      // Compute video time at end of lap 1 (first 4 quarters)
-      const lap1EndVideoTime = (() => {
-        const base = Number.isFinite(startTime) ? startTime : 0;
-        let t = base;
-        for (let i = 0; i < Math.min(4, splitRows.length); i++) t += splitRows[i].quarterTime;
-        return t;
-      })();
-
-      // Build stints: consecutive quarters with the same frontRiderIndex
-      const stints = []; // { riderIndex, quarters, startTime, endTime }
-      let elapsed = Number.isFinite(startTime) ? startTime : 0;
-      for (const row of splitRows) {
-        const rowStart = elapsed;
-        const rowEnd = elapsed + row.quarterTime;
-        const last = stints[stints.length - 1];
-        if (last && last.riderIndex === row.frontRiderIndex) {
-          last.quarters++;
-          last.endTime = rowEnd;
-        } else {
-          stints.push({ riderIndex: row.frontRiderIndex, quarters: 1, startTime: rowStart, endTime: rowEnd });
-        }
-        elapsed = rowEnd;
-      }
-
-      // Collect turns per rider (skip non-riders with index < 0)
-      const riderTurns = {}; // riderIndex -> [quarterCounts per turn]
-      const riderTurnPowers = {}; // riderIndex -> [avg power per turn]
-      for (const { riderIndex, quarters, startTime: turnStart, endTime: turnEnd } of stints) {
-        if (riderIndex < 0) continue;
-        if (!riderTurns[riderIndex]) riderTurns[riderIndex] = [];
-        if (!riderTurnPowers[riderIndex]) riderTurnPowers[riderIndex] = [];
-        riderTurns[riderIndex].push(quarters);
-        const stream = fitSyncState.streams[riderIndex];
-        const powerKey = getPowerColumnKeyForStream(stream);
-        const effectiveTurnStart = includeL1Power ? turnStart : Math.max(turnStart, lap1EndVideoTime);
-        riderTurnPowers[riderIndex].push(
-          stream && powerKey && effectiveTurnStart < turnEnd
-            ? getAverageMetricForVideoInterval(stream, powerKey, effectiveTurnStart, turnEnd)
-            : null
-        );
-      }
-
-      const riderPowerStreams = [0, 1, 2, 3].map((riderIndex) => {
-        const stream = fitSyncState.streams[riderIndex];
-        return {
-          stream,
-          powerKey: getPowerColumnKeyForStream(stream)
-        };
-      });
-      const riderPositionPowers = {
-        0: { p1: [], p2: [], p3: [], p4: [], recovery: [], all: [] },
-        1: { p1: [], p2: [], p3: [], p4: [], recovery: [], all: [] },
-        2: { p1: [], p2: [], p3: [], p4: [], recovery: [], all: [] },
-        3: { p1: [], p2: [], p3: [], p4: [], recovery: [], all: [] }
-      };
-
-      let order = [0, 1, 2, 3];
-      let pos = 0;
-      let p1SpecialMoveUsed = false;
-      let powerElapsed = Number.isFinite(startTime) ? startTime : 0;
-      for (const row of splitRows) {
-        const rowStart = powerElapsed;
-        const rowEnd = powerElapsed + row.quarterTime;
-        const effectiveRowStart = includeL1Power ? rowStart : Math.max(rowStart, lap1EndVideoTime);
-
-        for (let offset = 0; offset < order.length; offset++) {
-          const riderIndex = order[(pos + offset) % order.length];
-          const streamInfo = riderPowerStreams[riderIndex];
-          if (!streamInfo || !streamInfo.stream || !streamInfo.powerKey) continue;
-          if (effectiveRowStart >= rowEnd) continue;
-          const avgPower = getAverageMetricForVideoInterval(streamInfo.stream, streamInfo.powerKey, effectiveRowStart, rowEnd);
-          if (!Number.isFinite(avgPower)) continue;
-
-          const buckets = riderPositionPowers[riderIndex];
-          buckets.all.push(avgPower);
-          if (offset === 0) {
-            buckets.p1.push(avgPower);
-          } else {
-            buckets.recovery.push(avgPower);
-            if (offset === 1) buckets.p2.push(avgPower);
-            if (offset === 2) buckets.p3.push(avgPower);
-            if (offset === 3) buckets.p4.push(avgPower);
-          }
-        }
-
-        if (row.eventLabel === 'Change') {
-          if (order.length >= 2) {
-            if (useP1toP3Mode && !p1SpecialMoveUsed && order[pos] === 0 && order.length >= 4) {
-              const rider = order.splice(pos, 1)[0];
-              const insertPos = (pos + 2) % (order.length + 1);
-              order.splice(insertPos, 0, rider);
-              p1SpecialMoveUsed = true;
-              if (pos >= order.length) pos = 0;
-            } else {
-              pos = (pos + 1) % order.length;
-            }
-          }
-        } else if (row.eventLabel === 'Drop' || row.eventLabel === 'Rider Finish') {
-          if (order.length > 0) {
-            order.splice(pos, 1);
-            if (pos >= order.length) pos = 0;
-          }
-        }
-
-        powerElapsed = rowEnd;
-      }
-
-      // Collect delivery speeds per rider for avg delivery split calc
-      const riderDeliverySpeeds = {};
-      for (const row of splitRows) {
-        if (row.frontRiderIndex < 0) continue;
-        if (!riderDeliverySpeeds[row.frontRiderIndex]) riderDeliverySpeeds[row.frontRiderIndex] = [];
-        riderDeliverySpeeds[row.frontRiderIndex].push(row.deliverySpeed);
-      }
-
-      // For SD: exclude first lap (first 4 quarters) and exclude the final quarter
-      const riderDeliverySpeedsForSd = {};
-      for (let i = 4; i < splitRows.length - 1; i++) {
-        const row = splitRows[i];
-        if (row.frontRiderIndex < 0) continue;
-        if (!riderDeliverySpeedsForSd[row.frontRiderIndex]) riderDeliverySpeedsForSd[row.frontRiderIndex] = [];
-        riderDeliverySpeedsForSd[row.frontRiderIndex].push(row.deliverySpeed);
-      }
-
-      const riderIndexes = [0, 1, 2, 3].filter((i) => riderTurns[i]);
-      if (riderIndexes.length === 0) {
-        leadLapsTable.hidden = true;
-        leadLapsEmpty.hidden = false;
-        return;
-      }
-
-      const maxTurns = Math.max(...riderIndexes.map((i) => riderTurns[i].length));
-
-      // Build header dynamically
-      const hasFit = getLoadedFitStreams().length > 0;
-      const headerCells = ['<th>Rider</th>'];
-      for (let t = 1; t <= maxTurns; t++) {
-        headerCells.push(`<th>Turn ${t}</th>`);
-        if (hasFit) headerCells.push(`<th>Pwr ${t}</th>`);
-      }
-      headerCells.push('<th>Total</th>');
-      if (hasFit) {
-        headerCells.push('<th>Avg Lead Pwr</th>');
-        if (!recovOnly) headerCells.push('<th>P2 Pwr</th>');
-        if (!recovOnly) headerCells.push('<th>P3 Pwr</th>');
-        if (!recovOnly) headerCells.push('<th>P4 Pwr</th>');
-        headerCells.push('<th>Recov Pwr</th>');
-        headerCells.push('<th>Avg Pwr</th>');
-      }
-      headerCells.push('<th>Avg Del Split (s)</th>');
-      headerCells.push('<th>SD (km/h)</th>');
-      leadLapsTable.querySelector('thead tr').innerHTML = headerCells.join('');
-
-      // Build body
-      const tbody = leadLapsTable.querySelector('tbody');
-      tbody.innerHTML = '';
-
-      const averageOf = (values) => values.length > 0
-        ? values.reduce((sum, value) => sum + value, 0) / values.length
-        : null;
-      const riderPowerSummary = {};
-      const powerHeatValues = [];
-      for (const riderIndex of riderIndexes) {
-        const positionPower = riderPositionPowers[riderIndex] || { p1: [], p2: [], p3: [], p4: [], recovery: [], all: [] };
-        const summary = {
-          avgLeadPower: averageOf(positionPower.p1),
-          avgP2Power: averageOf(positionPower.p2),
-          avgP3Power: averageOf(positionPower.p3),
-          avgP4Power: averageOf(positionPower.p4),
-          avgRecoveryPower: averageOf(positionPower.recovery),
-          avgPower: averageOf(positionPower.all)
-        };
-        riderPowerSummary[riderIndex] = summary;
-        Object.values(summary).forEach((value) => {
-          if (Number.isFinite(value)) powerHeatValues.push(value);
-        });
-      }
-
-      const powerHeatMin = powerHeatValues.length > 0 ? Math.min(...powerHeatValues) : null;
-      const powerHeatMax = powerHeatValues.length > 0 ? Math.max(...powerHeatValues) : null;
-      function powerHeatColor(value) {
-        if (!Number.isFinite(value) || powerHeatMin == null || powerHeatMax == null || powerHeatMax === powerHeatMin) return '';
-        const normalized = (value - powerHeatMin) / (powerHeatMax - powerHeatMin);
-        const t = 1 - normalized * 2;
-        const n = Math.max(0, Math.min(1, (t + 1) / 2));
-        const r = n < 0.5 ? Math.round(n * 2 * 255) : 255;
-        const g = n < 0.5 ? 255 : Math.round((1 - (n - 0.5) * 2) * 255);
-        return `rgba(${r},${g},80,0.45)`;
-      }
-
-      for (const riderIndex of riderIndexes) {
-        const turns = riderTurns[riderIndex];
-        const turnPowers = riderTurnPowers[riderIndex] || [];
-        const total = turns.reduce((s, q) => s + q, 0);
-        const speeds = riderDeliverySpeeds[riderIndex] || [];
-        const avgDeliverySpeed = speeds.length > 0 ? speeds.reduce((s, v) => s + v, 0) / speeds.length : 0;
-        const avgDeliverySplit = avgDeliverySpeed > 0 ? (LAP_DISTANCE_METERS * 3.6) / avgDeliverySpeed : null;
-        const sdSpeeds = riderDeliverySpeedsForSd[riderIndex] || [];
-        let deliverySpeedSd = null;
-        if (sdSpeeds.length >= 2) {
-          const mean = sdSpeeds.reduce((s, v) => s + v, 0) / sdSpeeds.length;
-          const variance = sdSpeeds.reduce((s, v) => s + (v - mean) * (v - mean), 0) / (sdSpeeds.length - 1);
-          deliverySpeedSd = Math.sqrt(variance);
-        }
-
-        const summary = riderPowerSummary[riderIndex] || {};
-        const avgLeadPower = summary.avgLeadPower;
-        const avgP2Power = summary.avgP2Power;
-        const avgP3Power = summary.avgP3Power;
-        const avgP4Power = summary.avgP4Power;
-        const avgRecoveryPower = summary.avgRecoveryPower;
-        const avgPower = summary.avgPower;
-
-        const tr = document.createElement('tr');
-        const cells = [`<td>${names[riderIndex]}</td>`];
-        for (let t = 0; t < maxTurns; t++) {
-          cells.push(`<td>${turns[t] != null ? (turns[t] / 4).toFixed(2) : '\u2014'}</td>`);
-          if (hasFit) cells.push(`<td>${Number.isFinite(turnPowers[t]) ? turnPowers[t].toFixed(0) : '\u2014'}</td>`);
-        }
-        cells.push(`<td>${(total / 4).toFixed(2)}</td>`);
-        if (hasFit) {
-          cells.push(`<td data-heat-key="avgLeadPower">${avgLeadPower != null ? avgLeadPower.toFixed(0) : '\u2014'}</td>`);
-          if (!recovOnly) cells.push(`<td data-heat-key="avgP2Power">${avgP2Power != null ? avgP2Power.toFixed(0) : '\u2014'}</td>`);
-          if (!recovOnly) cells.push(`<td data-heat-key="avgP3Power">${avgP3Power != null ? avgP3Power.toFixed(0) : '\u2014'}</td>`);
-          if (!recovOnly) cells.push(`<td data-heat-key="avgP4Power">${avgP4Power != null ? avgP4Power.toFixed(0) : '\u2014'}</td>`);
-          cells.push(`<td data-heat-key="avgRecoveryPower">${avgRecoveryPower != null ? avgRecoveryPower.toFixed(0) : '\u2014'}</td>`);
-          cells.push(`<td data-heat-key="avgPower">${avgPower != null ? avgPower.toFixed(0) : '\u2014'}</td>`);
-        }
-        cells.push(`<td>${avgDeliverySplit != null ? avgDeliverySplit.toFixed(2) : '\u2014'}</td>`);
-        cells.push(`<td>${deliverySpeedSd != null ? deliverySpeedSd.toFixed(2) : '\u2014'}</td>`);
-        tr.innerHTML = cells.join('');
-        const heatCells = tr.querySelectorAll('td[data-heat-key]');
-        heatCells.forEach((cell) => {
-          const valueText = cell.textContent;
-          const numericValue = Number.isFinite(Number(valueText)) ? Number(valueText) : null;
-          if (numericValue == null) return;
-          const bg = powerHeatColor(numericValue);
-          if (bg) cell.style.background = bg;
-        });
-        tbody.appendChild(tr);
-      }
-
-      leadLapsTable.hidden = false;
-      leadLapsEmpty.hidden = true;
+      return null;
     }
 
     function openReportModal() {
       reportModal.classList.add('open');
       reportModal.setAttribute('aria-hidden', 'false');
       renderReportChart();
-      renderLapSummaryTable();
+      renderLapDataTables();
       renderFirstLapTable();
-      renderRiderCadenceLapTable();
-      renderKiloSplitsTable();
-      renderLeadLapsTable();
     }
-
     function closeReportModal() {
       reportModal.classList.remove('open');
       reportModal.setAttribute('aria-hidden', 'true');
@@ -2876,7 +2256,6 @@
     async function ensureHtml2CanvasLoaded() {
       if (window.html2canvas) return window.html2canvas;
       if (window.__html2canvasLoadingPromise) return window.__html2canvasLoadingPromise;
-
       window.__html2canvasLoadingPromise = new Promise((resolve, reject) => {
         const script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
@@ -2884,14 +2263,12 @@
         script.onerror = () => reject(new Error('Failed to load export library.'));
         document.head.appendChild(script);
       });
-
       return window.__html2canvasLoadingPromise;
     }
 
     async function ensureXLSXLoaded() {
       if (window.XLSX) return window.XLSX;
       if (window.__xlsxLoadingPromise) return window.__xlsxLoadingPromise;
-
       window.__xlsxLoadingPromise = new Promise((resolve, reject) => {
         const script = document.createElement('script');
         script.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
@@ -2899,141 +2276,73 @@
         script.onerror = () => reject(new Error('Failed to load XLSX library.'));
         document.head.appendChild(script);
       });
-
       return window.__xlsxLoadingPromise;
     }
 
     function buildReportRows() {
-      const names = getRiderNames();
+      const riderName = getRiderName();
       const sessionLabel = getTitleText();
       const now = new Date();
       const sessionDateTime = now.toISOString().slice(0, 19).replace('T', ' ');
-
       const rows = [];
       let cumulativeTime = 0;
-
       for (let i = 0; i < splitRows.length; i++) {
         const row = splitRows[i];
         cumulativeTime += row.quarterTime;
         const appendEvent = row.eventLabel === 'None' ? 'No Change' : row.eventLabel;
-
-        const riderName = row.frontRiderIndex >= 0
-          ? (names[row.frontRiderIndex] || `Rider ${row.frontRiderIndex + 1}`)
-          : 'No Active Rider';
-
         rows.push([
           sessionLabel,
           sessionDateTime,
-          parseFloat(((i + 1) * 62.5).toFixed(1)),
-          cumulativeTime,
-          row.quarterTime,
-          parseFloat(row.deliverySpeed.toFixed(8)),
-          parseFloat(row.teamSpeed.toFixed(8)),
-          appendEvent,
           riderName,
+          parseFloat(((i + 1) * 62.5).toFixed(1)),
+          parseFloat(cumulativeTime.toFixed(8)),
+          row.quarterTime,
+          parseFloat(row.speed.toFixed(8)),
+          appendEvent,
           '' // Video URL
         ]);
       }
-
       return rows;
     }
 
     function getFirstBlankRowIndex(sheet, XLSX) {
-      const endCol = 9; // A:J
-
+      const endCol = 8;
       const rowHasData = (r) => {
         for (let c = 0; c <= endCol; c++) {
           const cell = sheet[XLSX.utils.encode_cell({ r, c })];
           if (!cell) continue;
           const value = cell.v;
-          if (value !== undefined && value !== null && String(value).trim() !== '') {
-            return true;
-          }
+          if (value !== undefined && value !== null && String(value).trim() !== '') return true;
         }
         return false;
       };
-
-      // Find first blank row after data has started.
       let seenData = false;
       const maxScanRows = 200000;
       for (let r = 0; r < maxScanRows; r++) {
         const hasData = rowHasData(r);
-        if (hasData) {
-          seenData = true;
-          continue;
-        }
-        if (seenData) {
-          return r;
-        }
+        if (hasData) { seenData = true; continue; }
+        if (seenData) return r;
       }
-
       throw new Error('Unable to find a blank row to append into.');
     }
 
-    // Re-reads names + re-applies current change time to all adjusted rows
     function updateReport() {
       updateTitle();
-      const ct = getChangeTimeSeconds();
       for (const row of splitRows) {
-        if (row.deliveryAdjusted) {
-          const adjTime = Math.max(row.quarterTime - ct, 0.001);
-          row.deliverySpeed = speedFromTime(adjTime);
-        } else {
-          row.deliverySpeed = row.teamSpeed;
-        }
+        row.speed = speedFromTime(row.quarterTime);
       }
       renderRows();
-      setStatus('Report updated with current names and change time.');
+      setStatus('Report updated.');
     }
 
     function resetSession() {
       startTime = null;
       lastMarkerTime = null;
-      teamFinished = false;
-      pendingDeliveryAdjustment = false;
-      pendingRiderFinishTime = null;
-      currentEventLabel = '';
-      riderOrder = [0, 1, 2, 3];
-      frontPosition = 0;
+      finished = false;
       splitRows.length = 0;
       renderRows();
       updateTitle();
       setStatus('Waiting for start.');
-    }
-
-    // --- Rider rotation ---
-
-    // Walks every row in chronological order, assigns frontRiderIndex for each,
-    // then syncs the live riderOrder/frontPosition to the end state.
-    // Must be called after any modification to splitRows.
-    function replayRiderRotations() {
-      let order = [0, 1, 2, 3];
-      let pos = 0;
-      let p1SpecialMoveUsed = false;
-      for (const row of splitRows) {
-        row.frontRiderIndex = order.length > 0 ? order[pos] : -1;
-        if (row.eventLabel === 'Change') {
-          if (order.length >= 2) {
-            if (useP1toP3Mode && !p1SpecialMoveUsed && order[pos] === 0 && order.length >= 4) {
-              // First time rider 1 changes, move from P1 to P3 (not to the back/P4).
-              const rider = order.splice(pos, 1)[0];
-              const insertPos = (pos + 2) % (order.length + 1);
-              order.splice(insertPos, 0, rider);
-              p1SpecialMoveUsed = true;
-              if (pos >= order.length) pos = 0;
-            } else {
-              pos = (pos + 1) % order.length;
-            }
-          }
-        } else if (row.eventLabel === 'Drop' || row.eventLabel === 'Rider Finish') {
-          if (order.length > 0) {
-            order.splice(pos, 1);
-            if (pos >= order.length) pos = 0;
-          }
-        }
-      }
-      riderOrder = order;
-      frontPosition = pos;
     }
 
     // --- Core timing ---
@@ -3046,20 +2355,16 @@
       setStatus(`Started at ${startTime.toFixed(2)}s.`);
     }
 
-    // splitType: 'QUARTER' | 'TEAM_FINISH'
-    // eventLabel: '' | 'Change' | 'Drop' | 'Rider Finish'
-    // deliveryAdjusted: boolean - whether to subtract change time from delivery calc
-    function addSplit(splitType, eventLabel, deliveryAdjusted) {
-      if (startTime === null || teamFinished) return;
+    function addSplit(splitType, eventLabel) {
+      if (startTime === null || finished) return;
       const now = video.currentTime;
       if (now <= startTime) return;
 
-      // Check if this timestamp falls between two existing rows (insert mode)
+      // Check for insert mode
       let insertIdx = -1;
       let prevTime = startTime;
       for (let i = 0; i < splitRows.length; i++) {
         const rowEnd = splitRows[i].endTime;
-        // Must be clearly inside the gap (at least half a frame away from the boundaries)
         if (now > prevTime + frameDuration() * 0.4 && now < rowEnd - frameDuration() * 0.4) {
           insertIdx = i;
           break;
@@ -3073,76 +2378,43 @@
         : (insertIdx === 0 ? startTime : splitRows[insertIdx - 1].endTime);
 
       const quarterTime = now - rowPrevTime;
-      if (quarterTime < frameDuration() * 0.5) return; // duplicate / too close
+      if (quarterTime < frameDuration() * 0.5) return;
 
-      // For appended rows, allow R's pending adjustment to carry through
-      const useDeliveryAdjust = deliveryAdjusted || (isAppend && pendingDeliveryAdjustment);
-      const resolvedEvent = eventLabel || (isAppend && pendingDeliveryAdjustment ? currentEventLabel : '') || 'None';
-
-      const teamSpeed = speedFromTime(quarterTime);
-      const deliveryQuarterTime = pendingRiderFinishTime != null
-        ? Math.max(pendingRiderFinishTime - rowPrevTime, frameDuration() * 0.25)
-        : quarterTime;
-      const deliverySpeed = speedFromTime(deliveryQuarterTime);
+      const speed = speedFromTime(quarterTime);
+      const resolvedEvent = eventLabel || 'None';
 
       const newRow = {
         splitType,
         splitLabel: '',
         endTime: now,
-        frontRiderIndex: -1, // will be set by replayRiderRotations()
         quarterTime,
-        teamSpeed,
-        deliverySpeed,
-        eventLabel: resolvedEvent,
-        deliveryAdjusted: useDeliveryAdjust
+        speed,
+        eventLabel: resolvedEvent
       };
 
       if (isAppend) {
         splitRows.push(newRow);
         lastMarkerTime = now;
-        pendingDeliveryAdjustment = false;
-        pendingRiderFinishTime = null;
-        currentEventLabel = '';
       } else {
-        // Insert: split the existing row's time into [prevEnd→now] + [now→existingEnd]
         const existingRow = splitRows[insertIdx];
         const remainderTime = existingRow.endTime - now;
         existingRow.quarterTime = remainderTime;
-        existingRow.teamSpeed = speedFromTime(remainderTime);
-        existingRow.deliverySpeed = existingRow.teamSpeed;
+        existingRow.speed = speedFromTime(remainderTime);
         splitRows.splice(insertIdx, 0, newRow);
       }
 
-      // Replay all rotations so every row has the correct frontRiderIndex
-      replayRiderRotations();
       renumberRows();
 
-      const names = getRiderNames();
-      const newFront = getCurrentFrontRiderIndex();
-      if (splitType === 'TEAM_FINISH') {
-        teamFinished = true;
-        setStatus(`Team finished at ${now.toFixed(2)}s.`);
+      if (splitType === 'FINISH') {
+        finished = true;
+        setStatus(`Finished at ${now.toFixed(2)}s — ${formatClockTime(splitRows.reduce((s, r) => s + r.quarterTime, 0))}.`);
       } else if (isAppend) {
-        const evtPart = resolvedEvent !== 'None' ? ` (${resolvedEvent})` : '';
-        setStatus(`Quarter at ${now.toFixed(2)}s${evtPart}. Next front: ${newFront >= 0 ? names[newFront] : 'none'}.`);
+        setStatus(`Quarter at ${now.toFixed(2)}s.`);
       } else {
-        setStatus(`Inserted quarter at ${now.toFixed(2)}s. Downstream riders updated.`);
+        setStatus(`Inserted quarter at ${now.toFixed(2)}s.`);
       }
 
       renderRows();
-    }
-
-    // Used by Rider Finish (R) — records the rider crossing timestamp.
-    // Team timing is finalized when a split marker (Z/C/X/T) is pressed.
-    function markEvent(label) {
-      if (startTime === null || teamFinished) return;
-      const now = video.currentTime;
-      const prevTime = splitRows.length > 0 ? splitRows[splitRows.length - 1].endTime : startTime;
-      if (now <= prevTime + frameDuration() * 0.2) return;
-      pendingDeliveryAdjustment = true;
-      pendingRiderFinishTime = now;
-      currentEventLabel = label;
-      setStatus(`${label} captured at ${now.toFixed(2)}s — press Z/C/X/T to mark team crossing.`);
     }
 
     function stepNextFrame() {
@@ -3150,80 +2422,48 @@
       const duration = Number.isFinite(video.duration) ? video.duration : Infinity;
       video.currentTime = Math.min(duration, video.currentTime + frameDuration());
     }
-
     function stepPrevFrame() {
       video.pause();
       video.currentTime = Math.max(0, video.currentTime - frameDuration());
     }
-
     function jumpForward() {
       video.pause();
       const duration = Number.isFinite(video.duration) ? video.duration : Infinity;
       video.currentTime = Math.min(duration, video.currentTime + getJumpSeconds());
     }
-
     function jumpBackward() {
       video.pause();
       video.currentTime = Math.max(0, video.currentTime - getJumpSeconds());
     }
 
-    let nextFrameInterval = null;
-    let prevFrameInterval = null;
+    let nextFrameInterval = null, prevFrameInterval = null;
 
-    nextFrameBtn.addEventListener('mousedown', () => {
-      stepNextFrame();
-      nextFrameInterval = setInterval(stepNextFrame, 80);
-    });
+    nextFrameBtn.addEventListener('mousedown', () => { stepNextFrame(); nextFrameInterval = setInterval(stepNextFrame, 80); });
     nextFrameBtn.addEventListener('mouseup', () => clearInterval(nextFrameInterval));
     nextFrameBtn.addEventListener('mouseleave', () => clearInterval(nextFrameInterval));
-    nextFrameBtn.addEventListener('touchstart', () => {
-      stepNextFrame();
-      nextFrameInterval = setInterval(stepNextFrame, 80);
-    });
+    nextFrameBtn.addEventListener('touchstart', () => { stepNextFrame(); nextFrameInterval = setInterval(stepNextFrame, 80); });
     nextFrameBtn.addEventListener('touchend', () => clearInterval(nextFrameInterval));
 
-    prevFrameBtn.addEventListener('mousedown', () => {
-      stepPrevFrame();
-      prevFrameInterval = setInterval(stepPrevFrame, 80);
-    });
+    prevFrameBtn.addEventListener('mousedown', () => { stepPrevFrame(); prevFrameInterval = setInterval(stepPrevFrame, 80); });
     prevFrameBtn.addEventListener('mouseup', () => clearInterval(prevFrameInterval));
     prevFrameBtn.addEventListener('mouseleave', () => clearInterval(prevFrameInterval));
-    prevFrameBtn.addEventListener('touchstart', () => {
-      stepPrevFrame();
-      prevFrameInterval = setInterval(stepPrevFrame, 80);
-    });
+    prevFrameBtn.addEventListener('touchstart', () => { stepPrevFrame(); prevFrameInterval = setInterval(stepPrevFrame, 80); });
     prevFrameBtn.addEventListener('touchend', () => clearInterval(prevFrameInterval));
 
     startBtn.addEventListener('click', startTiming);
-    quarterBtn.addEventListener('click', () => addSplit('QUARTER', '', false));
-    changeBtn.addEventListener('click', () => addSplit('QUARTER', 'Change', true));
-    dropBtn.addEventListener('click', () => addSplit('QUARTER', 'Drop', true));
-    riderFinishBtn.addEventListener('click', () => markEvent('Rider Finish'));
-    teamFinishBtn.addEventListener('click', () => addSplit('TEAM_FINISH', '', false));
+    quarterBtn.addEventListener('click', () => addSplit('QUARTER', ''));
+    finishBtn.addEventListener('click', () => addSplit('FINISH', ''));
     resetBtn.addEventListener('click', resetSession);
     deleteLastBtn.addEventListener('click', () => {
       if (splitRows.length === 0) return;
       const removed = splitRows.pop();
-      if (removed.splitType === 'TEAM_FINISH') teamFinished = false;
+      if (removed.splitType === 'FINISH') finished = false;
       lastMarkerTime = splitRows.length > 0 ? splitRows[splitRows.length - 1].endTime : startTime;
-      replayRiderRotations();
       renumberRows();
       renderRows();
       setStatus(`Deleted ${removed.splitLabel}.`);
     });
-    
-    p1toP3Btn.addEventListener('click', () => {
-      useP1toP3Mode = !useP1toP3Mode;
-      p1toP3Btn.style.background = useP1toP3Mode ? '#e8f5e9' : '#f0f0f0';
-      p1toP3Btn.style.borderColor = useP1toP3Mode ? '#4caf50' : '#ccc';
-      if (splitRows.length > 0) {
-        replayRiderRotations();
-        renumberRows();
-        renderRows();
-      }
-      setStatus(useP1toP3Mode ? 'P1→P3 mode enabled' : 'Normal rotation enabled');
-    });
-    
+
     updateBtn.addEventListener('click', updateReport);
     snapToStartBtn.addEventListener('click', () => {
       if (!Number.isFinite(uploadedCsvStartTime)) return;
@@ -3235,32 +2475,23 @@
     });
     createReportBtn.addEventListener('click', openReportModal);
     closeReportBtn.addEventListener('click', closeReportModal);
+
     exportReportBtn.addEventListener('click', async () => {
       if (!reportModal.classList.contains('open')) return;
-
       const originalText = exportReportBtn.textContent;
       exportReportBtn.disabled = true;
       exportReportBtn.textContent = 'Exporting...';
-
-      const previousCloseVisibility = closeReportBtn.style.visibility;
-      const previousPanelOverflow = reportDashboardPanel.style.overflow;
-      const previousPanelMaxHeight = reportDashboardPanel.style.maxHeight;
-
+      const prevCloseVis = closeReportBtn.style.visibility;
+      const prevOverflow = reportDashboardPanel.style.overflow;
+      const prevMaxHeight = reportDashboardPanel.style.maxHeight;
       try {
         closeReportBtn.style.visibility = 'hidden';
         reportDashboardPanel.style.overflow = 'visible';
         reportDashboardPanel.style.maxHeight = 'none';
         await new Promise((resolve) => setTimeout(resolve, 40));
-
         const html2canvas = await ensureHtml2CanvasLoaded();
         const scale = Math.max(2, window.devicePixelRatio || 1);
-        const canvas = await html2canvas(reportDashboardPanel, {
-          backgroundColor: '#ffffff',
-          useCORS: true,
-          logging: false,
-          scale
-        });
-
+        const canvas = await html2canvas(reportDashboardPanel, { backgroundColor: '#ffffff', useCORS: true, logging: false, scale });
         const link = document.createElement('a');
         const safeBase = (videoFileName || 'report').replace(/[^a-z0-9_-]+/gi, '_');
         link.download = `${safeBase}_dashboard.png`;
@@ -3271,60 +2502,41 @@
         console.error(error);
         setStatus(`Export failed: ${error.message || error}`);
       } finally {
-        closeReportBtn.style.visibility = previousCloseVisibility;
-        reportDashboardPanel.style.overflow = previousPanelOverflow;
-        reportDashboardPanel.style.maxHeight = previousPanelMaxHeight;
+        closeReportBtn.style.visibility = prevCloseVis;
+        reportDashboardPanel.style.overflow = prevOverflow;
+        reportDashboardPanel.style.maxHeight = prevMaxHeight;
         exportReportBtn.disabled = false;
         exportReportBtn.textContent = originalText;
       }
     });
+
     appendToFileBtn.addEventListener('click', async () => {
       if (!reportModal.classList.contains('open')) return;
-      if (splitRows.length === 0) {
-        setStatus('No report data to append.');
-        return;
-      }
-
+      if (splitRows.length === 0) { setStatus('No report data to append.'); return; }
       let fileHandle;
       try {
         [fileHandle] = await window.showOpenFilePicker({
-          types: [{
-            description: 'Excel Files',
-            accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] }
-          }]
+          types: [{ description: 'Excel Files', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } }]
         });
-      } catch {
-        return; // User cancelled
-      }
-
+      } catch { return; }
       const originalText = appendToFileBtn.textContent;
       appendToFileBtn.disabled = true;
       appendToFileBtn.textContent = 'Appending...';
-
       try {
         const XLSX = await ensureXLSXLoaded();
         const file = await fileHandle.getFile();
         const fileBuffer = await file.arrayBuffer();
         const workbook = XLSX.read(new Uint8Array(fileBuffer), { type: 'array' });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-
         const reportRows = buildReportRows();
-        if (reportRows.length === 0) {
-          setStatus('No rows to append — check that split data exists.');
-          return;
-        }
-
-        // Append at the first blank row after existing data in columns A:J.
+        if (reportRows.length === 0) { setStatus('No rows to append.'); return; }
         const appendAtRow = getFirstBlankRowIndex(sheet, XLSX);
         XLSX.utils.sheet_add_aoa(sheet, reportRows, { origin: { r: appendAtRow, c: 0 } });
-
-        // Write directly back to the file in its original location
         const wbArray = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
         const blob = new Blob([wbArray], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const writable = await fileHandle.createWritable();
         await writable.write(blob);
         await writable.close();
-
         setStatus(`Appended ${reportRows.length} rows to ${file.name} starting at row ${appendAtRow + 1}.`);
       } catch (error) {
         console.error(error);
@@ -3334,61 +2546,94 @@
         appendToFileBtn.textContent = originalText;
       }
     });
-    reportModal.addEventListener('click', (e) => {
-      if (e.target === reportModal) closeReportModal();
-    });
-    flyingToggle.addEventListener('change', () => {
-      flyingMode = flyingToggle.checked;
-      renderRows();
-    });
-    includeL1PowerToggle.addEventListener('change', () => {
-      renderLeadLapsTable();
-    });
-    recovOnlyToggle.addEventListener('change', () => {
-      renderLeadLapsTable();
-    });
-    hlToggle.addEventListener('change', () => {
-      renderReportChart();
-    });
+
+    reportModal.addEventListener('click', (e) => { if (e.target === reportModal) closeReportModal(); });
+    flyingToggle.addEventListener('change', () => { flyingMode = flyingToggle.checked; renderRows(); });
+    hlToggle.addEventListener('change', () => { renderReportChart(); });
     document.getElementById('chartYMinInput').addEventListener('input', renderReportChart);
     document.getElementById('chartYMaxInput').addEventListener('input', renderReportChart);
 
     downloadBtn.addEventListener('click', () => {
       if (splitRows.length === 0) { setStatus('No data to download.'); return; }
-      const names = getRiderNames();
-      const headers = ['Split','Athlete In Front','Quarter Time (s)','Team Speed (km/h)','Delivery Speed (km/h)','Event',
-                       'splitType','endTime','frontRiderIndex','deliveryAdjusted'];
+      const headers = ['Split', 'Quarter Time (s)', 'Running Time (s)', 'Speed (km/h)', 'Event', 'splitType', 'endTime'];
       const lines = [headers.join(',')];
-      // Export in chronological order (index 0 first)
-      for (const row of splitRows) {
-        const riderName = row.frontRiderIndex >= 0
-          ? (names[row.frontRiderIndex] || `Rider ${row.frontRiderIndex + 1}`)
-          : 'No Active Rider';
+      for (let i = 0; i < splitRows.length; i++) {
+        const row = splitRows[i];
         lines.push([
           row.splitLabel,
-          `"${riderName}"`,
           row.quarterTime,
-          row.teamSpeed.toFixed(3),
-          row.deliverySpeed.toFixed(3),
+          formatTime(getRunningTimeForRow(row, i)),
+          row.speed.toFixed(3),
           `"${row.eventLabel}"`,
           row.splitType,
-          row.endTime,
-          row.frontRiderIndex,
-          row.deliveryAdjusted ? '1' : '0'
+          row.endTime
         ].join(','));
       }
-      // Append metadata row for session state
       lines.push(`# startTime,${startTime != null ? startTime : ''}`);
       lines.push(`# title,"${getTitleText()}"`);
-      riderInputs.forEach((inp, i) => lines.push(`# rider${i + 1},"${inp.value.trim()}"`));
+      lines.push(`# rider,"${rider1Input.value.trim()}"`);
+      lines.push(`# raceDistance,${getRaceDistance()}`);
       const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `${videoFileName} Data.csv`;
+      a.download = `${videoFileName} Kilo Data.csv`;
       a.click();
       URL.revokeObjectURL(a.href);
       setStatus('CSV downloaded.');
     });
+
+    function parseCsvText(text) {
+      const allLines = text.split(/\r?\n/);
+      const metaLines = allLines.filter(l => l.startsWith('# '));
+      const dataLines = allLines.filter(l => l.trim() && !l.startsWith('#'));
+      const header = dataLines[0].split(',');
+      const col = (name) => header.indexOf(name);
+      const iSplitType = col('splitType');
+      const iEndTime   = col('endTime');
+      const iEvent     = col('Event');
+      const iQTime     = col('Quarter Time (s)');
+      if ([iSplitType, iEndTime, iEvent, iQTime].some(x => x < 0)) return null;
+
+      let uploadedStartTime = null;
+      for (const ml of metaLines) {
+        const parts = ml.slice(2).split(',');
+        if (parts[0] === 'startTime' && parts[1]) uploadedStartTime = parseFloat(parts[1]);
+        if (parts[0] === 'title') countryInput.value = parts[1].replace(/^"|"$/g, '');
+        if (parts[0] === 'rider') rider1Input.value = parts[1].replace(/^"|"$/g, '');
+        if (parts[0] === 'raceDistance' && parts[1]) raceDistanceInput.value = parseInt(parts[1], 10) || 1000;
+      }
+
+      resetSession();
+      startTime = uploadedStartTime;
+      uploadedCsvStartTime = uploadedStartTime;
+      hasUploadedTimingData = true;
+      updateSnapToStartAvailability();
+
+      for (const line of dataLines.slice(1)) {
+        if (!line.trim()) continue;
+        const cols = [];
+        let cur = '', inQ = false;
+        for (const ch of line) {
+          if (ch === '"') { inQ = !inQ; }
+          else if (ch === ',' && !inQ) { cols.push(cur); cur = ''; }
+          else { cur += ch; }
+        }
+        cols.push(cur);
+        const splitType = cols[iSplitType];
+        const endTime = parseFloat(cols[iEndTime]);
+        const eventLabel = cols[iEvent] || 'None';
+        const quarterTime = parseFloat(cols[iQTime]);
+        const speed = speedFromTime(quarterTime);
+        splitRows.push({ splitType, splitLabel: '', endTime, quarterTime, speed, eventLabel });
+        if (splitType === 'FINISH') finished = true;
+      }
+
+      lastMarkerTime = splitRows.length > 0 ? splitRows[splitRows.length - 1].endTime : startTime;
+      renumberRows();
+      updateTitle();
+      renderRows();
+      return splitRows.length;
+    }
 
     csvUploadInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
@@ -3396,87 +2641,11 @@
       const reader = new FileReader();
       reader.onload = (evt) => {
         try {
-          const text = evt.target.result;
-          const allLines = text.split(/\r?\n/);
-          // Separate metadata comment lines from data lines
-          const metaLines = allLines.filter(l => l.startsWith('# '));
-          const dataLines = allLines.filter(l => l.trim() && !l.startsWith('#'));
-
-          // Parse header to find column indices (skip header row)
-          const header = dataLines[0].split(',');
-          const col = (name) => header.indexOf(name);
-          const iSplitType   = col('splitType');
-          const iEndTime     = col('endTime');
-          const iRiderIdx    = col('frontRiderIndex');
-          const iAdjusted    = col('deliveryAdjusted');
-          const iEvent       = col('Event');
-          const iQTime       = col('Quarter Time (s)');
-
-          if ([iSplitType, iEndTime, iRiderIdx, iAdjusted, iEvent, iQTime].some(x => x < 0)) {
-            setStatus('Upload failed: CSV columns not recognised.');
-            return;
-          }
-
-          // Parse metadata
-          let uploadedStartTime = null;
-          for (const ml of metaLines) {
-            const parts = ml.slice(2).split(',');
-            if (parts[0] === 'startTime' && parts[1]) uploadedStartTime = parseFloat(parts[1]);
-            if (parts[0] === 'title' || parts[0] === 'country') countryInput.value = parts[1].replace(/^"|"$/g, '');
-            riderInputs.forEach((inp, i) => {
-              if (parts[0] === `rider${i + 1}`) inp.value = parts[1].replace(/^"|"$/g, '');
-            });
-          }
-
-          // Restore splitRows
-          resetSession();
-          startTime = uploadedStartTime;
-          uploadedCsvStartTime = uploadedStartTime;
-          hasUploadedTimingData = true;
-          updateSnapToStartAvailability();
-          for (const line of dataLines.slice(1)) {
-            if (!line.trim()) continue;
-            // CSV-aware split that handles quoted fields
-            const cols = [];
-            let cur = '', inQ = false;
-            for (const ch of line) {
-              if (ch === '"') { inQ = !inQ; }
-              else if (ch === ',' && !inQ) { cols.push(cur); cur = ''; }
-              else { cur += ch; }
-            }
-            cols.push(cur);
-
-            const splitType = cols[iSplitType];
-            const endTime = parseFloat(cols[iEndTime]);
-            const frontRiderIndex = parseInt(cols[iRiderIdx], 10);
-            const deliveryAdjusted = cols[iAdjusted] === '1';
-            const eventLabel = cols[iEvent] || 'None';
-            const quarterTime = parseFloat(cols[iQTime]);
-            const ct = getChangeTimeSeconds();
-            const teamSpeed = speedFromTime(quarterTime);
-            const deliverySpeed = deliveryAdjusted
-              ? speedFromTime(Math.max(quarterTime - ct, 0.001))
-              : teamSpeed;
-
-            splitRows.push({ splitType, splitLabel: '', endTime, frontRiderIndex,
-                             quarterTime, teamSpeed, deliverySpeed, eventLabel, deliveryAdjusted });
-
-            if (splitType === 'TEAM_FINISH') teamFinished = true;
-          }
-
-          lastMarkerTime = splitRows.length > 0
-            ? splitRows[splitRows.length - 1].endTime
-            : startTime;
-
-          replayRiderRotations();
-          renumberRows();
-          updateTitle();
-          renderRows();
+          const count = parseCsvText(evt.target.result);
+          if (count === null) { setStatus('Upload failed: CSV columns not recognised.'); return; }
           csvUploadInput.value = '';
-          setStatus(`Loaded ${splitRows.length} rows from CSV.`);
-        } catch (err) {
-          setStatus('Upload failed: ' + err.message);
-        }
+          setStatus(`Loaded ${count} rows from CSV.`);
+        } catch (err) { setStatus('Upload failed: ' + err.message); }
       };
       reader.readAsText(file);
     });
@@ -3484,24 +2653,24 @@
     videoInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
-
-      // Strip extension from video filename for use in CSV name
       videoFileName = file.name.replace(/\.[^.]+$/, '');
-
       const url = URL.createObjectURL(file);
       video.src = url;
       video.load();
       video.style.display = '';
       hasVideoLoaded = true;
       updateSnapToStartAvailability();
-
       video.addEventListener('focus', () => video.blur());
       setStatus('Video loaded. Press S to start timing.');
     });
 
     countryInput.addEventListener('input', updateTitle);
     airDensityInput.addEventListener('input', renderRows);
-    riderInputs.forEach((input) => input.addEventListener('input', renderRows));
+    rider1Input.addEventListener('input', () => {
+      renderFitAssignments({ rebuild: false });
+      if (fitSyncState.metricKey) buildFitSeries(fitSyncState.metricKey);
+      else { renderFitLegend(); renderFitSyncTargets(); drawFitPlot(); }
+    });
 
     fitFilesInput.addEventListener('change', async (event) => {
       const files = Array.from(event.target.files || []);
@@ -3511,10 +2680,7 @@
     });
 
     fitSaveSyncBtn.addEventListener('click', () => {
-      if (fitSyncState.parsedFiles.length === 0) {
-        setFitStatus('Load and assign FIT files before saving sync.');
-        return;
-      }
+      if (fitSyncState.parsedFiles.length === 0) { setFitStatus('Load and assign a FIT file before saving sync.'); return; }
       const payload = buildSyncedFitExportPayload();
       const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
       const link = document.createElement('a');
@@ -3525,9 +2691,7 @@
       setFitStatus('Synced FIT file saved.', 'ok');
     });
 
-    fitUploadSyncBtn.addEventListener('click', () => {
-      fitSyncedUploadInput.click();
-    });
+    fitUploadSyncBtn.addEventListener('click', () => fitSyncedUploadInput.click());
 
     fitSyncedUploadInput.addEventListener('change', (event) => {
       const file = event.target.files && event.target.files[0];
@@ -3557,7 +2721,7 @@
 
       const videoFile = files.find(f => f.type.startsWith('video/') || /\.(mp4|mov|qt)$/i.test(f.name));
       const csvFile   = files.find(f => /\.csv$/i.test(f.name));
-      const syncFile  = files.find(f => /\.(tpsync|json)$/i.test(f.name));
+      const syncFile  = files.find(f => /\.(ipsync|json)$/i.test(f.name));
 
       const tasks = [];
 
@@ -3580,70 +2744,7 @@
         tasks.push(new Promise(resolve => {
           const reader = new FileReader();
           reader.onload = (evt) => {
-            try {
-              const text = evt.target.result;
-              const allLines = text.split(/\r?\n/);
-              const metaLines = allLines.filter(l => l.startsWith('# '));
-              const dataLines = allLines.filter(l => l.trim() && !l.startsWith('#'));
-              const header = dataLines[0].split(',');
-              const col = (name) => header.indexOf(name);
-              const iSplitType = col('splitType');
-              const iEndTime   = col('endTime');
-              const iRiderIdx  = col('frontRiderIndex');
-              const iAdjusted  = col('deliveryAdjusted');
-              const iEvent     = col('Event');
-              const iQTime     = col('Quarter Time (s)');
-              if ([iSplitType, iEndTime, iRiderIdx, iAdjusted, iEvent, iQTime].some(x => x < 0)) {
-                setStatus('CSV upload failed: columns not recognised.');
-                return resolve();
-              }
-              let uploadedStartTime = null;
-              for (const ml of metaLines) {
-                const parts = ml.slice(2).split(',');
-                if (parts[0] === 'startTime' && parts[1]) uploadedStartTime = parseFloat(parts[1]);
-                if (parts[0] === 'title' || parts[0] === 'country') countryInput.value = parts[1].replace(/^"|"$/g, '');
-                riderInputs.forEach((inp, i) => {
-                  if (parts[0] === `rider${i + 1}`) inp.value = parts[1].replace(/^"|"$/g, '');
-                });
-              }
-              resetSession();
-              startTime = uploadedStartTime;
-              uploadedCsvStartTime = uploadedStartTime;
-              hasUploadedTimingData = true;
-              updateSnapToStartAvailability();
-              for (const line of dataLines.slice(1)) {
-                if (!line.trim()) continue;
-                const cols = [];
-                let cur = '', inQ = false;
-                for (const ch of line) {
-                  if (ch === '"') { inQ = !inQ; }
-                  else if (ch === ',' && !inQ) { cols.push(cur); cur = ''; }
-                  else { cur += ch; }
-                }
-                cols.push(cur);
-                const splitType = cols[iSplitType];
-                const endTime = parseFloat(cols[iEndTime]);
-                const frontRiderIndex = parseInt(cols[iRiderIdx], 10);
-                const deliveryAdjusted = cols[iAdjusted] === '1';
-                const eventLabel = cols[iEvent] || 'None';
-                const quarterTime = parseFloat(cols[iQTime]);
-                const ct = getChangeTimeSeconds();
-                const teamSpeed = speedFromTime(quarterTime);
-                const deliverySpeed = deliveryAdjusted
-                  ? speedFromTime(Math.max(quarterTime - ct, 0.001))
-                  : teamSpeed;
-                splitRows.push({ splitType, splitLabel: '', endTime, frontRiderIndex,
-                                 quarterTime, teamSpeed, deliverySpeed, eventLabel, deliveryAdjusted });
-                if (splitType === 'TEAM_FINISH') teamFinished = true;
-              }
-              lastMarkerTime = splitRows.length > 0 ? splitRows[splitRows.length - 1].endTime : startTime;
-              replayRiderRotations();
-              renumberRows();
-              updateTitle();
-              renderRows();
-            } catch (err) {
-              setStatus('CSV upload failed: ' + err.message);
-            }
+            try { parseCsvText(evt.target.result); } catch (err) { setStatus('CSV upload failed: ' + err.message); }
             resolve();
           };
           reader.readAsText(csvFile);
@@ -3689,8 +2790,7 @@
     document.addEventListener('dragstart', (event) => {
       const chip = event.target.closest('.fit-file-chip[data-fit-file-id]');
       if (!chip) return;
-      const fileId = chip.dataset.fitFileId;
-      event.dataTransfer.setData('text/plain', fileId);
+      event.dataTransfer.setData('text/plain', chip.dataset.fitFileId);
       event.dataTransfer.effectAllowed = 'move';
     });
 
@@ -3717,20 +2817,11 @@
       const fileId = parseInt(event.dataTransfer.getData('text/plain'), 10);
       if (!Number.isFinite(fileId)) return;
       const dropTarget = zone.dataset.dropTarget;
-      if (dropTarget === 'unassigned') {
-        unassignFitFile(fileId);
-        return;
-      }
-      if (dropTarget === 'rider') {
-        const riderIndex = parseInt(zone.dataset.riderIndex, 10);
-        if (!Number.isFinite(riderIndex)) return;
-        assignFitFileToRider(fileId, riderIndex);
-      }
+      if (dropTarget === 'unassigned') { unassignFitFile(fileId); return; }
+      if (dropTarget === 'rider') { assignFitFileToRider(fileId); }
     });
 
-    fitMetricSelect.addEventListener('change', (event) => {
-      buildFitSeries(event.target.value);
-    });
+    fitMetricSelect.addEventListener('change', (event) => { buildFitSeries(event.target.value); });
 
     fitScaleControl.addEventListener('input', (event) => {
       const raw = toNumeric(event.target.value);
@@ -3747,25 +2838,16 @@
       updateFitControlLabels();
     });
 
-    fitSnapBtn.addEventListener('click', () => {
-      snapFitSeriesToPlayhead();
-    });
+    fitSnapBtn.addEventListener('click', () => snapFitSeriesToPlayhead());
 
-    fitPlot.addEventListener('contextmenu', (event) => {
-      event.preventDefault();
-    });
+    fitPlot.addEventListener('contextmenu', (event) => { event.preventDefault(); });
 
     fitPlot.addEventListener('pointerdown', (event) => {
       if (!fitSyncState.drawingData) return;
       fitPlot.setPointerCapture(event.pointerId);
       fitSyncState.dragLastX = event.clientX;
-      if (event.button === 2) {
-        fitSyncState.pointerMode = 'right';
-        return;
-      }
-      if (event.button === 0) {
-        fitSyncState.pointerMode = 'left';
-      }
+      if (event.button === 2) { fitSyncState.pointerMode = 'right'; return; }
+      if (event.button === 0) { fitSyncState.pointerMode = 'left'; }
     });
 
     fitPlot.addEventListener('pointermove', (event) => {
@@ -3775,125 +2857,53 @@
       const secondsPerPixel = fitSyncState.drawingData.visibleSpan / (fitSyncState.drawingData.plotWidth || 1);
       const deltaT = dx * secondsPerPixel * fitSyncState.dragSensitivity;
       if (fitSyncState.pointerMode === 'right') {
-        const selectedSet = getSelectedFitTargetSet();
         for (const series of fitSyncState.series) {
-          if (!selectedSet.has(series.riderIndex)) continue;
           series.offset = (series.offset || 0) + deltaT;
-          const stream = fitSyncState.streams[series.riderIndex];
-          if (stream) stream.offset = series.offset;
+          if (fitSyncState.stream) fitSyncState.stream.offset = series.offset;
         }
         updateFitStats();
         drawFitPlot();
-        renderRiderCadenceLapTable();
+        renderLapDataTables();
       } else if (fitSyncState.pointerMode === 'left') {
         const currentVideoT = Number.isFinite(video.currentTime) ? video.currentTime : 0;
         const nextVideoT = currentVideoT - deltaT;
-        if (Number.isFinite(video.duration)) {
-          video.currentTime = clampValue(nextVideoT, 0, video.duration);
-        } else {
-          video.currentTime = Math.max(0, nextVideoT);
-        }
+        video.currentTime = Number.isFinite(video.duration)
+          ? clampValue(nextVideoT, 0, video.duration)
+          : Math.max(0, nextVideoT);
         updateFitStats();
         drawFitPlot();
       }
     });
 
     function releaseFitPointer(event) {
-      if (fitPlot.hasPointerCapture(event.pointerId)) {
-        fitPlot.releasePointerCapture(event.pointerId);
-      }
+      if (fitPlot.hasPointerCapture(event.pointerId)) fitPlot.releasePointerCapture(event.pointerId);
       fitSyncState.pointerMode = 'none';
     }
-
     fitPlot.addEventListener('pointerup', releaseFitPointer);
     fitPlot.addEventListener('pointercancel', releaseFitPointer);
-
-    fitSyncTargets.addEventListener('click', (event) => {
-      const button = event.target.closest('button[data-target]');
-      if (!button) return;
-      const target = button.dataset.target;
-      if (target === 'all') {
-        fitSyncState.syncTargetRiderIndexes = fitSyncState.series.map((series) => series.riderIndex);
-        renderFitSyncTargets();
-        updateFitStats();
-        drawFitPlot();
-        return;
-      }
-      const riderIndex = parseInt(target, 10);
-      if (!Number.isFinite(riderIndex)) return;
-      const next = new Set(fitSyncState.syncTargetRiderIndexes || []);
-      if (next.has(riderIndex)) next.delete(riderIndex);
-      else next.add(riderIndex);
-      fitSyncState.syncTargetRiderIndexes = Array.from(next);
-      renderFitSyncTargets();
-      updateFitStats();
-      drawFitPlot();
-    });
-
-    riderInputs.forEach((input, riderIndex) => {
-      input.addEventListener('input', () => {
-        renderFitAssignments({ rebuild: false });
-        if (fitSyncState.metricKey) buildFitSeries(fitSyncState.metricKey);
-        else {
-          renderFitLegend();
-          renderFitSyncTargets();
-          drawFitPlot();
-        }
-      });
-    });
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && reportModal.classList.contains('open')) {
         closeReportModal();
         return;
       }
-
       const tag = document.activeElement && document.activeElement.tagName;
       const isTypingTarget = tag === 'INPUT' || tag === 'TEXTAREA';
       if (isTypingTarget) return;
 
       const key = e.key.toLowerCase();
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); e.stopPropagation(); }
+      if (e.ctrlKey && e.key === 'ArrowRight') { jumpForward(); return; }
+      if (e.ctrlKey && e.key === 'ArrowLeft') { jumpBackward(); return; }
 
-      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-
-      if (e.ctrlKey && e.key === 'ArrowRight') {
-        jumpForward();
-        return;
-      }
-
-      if (e.ctrlKey && e.key === 'ArrowLeft') {
-        jumpBackward();
-        return;
-      }
-
-      if (e.key === 'ArrowRight') {
-        stepNextFrame();
-      } else if (e.key === 'ArrowLeft') {
-        stepPrevFrame();
-      } else if (key === 's') {
-        startTiming();
-      } else if (key === 'z') {
-        addSplit('QUARTER', '', false);
-      } else if (key === 'c') {
-        addSplit('QUARTER', 'Change', true);
-      } else if (key === 'd') {
-        addSplit('QUARTER', 'Drop', true);
-      } else if (key === 'r') {
-        markEvent('Rider Finish');
-      } else if (key === 't') {
-        addSplit('TEAM_FINISH', '', false);
-      } else if (e.key === ' ') {
-        if (video.paused) {
-          video.play();
-        } else {
-          video.pause();
-        }
-      } else {
-        return;
-      }
+      if (e.key === 'ArrowRight') { stepNextFrame(); }
+      else if (e.key === 'ArrowLeft') { stepPrevFrame(); }
+      else if (key === 's') { startTiming(); }
+      else if (key === 'z') { addSplit('QUARTER', ''); }
+      else if (key === 't') { addSplit('FINISH', ''); }
+      else if (e.key === ' ') {
+        if (video.paused) video.play(); else video.pause();
+      } else { return; }
 
       e.preventDefault();
     });

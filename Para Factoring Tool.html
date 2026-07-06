@@ -1,0 +1,750 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Para Factoring Tool</title>
+  <style>
+    :root {
+      --bg: #eef2f5;
+      --panel: #ffffff;
+      --text: #1a2630;
+      --muted: #526574;
+      --accent: #0b6a88;
+      --accent-2: #1282a2;
+      --selected: #d7f0f8;
+      --border: #cdd8e1;
+      --danger: #b3261e;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 10% 10%, #ffffff 0, #f8fbfd 20%, transparent 45%),
+        radial-gradient(circle at 90% 25%, #d7ebf5 0, transparent 40%),
+        var(--bg);
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .wrap {
+      max-width: 1080px;
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(10, 38, 56, 0.08);
+      padding: 18px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: clamp(1.4rem, 2.2vw, 2rem);
+      letter-spacing: 0.02em;
+    }
+
+    .sub {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .field {
+      grid-column: span 12;
+      display: grid;
+      gap: 6px;
+    }
+
+    .field.half {
+      grid-column: span 6;
+    }
+
+    @media (max-width: 760px) {
+      .field.half { grid-column: span 12; }
+      body { padding: 12px; }
+    }
+
+    label {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 1rem;
+      background: #fff;
+      color: var(--text);
+    }
+
+    .hint {
+      font-size: 0.84rem;
+      color: var(--muted);
+      margin-top: -2px;
+    }
+
+    .group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+
+    .chip {
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      border-radius: 999px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease;
+    }
+
+    .chip:hover {
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    .chip.selected {
+      background: var(--selected);
+      border-color: var(--accent-2);
+      font-weight: 700;
+    }
+
+    .actions {
+      margin-top: 14px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: 0.96rem;
+      cursor: pointer;
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn.secondary {
+      background: #e6edf2;
+      color: var(--text);
+    }
+
+    .btn.ghost {
+      background: #f2f8fb;
+      border: 1px solid var(--border);
+      color: var(--accent);
+    }
+
+    .riders {
+      display: grid;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .rider {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px;
+      background: #fcfeff;
+      display: grid;
+      gap: 8px;
+    }
+
+    .rider-top {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: 1fr 1fr auto;
+      align-items: end;
+    }
+
+    @media (max-width: 760px) {
+      .rider-top {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .mini {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin: 0;
+    }
+
+    .result {
+      margin-top: 14px;
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      background: #fbfdff;
+      display: grid;
+      gap: 6px;
+    }
+
+    .result strong {
+      font-size: clamp(1.2rem, 2vw, 1.6rem);
+      color: #0d566e;
+    }
+
+    .error {
+      color: var(--danger);
+      font-weight: 600;
+      min-height: 1.2em;
+      margin-top: 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+      margin-top: 10px;
+      overflow: auto;
+      display: block;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    td.blocked {
+      background: #000;
+      color: #000;
+      border-color: #000;
+    }
+
+    th.active-col,
+    td.active-row {
+      background: #e8f6fb;
+      font-weight: 700;
+    }
+
+    td.active-cell {
+      background: #d8f1fb;
+      border-color: #5aa8c0;
+      font-weight: 700;
+    }
+
+    th:first-child, td:first-child {
+      text-align: left;
+      position: sticky;
+      left: 0;
+      background: #f7fbfd;
+      z-index: 1;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-top: 6px;
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="card">
+      <h1>Para Factoring Time Tool</h1>
+      <p class="sub">Add riders, enter each rider's time and class, then compare all riders with factors from the most abled class.</p>
+
+      <div class="grid">
+        <div class="field half">
+          <label for="dataset">Classification Set</label>
+          <select id="dataset">
+            <option value="c" selected>C Classes</option>
+            <option value="b">B Classes</option>
+          </select>
+          <div class="hint">Use C or B table depending on your event set.</div>
+        </div>
+
+        <div class="field half">
+          <label>Riders</label>
+          <button id="addRiderBtn" class="btn ghost" type="button">+ New Rider</button>
+          <div class="hint">Add as many riders as needed and compare them together.</div>
+        </div>
+
+        <div class="field">
+          <div id="ridersList" class="riders" aria-label="Rider inputs"></div>
+          <div class="hint">Time format: ss.ss, mm:ss.ss, or hh:mm:ss.ss</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="calcBtn" class="btn primary" type="button">Calculate Factored Time</button>
+        <button id="resetBtn" class="btn secondary" type="button">Reset</button>
+      </div>
+
+      <div id="error" class="error"></div>
+
+      <div id="result" class="result" hidden>
+        <div><strong id="outputSummary">--</strong></div>
+        <div id="outputBaseClass">Base Class: --</div>
+        <div id="outputDetail" class="muted"></div>
+        <div class="actions">
+          <button id="exportCsvBtn" class="btn ghost" type="button">Export Results as CSV</button>
+        </div>
+        <div id="resultsTable"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <label for="tableView">Reference Matrix</label>
+      <div id="tableView"></div>
+      <p class="muted">Each cell is the factor to convert from the column class to the row class. Values over 100% are blocked out, and active rider conversions are highlighted.</p>
+    </section>
+  </main>
+
+  <script>
+    const datasets = {
+      c: {
+        name: "C Classes",
+        classes: [
+          "C5 MEN", "C4 MEN", "C3 MEN", "C5 WOMEN", "C2 MEN",
+          "C4 WOMEN", "C1 MEN", "C3 WOMEN", "C2 WOMEN", "C1 WOMEN"
+        ],
+        rating: {
+          "C5 MEN": 1.0,
+          "C4 MEN": 0.9866,
+          "C3 MEN": 0.9489,
+          "C5 WOMEN": 0.8995,
+          "C2 MEN": 0.8967,
+          "C4 WOMEN": 0.8875,
+          "C1 MEN": 0.8731,
+          "C3 WOMEN": 0.8535,
+          "C2 WOMEN": 0.8066,
+          "C1 WOMEN": 0.7854
+        }
+      },
+      b: {
+        name: "B Classes",
+        classes: ["B MEN", "B WOMEN"],
+        rating: {
+          "B MEN": 1.0,
+          "B WOMEN": 0.8995
+        }
+      }
+    };
+
+    const datasetSelect = document.getElementById("dataset");
+    const addRiderBtn = document.getElementById("addRiderBtn");
+    const ridersListEl = document.getElementById("ridersList");
+    const calcBtn = document.getElementById("calcBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const errorEl = document.getElementById("error");
+    const resultEl = document.getElementById("result");
+    const outputSummaryEl = document.getElementById("outputSummary");
+    const outputBaseClassEl = document.getElementById("outputBaseClass");
+    const outputDetailEl = document.getElementById("outputDetail");
+    const exportCsvBtn = document.getElementById("exportCsvBtn");
+    const resultsTableEl = document.getElementById("resultsTable");
+    const tableViewEl = document.getElementById("tableView");
+
+    let state = {
+      datasetKey: "c",
+      riders: [
+        { id: 1, name: "Rider 1", time: "", riderClass: "C5 MEN" },
+        { id: 2, name: "Rider 2", time: "", riderClass: "C4 MEN" }
+      ],
+      nextRiderId: 3,
+      lastResults: []
+    };
+
+    function escapeCsvValue(value) {
+      const text = String(value ?? "");
+      if (text.includes('"') || text.includes(",") || text.includes("\n")) {
+        return `"${text.replace(/"/g, '""')}"`;
+      }
+      return text;
+    }
+
+    function downloadCsv(filename, rows) {
+      const csv = rows.map((cols) => cols.map(escapeCsvValue).join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function formatSecondsForCsv(seconds) {
+      const formatted = formatSeconds(seconds);
+      if (formatted === "--") return "";
+      const [base, fraction = ""] = formatted.split(".");
+      return `${base}.${fraction.padEnd(2, "0").slice(0, 2)}`;
+    }
+
+    function asExcelText(value) {
+      return `="${value}"`;
+    }
+
+    function parseTimeToSeconds(input) {
+      const value = input.trim();
+      if (!value) return NaN;
+
+      if (!value.includes(":")) {
+        const asNumber = Number(value);
+        return Number.isFinite(asNumber) ? asNumber : NaN;
+      }
+
+      const parts = value.split(":");
+      if (parts.length > 3) return NaN;
+
+      let seconds = 0;
+      for (let i = 0; i < parts.length; i += 1) {
+        const part = Number(parts[i]);
+        if (!Number.isFinite(part)) return NaN;
+        seconds = (seconds * 60) + part;
+      }
+      return seconds;
+    }
+
+    function formatSeconds(seconds) {
+      if (!Number.isFinite(seconds) || seconds < 0) return "--";
+
+      const hundredths = Math.round(seconds * 100);
+      const whole = Math.floor(hundredths / 100);
+      const frac = String(hundredths % 100).padStart(2, "0");
+
+      const hrs = Math.floor(whole / 3600);
+      const mins = Math.floor((whole % 3600) / 60);
+      const secs = whole % 60;
+
+      if (hrs > 0) {
+        return `${hrs}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}.${frac}`;
+      }
+      return `${mins}:${String(secs).padStart(2, "0")}.${frac}`;
+    }
+
+    function factorFor(datasetKey, sourceClass, targetClass) {
+      const data = datasets[datasetKey];
+      const source = data.rating[sourceClass];
+      const target = data.rating[targetClass];
+      return target / source;
+    }
+
+    function getMostAbledClass(datasetKey, classList) {
+      const rating = datasets[datasetKey].rating;
+      let winner = classList[0];
+      for (const cls of classList) {
+        if (rating[cls] > rating[winner]) {
+          winner = cls;
+        }
+      }
+      return winner;
+    }
+
+    function makeClassChips(selectedValue, clickHandler) {
+      const wrap = document.createElement("div");
+      wrap.className = "group";
+
+      const classes = datasets[state.datasetKey].classes;
+      for (const cls of classes) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = `chip${cls === selectedValue ? " selected" : ""}`;
+        btn.textContent = cls;
+        btn.addEventListener("click", () => clickHandler(cls));
+        wrap.appendChild(btn);
+      }
+
+      return wrap;
+    }
+
+    function getActiveMatrixSelection() {
+      const classes = datasets[state.datasetKey].classes;
+      const selectedClasses = state.riders
+        .map((r) => r.riderClass)
+        .filter((cls) => classes.includes(cls));
+
+      if (selectedClasses.length === 0) {
+        return { activeRows: new Set(), activeCols: new Set(), activeCells: new Set() };
+      }
+
+      const moreAbled = getMostAbledClass(state.datasetKey, selectedClasses);
+      const activeRows = new Set(selectedClasses);
+      const activeCols = new Set([moreAbled]);
+      const activeCells = new Set(selectedClasses.map((cls) => `${cls}||${moreAbled}`));
+      return { activeRows, activeCols, activeCells };
+    }
+
+    function renderTable() {
+      const data = datasets[state.datasetKey];
+      const classes = data.classes;
+      const active = getActiveMatrixSelection();
+
+      let html = "<table><thead><tr><th>To \\ From</th>";
+      for (const col of classes) {
+        const colClass = active.activeCols.has(col) ? ' class="active-col"' : "";
+        html += `<th${colClass}>${col}</th>`;
+      }
+      html += "</tr></thead><tbody>";
+
+      for (const row of classes) {
+        const rowClass = active.activeRows.has(row) ? ' class="active-row"' : "";
+        html += `<tr><td${rowClass}>${row}</td>`;
+        for (const col of classes) {
+          const pct = factorFor(state.datasetKey, col, row) * 100;
+          if (pct > 100) {
+            html += '<td class="blocked" aria-label="Not used">&nbsp;</td>';
+          } else {
+            const key = `${row}||${col}`;
+            const cellClass = active.activeCells.has(key) ? ' class="active-cell"' : "";
+            html += `<td${cellClass}>${pct.toFixed(2)}%</td>`;
+          }
+        }
+        html += "</tr>";
+      }
+
+      html += "</tbody></table>";
+      tableViewEl.innerHTML = html;
+    }
+
+    function renderRiders() {
+      const classes = datasets[state.datasetKey].classes;
+
+      ridersListEl.innerHTML = "";
+      state.riders.forEach((rider, index) => {
+        if (!classes.includes(rider.riderClass)) {
+          rider.riderClass = classes[0];
+        }
+
+        const card = document.createElement("div");
+        card.className = "rider";
+
+        const top = document.createElement("div");
+        top.className = "rider-top";
+
+        const nameWrap = document.createElement("div");
+        const nameLabel = document.createElement("label");
+        nameLabel.textContent = `Rider ${index + 1} Name`;
+        const nameInput = document.createElement("input");
+        nameInput.type = "text";
+        nameInput.value = rider.name;
+        nameInput.placeholder = `Rider ${index + 1}`;
+        nameInput.addEventListener("input", (e) => {
+          rider.name = e.target.value;
+        });
+        nameWrap.appendChild(nameLabel);
+        nameWrap.appendChild(nameInput);
+
+        const timeWrap = document.createElement("div");
+        const timeLabel = document.createElement("label");
+        timeLabel.textContent = "Input Time";
+        const timeInput = document.createElement("input");
+        timeInput.type = "text";
+        timeInput.value = rider.time;
+        timeInput.placeholder = "e.g. 1:08.45 or 68.45";
+        timeInput.addEventListener("input", (e) => {
+          rider.time = e.target.value;
+        });
+        timeInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") calculate();
+        });
+        timeWrap.appendChild(timeLabel);
+        timeWrap.appendChild(timeInput);
+
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "btn secondary";
+        removeBtn.textContent = "Remove";
+        removeBtn.disabled = state.riders.length <= 2;
+        removeBtn.addEventListener("click", () => {
+          if (state.riders.length <= 2) return;
+          state.riders = state.riders.filter((x) => x.id !== rider.id);
+          clearMessages();
+          renderRiders();
+          renderTable();
+        });
+
+        top.appendChild(nameWrap);
+        top.appendChild(timeWrap);
+        top.appendChild(removeBtn);
+
+        card.appendChild(top);
+
+        const classLabel = document.createElement("label");
+        classLabel.textContent = "Classification";
+        card.appendChild(classLabel);
+
+        const chips = makeClassChips(rider.riderClass, (cls) => {
+          rider.riderClass = cls;
+          renderRiders();
+          renderTable();
+        });
+        card.appendChild(chips);
+
+        ridersListEl.appendChild(card);
+      });
+    }
+
+    function renderResults(rows, moreAbledClass) {
+      state.lastResults = rows;
+      outputSummaryEl.textContent = `Compared ${rows.length} riders`;
+      outputBaseClassEl.textContent = `Base Class (100%): ${moreAbledClass}`;
+      outputDetailEl.textContent = "All riders are factored using the most abled class as the starting point.";
+
+      let html = "<table><thead><tr><th>Rank</th><th>Rider</th><th>Class</th><th>Raw Time</th><th>Factor</th><th>Factored Time</th></tr></thead><tbody>";
+      rows.forEach((row, i) => {
+        html += `<tr><td>${i + 1}</td><td>${row.name}</td><td>${row.riderClass}</td><td>${formatSeconds(row.rawSeconds)}</td><td>${(row.factor * 100).toFixed(2)}%</td><td>${formatSeconds(row.factoredSeconds)}</td></tr>`;
+      });
+      html += "</tbody></table>";
+      resultsTableEl.innerHTML = html;
+
+      renderTable();
+    }
+
+    function clearMessages() {
+      errorEl.textContent = "";
+      resultEl.hidden = true;
+    }
+
+    function calculate() {
+      clearMessages();
+
+      if (state.riders.length < 2) {
+        errorEl.textContent = "Please keep at least two riders to compare.";
+        return;
+      }
+
+      const parsed = [];
+      for (let i = 0; i < state.riders.length; i += 1) {
+        const rider = state.riders[i];
+        const seconds = parseTimeToSeconds(rider.time || "");
+        if (!Number.isFinite(seconds) || seconds <= 0) {
+          errorEl.textContent = `Please enter a valid time for Rider ${i + 1}.`;
+          return;
+        }
+        parsed.push({
+          id: rider.id,
+          name: rider.name?.trim() || `Rider ${i + 1}`,
+          riderClass: rider.riderClass,
+          rawSeconds: seconds
+        });
+      }
+
+      const moreAbledClass = getMostAbledClass(
+        state.datasetKey,
+        parsed.map((r) => r.riderClass)
+      );
+
+      const scored = parsed.map((r) => {
+        const factor = factorFor(state.datasetKey, moreAbledClass, r.riderClass);
+        return {
+          ...r,
+          factor,
+          factoredSeconds: r.rawSeconds * factor
+        };
+      });
+
+      scored.sort((a, b) => a.factoredSeconds - b.factoredSeconds);
+
+      renderResults(scored, moreAbledClass);
+      resultEl.hidden = false;
+      renderTable();
+    }
+
+    datasetSelect.addEventListener("change", () => {
+      state.datasetKey = datasetSelect.value;
+      const classes = datasets[state.datasetKey].classes;
+      state.riders = state.riders.map((r, i) => ({
+        ...r,
+        riderClass: classes.includes(r.riderClass) ? r.riderClass : classes[Math.min(i, classes.length - 1)]
+      }));
+      clearMessages();
+      renderRiders();
+      renderTable();
+    });
+
+    addRiderBtn.addEventListener("click", () => {
+      const classes = datasets[state.datasetKey].classes;
+      const idx = state.riders.length % classes.length;
+      state.riders.push({
+        id: state.nextRiderId,
+        name: `Rider ${state.nextRiderId}`,
+        time: "",
+        riderClass: classes[idx]
+      });
+      state.nextRiderId += 1;
+      clearMessages();
+      renderRiders();
+      renderTable();
+    });
+
+    calcBtn.addEventListener("click", calculate);
+
+    resetBtn.addEventListener("click", () => {
+      const classes = datasets[state.datasetKey].classes;
+      state.riders = [
+        { id: 1, name: "Rider 1", time: "", riderClass: classes[0] },
+        { id: 2, name: "Rider 2", time: "", riderClass: classes[Math.min(1, classes.length - 1)] }
+      ];
+      state.nextRiderId = 3;
+      state.lastResults = [];
+      clearMessages();
+      renderRiders();
+      renderTable();
+    });
+
+    exportCsvBtn.addEventListener("click", () => {
+      if (!state.lastResults.length) {
+        errorEl.textContent = "Run Calculate Factored Time first, then export the table.";
+        return;
+      }
+
+      const rows = [
+        ["Rank", "Rider", "Class", "Raw Time", "Factor (%)", "Factored Time"]
+      ];
+
+      state.lastResults.forEach((row, i) => {
+        const rawTimeText = formatSecondsForCsv(row.rawSeconds);
+        const factoredTimeText = formatSecondsForCsv(row.factoredSeconds);
+        rows.push([
+          i + 1,
+          row.name,
+          row.riderClass,
+          asExcelText(rawTimeText),
+          (row.factor * 100).toFixed(2),
+          asExcelText(factoredTimeText)
+        ]);
+      });
+
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, "0");
+      const d = String(now.getDate()).padStart(2, "0");
+      downloadCsv(`para-factored-riders-${y}${m}${d}.csv`, rows);
+    });
+
+    renderRiders();
+    renderTable();
+  </script>
+</body>
+</html>

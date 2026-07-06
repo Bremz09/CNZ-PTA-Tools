@@ -2027,7 +2027,7 @@
 
       // Total (s) row — heat: lower = greener (invert=false means low=-1=green)
       tbody.appendChild(makeRow(
-        'Total (s)',
+        'Split (s)',
         totals.map(formatTime),
         (val, i) => rangeHeat(totals[i], totals, false)
       ));
@@ -2758,7 +2758,7 @@
       const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = `${videoFileName || 'video'} Synced FIT.ipsync`;
+      link.download = `${videoFileName || 'video'} Synced FIT.sync`;
       link.click();
       URL.revokeObjectURL(link.href);
       setFitStatus('Synced FIT file saved.', 'ok');
