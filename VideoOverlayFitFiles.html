@@ -761,6 +761,12 @@
 			color: var(--muted);
 			flex: 1;
 		}
+
+		.sync-note {
+			font-size: 0.8rem;
+			color: var(--muted);
+			flex-basis: 100%;
+		}
 	</style>
 </head>
 <body>
@@ -837,7 +843,9 @@
 				</div>
 				<div id="syncTargets" class="sync-targets"></div>
 				<div id="autoSyncBar" class="auto-sync-bar" style="display:none">
+					<button id="btnVideoTimeSync" class="btn-auto-sync" title="Sync selected FIT streams using the video file modified timestamp as the video end time.">&#128337; Sync FIT to video modified time</button>
 					<button id="btnAutoSync" class="btn-auto-sync" title="Read the Tissot timestamp from the current video frame via OCR and sync the selected FIT streams. Matches minutes and seconds only &#8212; safe when FIT timestamps are in a different timezone.">&#8635; Auto-sync FIT to video clock</button>
+					<span class="sync-note">Video-time sync uses the video's modified timestamp as the end of the clip.</span>
 					<span id="autoSyncResult" class="auto-sync-result">Pause the video on a frame showing the Tissot clock, then click to sync.</span>
 				</div>
 				<div id="status" class="status">Load a video and one or more FIT files to start.</div>
@@ -988,6 +996,7 @@
 			lastFrameMediaTime: null,
 			frameTrackerActive: false,
 			drawingData: null,
+			videoEndTimestampMs: null,
 			recordingState: "idle",
 			recordStartVideoTime: null,
 			recordEndVideoTime: null,
@@ -1014,6 +1023,7 @@
 			scaleValue: document.getElementById("scaleValue"),
 			sensitivityControl: document.getElementById("sensitivityControl"),
 			sensitivityValue: document.getElementById("sensitivityValue"),
+			btnVideoTimeSync: document.getElementById("btnVideoTimeSync"),
 			video: document.getElementById("video"),
 			plot: document.getElementById("plot"),
 			btnRecord: document.getElementById("btnRecord"),
@@ -1987,6 +1997,7 @@
 			const url = URL.createObjectURL(file);
 			els.video.src = url;
 			els.video.load();
+			state.videoEndTimestampMs = Number.isFinite(file.lastModified) ? file.lastModified : null;
 			state.estimatedVideoFps = null;
 			updateStats();
 			setStatus("Video loaded. Play video to refine frame-rate estimate.", "ok");
@@ -2191,6 +2202,64 @@
 		}
 
 		els.snapBtn.addEventListener("click", snapFitSeriesToPlayhead);
+
+		function syncFitSeriesToVideoModifiedTime() {
+			if (!els.video.src || els.video.readyState < 1) {
+				setStatus("Load a video before syncing to the video modified time.");
+				return;
+			}
+			if (state.series.length === 0) {
+				setStatus("Load FIT files and select a metric before syncing to the video modified time.");
+				return;
+			}
+			if (!Number.isFinite(state.videoEndTimestampMs)) {
+				setStatus("The video file does not expose a modified timestamp for syncing.");
+				return;
+			}
+			if (!Number.isFinite(els.video.duration) || els.video.duration <= 0) {
+				setStatus("Wait for the video duration to load before syncing to the video modified time.");
+				return;
+			}
+
+			const endTimeSeconds = state.videoEndTimestampMs / 1000;
+			const videoDuration = els.video.duration;
+			const selectedSet = getSelectedSyncSheetNameSet();
+			let syncedCount = 0;
+			let skippedCount = 0;
+
+			for (const series of state.series) {
+				if (!selectedSet.has(series.sheetName)) continue;
+				if (!Number.isFinite(series.baseTime)) {
+					skippedCount += 1;
+					continue;
+				}
+				const newOffset = videoDuration - (endTimeSeconds - series.baseTime);
+				if (!Number.isFinite(newOffset)) {
+					skippedCount += 1;
+					continue;
+				}
+				series.offset = newOffset;
+				state.streamOffsets[series.sheetName] = newOffset;
+				syncedCount += 1;
+			}
+
+			if (syncedCount === 0) {
+				setStatus("No selected FIT streams could be synced from the video modified time.");
+				return;
+			}
+
+			updateStats();
+			refreshSummaryForCurrentMetric();
+			drawPlot();
+			const endLabel = new Date(state.videoEndTimestampMs).toLocaleString();
+			if (skippedCount > 0) {
+				setStatus(`Synced ${syncedCount} stream(s) using video modified end time (${endLabel}). Skipped ${skippedCount} stream(s).`, "ok");
+			} else {
+				setStatus(`Synced ${syncedCount} stream(s) using video modified end time (${endLabel}).`, "ok");
+			}
+		}
+
+		els.btnVideoTimeSync.addEventListener("click", syncFitSeriesToVideoModifiedTime);
 
 		// ── Recording helpers ────────────────────────────────────────────
 

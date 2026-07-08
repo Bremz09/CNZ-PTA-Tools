@@ -274,6 +274,64 @@
 			accent-color: var(--accent);
 		}
 
+		.sync-tools {
+			display: flex;
+			align-items: end;
+			gap: 10px;
+			padding: 10px 12px 0;
+			flex-wrap: wrap;
+		}
+
+		.sync-tool-field {
+			display: grid;
+			gap: 6px;
+			min-width: 230px;
+			flex: 1 1 260px;
+		}
+
+		.sync-tool-field label {
+			font-size: 0.82rem;
+			color: var(--muted);
+			font-weight: 600;
+		}
+
+		.sync-tool-field input {
+			width: 100%;
+			border: 1px solid #E0E0E0;
+			border-radius: 6px;
+			background: #fff;
+			color: var(--ink);
+			padding: 8px;
+			font-size: 0.94rem;
+		}
+
+		.sync-tool-btn {
+			padding: 9px 14px;
+			border: 1px solid rgba(14, 65, 116, 0.28);
+			border-radius: 999px;
+			background: #eef6fb;
+			color: #0E4174;
+			font-size: 0.85rem;
+			font-weight: 700;
+			cursor: pointer;
+			font-family: inherit;
+		}
+
+		.sync-tool-btn:hover:not(:disabled) {
+			background: #e0effa;
+		}
+
+		.sync-tool-btn:disabled {
+			opacity: 0.5;
+			cursor: default;
+		}
+
+		.sync-tool-note {
+			flex-basis: 100%;
+			font-size: 0.8rem;
+			color: var(--muted);
+		}
+
 		.chip {
 			padding: 6px 10px;
 			border-radius: 999px;
@@ -602,6 +660,56 @@
 			font-weight: 500;
 		}
 
+		.trace-color-list {
+			display: grid;
+			gap: 8px;
+		}
+
+		.trace-color-item {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) 56px;
+			gap: 8px;
+			align-items: center;
+		}
+
+		.trace-color-label {
+			font-size: 0.82rem;
+			color: var(--muted);
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		.trace-color-empty {
+			font-size: 0.82rem;
+			color: var(--muted);
+			font-style: italic;
+		}
+
+		.export-range-bar {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+			align-items: center;
+			padding: 8px 10px;
+			border: 1px solid rgba(31, 41, 55, 0.12);
+			border-radius: 10px;
+			background: #f8fafc;
+		}
+
+		.btn-export-range {
+			background: #0E4174;
+			color: #fff;
+			padding: 7px 12px;
+		}
+
+		.export-range-note {
+			font-size: 0.82rem;
+			color: var(--muted);
+			flex: 1;
+			min-width: 180px;
+		}
+
 		.export-preview-wrap {
 			background: #111;
 			border-radius: 10px;
@@ -733,9 +841,8 @@
 			</div>
 
 			<div class="field">
-				<label for="metricSelect">Metric (not Time)</label>
-				<select id="metricSelect" disabled>
-					<option value="">Select metric</option>
+				<label for="metricSelect">Metric(s) (not Time)</label>
+				<select id="metricSelect" multiple disabled>
 				</select>
 			</div>
 		</section>
@@ -763,6 +870,21 @@
 				</div>
 				<canvas id="plot" class="plot-canvas"></canvas>
 				<div id="status" class="status">Load a video and an XLSX or CSV file to start.</div>
+				<div class="export-range-bar">
+					<button id="btnMarkExportStart" type="button" class="btn btn-export-range">Mark export start</button>
+					<button id="btnMarkExportEnd" type="button" class="btn btn-export-range">Mark export end</button>
+					<div id="exportRangeNote" class="export-range-note">Export range: full video</div>
+				</div>
+				<div class="sync-tools">
+					<div class="sync-tool-field">
+						<label for="videoCreateTimeInput">Video create time</label>
+						<input id="videoCreateTimeInput" type="datetime-local" step="1" title="Browsers cannot read the original file creation time from a normal file picker, so enter the Created value from the video's file properties." />
+					</div>
+					<button id="btnSyncCreateTime" type="button" class="sync-tool-btn" title="Sync the data stream using the video's original create time as the start of the clip.">&#128337; Sync to video create time</button>
+					<div class="sync-tool-note">Enter the video's original Created timestamp from file properties, then sync. This uses create time as the start of the video.</div>
+					<div id="firstSyncDataPoint" class="sync-tool-note">First synced data point: -</div>
+					<div id="syncDiagnostic" class="sync-tool-note">Match result: -</div>
+				</div>
 				<div class="tuning">
 					<div class="tuning-field">
 						<label for="dragSensitivity">Drag sensitivity <strong id="dragSensitivityValue">0.20</strong></label>
@@ -819,17 +941,10 @@
 								<input id="ovBgOpacity" type="range" min="0" max="100" step="5" value="0" />
 							</div>
 						</div>
-						<div class="export-control-row">
-							<div class="export-control">
-								<label>Trace colour</label>
-								<input id="ovColor" type="color" value="#ffffff" />
-							</div>
-							<div class="export-control">
-								<label>Colour mode</label>
-								<select id="ovColorMode">
-									<option value="single">Single colour</option>
-									<option value="series" selected>Per-sheet (legend)</option>
-								</select>
+						<div class="export-control">
+							<label>Trace colours</label>
+							<div id="traceColorControls" class="trace-color-list">
+								<div class="trace-color-empty">Load metric traces to set colours.</div>
 							</div>
 						</div>
 						<div class="export-control">
@@ -839,26 +954,25 @@
 						<div class="export-control-toggles">
 							<label><input id="ovShowPlayhead" type="checkbox" checked /> Vertical playhead</label>
 							<label><input id="ovShowValue" type="checkbox" checked /> Current value label</label>
-							<label><input id="ovShowLabel" type="checkbox" checked /> Metric name label</label>
 							<label title="Encodes via WebCodecs as fast as your CPU/GPU allows. No audio in the output."><input id="ovFast" type="checkbox" /> Fast export (no audio)</label>
 						</div>
 						<div class="export-control-row">
 							<div class="export-control">
-								<label>Label X <strong id="ovLabelXValue">2%</strong></label>
+								<label>Value X <strong id="ovLabelXValue">2%</strong></label>
 								<input id="ovLabelX" type="range" min="0" max="100" step="1" value="2" />
 							</div>
 							<div class="export-control">
-								<label>Label Y <strong id="ovLabelYValue">4%</strong></label>
+								<label>Value Y <strong id="ovLabelYValue">4%</strong></label>
 								<input id="ovLabelY" type="range" min="0" max="100" step="1" value="4" />
 							</div>
 						</div>
 						<div class="export-control-row">
 							<div class="export-control">
-								<label>Label size <strong id="ovLabelSizeValue">5%</strong></label>
+								<label>Value size <strong id="ovLabelSizeValue">5%</strong></label>
 								<input id="ovLabelSize" type="range" min="2" max="15" step="0.5" value="5" />
 							</div>
 							<div class="export-control">
-								<label>Label backdrop <strong id="ovLabelBgValue">40%</strong></label>
+								<label>Value backdrop <strong id="ovLabelBgValue">40%</strong></label>
 								<input id="ovLabelBg" type="range" min="0" max="100" step="5" value="40" />
 							</div>
 						</div>
@@ -874,16 +988,20 @@
 								<input id="ovBitrate" type="range" min="2" max="20" step="1" value="8" />
 							</div>
 						</div>
+						<div class="export-control">
+							<label>Playback speed <strong id="ovPlaybackSpeedValue">1.00x</strong></label>
+							<input id="ovPlaybackSpeed" type="range" min="0.1" max="1" step="0.05" value="1" />
+						</div>
 					</div>
 
 					<div class="export-preview-wrap">
 						<canvas id="exportPreview"></canvas>
-						<div id="exportPreviewEmpty" class="export-preview-empty">Load a video and a metric to preview the export.</div>
+						<div id="exportPreviewEmpty" class="export-preview-empty">Load a video and one or more metrics to preview the export.</div>
 					</div>
 				</div>
 				<div class="export-actions">
 					<button id="btnExport" class="btn btn-export" disabled>&#9210; Export with overlay</button>
-					<div class="export-status" id="exportStatus">Load a video and select a metric to enable export.<div class="export-progress" id="exportProgressWrap"><div class="export-progress-bar" id="exportProgressBar"></div></div></div>
+					<div class="export-status" id="exportStatus">Load a video and select one or more metrics to enable export.<div class="export-progress" id="exportProgressWrap"><div class="export-progress-bar" id="exportProgressBar"></div></div></div>
 				</div>
 			</div>
 		</section>
@@ -896,7 +1014,7 @@
 			workbook: null,
 			selectedSheetNames: [],
 			selectedSheets: [],
-			metricColumnKey: "",
+			selectedMetricKeys: [],
 			samplingDisplay: "-",
 			series: [],
 			times: [],
@@ -914,10 +1032,13 @@
 			lastFrameMediaTime: null,
 			frameTrackerActive: false,
 			drawingData: null,
+			videoCreatedTimestampMs: null,
 			recordingState: "idle",
 			recordStartVideoTime: null,
 			recordEndVideoTime: null,
-			recordSummary: null
+			recordSummary: null,
+			exportStartVideoTime: null,
+			exportEndVideoTime: null
 		};
 
 		const els = {
@@ -933,6 +1054,10 @@
 			status: document.getElementById("status"),
 			plotTitle: document.getElementById("plotTitle"),
 			currentValueDisplay: document.getElementById("currentValueDisplay"),
+			videoCreateTimeInput: document.getElementById("videoCreateTimeInput"),
+			btnSyncCreateTime: document.getElementById("btnSyncCreateTime"),
+			firstSyncDataPoint: document.getElementById("firstSyncDataPoint"),
+			syncDiagnostic: document.getElementById("syncDiagnostic"),
 			video: document.getElementById("video"),
 			plot: document.getElementById("plot"),
 			btnRecord: document.getElementById("btnRecord"),
@@ -945,6 +1070,10 @@
 			windowWidthValue: document.getElementById("windowWidthValue"),
 			exportPreview: document.getElementById("exportPreview"),
 			exportPreviewEmpty: document.getElementById("exportPreviewEmpty"),
+			btnMarkExportStart: document.getElementById("btnMarkExportStart"),
+			btnMarkExportEnd: document.getElementById("btnMarkExportEnd"),
+			exportRangeNote: document.getElementById("exportRangeNote"),
+			traceColorControls: document.getElementById("traceColorControls"),
 			btnExport: document.getElementById("btnExport"),
 			exportStatus: document.getElementById("exportStatus"),
 			exportProgressWrap: document.getElementById("exportProgressWrap"),
@@ -955,12 +1084,9 @@
 			ovh: document.getElementById("ovh"),
 			ovOpacity: document.getElementById("ovOpacity"),
 			ovBgOpacity: document.getElementById("ovBgOpacity"),
-			ovColor: document.getElementById("ovColor"),
-			ovColorMode: document.getElementById("ovColorMode"),
 			ovLineWidth: document.getElementById("ovLineWidth"),
 			ovShowPlayhead: document.getElementById("ovShowPlayhead"),
 			ovShowValue: document.getElementById("ovShowValue"),
-			ovShowLabel: document.getElementById("ovShowLabel"),
 			ovLabelX: document.getElementById("ovLabelX"),
 			ovLabelY: document.getElementById("ovLabelY"),
 			ovLabelSize: document.getElementById("ovLabelSize"),
@@ -971,6 +1097,7 @@
 			ovLabelBgValue: document.getElementById("ovLabelBgValue"),
 			ovFormat: document.getElementById("ovFormat"),
 			ovBitrate: document.getElementById("ovBitrate"),
+			ovPlaybackSpeed: document.getElementById("ovPlaybackSpeed"),
 			ovxValue: document.getElementById("ovxValue"),
 			ovyValue: document.getElementById("ovyValue"),
 			ovwValue: document.getElementById("ovwValue"),
@@ -979,6 +1106,7 @@
 			ovBgOpacityValue: document.getElementById("ovBgOpacityValue"),
 			ovLineWidthValue: document.getElementById("ovLineWidthValue"),
 			ovBitrateValue: document.getElementById("ovBitrateValue"),
+			ovPlaybackSpeedValue: document.getElementById("ovPlaybackSpeedValue"),
 			ovFast: document.getElementById("ovFast")
 		};
 
@@ -1006,10 +1134,199 @@
 			return Number.isFinite(n) ? n.toFixed(digits) : "-";
 		}
 
+		function formatClockTime(seconds) {
+			if (!Number.isFinite(seconds)) return "-";
+			const totalMs = Math.max(0, Math.round(seconds * 1000));
+			const hours = Math.floor(totalMs / 3600000);
+			const minutes = Math.floor((totalMs % 3600000) / 60000);
+			const secs = Math.floor((totalMs % 60000) / 1000);
+			const millis = totalMs % 1000;
+			const hh = hours > 0 ? `${String(hours).padStart(2, "0")}:` : "";
+			return `${hh}${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}.${String(millis).padStart(3, "0")}`;
+		}
+
+		function formatDateTimeLocalValue(date) {
+			if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+			const pad = (value) => String(value).padStart(2, "0");
+			const year = date.getFullYear();
+			const month = pad(date.getMonth() + 1);
+			const day = pad(date.getDate());
+			const hours = pad(date.getHours());
+			const minutes = pad(date.getMinutes());
+			const seconds = pad(date.getSeconds());
+			return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+		}
+
+		function formatAbsoluteDataTime(seconds) {
+			if (!Number.isFinite(seconds)) return "-";
+			const ms = seconds * 1000;
+			const date = new Date(ms);
+			if (!Number.isNaN(date.getTime()) && date.getFullYear() >= 1990 && date.getFullYear() <= 2100) {
+				return date.toLocaleString();
+			}
+			return `${formatNum(seconds, 3)} s`;
+		}
+
+		function formatFirstPointSourceValue(value) {
+			if (value instanceof Date && !Number.isNaN(value.getTime())) {
+				return value.toISOString();
+			}
+			if (typeof value === "string") {
+				const trimmed = value.trim();
+				return trimmed || "-";
+			}
+			if (Number.isFinite(value)) {
+				return String(value);
+			}
+			return "-";
+		}
+
+		function parseReferenceTimeToSeconds(value) {
+			if (value instanceof Date && !Number.isNaN(value.getTime())) {
+				return value.getTime() / 1000;
+			}
+			if (typeof value === "string") {
+				const trimmed = value.trim();
+				if (!trimmed) return null;
+				const localIsoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?Z$/i);
+				if (localIsoMatch) {
+					const [, year, month, day, hour, minute, second = "00", millis = "0"] = localIsoMatch;
+					const localDate = new Date(
+						Number(year),
+						Number(month) - 1,
+						Number(day),
+						Number(hour),
+						Number(minute),
+						Number(second),
+						Number(millis.padEnd(3, "0"))
+					);
+					if (!Number.isNaN(localDate.getTime())) return localDate.getTime() / 1000;
+				}
+				const parsedMs = Date.parse(trimmed);
+				if (Number.isFinite(parsedMs)) return parsedMs / 1000;
+				return null;
+			}
+			if (Number.isFinite(value)) {
+				if (value > 1e12) return value / 1000;
+				if (value > 1e9) return value;
+			}
+			return null;
+		}
+
+		function updateFirstSyncDataPointDisplay(series = getPrimarySeries()) {
+			if (!series || !Number.isFinite(series.sourceStartTime)) {
+				els.firstSyncDataPoint.textContent = "First synced data point: -";
+				return;
+			}
+			const label = series.sheetName ? `${series.sheetName} ` : "";
+			if (series.sourceStartTimeDisplay) {
+				const sourceLabel = series.sourceStartTimeKey ? `${series.sourceStartTimeKey} = ` : "";
+				els.firstSyncDataPoint.textContent = `First synced data point: ${label}${sourceLabel}${series.sourceStartTimeDisplay}`;
+				return;
+			}
+			els.firstSyncDataPoint.textContent = `First synced data point: ${label}@ ${formatAbsoluteDataTime(series.sourceStartTime)}`;
+		}
+
+		function shiftDateToLocalWallClock(date) {
+			if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+			return new Date(date.getTime() + (date.getTimezoneOffset() * 60000));
+		}
+
+		function readAsciiAt(view, offset, length) {
+			if (offset < 0 || offset + length > view.byteLength) return "";
+			let out = "";
+			for (let i = 0; i < length; i += 1) {
+				out += String.fromCharCode(view.getUint8(offset + i));
+			}
+			return out;
+		}
+
+		function findAsciiSequence(bytes, text) {
+			if (!bytes || !text) return -1;
+			const codes = Array.from(text, (ch) => ch.charCodeAt(0));
+			outer: for (let i = 0; i <= bytes.length - codes.length; i += 1) {
+				for (let j = 0; j < codes.length; j += 1) {
+					if (bytes[i + j] !== codes[j]) continue outer;
+				}
+				return i;
+			}
+			return -1;
+		}
+
+		function parseIsoBmffCreationDate(bytes) {
+			if (!(bytes instanceof Uint8Array) || bytes.length < 24) return null;
+			const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+			for (const atomType of ["mvhd", "mdhd"]) {
+				const atomIdx = findAsciiSequence(bytes, atomType);
+				if (atomIdx < 0) continue;
+				const versionOffset = atomIdx + 4;
+				if (versionOffset >= bytes.length) continue;
+				const version = view.getUint8(versionOffset);
+				let secondsSince1904 = null;
+				if (version === 0) {
+					if (atomIdx + 12 > bytes.length) continue;
+					secondsSince1904 = view.getUint32(atomIdx + 8, false);
+				} else if (version === 1) {
+					if (atomIdx + 20 > bytes.length) continue;
+					const hi = view.getUint32(atomIdx + 8, false);
+					const lo = view.getUint32(atomIdx + 12, false);
+					secondsSince1904 = hi * 4294967296 + lo;
+				}
+				if (!Number.isFinite(secondsSince1904) || secondsSince1904 <= 0) continue;
+				const unixSeconds = secondsSince1904 - 2082844800;
+				const date = shiftDateToLocalWallClock(new Date(unixSeconds * 1000));
+				if (!Number.isNaN(date.getTime()) && date.getFullYear() >= 1990 && date.getFullYear() <= 2100) {
+					return date;
+				}
+			}
+			return null;
+		}
+
+		async function extractVideoCreateDate(file) {
+			if (!(file instanceof File)) return null;
+			const chunkSize = 8 * 1024 * 1024;
+			const headSize = Math.min(file.size, chunkSize);
+			const headBuffer = await file.slice(0, headSize).arrayBuffer();
+			const headBytes = new Uint8Array(headBuffer);
+			let parsed = parseIsoBmffCreationDate(headBytes);
+			if (parsed) return parsed;
+
+			if (file.size > headSize) {
+				const tailStart = Math.max(0, file.size - chunkSize);
+				const tailBuffer = await file.slice(tailStart, file.size).arrayBuffer();
+				const tailBytes = new Uint8Array(tailBuffer);
+				parsed = parseIsoBmffCreationDate(tailBytes);
+				if (parsed) return parsed;
+			}
+
+			return null;
+		}
+
 		function findTimeColumn(columns) {
 			const exact = columns.find((name) => String(name).trim().toLowerCase() === "time");
 			if (exact) return exact;
 			return columns.find((name) => String(name).toLowerCase().includes("time")) || "";
+		}
+
+		function findReferenceTimeColumn(columns, timeColumnKey) {
+			const preferredPatterns = [
+				/^gps\s*time$/i,
+				/^gps[_\s-]*timestamp$/i,
+				/^timestamp$/i,
+				/^date[_\s-]*time$/i,
+				/^utc[_\s-]*time$/i,
+				/^time[_\s-]*utc$/i,
+				/^local[_\s-]*time$/i
+			];
+			for (const pattern of preferredPatterns) {
+				const match = columns.find((name) => name !== timeColumnKey && pattern.test(String(name).trim()));
+				if (match) return match;
+			}
+			return columns.find((name) => {
+				if (name === timeColumnKey) return false;
+				const normalized = String(name).trim().toLowerCase();
+				return normalized.includes("gps time") || normalized.includes("timestamp") || normalized.includes("date time");
+			}) || "";
 		}
 
 		function getSelectedValues(select) {
@@ -1184,35 +1501,81 @@
 		function updateSeriesLegend() {
 			if (state.series.length === 0) {
 				els.seriesLegend.innerHTML = '<span class="swatch"><i style="background:#0f766e"></i>metric</span>';
+				if (els.traceColorControls) {
+					els.traceColorControls.innerHTML = '<div class="trace-color-empty">Load metric traces to set colours.</div>';
+				}
 				return;
 			}
 
 			els.seriesLegend.innerHTML = state.series
-				.map((series) => `<span class="swatch"><i style="background:${series.color}"></i>${series.sheetName}</span>`)
+				.map((series) => `<span class="swatch"><i style="background:${series.color}"></i>${series.label}</span>`)
 				.join("");
+
+			if (els.traceColorControls) {
+				els.traceColorControls.innerHTML = "";
+				state.series.forEach((series, index) => {
+					const row = document.createElement("div");
+					row.className = "trace-color-item";
+
+					const label = document.createElement("div");
+					label.className = "trace-color-label";
+					label.textContent = series.label;
+					label.title = series.label;
+
+					const input = document.createElement("input");
+					input.type = "color";
+					input.value = series.color;
+					input.setAttribute("aria-label", `Colour for ${series.label}`);
+					input.addEventListener("input", (event) => {
+						series.color = event.target.value;
+						state.series[index].color = series.color;
+						updateSeriesLegend();
+						drawPlot();
+					});
+
+					row.append(label, input);
+					els.traceColorControls.appendChild(row);
+				});
+			}
 		}
 
 		function getPrimarySeries() {
 			return state.series[0] || null;
 		}
 
-		function populateMetricSelect(metricColumns, selectedValue = "") {
-			els.metricSelect.innerHTML = "<option value=''>Select metric</option>";
+		function getSelectedMetricSummary(maxItems = 3) {
+			if (state.selectedMetricKeys.length === 0) return "(none)";
+			if (state.selectedMetricKeys.length <= maxItems) return state.selectedMetricKeys.join(", ");
+			return `${state.selectedMetricKeys.slice(0, maxItems).join(", ")} +${state.selectedMetricKeys.length - maxItems} more`;
+		}
+
+		function getSelectedMetricFileLabel() {
+			if (state.selectedMetricKeys.length === 0) return "metric";
+			return state.selectedMetricKeys.join("_").replace(/[^\w-]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "") || "metric";
+		}
+
+		function buildSeriesLabel(sheetName, metricKey, sheetCount, metricCount) {
+			if (sheetCount > 1 && metricCount > 1) return `${sheetName} - ${metricKey}`;
+			if (sheetCount > 1) return sheetName;
+			if (metricCount > 1) return metricKey;
+			return `${sheetName} - ${metricKey}`;
+		}
+
+		function populateMetricSelect(metricColumns, selectedValues = []) {
+			els.metricSelect.innerHTML = "";
 			for (const key of metricColumns) {
 				const option = document.createElement("option");
 				option.value = key;
 				option.textContent = key;
+				option.selected = selectedValues.includes(key);
 				els.metricSelect.appendChild(option);
 			}
 			els.metricSelect.disabled = metricColumns.length === 0;
-			if (selectedValue && metricColumns.includes(selectedValue)) {
-				els.metricSelect.value = selectedValue;
-			}
 		}
 
 		function resetMetricAndPlot(options = {}) {
 			const { preserveMetricOptions = false } = options;
-			state.metricColumnKey = "";
+			state.selectedMetricKeys = [];
 			state.series = [];
 			state.metricValues = [];
 			state.times = [];
@@ -1221,9 +1584,13 @@
 			if (!preserveMetricOptions) {
 				populateMetricSelect([]);
 			} else {
-				els.metricSelect.value = "";
+				Array.from(els.metricSelect.options).forEach((option) => {
+					option.selected = false;
+				});
 			}
 			els.currentValueDisplay.textContent = "value @ playhead: -";
+			updateFirstSyncDataPointDisplay(null);
+			els.syncDiagnostic.textContent = "Match result: -";
 			updateSeriesLegend();
 			updateStats();
 			clearSummary();
@@ -1267,6 +1634,7 @@
 				const rows = XLSX.utils.sheet_to_json(ws, { defval: null, raw: true });
 				const columns = rows.length ? Object.keys(rows[0]) : [];
 				const timeColumnKey = findTimeColumn(columns);
+				const referenceTimeColumnKey = findReferenceTimeColumn(columns, timeColumnKey);
 
 				if (!timeColumnKey) {
 					continue;
@@ -1297,6 +1665,7 @@
 					sheetName,
 					rows,
 					timeColumnKey,
+					referenceTimeColumnKey,
 					metricColumns: columns.filter((column) => column !== timeColumnKey),
 					samplingHz: meanDt > 0 ? 1 / meanDt : null
 				});
@@ -1312,8 +1681,8 @@
 			}
 
 			const commonMetricColumns = intersectMetricColumns(parsedSheets);
-			const previousMetric = state.metricColumnKey;
-			populateMetricSelect(commonMetricColumns, previousMetric);
+			const previousMetrics = state.selectedMetricKeys.filter((metricKey) => commonMetricColumns.includes(metricKey));
+			populateMetricSelect(commonMetricColumns, previousMetrics);
 
 			updateStats();
 
@@ -1323,73 +1692,100 @@
 				return;
 			}
 
-			if (previousMetric && commonMetricColumns.includes(previousMetric)) {
-				setMetric(previousMetric);
-				setStatus(`${parsedSheets.length} sheet(s) loaded. Overlaying ${previousMetric}.`, "ok");
+			if (previousMetrics.length > 0) {
+				setMetrics(previousMetrics);
+				setStatus(`${parsedSheets.length} sheet(s) loaded. Overlaying ${previousMetrics.length} metric${previousMetrics.length === 1 ? "" : "s"}.`, "ok");
 				return;
 			}
 
 			resetMetricAndPlot({ preserveMetricOptions: true });
-			setStatus(`${parsedSheets.length} sheet(s) ready. Choose a shared metric column.`, "ok");
+			setStatus(`${parsedSheets.length} sheet(s) ready. Choose one or more shared metric columns.`, "ok");
 		}
 
-		function setMetric(metricKey) {
-			if (state.selectedSheets.length === 0 || !metricKey) {
-				state.metricColumnKey = "";
+		function setMetrics(metricKeys) {
+			const normalizedMetricKeys = Array.isArray(metricKeys)
+				? metricKeys.filter((metricKey, index) => metricKey && metricKeys.indexOf(metricKey) === index)
+				: [];
+
+			if (state.selectedSheets.length === 0 || normalizedMetricKeys.length === 0) {
+				state.selectedMetricKeys = [];
 				state.series = [];
 				state.metricValues = [];
 				state.times = [];
 				els.currentValueDisplay.textContent = "value @ playhead: -";
+				els.syncDiagnostic.textContent = "Match result: -";
 				updateSeriesLegend();
+				clearSummary();
+				updateStats();
 				drawPlot();
+				updateExportEnabled();
+				renderPreview();
 				return;
 			}
 
 			const series = [];
 			for (let i = 0; i < state.selectedSheets.length; i += 1) {
 				const sheet = state.selectedSheets[i];
-				const points = [];
-				for (const row of sheet.rows) {
-					const t = toNumber(row[sheet.timeColumnKey]);
-					const y = toNumber(row[metricKey]);
-					if (t !== null && y !== null) points.push({ t, y });
+				for (let j = 0; j < normalizedMetricKeys.length; j += 1) {
+					const metricKey = normalizedMetricKeys[j];
+					const points = [];
+					for (const row of sheet.rows) {
+						const t = toNumber(row[sheet.timeColumnKey]);
+						const y = toNumber(row[metricKey]);
+						if (t !== null && y !== null) {
+							points.push({
+								t,
+								y,
+								referenceTimeValue: sheet.referenceTimeColumnKey ? row[sheet.referenceTimeColumnKey] : null
+							});
+						}
+					}
+
+					points.sort((a, b) => a.t - b.t);
+					if (points.length < 2) {
+						continue;
+					}
+
+					const firstPoint = points[0];
+					const t0 = firstPoint.t;
+					const sourceReferenceTime = parseReferenceTimeToSeconds(firstPoint.referenceTimeValue);
+
+					series.push({
+						sheetName: sheet.sheetName,
+						metricKey,
+						label: buildSeriesLabel(sheet.sheetName, metricKey, state.selectedSheets.length, normalizedMetricKeys.length),
+						color: getSeriesColor((i * normalizedMetricKeys.length) + j),
+						sourceStartTime: t0,
+						sourceReferenceTime,
+						sourceStartTimeKey: sheet.referenceTimeColumnKey || sheet.timeColumnKey,
+						sourceStartTimeDisplay: formatFirstPointSourceValue(firstPoint.referenceTimeValue ?? t0),
+						times: points.map((point) => point.t - t0),
+						metricValues: points.map((point) => point.y)
+					});
 				}
-
-				points.sort((a, b) => a.t - b.t);
-				if (points.length < 2) {
-					continue;
-				}
-
-				// Normalize so the first datapoint sits at t = 0, regardless of
-				// the absolute value in the sheet's Time column.
-				const t0 = points[0].t;
-
-				series.push({
-					sheetName: sheet.sheetName,
-					color: getSeriesColor(i),
-					times: points.map((point) => point.t - t0),
-					metricValues: points.map((point) => point.y)
-				});
 			}
 
 			state.series = series;
-			state.metricColumnKey = metricKey;
+			state.selectedMetricKeys = normalizedMetricKeys;
 
 			const primarySeries = getPrimarySeries();
 			state.times = primarySeries ? [...primarySeries.times] : [];
 			state.metricValues = primarySeries ? [...primarySeries.metricValues] : [];
+			updateFirstSyncDataPointDisplay(primarySeries);
 			updateSeriesLegend();
 
 			if (!primarySeries) {
-				setStatus("The selected metric has insufficient numeric data to plot across the chosen sheets.");
+				setStatus("The selected metrics have insufficient numeric data to plot across the chosen sheets.");
 			} else {
-				const streamLabel = series.length === 1 ? "stream" : "streams";
-				setStatus(`Loaded ${series.length} ${streamLabel}. Drag keeps playhead fixed: left moves video timeline, right shifts metric trace.`, "ok");
+				const traceLabel = series.length === 1 ? "trace" : "traces";
+				setStatus(`Loaded ${series.length} ${traceLabel}. Drag keeps playhead fixed: left moves video timeline, right shifts metric traces.`, "ok");
 			}
 
 			updateStats();
 			refreshSummaryForCurrentMetric();
 			drawPlot();
+			updateExportEnabled();
+			renderPreview();
 		}
 
 		function getSeriesValueAtVideoTime(series, videoTime) {
@@ -1461,7 +1857,7 @@
 			if (state.series.length === 0) {
 				ctx.fillStyle = "#6b7280";
 				ctx.font = "14px Segoe UI";
-				ctx.fillText("Select one or more sheets and a metric to draw traces.", 14, 28);
+				ctx.fillText("Select one or more sheets and metrics to draw traces.", 14, 28);
 				state.drawingData = null;
 				return;
 			}
@@ -1543,13 +1939,13 @@
 
 			const playheadValues = state.series
 				.map((series) => ({
-					sheetName: series.sheetName,
+					label: series.label,
 					value: getSeriesValueAtVideoTime(series, viewCenterT)
 				}))
 				.filter((entry) => entry.value !== null);
 
 			if (playheadValues.length > 0) {
-				const valueLines = playheadValues.map((entry) => `${entry.sheetName}: ${formatNum(entry.value, 4)}`);
+				const valueLines = playheadValues.map((entry) => `${entry.label}: ${formatNum(entry.value, 4)}`);
 				ctx.font = "12px Segoe UI";
 				const tw = valueLines.reduce((max, line) => Math.max(max, ctx.measureText(line).width), 0);
 				const pad = 6;
@@ -1569,9 +1965,9 @@
 				els.currentValueDisplay.textContent = "value @ playhead: -";
 			}
 
-			const streamCount = state.series.length;
-			const streamLabel = streamCount === 1 ? "sheet" : "sheets";
-			els.plotTitle.textContent = `Metric trace: ${state.metricColumnKey || "(none)"} across ${streamCount} ${streamLabel} (offset ${formatNum(state.traceOffsetTime, 3)} s)`;
+			const traceCount = state.series.length;
+			const traceLabel = traceCount === 1 ? "trace" : "traces";
+			els.plotTitle.textContent = `Metric trace: ${getSelectedMetricSummary()} across ${traceCount} ${traceLabel} (offset ${formatNum(state.traceOffsetTime, 3)} s)`;
 		}
 
 		function updateStats() {
@@ -1659,9 +2055,26 @@
 			const url = URL.createObjectURL(file);
 			els.video.src = url;
 			els.video.load();
+			state.exportStartVideoTime = null;
+			state.exportEndVideoTime = null;
+			state.videoCreatedTimestampMs = null;
+			els.videoCreateTimeInput.value = "";
 			state.estimatedVideoFps = null;
 			updateStats();
-			setStatus("Video loaded. Play video to refine frame-rate estimate.", "ok");
+			setStatus("Video loaded. Reading embedded create-time metadata and refining frame-rate estimate.", "ok");
+			try {
+				const extractedCreateDate = await extractVideoCreateDate(file);
+				if (extractedCreateDate) {
+					state.videoCreatedTimestampMs = extractedCreateDate.getTime();
+					els.videoCreateTimeInput.value = formatDateTimeLocalValue(extractedCreateDate);
+					setStatus(`Video loaded. Extracted embedded create time ${extractedCreateDate.toLocaleString()}.`, "ok");
+				} else {
+					setStatus("Video loaded. No embedded create-time metadata was found; enter the Created value manually if needed.", "ok");
+				}
+			} catch (err) {
+				console.warn("Could not read embedded video create time", err);
+				setStatus("Video loaded. Could not read embedded create-time metadata; enter the Created value manually if needed.", "ok");
+			}
 			drawPlot();
 		});
 
@@ -1682,9 +2095,97 @@
 			parseSelectedSheets();
 		});
 
-		els.metricSelect.addEventListener("change", (event) => {
-			setMetric(event.target.value);
+		els.metricSelect.addEventListener("change", () => {
+			setMetrics(getSelectedValues(els.metricSelect));
 		});
+
+		function findClosestDataTime(videoStartTimeSeconds) {
+			const series = state.series;
+			if (series.length === 0) return null;
+
+			// Collect all data start times from all series
+			const dataStartTimes = series
+				.map((s) => ({
+					time: Number.isFinite(s.sourceReferenceTime) ? s.sourceReferenceTime : s.sourceStartTime,
+					sheetName: s.sheetName,
+					referenceTime: s.sourceReferenceTime,
+					startTime: s.sourceStartTime
+				}))
+				.filter((item) => Number.isFinite(item.time));
+
+			if (dataStartTimes.length === 0) return null;
+
+			// Find closest match
+			let closest = dataStartTimes[0];
+			let minDiff = Math.abs(closest.time - videoStartTimeSeconds);
+
+			for (const item of dataStartTimes) {
+				const diff = Math.abs(item.time - videoStartTimeSeconds);
+				if (diff < minDiff) {
+					minDiff = diff;
+					closest = item;
+				}
+			}
+
+			return { closest, difference: closest.time - videoStartTimeSeconds, absDifference: minDiff };
+		}
+
+		function formatTimeDifference(seconds) {
+			const absDiff = Math.abs(seconds);
+			const sign = seconds < 0 ? "−" : "+";
+			const formatted = formatNum(absDiff, 2);
+			return `${sign}${formatted}s`;
+		}
+
+		function syncDataToVideoCreateTime() {
+			if (!els.video.src || els.video.readyState < 1) {
+				setStatus("Load a video before syncing to the video create time.");
+				return;
+			}
+			if (state.series.length === 0) {
+				setStatus("Load spreadsheet data and select one or more metrics before syncing to the video create time.");
+				return;
+			}
+
+			const rawCreateTime = String(els.videoCreateTimeInput.value || "").trim();
+			if (!rawCreateTime) {
+				setStatus("Enter the video's Created timestamp before syncing.");
+				return;
+			}
+
+			const createdMs = new Date(rawCreateTime).getTime();
+			if (!Number.isFinite(createdMs)) {
+				setStatus("The video create time is not a valid date/time.");
+				return;
+			}
+
+			const videoCreateTimeSeconds = createdMs / 1000;
+			const matchResult = findClosestDataTime(videoCreateTimeSeconds);
+
+			if (!matchResult) {
+				setStatus("No valid data start times found for matching.");
+				return;
+			}
+
+			const { closest, difference } = matchResult;
+			const timeDiffFormatted = formatTimeDifference(difference);
+
+			// Update sync offset: align video create time with the matched data time
+			state.videoCreatedTimestampMs = createdMs;
+			state.traceOffsetTime = closest.time - videoCreateTimeSeconds;
+
+			updateStats();
+			refreshSummaryForCurrentMetric();
+			drawPlot();
+			updateExportEnabled();
+			renderPreview();
+
+			const diagnosticMessage = `Matched to ${closest.sheetName} data start time (${timeDiffFormatted} offset)`;
+			els.syncDiagnostic.textContent = `Match result: ${diagnosticMessage}`;
+			setStatus(`Synced data to video create time. ${diagnosticMessage}`, "ok");
+		}
+
+		els.btnSyncCreateTime.addEventListener("click", syncDataToVideoCreateTime);
 
 		function updateDragSensitivityLabel() {
 			els.dragSensitivityValue.textContent = state.dragSensitivity.toFixed(2);
@@ -1854,6 +2355,8 @@
 			const duration = videoEnd - videoStart;
 			return {
 				sheetName: series.sheetName,
+				metricKey: series.metricKey,
+				label: series.label,
 				color: series.color,
 				n,
 				mean,
@@ -1901,8 +2404,8 @@
 				return `
 					<div class="summary-sheet">
 						<div class="summary-sheet-head">
-							<span class="summary-sheet-title"><i style="background:${summary.color}"></i>${summary.sheetName}</span>
-							<span class="summary-sheet-metric">${state.metricColumnKey || "Metric"}</span>
+							<span class="summary-sheet-title"><i style="background:${summary.color}"></i>${summary.label}</span>
+							<span class="summary-sheet-metric">${summary.metricKey || "Metric"}</span>
 						</div>
 						<div class="summary-stats">${statsMarkup.join("")}</div>
 					</div>
@@ -1978,11 +2481,11 @@
 		const overlay = {
 			x: 2, y: 75, w: 96, h: 22,
 			opacity: 1.0, bgOpacity: 0,
-			color: "#ffffff", colorMode: "single",
+			color: "#ffffff", colorMode: "series",
 			lineWidth: 2,
-			showPlayhead: true, showValue: true, showLabel: true,
+			showPlayhead: true, showValue: true,
 			labelX: 2, labelY: 4, labelSize: 5, labelBg: 0.4,
-			format: "auto", bitrateMbps: 8
+			format: "auto", bitrateMbps: 8, playbackSpeed: 1
 		};
 
 		const exportState = {
@@ -1997,8 +2500,84 @@
 			rvfcId: null,
 			startedAt: 0,
 			pickedMime: "",
-			pickedExtension: "webm"
+			pickedExtension: "webm",
+			previousPlaybackRate: 1
 		};
+
+		function getExportRange() {
+			const duration = Number.isFinite(els.video.duration) ? els.video.duration : 0;
+			const start = clamp(Number.isFinite(state.exportStartVideoTime) ? state.exportStartVideoTime : 0, 0, duration || 0);
+			const end = clamp(Number.isFinite(state.exportEndVideoTime) ? state.exportEndVideoTime : duration, 0, duration || 0);
+			return {
+				start,
+				end,
+				duration: Math.max(0, end - start),
+				isValid: duration > 0 && end > start + 0.001,
+				isFullVideo: start <= 0.001 && Math.abs(end - duration) <= 0.001
+			};
+		}
+
+		function updateExportRangeNote() {
+			const duration = Number.isFinite(els.video.duration) ? els.video.duration : 0;
+			if (!(duration > 0)) {
+				els.exportRangeNote.textContent = "Export range: full video";
+				return;
+			}
+			const range = getExportRange();
+			if (!range.isValid) {
+				els.exportRangeNote.textContent = `Export range invalid: ${formatClockTime(range.start)} to ${formatClockTime(range.end)}`;
+				return;
+			}
+			if (range.isFullVideo) {
+				els.exportRangeNote.textContent = `Export range: full video (${formatClockTime(duration)})`;
+				return;
+			}
+			els.exportRangeNote.textContent = `Export range: ${formatClockTime(range.start)} to ${formatClockTime(range.end)} (${formatClockTime(range.duration)})`;
+		}
+
+		function updateExportBoundaryButtons() {
+			els.btnMarkExportStart.textContent = Number.isFinite(state.exportStartVideoTime) ? "Clear export start" : "Mark export start";
+			els.btnMarkExportEnd.textContent = Number.isFinite(state.exportEndVideoTime) ? "Clear export end" : "Mark export end";
+		}
+
+		function markExportBoundary(which) {
+			if (!els.video.src || !Number.isFinite(els.video.duration) || els.video.duration <= 0) {
+				setExportStatus("Load a video before marking an export range.", "error");
+				return;
+			}
+			if (which === "start" && Number.isFinite(state.exportStartVideoTime)) {
+				state.exportStartVideoTime = null;
+				updateExportBoundaryButtons();
+				updateExportRangeNote();
+				updateExportEnabled();
+				renderPreview();
+				return;
+			}
+			if (which === "end" && Number.isFinite(state.exportEndVideoTime)) {
+				state.exportEndVideoTime = null;
+				updateExportBoundaryButtons();
+				updateExportRangeNote();
+				updateExportEnabled();
+				renderPreview();
+				return;
+			}
+			const currentTime = clamp(Number.isFinite(els.video.currentTime) ? els.video.currentTime : 0, 0, els.video.duration);
+			if (which === "start") {
+				state.exportStartVideoTime = currentTime;
+				if (Number.isFinite(state.exportEndVideoTime) && state.exportEndVideoTime <= currentTime) {
+					state.exportEndVideoTime = els.video.duration;
+				}
+			} else {
+				state.exportEndVideoTime = currentTime;
+				if (Number.isFinite(state.exportStartVideoTime) && state.exportStartVideoTime >= currentTime) {
+					state.exportStartVideoTime = 0;
+				}
+			}
+			updateExportBoundaryButtons();
+			updateExportRangeNote();
+			updateExportEnabled();
+			renderPreview();
+		}
 
 		const previewCtx = els.exportPreview.getContext("2d");
 
@@ -2067,11 +2646,13 @@
 			const hasVideo = !!els.video.src && Number.isFinite(els.video.duration) && els.video.duration > 0;
 			const hasMetric = state.series.length > 0;
 			const hasRecorder = getSupportedFormats().length > 0;
-			els.btnExport.disabled = exportState.running || !hasVideo || !hasMetric || !hasRecorder;
+			const exportRange = hasVideo ? getExportRange() : { isValid: false };
+			els.btnExport.disabled = exportState.running || !hasVideo || !hasMetric || !hasRecorder || !exportRange.isValid;
 			if (!exportState.running) {
 				if (!hasRecorder) setExportStatus("This browser does not expose a supported MediaRecorder codec. Try latest Chrome or Edge.", "error");
 				else if (!hasVideo) setExportStatus("Load a video to enable export.");
-				else if (!hasMetric) setExportStatus("Select a metric to enable export.");
+				else if (!hasMetric) setExportStatus("Select one or more metrics to enable export.");
+				else if (!exportRange.isValid) setExportStatus("Mark a valid export start/end range to enable export.", "error");
 				else setExportStatus("Ready. Press Export to bake the overlay onto a copy of the video (real-time).");
 			}
 		}
@@ -2151,63 +2732,40 @@
 				targetCtx.stroke();
 			}
 
-			if (overlay.showValue || overlay.showLabel) {
-				const fontPx = Math.max(12, Math.round(rect.h * 0.18));
+			if (overlay.showValue) {
+				const fontPx = Math.max(12, Math.round(videoH * (overlay.labelSize / 100)));
 				targetCtx.font = `700 ${fontPx}px Arial, Helvetica, sans-serif`;
 				targetCtx.textBaseline = "top";
-
-				if (overlay.showValue) {
-					const playheadEntries = state.series.map(s => ({
-						sheetName: s.sheetName,
-						color: s.color,
-						value: getSeriesValueAtVideoTime(s, viewCenterT)
-					})).filter(e => e.value !== null);
-					if (playheadEntries.length > 0) {
-						const isMulti = playheadEntries.length > 1 || overlay.colorMode === "series";
-						const lines = playheadEntries.map(e => isMulti ? `${e.sheetName}: ${formatNum(e.value, 1)}` : `${formatNum(e.value, 1)}`);
-						const lineH = fontPx * 1.15;
-						const padX = fontPx * 0.4;
-						const padY = fontPx * 0.25;
-						let maxW = 0;
-						for (const l of lines) maxW = Math.max(maxW, targetCtx.measureText(l).width);
-						const boxW = maxW + padX * 2;
-						const boxH = lines.length * lineH + padY * 2;
-						const boxX = rect.x + rect.w / 2 - boxW / 2;
-						const boxY = rect.y - boxH - padY * 0.5;
-						const drawY = boxY < 0 ? rect.y + padY : boxY;
-						targetCtx.fillStyle = "rgba(17, 24, 39, 0.78)";
-						targetCtx.fillRect(boxX, drawY, boxW, boxH);
-						for (let i = 0; i < lines.length; i++) {
-							targetCtx.fillStyle = isMulti ? playheadEntries[i].color : (overlay.colorMode === "single" ? overlay.color : "#ffffff");
-							targetCtx.fillText(lines[i], boxX + padX, drawY + padY + i * lineH);
-						}
+				const playheadEntries = state.series.map(s => ({
+					label: s.label,
+					color: s.color,
+					value: getSeriesValueAtVideoTime(s, viewCenterT)
+				})).filter(e => e.value !== null);
+				if (playheadEntries.length > 0) {
+					const isMulti = playheadEntries.length > 1 || overlay.colorMode === "series";
+					const lines = playheadEntries.map(e => isMulti ? `${e.label}: ${formatNum(e.value, 1)}` : `${formatNum(e.value, 1)}`);
+					const lineH = fontPx * 1.15;
+					const padX = fontPx * 0.4;
+					const padY = fontPx * 0.25;
+					let maxW = 0;
+					for (const l of lines) maxW = Math.max(maxW, targetCtx.measureText(l).width);
+					const boxW = maxW + padX * 2;
+					const boxH = lines.length * lineH + padY * 2;
+					let boxX = Math.round(videoW * (overlay.labelX / 100));
+					let boxY = Math.round(videoH * (overlay.labelY / 100));
+					boxX = Math.max(0, Math.min(boxX, videoW - boxW));
+					boxY = Math.max(0, Math.min(boxY, videoH - boxH));
+					if (overlay.labelBg > 0) {
+						targetCtx.fillStyle = `rgba(17, 24, 39, ${overlay.labelBg})`;
+						targetCtx.fillRect(boxX, boxY, boxW, boxH);
 					}
+					targetCtx.globalAlpha = overlay.opacity;
+					for (let i = 0; i < lines.length; i++) {
+						targetCtx.fillStyle = isMulti ? playheadEntries[i].color : (overlay.colorMode === "single" ? overlay.color : "#ffffff");
+						targetCtx.fillText(lines[i], boxX + padX, boxY + padY + i * lineH);
+					}
+					targetCtx.globalAlpha = 1;
 				}
-			}
-
-			// Metric name label — independent of trace rect; positioned anywhere on the frame.
-			if (overlay.showLabel && state.metricColumnKey) {
-				const labelFont = Math.max(12, Math.round(videoH * (overlay.labelSize / 100)));
-				targetCtx.font = `700 ${labelFont}px Arial, Helvetica, sans-serif`;
-				targetCtx.textBaseline = "top";
-				const padX = labelFont * 0.45;
-				const padY = labelFont * 0.25;
-				const text = state.metricColumnKey;
-				const tw = targetCtx.measureText(text).width;
-				const boxW = tw + padX * 2;
-				const boxH = labelFont * 1.15 + padY * 2;
-				let bx = Math.round(videoW * (overlay.labelX / 100));
-				let by = Math.round(videoH * (overlay.labelY / 100));
-				bx = Math.max(0, Math.min(bx, videoW - boxW));
-				by = Math.max(0, Math.min(by, videoH - boxH));
-				if (overlay.labelBg > 0) {
-					targetCtx.fillStyle = `rgba(17, 24, 39, ${overlay.labelBg})`;
-					targetCtx.fillRect(bx, by, boxW, boxH);
-				}
-				targetCtx.globalAlpha = overlay.opacity;
-				targetCtx.fillStyle = overlay.colorMode === "single" ? overlay.color : "#ffffff";
-				targetCtx.fillText(text, bx + padX, by + padY);
-				targetCtx.globalAlpha = 1;
 			}
 
 			targetCtx.restore();
@@ -2233,7 +2791,7 @@
 				els.exportPreview.style.display = "none";
 				els.exportPreviewEmpty.style.display = "block";
 				if (state.series.length === 0) {
-					els.exportPreviewEmpty.textContent = "Load a video and a metric to preview the export.";
+					els.exportPreviewEmpty.textContent = "Load a video and one or more metrics to preview the export.";
 				} else {
 					els.exportPreviewEmpty.textContent = "Load a video to preview the export.";
 				}
@@ -2263,6 +2821,7 @@
 			els.ovBgOpacityValue.textContent = `${Math.round(overlay.bgOpacity * 100)}%`;
 			els.ovLineWidthValue.textContent = `${overlay.lineWidth.toFixed(1)} px`;
 			els.ovBitrateValue.textContent = `${overlay.bitrateMbps} Mbps`;
+			els.ovPlaybackSpeedValue.textContent = `${overlay.playbackSpeed.toFixed(2)}x`;
 			els.ovLabelXValue.textContent = `${overlay.labelX}%`;
 			els.ovLabelYValue.textContent = `${overlay.labelY}%`;
 			els.ovLabelSizeValue.textContent = `${overlay.labelSize}%`;
@@ -2286,29 +2845,25 @@
 		bindOverlayControl(els.ovBgOpacity, "bgOpacity", v => v / 100);
 		bindOverlayControl(els.ovLineWidth, "lineWidth");
 		bindOverlayControl(els.ovBitrate, "bitrateMbps");
+		bindOverlayControl(els.ovPlaybackSpeed, "playbackSpeed");
 		bindOverlayControl(els.ovLabelX, "labelX");
 		bindOverlayControl(els.ovLabelY, "labelY");
 		bindOverlayControl(els.ovLabelSize, "labelSize");
 		bindOverlayControl(els.ovLabelBg, "labelBg", v => v / 100);
 
-		els.ovColor.addEventListener("input", (evt) => {
-			overlay.color = evt.target.value;
-			if (overlay.colorMode !== "single") {
-				overlay.colorMode = "single";
-				els.ovColorMode.value = "single";
-			}
-			renderPreview();
-		});
-		els.ovColorMode.addEventListener("change", (evt) => { overlay.colorMode = evt.target.value; renderPreview(); });
 		els.ovShowPlayhead.addEventListener("change", (evt) => { overlay.showPlayhead = evt.target.checked; renderPreview(); });
 		els.ovShowValue.addEventListener("change", (evt) => { overlay.showValue = evt.target.checked; renderPreview(); });
-		els.ovShowLabel.addEventListener("change", (evt) => { overlay.showLabel = evt.target.checked; renderPreview(); });
 		els.ovFormat.addEventListener("change", () => { /* no preview impact */ });
+		els.btnMarkExportStart.addEventListener("click", () => markExportBoundary("start"));
+		els.btnMarkExportEnd.addEventListener("click", () => markExportBoundary("end"));
 
 		updateOverlayLabels();
 		populateFormatSelect();
+		updateExportBoundaryButtons();
+		updateExportRangeNote();
 
 		els.video.addEventListener("loadedmetadata", () => {
+			updateExportRangeNote();
 			updateExportEnabled();
 			renderPreview();
 		});
@@ -2361,7 +2916,10 @@
 			const vw = els.video.videoWidth;
 			const vh = els.video.videoHeight;
 			if (!vw || !vh) { setExportStatus("Video has no playable dimensions yet — wait for it to load.", "error"); return; }
-			if (state.series.length === 0) { setExportStatus("Select a metric first.", "error"); return; }
+			if (state.series.length === 0) { setExportStatus("Select one or more metrics first.", "error"); return; }
+			const exportRange = getExportRange();
+			if (!exportRange.isValid) { setExportStatus("Mark a valid export start/end range before exporting.", "error"); return; }
+			const playbackSpeed = clamp(Number(overlay.playbackSpeed), 0.1, 1);
 			if (typeof window.VideoEncoder !== "function") {
 				setExportStatus("This browser doesn't support WebCodecs. Untick 'Fast export' to use the real-time path.", "error");
 				return;
@@ -2376,9 +2934,8 @@
 
 			const fpsEst = state.estimatedVideoFps && state.estimatedVideoFps > 0 ? state.estimatedVideoFps : 30;
 			const fps = Math.max(1, Math.min(120, Math.round(fpsEst)));
-			const duration = Number.isFinite(els.video.duration) ? els.video.duration : 0;
-			if (duration <= 0) { setExportStatus("Video duration not known yet.", "error"); return; }
-			const totalFrames = Math.max(1, Math.ceil(duration * fps));
+			const duration = exportRange.duration;
+			const totalFrames = Math.max(1, Math.ceil((duration * fps) / playbackSpeed));
 
 			const cv = document.createElement("canvas");
 			cv.width = vw; cv.height = vh;
@@ -2415,7 +2972,7 @@
 			progressPct = 0;
 			els.btnExport.classList.add("exporting");
 			els.btnExport.textContent = "■ Stop export";
-			setExportStatus(`Fast-encoding ${totalFrames} frames at ${fps} fps…`, "info");
+			setExportStatus(`Fast-encoding ${formatClockTime(duration)} at ${playbackSpeed.toFixed(2)}x…`, "info");
 
 			try { els.video.pause(); } catch (e) { /* ignore */ }
 			const prevMuted = els.video.muted;
@@ -2425,7 +2982,7 @@
 			try {
 				for (let i = 0; i < totalFrames; i++) {
 					if (!exportState.running) break;
-					const t = Math.min(i / fps, duration - 1e-3);
+					const t = exportRange.start + Math.min((i * playbackSpeed) / fps, Math.max(0, duration - 1e-3));
 					await seekAndPresent(t);
 					if (!exportState.running) break;
 					compositeFrame(cv, cctx);
@@ -2445,7 +3002,7 @@
 					const buffer = muxer.target.buffer;
 					const blob = new Blob([buffer], { type: "video/mp4" });
 					const baseName = (els.videoInput.files?.[0]?.name || "video").replace(/\.[^.]+$/, "");
-					const fileName = `${baseName}_with_${(state.metricColumnKey || "metric").replace(/[^\w-]+/g, "_")}_fast.mp4`;
+					const fileName = `${baseName}_with_${getSelectedMetricFileLabel()}_fast.mp4`;
 					const url = URL.createObjectURL(blob);
 					const a = document.createElement("a");
 					a.href = url; a.download = fileName;
@@ -2482,7 +3039,10 @@
 			const vw = els.video.videoWidth;
 			const vh = els.video.videoHeight;
 			if (!vw || !vh) { setExportStatus("Video has no playable dimensions yet — wait for it to load.", "error"); return; }
-			if (state.series.length === 0) { setExportStatus("Select a metric first.", "error"); return; }
+			if (state.series.length === 0) { setExportStatus("Select one or more metrics first.", "error"); return; }
+			const exportRange = getExportRange();
+			if (!exportRange.isValid) { setExportStatus("Mark a valid export start/end range before exporting.", "error"); return; }
+			const playbackSpeed = clamp(Number(overlay.playbackSpeed), 0.1, 1);
 
 			const picked = pickMimeForExport();
 			if (!picked) { setExportStatus("No supported MediaRecorder MIME type in this browser.", "error"); return; }
@@ -2551,13 +3111,15 @@
 			progressPct = 0;
 			els.btnExport.classList.add("exporting");
 			els.btnExport.textContent = "■ Stop export";
-			setExportStatus(`Recording with ${picked.label}… leave this tab focused.`, "info");
+			setExportStatus(`Recording ${formatClockTime(exportRange.duration)} at ${playbackSpeed.toFixed(2)}x with ${picked.label}… leave this tab focused.`, "info");
 
 			// Reset video to start, mute UI playback (audio still captures via captureStream),
 			// and play through.
 			try {
 				els.video.pause();
-				els.video.currentTime = 0;
+				exportState.previousPlaybackRate = Number.isFinite(els.video.playbackRate) ? els.video.playbackRate : 1;
+				els.video.playbackRate = playbackSpeed;
+				els.video.currentTime = exportRange.start;
 				await new Promise(r => {
 					if (els.video.readyState >= 2) return r();
 					const onSeeked = () => { els.video.removeEventListener("seeked", onSeeked); r(); };
@@ -2568,9 +3130,16 @@
 			// Composite loop: prefer requestVideoFrameCallback for true frame sync.
 			const drawLoop = () => {
 				if (!exportState.running) return;
+				if (els.video.currentTime >= exportRange.end - Math.max(1 / Math.max(fps, 1), 0.02)) {
+					compositeFrame(cv, cctx);
+					setProgress(100);
+					stopExport(false);
+					return;
+				}
 				compositeFrame(cv, cctx);
-				const dur = Number.isFinite(els.video.duration) ? els.video.duration : 0;
-				if (dur > 0) setProgress(100 * (els.video.currentTime / dur));
+				if (exportRange.duration > 0) {
+					setProgress(100 * ((els.video.currentTime - exportRange.start) / exportRange.duration));
+				}
 				if (typeof els.video.requestVideoFrameCallback === "function") {
 					exportState.rvfcId = els.video.requestVideoFrameCallback(drawLoop);
 				} else {
@@ -2614,6 +3183,7 @@
 				exportState.rvfcId = null;
 			}
 			try { els.video.pause(); } catch (e) { /* ignore */ }
+			try { els.video.playbackRate = exportState.previousPlaybackRate || 1; } catch (e) { /* ignore */ }
 
 			if (cancelled) {
 				try { exportState.recorder?.stop(); } catch (e) { /* ignore */ }
@@ -2639,7 +3209,7 @@
 			const blob = new Blob(chunks, { type: exportState.pickedMime.split(";")[0] });
 
 			const baseName = (els.videoInput.files?.[0]?.name || "video").replace(/\.[^.]+$/, "");
-			const fileName = `${baseName}_with_${(state.metricColumnKey || "metric").replace(/[^\w-]+/g, "_")}.${exportState.pickedExtension}`;
+			const fileName = `${baseName}_with_${getSelectedMetricFileLabel()}.${exportState.pickedExtension}`;
 			const url = URL.createObjectURL(blob);
 			const a = document.createElement("a");
 			a.href = url;
@@ -2655,9 +3225,7 @@
 			updateExportEnabled();
 		}
 
-		// Wire up live-enable when state changes elsewhere (metric/sheet selection)
-		const _origSetMetric = setMetric;
-		setMetric = function (k) { _origSetMetric(k); updateExportEnabled(); renderPreview(); };
+		// Wire up live preview when plot state changes elsewhere.
 		const _origDrawPlot = drawPlot;
 		drawPlot = function () { _origDrawPlot(); /* keep export preview in sync with offset/window changes */ renderPreview(); };
 
