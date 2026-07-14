@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CSV Top 10 Time Converter</title>
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --text: #1c2630;
+      --muted: #5c6b77;
+      --border: #d7dee5;
+      --accent: #0b6cb8;
+      --accent-2: #074a7d;
+      --ok: #1f7a44;
+      --err: #a4252c;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(180deg, #f7fafc 0%, #ecf2f7 100%);
+      color: var(--text);
+      padding: 24px;
+    }
+
+    .app {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: grid;
+      gap: 16px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 8px 26px rgba(10, 35, 64, 0.07);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      line-height: 1.2;
+    }
+
+    .sub {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .inputs {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    input,
+    button,
+    textarea {
+      font: inherit;
+    }
+
+    input[type="text"],
+    input[type="number"] {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 10px;
+      color: var(--text);
+      background: #fff;
+    }
+
+    .dropzone {
+      border: 2px dashed #9eb9cf;
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      background: #f8fcff;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .dropzone.dragover {
+      border-color: var(--accent);
+      background: #eaf4fd;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 9px 14px;
+      cursor: pointer;
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+    }
+
+    button.secondary {
+      background: #e4ebf3;
+      color: #10324c;
+    }
+
+    button:hover {
+      background: var(--accent-2);
+    }
+
+    button.secondary:hover {
+      background: #d9e3ee;
+    }
+
+    .status {
+      margin-top: 10px;
+      min-height: 1.2em;
+      font-size: 0.92rem;
+    }
+
+    .status.ok {
+      color: var(--ok);
+    }
+
+    .status.err {
+      color: var(--err);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 0.92rem;
+    }
+
+    th,
+    td {
+      border: 1px solid var(--border);
+      padding: 8px 9px;
+      text-align: left;
+    }
+
+    th {
+      background: #edf3f9;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 170px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      resize: vertical;
+      margin-top: 8px;
+      background: #fcfeff;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="panel">
+      <h1>CSV Top 10 Time Converter</h1>
+      <div class="sub">
+        Drop a CSV, read time from column 8, take top 10 fastest times, calculate speed, then copy directly into Excel.
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="inputs">
+        <label>
+          Year
+          <input id="year" type="number" value="2025" />
+        </label>
+        <label>
+          Event
+          <input id="event" type="text" value="RR" />
+        </label>
+        <label>
+          Class
+          <input id="class" type="text" value="C1" />
+        </label>
+        <label>
+          Sex
+          <input id="sex" type="text" value="M" />
+        </label>
+        <label>
+          Distance (km)
+          <input id="distance" type="number" min="0" step="0.001" value="61.6" />
+        </label>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div id="dropzone" class="dropzone">
+        <strong>Drop CSV file here</strong>
+        <div style="margin-top: 6px; color: #516676;">or choose a file manually</div>
+        <div class="controls" style="justify-content: center; margin-top: 14px;">
+          <input id="fileInput" type="file" accept=".csv,text/csv" />
+          <button id="convertBtn" type="button">Convert</button>
+        </div>
+      </div>
+      <div id="status" class="status"></div>
+    </div>
+
+    <div class="panel">
+      <div class="controls">
+        <button id="copyBtn" type="button">Copy Output (TSV)</button>
+        <button id="selectBtn" type="button" class="secondary">Select Output</button>
+      </div>
+      <textarea id="output" readonly placeholder="Output will appear here after conversion..."></textarea>
+      <table id="previewTable" hidden>
+        <thead>
+          <tr>
+            <th>Year</th>
+            <th>Event</th>
+            <th>Class</th>
+            <th>Sex</th>
+            <th>Rank</th>
+            <th>Time</th>
+            <th>Distance</th>
+            <th>Speed</th>
+            <th>Participant</th>
+          </tr>
+        </thead>
+        <tbody id="previewBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const dropzone = document.getElementById("dropzone");
+    const fileInput = document.getElementById("fileInput");
+    const convertBtn = document.getElementById("convertBtn");
+    const copyBtn = document.getElementById("copyBtn");
+    const selectBtn = document.getElementById("selectBtn");
+    const output = document.getElementById("output");
+    const status = document.getElementById("status");
+    const previewTable = document.getElementById("previewTable");
+    const previewBody = document.getElementById("previewBody");
+    const eventInput = document.getElementById("event");
+    const sexInput = document.getElementById("sex");
+    const classInput = document.getElementById("class");
+
+    const OUTPUT_HEADER = ["Year", "Event", "Class", "Sex", "Rank", "Time", "Distance", "Speed", "Participant"];
+    let lastResultRows = [];
+
+    let csvText = "";
+
+    ["dragenter", "dragover"].forEach((eventName) => {
+      dropzone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        dropzone.classList.add("dragover");
+      });
+    });
+
+    ["dragleave", "drop"].forEach((eventName) => {
+      dropzone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        dropzone.classList.remove("dragover");
+      });
+    });
+
+    dropzone.addEventListener("drop", (event) => {
+      const file = event.dataTransfer.files && event.dataTransfer.files[0];
+      if (!file) {
+        setStatus("No file detected.", "err");
+        return;
+      }
+      readFile(file);
+    });
+
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      readFile(file);
+    });
+
+    convertBtn.addEventListener("click", () => {
+      if (!csvText) {
+        setStatus("Load a CSV file first.", "err");
+        return;
+      }
+      convertCsv(csvText);
+    });
+
+    copyBtn.addEventListener("click", async () => {
+      if (!output.value.trim()) {
+        setStatus("Nothing to copy yet.", "err");
+        return;
+      }
+      try {
+        await copyOutputForExcel();
+        setStatus("Output copied to clipboard (Excel-friendly).", "ok");
+      } catch (_error) {
+        output.focus();
+        output.select();
+        setStatus("Clipboard blocked in browser. Output selected, press Ctrl+C.", "err");
+      }
+    });
+
+    selectBtn.addEventListener("click", () => {
+      output.focus();
+      output.select();
+    });
+
+    function setStatus(message, type = "") {
+      status.textContent = message;
+      status.className = "status" + (type ? " " + type : "");
+    }
+
+    function readFile(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        csvText = String(reader.result || "");
+        const autoFill = autoPopulateFieldsFromFilename(file.name);
+        if (autoFill) {
+          const details = [];
+          if (autoFill.event) details.push(`Event=${autoFill.event}`);
+          if (autoFill.sex) details.push(`Sex=${autoFill.sex}`);
+          if (autoFill.className) details.push(`Class=${autoFill.className}`);
+          setStatus(`Loaded ${file.name}. Auto-filled ${details.join(", ")}. Click Convert.`, "ok");
+        } else {
+          setStatus(`Loaded ${file.name}. Click Convert.`, "ok");
+        }
+      };
+      reader.onerror = () => {
+        setStatus("Could not read file.", "err");
+      };
+      reader.readAsText(file);
+    }
+
+    function autoPopulateFieldsFromFilename(filename) {
+      const basename = filename.replace(/\.[^.]+$/, "");
+      const parts = basename
+        .split("-")
+        .map((part) => part.trim())
+        .filter(Boolean);
+
+      let event = "";
+      if (parts.length >= 2) {
+        const eventToken = parts[1].toUpperCase();
+        if (eventToken === "ROAD") {
+          event = "RR";
+          eventInput.value = event;
+        } else if (eventToken === "ITT") {
+          event = "TT";
+          eventInput.value = event;
+        }
+      }
+
+      // Use only the last '-' separated token, e.g. "...-WC2.csv" => Sex=W, Class=C2.
+      const classToken = parts.length ? parts[parts.length - 1] : "";
+      if (!classToken || classToken.length < 2) {
+        return event ? { event } : null;
+      }
+
+      // Accept tokens like WC2, MC1, MB, WB.
+      if (!/^[A-Za-z][A-Za-z0-9]+$/.test(classToken)) {
+        return event ? { event } : null;
+      }
+
+      const sex = classToken.charAt(0).toUpperCase();
+      const className = classToken.slice(1).toUpperCase();
+
+      if (!className) {
+        return event ? { event } : null;
+      }
+
+      sexInput.value = sex;
+      classInput.value = className;
+      return { event, sex, className };
+    }
+
+    function convertCsv(text) {
+      const year = document.getElementById("year").value.trim();
+      const eventName = document.getElementById("event").value.trim();
+      const className = document.getElementById("class").value.trim();
+      const sex = document.getElementById("sex").value.trim();
+      const distanceRaw = document.getElementById("distance").value.trim();
+      const distance = Number(distanceRaw);
+
+      if (!Number.isFinite(distance) || distance <= 0) {
+        setStatus("Distance must be a number greater than 0.", "err");
+        return;
+      }
+
+      const rows = parseCsv(text).filter((row) => row.length > 0 && row.some((cell) => cell.trim() !== ""));
+      const participants = rows.filter((row) => !row.some((cell) => cell.trim().toUpperCase() === "DNS")).length;
+
+      if (!participants) {
+        setStatus("No CSV rows found.", "err");
+        output.value = "";
+        previewBody.innerHTML = "";
+        previewTable.hidden = true;
+        return;
+      }
+
+      const timedRows = rows
+        .map((row, index) => {
+          const rawTime = (row[7] || "").trim();
+          const seconds = parseTimeToSeconds(rawTime);
+          return { rawTime, seconds, index };
+        })
+        .filter((item) => Number.isFinite(item.seconds));
+
+      timedRows.sort((a, b) => (a.seconds - b.seconds) || (a.index - b.index));
+      const topRows = timedRows.slice(0, 10);
+
+      if (!topRows.length) {
+        setStatus("No valid times found in column 8.", "err");
+        output.value = "";
+        previewBody.innerHTML = "";
+        previewTable.hidden = true;
+        return;
+      }
+
+      const resultRows = topRows.map((row, i) => {
+        const speed = distance / (row.seconds / 3600);
+        return [
+          year,
+          eventName,
+          className,
+          sex,
+          String(i + 1),
+          normalizeTimeDisplay(row.rawTime, eventName),
+          formatDistance(distance),
+          speed.toFixed(2),
+          String(participants),
+        ];
+      });
+
+      lastResultRows = resultRows;
+      output.value = toTsvWithWindowsNewlines([], resultRows);
+      renderPreview(resultRows);
+
+      setStatus(
+        `Created ${resultRows.length} row(s) from ${participants} participant row(s). Ready to copy into Excel.`,
+        "ok"
+      );
+    }
+
+    function renderPreview(rows) {
+      previewBody.innerHTML = "";
+      rows.forEach((row) => {
+        const tr = document.createElement("tr");
+        row.forEach((value) => {
+          const td = document.createElement("td");
+          td.textContent = value;
+          tr.appendChild(td);
+        });
+        previewBody.appendChild(tr);
+      });
+      previewTable.hidden = rows.length === 0;
+    }
+
+    function parseCsv(csv) {
+      const lines = csv.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+      return lines.filter((line) => line.length > 0).map(parseCsvLine);
+    }
+
+    function parseCsvLine(line) {
+      const values = [];
+      let current = "";
+      let inQuotes = false;
+
+      for (let i = 0; i < line.length; i += 1) {
+        const char = line[i];
+
+        if (char === '"') {
+          const next = line[i + 1];
+          if (inQuotes && next === '"') {
+            current += '"';
+            i += 1;
+          } else {
+            inQuotes = !inQuotes;
+          }
+          continue;
+        }
+
+        if (char === "," && !inQuotes) {
+          values.push(current.trim());
+          current = "";
+          continue;
+        }
+
+        current += char;
+      }
+
+      values.push(current.trim());
+      return values;
+    }
+
+    function parseTimeToSeconds(value) {
+      if (!value) return NaN;
+      const cleaned = value.replace(/"/g, "").trim();
+      if (!cleaned || /lap|dnf|dns|dsq/i.test(cleaned)) return NaN;
+
+      const normalized = cleaned.replace(/,/g, ".");
+      const parts = normalized.split(":").map((part) => Number(part));
+      if (parts.some((part) => !Number.isFinite(part))) return NaN;
+
+      if (parts.length === 3) {
+        return parts[0] * 3600 + parts[1] * 60 + parts[2];
+      }
+      if (parts.length === 2) {
+        return parts[0] * 60 + parts[1];
+      }
+      if (parts.length === 1) {
+        return parts[0];
+      }
+      return NaN;
+    }
+
+    function normalizeTimeDisplay(value, eventName) {
+      const cleaned = value.replace(/"/g, "").trim();
+
+      if (String(eventName || "").toUpperCase() === "TT") {
+        // TT files provide MM:ss,mm, which should be exported as MM:ss.mm.
+        return cleaned.replace(/,(\d{1,3})$/, ".$1");
+      }
+
+      const parts = cleaned.split(":");
+      if (parts.length >= 3 && /^\d+$/.test(parts[0])) {
+        parts[0] = String(Number(parts[0]));
+        return parts.join(":");
+      }
+      return cleaned;
+    }
+
+    function formatDistance(value) {
+      const fixed = value.toFixed(3);
+      return fixed.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+    }
+
+    function toTsvWithWindowsNewlines(header, rows) {
+      const tableRows = (header && header.length) ? [header, ...rows] : rows;
+      return tableRows.map((line) => line.join("\t")).join("\r\n");
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function toHtmlTable(header, rows) {
+      const headerHtml = (header && header.length)
+        ? `<thead><tr>${header.map((cell) => `<th>${escapeHtml(cell)}</th>`).join("")}</tr></thead>`
+        : "";
+      const bodyHtml = rows
+        .map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`)
+        .join("");
+      return `<table>${headerHtml}<tbody>${bodyHtml}</tbody></table>`;
+    }
+
+    async function copyOutputForExcel() {
+      const tsv = toTsvWithWindowsNewlines([], lastResultRows);
+      const html = toHtmlTable([], lastResultRows);
+
+      if (navigator.clipboard && window.ClipboardItem) {
+        const item = new ClipboardItem({
+          "text/plain": new Blob([tsv], { type: "text/plain" }),
+          "text/html": new Blob([html], { type: "text/html" }),
+        });
+        await navigator.clipboard.write([item]);
+      } else {
+        await navigator.clipboard.writeText(tsv);
+      }
+    }
+  </script>
+</body>
+</html>

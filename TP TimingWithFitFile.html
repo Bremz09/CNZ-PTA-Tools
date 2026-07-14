@@ -858,6 +858,41 @@
   </div>
 
   <section class="fit-sync-panel">
+    <div class="fit-stats">
+      <span class="fit-chip">Sampling: <strong id="fitSamplingHz">-</strong></span>
+      <span class="fit-chip">Video FPS: <strong id="fitVideoFps">-</strong></span>
+      <span class="fit-chip">Sync Offset: <strong id="fitTraceOffset">0.000s</strong></span>
+      <span class="fit-chip">Video Time: <strong id="fitVideoTime">0.000s</strong></span>
+    </div>
+    <div id="fitLegend" class="fit-legend"></div>
+    <div class="fit-plot-wrap">
+      <canvas id="fitPlot" class="fit-plot"></canvas>
+      <div id="fitCurrentValues" class="fit-current-values">Values @ playhead: -</div>
+    </div>
+    <div class="fit-controls-row">
+      <div class="fit-control-group">
+        <label for="fitScaleControl">Trace window scale</label>
+        <div class="fit-control-row">
+          <input id="fitScaleControl" type="range" min="20" max="400" step="10" value="100">
+          <span id="fitScaleValue" class="fit-control-value">100%</span>
+        </div>
+      </div>
+      <div class="fit-control-group">
+        <label for="fitSensitivityControl">Drag sensitivity</label>
+        <div class="fit-control-row">
+          <input id="fitSensitivityControl" type="range" min="5" max="300" step="5" value="20">
+          <span id="fitSensitivityValue" class="fit-control-value">0.20x</span>
+        </div>
+      </div>
+      <div class="fit-control-group fit-actions">
+        <label>&nbsp;</label>
+        <div class="fit-control-row">
+          <button id="fitSnapBtn" type="button">Snap to playhead</button>
+        </div>
+      </div>
+    </div>
+    <div id="fitSyncTargets" class="sync-targets"></div>
+    <div id="fitStatus" class="fit-status">Assign one or more FIT files to start syncing.</div>
     <h3>FIT Sync</h3>
     <p>Select FIT files in one go, then drag each file onto the correct rider slot. Choose a shared metric, then left-drag to scrub video or right-drag to sync selected riders.</p>
     <div class="fit-sync-grid">
@@ -907,41 +942,6 @@
         </div>
       </div>
     </div>
-    <div class="fit-stats">
-      <span class="fit-chip">Sampling: <strong id="fitSamplingHz">-</strong></span>
-      <span class="fit-chip">Video FPS: <strong id="fitVideoFps">-</strong></span>
-      <span class="fit-chip">Sync Offset: <strong id="fitTraceOffset">0.000s</strong></span>
-      <span class="fit-chip">Video Time: <strong id="fitVideoTime">0.000s</strong></span>
-    </div>
-    <div id="fitLegend" class="fit-legend"></div>
-    <div class="fit-plot-wrap">
-      <canvas id="fitPlot" class="fit-plot"></canvas>
-      <div id="fitCurrentValues" class="fit-current-values">Values @ playhead: -</div>
-    </div>
-    <div class="fit-controls-row">
-      <div class="fit-control-group">
-        <label for="fitScaleControl">Trace window scale</label>
-        <div class="fit-control-row">
-          <input id="fitScaleControl" type="range" min="20" max="400" step="10" value="100">
-          <span id="fitScaleValue" class="fit-control-value">100%</span>
-        </div>
-      </div>
-      <div class="fit-control-group">
-        <label for="fitSensitivityControl">Drag sensitivity</label>
-        <div class="fit-control-row">
-          <input id="fitSensitivityControl" type="range" min="5" max="300" step="5" value="20">
-          <span id="fitSensitivityValue" class="fit-control-value">0.20x</span>
-        </div>
-      </div>
-      <div class="fit-control-group fit-actions">
-        <label>&nbsp;</label>
-        <div class="fit-control-row">
-          <button id="fitSnapBtn" type="button">Snap to playhead</button>
-        </div>
-      </div>
-    </div>
-    <div id="fitSyncTargets" class="sync-targets"></div>
-    <div id="fitStatus" class="fit-status">Assign one or more FIT files to start syncing.</div>
   </section>
 
   <div id="reportModal" class="modal-overlay" aria-hidden="true">

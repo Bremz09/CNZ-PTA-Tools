@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Stopwatch</title>
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Stopwatch">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <h1 id="myH1">Stopwatch</h1>
+
+    <section class="timer-card" aria-label="Stopwatch timer">
+      <div id="statusLabel" class="status-label">Ready</div>
+      <div id="display" aria-live="polite">00:00:00</div>
+    </section>
+
+    <section id="controls" aria-label="Stopwatch controls">
+      <button id="startStopBtn" type="button">Start</button>
+      <button id="lapBtn" type="button" disabled>Lap</button>
+      <button id="resetBtn" type="button">Reset</button>
+      <button id="exportBtn" type="button">Export</button>
+
+      <div class="target-panel" aria-label="Target time controls">
+        <label class="target-toggle">
+          <input id="targetToggle" type="checkbox">
+          <span>Target</span>
+        </label>
+        <label class="target-input-wrap" for="targetInput">
+          <span class="target-input-label">Seconds</span>
+          <input id="targetInput" type="number" step="0.1" min="0" value="15" disabled>
+        </label>
+      </div>
+    </section>
+
+    <div id="lapOverlay" class="lap-overlay" aria-live="assertive" aria-hidden="true">
+      <div class="lap-overlay-card">
+        <div id="lapOverlayTime" class="lap-overlay-time"></div>
+      </div>
+    </div>
+
+    <section class="laps-panel" aria-label="Lap times">
+      <h2 class="panel-title">Laps</h2>
+      <div id="lapContainer"></div>
+    </section>
+  </main>
+  <script src="index.js"></script>
+</body>
+</html>

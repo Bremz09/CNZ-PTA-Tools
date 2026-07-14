@@ -758,41 +758,6 @@
   </div>
 
   <section class="fit-sync-panel">
-    <h3>FIT Sync</h3>
-    <p>Select a FIT file, then drag it onto the rider slot. Choose a metric, then left-drag to scrub video or right-drag to sync the FIT trace.</p>
-    <div class="fit-sync-grid">
-      <div class="fit-field">
-        <label for="fitFilesInput">FIT file (.fit)</label>
-        <input id="fitFilesInput" type="file" accept=".fit,application/octet-stream" multiple>
-        <div class="fit-file-note">Load a FIT file, then drag the chip to the rider slot below.</div>
-        <div class="fit-control-row" style="margin-top:8px;">
-          <button id="fitSaveSyncBtn" type="button">Save sync</button>
-          <button id="fitUploadSyncBtn" type="button">Upload synced fit file</button>
-        </div>
-        <input id="fitSyncedUploadInput" type="file" accept=".json,.ipsync" style="display:none;">
-      </div>
-      <div class="fit-field">
-        <label for="fitMetricSelect">FIT Metric</label>
-        <select id="fitMetricSelect" disabled>
-          <option value="">Select metric</option>
-        </select>
-      </div>
-    </div>
-    <div class="fit-assignment-layout">
-      <div class="fit-assignment-card">
-        <h4>Unassigned FIT files</h4>
-        <div id="fitUnassignedList" class="fit-dropzone" data-drop-target="unassigned">
-          <span class="fit-slot-placeholder">Drop FIT files here to unassign.</span>
-        </div>
-      </div>
-      <div class="fit-assignment-card">
-        <h4>Rider FIT assignment</h4>
-        <div class="fit-slot">
-          <div class="fit-slot-title" id="fitSlotTitle0">Rider</div>
-          <div id="fitRiderSlot0" class="fit-dropzone" data-drop-target="rider" data-rider-index="0"></div>
-        </div>
-      </div>
-    </div>
     <div class="fit-stats">
       <span class="fit-chip">Sampling: <strong id="fitSamplingHz">-</strong></span>
       <span class="fit-chip">Video FPS: <strong id="fitVideoFps">-</strong></span>
@@ -828,6 +793,41 @@
     </div>
     <div id="fitSyncTargets" class="sync-targets"></div>
     <div id="fitStatus" class="fit-status">Assign a FIT file to start syncing.</div>
+    <h3>FIT Sync</h3>
+    <p>Select a FIT file, then drag it onto the rider slot. Choose a metric, then left-drag to scrub video or right-drag to sync the FIT trace.</p>
+    <div class="fit-sync-grid">
+      <div class="fit-field">
+        <label for="fitFilesInput">FIT file (.fit)</label>
+        <input id="fitFilesInput" type="file" accept=".fit,application/octet-stream" multiple>
+        <div class="fit-file-note">Load a FIT file, then drag the chip to the rider slot below.</div>
+        <div class="fit-control-row" style="margin-top:8px;">
+          <button id="fitSaveSyncBtn" type="button">Save sync</button>
+          <button id="fitUploadSyncBtn" type="button">Upload synced fit file</button>
+        </div>
+        <input id="fitSyncedUploadInput" type="file" accept=".json,.ipsync" style="display:none;">
+      </div>
+      <div class="fit-field">
+        <label for="fitMetricSelect">FIT Metric</label>
+        <select id="fitMetricSelect" disabled>
+          <option value="">Select metric</option>
+        </select>
+      </div>
+    </div>
+    <div class="fit-assignment-layout">
+      <div class="fit-assignment-card">
+        <h4>Unassigned FIT files</h4>
+        <div id="fitUnassignedList" class="fit-dropzone" data-drop-target="unassigned">
+          <span class="fit-slot-placeholder">Drop FIT files here to unassign.</span>
+        </div>
+      </div>
+      <div class="fit-assignment-card">
+        <h4>Rider FIT assignment</h4>
+        <div class="fit-slot">
+          <div class="fit-slot-title" id="fitSlotTitle0">Rider</div>
+          <div id="fitRiderSlot0" class="fit-dropzone" data-drop-target="rider" data-rider-index="0"></div>
+        </div>
+      </div>
+    </div>
   </section>
 
   <div id="reportModal" class="modal-overlay" aria-hidden="true">
