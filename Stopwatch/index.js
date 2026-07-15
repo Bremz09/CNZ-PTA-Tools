@@ -9,6 +9,11 @@ const resetBtn = document.getElementById("resetBtn");
 const exportBtn = document.getElementById("exportBtn");
 const targetToggle = document.getElementById("targetToggle");
 const targetInput = document.getElementById("targetInput");
+const targetPanel = document.querySelector(".target-panel");
+const overlayMeasureCanvas = document.createElement("canvas");
+const overlayMeasureContext = overlayMeasureCanvas.getContext("2d");
+
+const SAFE_ZONE_BUFFER_PX = 16;
 
 let timer = null;
 let startTime = 0;
@@ -17,6 +22,95 @@ let isRunning = false;
 let lastLapElapsed = 0;
 let overlayTimer = null;
 let targetEnabled = false;
+
+function buildCanvasFont(fontSizePx) {
+  const computed = window.getComputedStyle(lapOverlayTime);
+  const fontStyle = computed.fontStyle || "normal";
+  const fontWeight = computed.fontWeight || "700";
+  const fontFamily = computed.fontFamily || "sans-serif";
+  return `${fontStyle} ${fontWeight} ${fontSizePx}px ${fontFamily}`;
+}
+
+function getLineHeightPixels(fontSizePx) {
+  const computed = window.getComputedStyle(lapOverlayTime);
+  const lineHeightRaw = computed.lineHeight;
+
+  if (lineHeightRaw.endsWith("px")) {
+    const parsedPx = Number.parseFloat(lineHeightRaw);
+    return Number.isFinite(parsedPx) ? parsedPx : fontSizePx;
+  }
+
+  const unitless = Number.parseFloat(lineHeightRaw);
+  if (Number.isFinite(unitless)) {
+    return unitless * fontSizePx;
+  }
+
+  return fontSizePx;
+}
+
+function doesOverlayTextFit(text, fontSizePx, maxWidthPx, maxHeightPx) {
+  if (!overlayMeasureContext) {
+    return true;
+  }
+
+  overlayMeasureContext.font = buildCanvasFont(fontSizePx);
+  const measuredWidth = overlayMeasureContext.measureText(text).width;
+  const measuredHeight = getLineHeightPixels(fontSizePx);
+
+  return measuredWidth <= maxWidthPx && measuredHeight <= maxHeightPx;
+}
+
+function fitLapOverlayTextToViewport() {
+  if (!lapOverlayTime.textContent) {
+    return;
+  }
+
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const computed = window.getComputedStyle(lapOverlayTime);
+  const paddingX = Number.parseFloat(computed.paddingLeft) + Number.parseFloat(computed.paddingRight);
+  const paddingY = Number.parseFloat(computed.paddingTop) + Number.parseFloat(computed.paddingBottom);
+  const maxWidthPx = Math.max(24, viewportWidth - paddingX - 8);
+  const maxHeightPx = Math.max(24, viewportHeight - paddingY - 8);
+
+  const text = lapOverlayTime.textContent.trim();
+  let low = 16;
+  let high = Math.max(16, Math.floor(viewportHeight * 1.2));
+  let best = 16;
+
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+
+    if (doesOverlayTextFit(text, mid, maxWidthPx, maxHeightPx)) {
+      best = mid;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  lapOverlayTime.style.fontSize = `${best}px`;
+}
+
+function pointInsideBufferedRect(clientX, clientY, element, bufferPx) {
+  if (!element) {
+    return false;
+  }
+
+  const rect = element.getBoundingClientRect();
+  return (
+    clientX >= rect.left - bufferPx &&
+    clientX <= rect.right + bufferPx &&
+    clientY >= rect.top - bufferPx &&
+    clientY <= rect.bottom + bufferPx
+  );
+}
+
+function isInTapSafeZone(event) {
+  const { clientX, clientY } = event;
+
+  return pointInsideBufferedRect(clientX, clientY, targetPanel, SAFE_ZONE_BUFFER_PX);
+}
 
 function setStatus() {
   if (isRunning) {
@@ -43,6 +137,9 @@ function showLapOverlay(value, state) {
 
   lapOverlay.classList.add("is-visible");
   lapOverlay.setAttribute("aria-hidden", "false");
+  requestAnimationFrame(() => {
+    fitLapOverlayTextToViewport();
+  });
 
   clearTimeout(overlayTimer);
   overlayTimer = setTimeout(() => {
@@ -103,15 +200,8 @@ function update() {
 }
 
 function formatTime(ms) {
-  let minutes = Math.floor((ms / (1000 * 60)) % 60);
-  let seconds = Math.floor((ms / 1000) % 60);
-  let milliseconds = Math.floor((ms % 1000) / 10);
-
-  minutes = String(minutes).padStart(2, "0");
-  seconds = String(seconds).padStart(2, "0");
-  milliseconds = String(milliseconds).padStart(2, "0");
-
-  return `${minutes}:${seconds}:${milliseconds}`;
+  const totalSeconds = ms / 1000;
+  return totalSeconds.toFixed(2);
 }
 
 function formatLapOverlayTime(ms) {
@@ -173,7 +263,9 @@ function recordLap() {
 
 function exportLapTimes() {
   const lapEntries = Array.from(lapContainer.children).reverse().map(entry => {
-    return `${entry.dataset.lapNumber},${entry.dataset.lapTime}`;
+    const lapTimeFloat = Number.parseFloat(entry.dataset.lapTime ?? "0");
+    const normalizedLapTime = Number.isFinite(lapTimeFloat) ? lapTimeFloat : 0;
+    return `${entry.dataset.lapNumber},${normalizedLapTime}`;
   });
 
   const csvContent = "Lap Number,Time\n" + lapEntries.join("\n");
@@ -190,8 +282,8 @@ document.addEventListener("DOMContentLoaded", () => {
     targetInput.disabled = !targetEnabled;
   });
 
-  targetInput.addEventListener("input", () => {
-    if (targetInput.value === "") {
+  targetInput.addEventListener("blur", () => {
+    if (targetInput.value.trim() === "") {
       targetInput.value = "0";
     }
   });
@@ -217,7 +309,25 @@ document.addEventListener("DOMContentLoaded", () => {
     exportLapTimes();
   });
 
+  const handleViewportResize = () => {
+    if (!lapOverlay.classList.contains("is-visible")) {
+      return;
+    }
+
+    fitLapOverlayTextToViewport();
+  };
+
+  window.addEventListener("resize", handleViewportResize);
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", handleViewportResize);
+  }
+
   document.addEventListener("pointerup", (event) => {
+    if (isInTapSafeZone(event)) {
+      return;
+    }
+
     if (event.target.closest("#controls")) {
       return;
     }

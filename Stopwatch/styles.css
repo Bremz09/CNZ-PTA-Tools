@@ -123,6 +123,7 @@ body {
   -webkit-backdrop-filter: blur(10px);
 }
 
+
 .target-toggle {
   display: flex;
   align-items: center;
@@ -300,12 +301,15 @@ body {
 .lap-overlay-time {
   width: 100%;
   padding: 0 4vw;
-  font-size: clamp(16rem, 52vw, 42rem);
-  line-height: 0.8;
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-weight: 800;
+  font-size: clamp(13rem, 58vw, 48rem);
+  line-height: 0.72;
+  font-family: "Avenir Next Condensed", "Roboto Condensed", "Arial Narrow", "Helvetica Neue", sans-serif;
+  font-weight: 1600;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
+  display: inline-block;
+  white-space: nowrap;
+
   color: #ffffff;
   text-shadow: none;
 }
