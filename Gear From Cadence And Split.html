@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gear Finder</title>
+  <link rel="stylesheet" href="theme.css" />
+  <style>
+    .helper-text {
+      margin-top: 6px;
+      color: var(--color-text-muted);
+      font-size: 0.9rem;
+    }
+
+    .results-stack {
+      display: grid;
+      gap: 14px;
+    }
+
+    .result-title {
+      margin: 0 0 8px;
+      font-size: 1.05rem;
+      color: var(--color-brand-blue);
+    }
+
+    .combo-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.94rem;
+      margin-top: 10px;
+    }
+
+    .combo-table th,
+    .combo-table td {
+      border: 1px solid var(--color-border);
+      padding: 7px 8px;
+      text-align: left;
+    }
+
+    .combo-table th {
+      background: var(--color-surface-alt);
+      color: var(--color-text-secondary);
+    }
+
+    .inline-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .error-box {
+      display: none;
+      margin-bottom: 12px;
+      border: 1px solid #f5c2c7;
+      background: #f8d7da;
+      color: #842029;
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+
+    .summary-line {
+      color: var(--color-text-secondary);
+      font-size: 0.95rem;
+      margin-top: 8px;
+    }
+
+    @media (max-width: 900px) {
+      .inline-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <section class="page-frame">
+
+
+      <div class="page-body">
+        <div class="grid-two">
+          <section class="panel">
+            <h2 class="panel-title">Inputs</h2>
+            <div id="errorBox" class="error-box" role="alert" aria-live="polite"></div>
+
+            <div class="field-group">
+              <div class="field">
+                <label for="splitTime">Lap Split in known air density</label>
+                <input id="splitTime" type="number" min="0" step="0.01" placeholder="e.g. 15.4" />
+              </div>
+
+              <div class="field">
+                <label for="cadence">Ideal Cadence (rpm)</label>
+                <input id="cadence" type="number" min="0" step="0.1" placeholder="e.g. 110" />
+              </div>
+            </div>
+
+            <div class="field-group">
+              <div class="field">
+                <label for="stdAirDensity">Known Air Density (kg/m^3)</label>
+                <input id="stdAirDensity" type="number" min="0" step="0.001" value="1.168" />
+                <p class="helper-text">STD = 1.168</p>
+              </div>
+
+              <div class="field">
+                <label for="airDensity">Target Air Density (kg/m^3)</label>
+                <input id="airDensity" type="number" min="0" step="0.001" value="1.168" />
+                <p class="helper-text">Expected time = known time x (known air density / target air density)^0.3327</p>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <div class="field">
+                <label for="lapDistance">Lap Distance (m)</label>
+                <input id="lapDistance" type="number" min="0" step="0.1" value="250" />
+              </div>
+            </div>
+
+            <div class="field-group">
+              <div class="field">
+                <label for="chainrings">Chainrings (comma-separated)</label>
+                <input id="chainrings" type="text" value="48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66" />
+              </div>
+
+              <div class="field">
+                <label for="cogs">Cogs (comma-separated)</label>
+                <input id="cogs" type="text" value="12,13,14,15,16,17,18" />
+              </div>
+            </div>
+
+            <div class="button-row">
+              <button id="calculateBtn" class="btn-primary" type="button">Calculate</button>
+              <button id="resetBtn" class="btn-secondary" type="button">Reset</button>
+            </div>
+          </section>
+
+          <section class="results-stack">
+            <article class="panel" id="actualPanel">
+              <h2 class="panel-title" id="standardPanelTitle">Gear in known conditions (1.168kg/m^3)</h2>
+              <div class="stat-grid" id="actualStats"></div>
+              <p class="summary-line" id="actualSummary"></p>
+              <div class="table-wrap" id="actualCombosWrap"></div>
+            </article>
+
+            <article class="panel" id="stdPanel">
+              <h2 class="panel-title" id="actualPanelTitle">Gear in target conditions (1.168 kg/m^3)</h2>
+              <div class="stat-grid" id="stdStats"></div>
+              <p class="summary-line" id="stdSummary"></p>
+              <div class="table-wrap" id="stdCombosWrap"></div>
+            </article>
+
+            <article class="panel">
+              <h2 class="panel-title">Difference Summary</h2>
+              <div class="stat-grid" id="deltaStats"></div>
+            </article>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      const STD_EXPONENT = 0.3327;
+      const WHEEL_CIRCUMFERENCE_M = 2.096;
+      const GEAR_INCH_BASE = 27;
+      const MAX_COMBO_RESULTS = 3;
+
+      const el = {
+        splitTime: document.getElementById("splitTime"),
+        cadence: document.getElementById("cadence"),
+        stdAirDensity: document.getElementById("stdAirDensity"),
+        airDensity: document.getElementById("airDensity"),
+        lapDistance: document.getElementById("lapDistance"),
+        chainrings: document.getElementById("chainrings"),
+        cogs: document.getElementById("cogs"),
+        calculateBtn: document.getElementById("calculateBtn"),
+        resetBtn: document.getElementById("resetBtn"),
+        errorBox: document.getElementById("errorBox"),
+        actualStats: document.getElementById("actualStats"),
+        stdStats: document.getElementById("stdStats"),
+        deltaStats: document.getElementById("deltaStats"),
+        actualSummary: document.getElementById("actualSummary"),
+        stdSummary: document.getElementById("stdSummary"),
+        actualCombosWrap: document.getElementById("actualCombosWrap"),
+        stdCombosWrap: document.getElementById("stdCombosWrap"),
+        standardPanelTitle: document.getElementById("standardPanelTitle"),
+        actualPanelTitle: document.getElementById("actualPanelTitle")
+      };
+
+      function num(value) {
+        return Number(value);
+      }
+
+      function isPositiveFinite(value) {
+        return Number.isFinite(value) && value > 0;
+      }
+
+      function parseGearList(input) {
+        return input
+          .split(",")
+          .map((part) => Number(part.trim()))
+          .filter((n) => Number.isFinite(n) && n > 0)
+          .map((n) => Math.round(n));
+      }
+
+      function uniqueSorted(values) {
+        return Array.from(new Set(values)).sort((a, b) => a - b);
+      }
+
+      function fmt(value, digits) {
+        return value.toFixed(digits);
+      }
+
+      function showError(message) {
+        el.errorBox.textContent = message;
+        el.errorBox.style.display = "block";
+      }
+
+      function clearError() {
+        el.errorBox.textContent = "";
+        el.errorBox.style.display = "none";
+      }
+
+      function buildStatCard(label, value) {
+        const card = document.createElement("div");
+        card.className = "stat-card";
+
+        const labelDiv = document.createElement("div");
+        labelDiv.className = "stat-label";
+        labelDiv.textContent = label;
+
+        const valueDiv = document.createElement("div");
+        valueDiv.className = "stat-value";
+        valueDiv.textContent = value;
+
+        card.appendChild(labelDiv);
+        card.appendChild(valueDiv);
+        return card;
+      }
+
+      function renderStats(container, stats) {
+        container.innerHTML = "";
+        stats.forEach((item) => container.appendChild(buildStatCard(item.label, item.value)));
+      }
+
+      function computeActualTimeFromStandard(stdTimeSec, stdAirDensity, targetAirDensity) {
+        return stdTimeSec / Math.pow(stdAirDensity / targetAirDensity, STD_EXPONENT);
+      }
+
+      function computeGearFromSplit(splitTimeSec, cadenceRpm, lapDistanceM) {
+        const crankRevs = (cadenceRpm / 60) * splitTimeSec;
+        const developmentMPerRev = lapDistanceM / crankRevs;
+        const ratio = developmentMPerRev / WHEEL_CIRCUMFERENCE_M;
+        const gearInches = ratio * GEAR_INCH_BASE;
+
+        return {
+          splitTimeSec,
+          cadenceRpm,
+          lapDistanceM,
+          crankRevs,
+          developmentMPerRev,
+          ratio,
+          gearInches
+        };
+      }
+
+      function rankCombos(targetRatio, chainrings, cogs) {
+        const combos = [];
+
+        chainrings.forEach((ring) => {
+          cogs.forEach((cog) => {
+            const ratio = ring / cog;
+            const errorAbs = Math.abs(ratio - targetRatio);
+            const errorPct = (errorAbs / targetRatio) * 100;
+            combos.push({
+              ring,
+              cog,
+              ratio,
+              errorAbs,
+              errorPct,
+              gearInches: ratio * GEAR_INCH_BASE
+            });
+          });
+        });
+
+        combos.sort((a, b) => {
+          if (a.errorAbs !== b.errorAbs) return a.errorAbs - b.errorAbs;
+          if (a.ring !== b.ring) return a.ring - b.ring;
+          return a.cog - b.cog;
+        });
+
+        return combos.slice(0, MAX_COMBO_RESULTS);
+      }
+
+      function renderComboTable(container, combos) {
+        container.innerHTML = "";
+
+        if (!combos.length) {
+          container.textContent = "No valid drivetrain combos available.";
+          return;
+        }
+
+        const table = document.createElement("table");
+        table.className = "combo-table";
+
+        const thead = document.createElement("thead");
+        thead.innerHTML = "<tr><th>Combo</th><th>Ratio</th><th>Gear Inches</th><th>Abs Error</th><th>Error %</th></tr>";
+        table.appendChild(thead);
+
+        const tbody = document.createElement("tbody");
+        combos.forEach((row) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = ""
+            + "<td>" + row.ring + " x " + row.cog + "</td>"
+            + "<td>" + fmt(row.ratio, 3) + "</td>"
+            + "<td>" + fmt(row.gearInches, 2) + "</td>"
+            + "<td>" + fmt(row.errorAbs, 3) + "</td>"
+            + "<td>" + fmt(row.errorPct, 2) + "%</td>";
+          tbody.appendChild(tr);
+        });
+
+        table.appendChild(tbody);
+        container.appendChild(table);
+      }
+
+      function collectInputs() {
+        const splitTime = num(el.splitTime.value);
+        const cadence = num(el.cadence.value);
+        const stdAirDensity = num(el.stdAirDensity.value);
+        const airDensity = num(el.airDensity.value);
+        const lapDistance = num(el.lapDistance.value);
+        const chainrings = uniqueSorted(parseGearList(el.chainrings.value));
+        const cogs = uniqueSorted(parseGearList(el.cogs.value));
+
+        if (!isPositiveFinite(splitTime)) {
+          throw new Error("Enter a valid lap split greater than 0 seconds.");
+        }
+
+        if (!isPositiveFinite(cadence)) {
+          throw new Error("Enter a valid cadence greater than 0 rpm.");
+        }
+
+        if (!isPositiveFinite(stdAirDensity)) {
+          throw new Error("Enter a valid STD air density greater than 0.");
+        }
+
+        if (!isPositiveFinite(airDensity)) {
+          throw new Error("Enter a valid target air density greater than 0.");
+        }
+
+        if (!isPositiveFinite(lapDistance)) {
+          throw new Error("Enter a valid lap distance greater than 0 meters.");
+        }
+
+        if (!chainrings.length) {
+          throw new Error("Provide at least one valid chainring value.");
+        }
+
+        if (!cogs.length) {
+          throw new Error("Provide at least one valid cog value.");
+        }
+
+        return {
+          splitTime,
+          cadence,
+          stdAirDensity,
+          airDensity,
+          lapDistance,
+          chainrings,
+          cogs
+        };
+      }
+
+      function calculateAndRender() {
+        clearError();
+
+        try {
+          const input = collectInputs();
+          const standardTime = input.splitTime;
+          const actualTime = computeActualTimeFromStandard(standardTime, input.stdAirDensity, input.airDensity);
+
+          const standardGear = computeGearFromSplit(standardTime, input.cadence, input.lapDistance);
+          const actualGear = computeGearFromSplit(actualTime, input.cadence, input.lapDistance);
+
+          const standardCombos = rankCombos(standardGear.ratio, input.chainrings, input.cogs);
+          const actualCombos = rankCombos(actualGear.ratio, input.chainrings, input.cogs);
+
+          el.standardPanelTitle.textContent = "Gear in known conditions (" + fmt(input.stdAirDensity, 3) + "kg/m^3)";
+          el.actualPanelTitle.textContent = "Gear in target conditions (" + fmt(input.airDensity, 3) + " kg/m^3)";
+
+          renderStats(el.actualStats, [
+            { label: "Time Used", value: fmt(standardGear.splitTimeSec, 3) + " s" },
+            { label: "Ideal Gear Ratio", value: fmt(standardGear.ratio, 3) + ":1" },
+            { label: "Ideal Gear Inches", value: fmt(standardGear.gearInches, 2) + " in" },
+            { label: "Development", value: fmt(standardGear.developmentMPerRev, 3) + " m/rev" }
+          ]);
+
+          renderStats(el.stdStats, [
+            { label: "Time Used", value: fmt(actualGear.splitTimeSec, 3) + " s" },
+            { label: "Ideal Gear Ratio", value: fmt(actualGear.ratio, 3) + ":1" },
+            { label: "Ideal Gear Inches", value: fmt(actualGear.gearInches, 2) + " in" },
+            { label: "Development", value: fmt(actualGear.developmentMPerRev, 3) + " m/rev" }
+          ]);
+
+          const deltaTime = actualGear.splitTimeSec - standardGear.splitTimeSec;
+          const deltaRatio = actualGear.ratio - standardGear.ratio;
+          const deltaInches = actualGear.gearInches - standardGear.gearInches;
+
+          renderStats(el.deltaStats, [
+            { label: "Actual - Standard Time", value: fmt(deltaTime, 3) + " s" },
+            { label: "Actual - Standard Ratio", value: fmt(deltaRatio, 3) },
+            { label: "Actual - Standard Gear Inches", value: fmt(deltaInches, 2) + " in" }
+          ]);
+
+          const timeFactor = Math.pow(input.stdAirDensity / input.airDensity, STD_EXPONENT);
+          el.actualSummary.textContent = "Entered split is treated as known-condition time at " + fmt(input.stdAirDensity, 3) + "kg/m^3.";
+          el.stdSummary.textContent = "Target-condition time derived as known-condition time / " + fmt(timeFactor, 5) + " at air density " + fmt(input.airDensity, 3) + ".";
+
+          renderComboTable(el.actualCombosWrap, standardCombos);
+          renderComboTable(el.stdCombosWrap, actualCombos);
+        } catch (error) {
+          showError(error.message || "Unable to calculate. Check your inputs.");
+        }
+      }
+
+      function resetAll() {
+        el.splitTime.value = "";
+        el.cadence.value = "";
+        el.stdAirDensity.value = "1.168";
+        el.airDensity.value = "1.168";
+        el.lapDistance.value = "250";
+        el.chainrings.value = "48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66";
+        el.cogs.value = "12,13,14,15,16,17,18";
+
+        clearError();
+        el.actualStats.innerHTML = "";
+        el.stdStats.innerHTML = "";
+        el.deltaStats.innerHTML = "";
+        el.actualSummary.textContent = "";
+        el.stdSummary.textContent = "";
+        el.actualCombosWrap.innerHTML = "";
+        el.stdCombosWrap.innerHTML = "";
+      }
+
+      el.calculateBtn.addEventListener("click", calculateAndRender);
+      el.resetBtn.addEventListener("click", resetAll);
+    })();
+  </script>
+</body>
+</html>
