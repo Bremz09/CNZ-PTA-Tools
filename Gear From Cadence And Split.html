@@ -6,6 +6,37 @@
   <title>Gear Finder</title>
   <link rel="stylesheet" href="theme.css" />
   <style>
+    .tab-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .tab-btn {
+      border: 1px solid var(--color-border);
+      background: var(--color-surface-alt);
+      color: var(--color-text-primary);
+      border-radius: 999px;
+      padding: 8px 14px;
+      cursor: pointer;
+      font: inherit;
+    }
+
+    .tab-btn[aria-selected="true"] {
+      background: var(--color-brand-blue);
+      color: #fff;
+      border-color: var(--color-brand-blue);
+    }
+
+    .tab-panel {
+      display: none;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
     .helper-text {
       margin-top: 6px;
       color: var(--color-text-muted);
@@ -64,8 +95,51 @@
       margin-top: 8px;
     }
 
+    .video-layout {
+      display: grid;
+      grid-template-columns: minmax(320px, 1.2fr) minmax(260px, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    .video-player {
+      width: 100%;
+      max-height: 520px;
+      background: #000;
+      border-radius: 10px;
+    }
+
+    .video-controls-inline {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 10px;
+    }
+
+    .video-time {
+      color: var(--color-text-secondary);
+      font-size: 0.95rem;
+      margin-top: 10px;
+    }
+
+    .marking-stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .mini-stat {
+      margin-top: 8px;
+      color: var(--color-text-secondary);
+      font-size: 0.94rem;
+    }
+
     @media (max-width: 900px) {
       .inline-row {
+        grid-template-columns: 1fr;
+      }
+
+      .video-layout {
         grid-template-columns: 1fr;
       }
     }
@@ -74,85 +148,168 @@
 <body>
   <main class="page-shell">
     <section class="page-frame">
-
-
       <div class="page-body">
-        <div class="grid-two">
-          <section class="panel">
-            <h2 class="panel-title">Inputs</h2>
-            <div id="errorBox" class="error-box" role="alert" aria-live="polite"></div>
+        <div class="tab-nav" role="tablist" aria-label="Gear finder tabs">
+          <button class="tab-btn" id="tabBtnMain" role="tab" aria-selected="true" aria-controls="tabMain" type="button">From Cadence + Split</button>
+          <button class="tab-btn" id="tabBtnVideo" role="tab" aria-selected="false" aria-controls="tabVideo" type="button">From Video</button>
+        </div>
 
-            <div class="field-group">
-              <div class="field">
-                <label for="splitTime">Lap Split in known air density</label>
-                <input id="splitTime" type="number" min="0" step="0.01" placeholder="e.g. 15.4" />
+        <section id="tabMain" class="tab-panel active" role="tabpanel" aria-labelledby="tabBtnMain">
+          <div class="grid-two">
+            <section class="panel">
+              <h2 class="panel-title">Inputs</h2>
+              <div id="errorBox" class="error-box" role="alert" aria-live="polite"></div>
+
+              <div class="field-group">
+                <div class="field">
+                  <label for="splitTime">Lap Split in known air density</label>
+                  <input id="splitTime" type="number" min="0" step="0.01" placeholder="e.g. 15.4" />
+                </div>
+
+                <div class="field">
+                  <label for="cadence">Ideal Cadence (rpm)</label>
+                  <input id="cadence" type="number" min="0" step="0.1" placeholder="e.g. 110" />
+                </div>
               </div>
 
-              <div class="field">
-                <label for="cadence">Ideal Cadence (rpm)</label>
-                <input id="cadence" type="number" min="0" step="0.1" placeholder="e.g. 110" />
+              <div class="field-group">
+                <div class="field">
+                  <label for="stdAirDensity">Known Air Density (kg/m^3)</label>
+                  <input id="stdAirDensity" type="number" min="0" step="0.001" value="1.168" />
+                  <p class="helper-text">STD = 1.168</p>
+                </div>
+
+                <div class="field">
+                  <label for="airDensity">Target Air Density (kg/m^3)</label>
+                  <input id="airDensity" type="number" min="0" step="0.001" value="1.168" />
+                  <p class="helper-text">Expected time = known time x (known air density / target air density)^0.3327</p>
+                </div>
+              </div>
+
+              <div class="field-group">
+                <div class="field">
+                  <label for="lapDistance">Lap Distance (m)</label>
+                  <input id="lapDistance" type="number" min="0" step="0.1" value="250" />
+                </div>
+              </div>
+
+              <div class="field-group">
+                <div class="field">
+                  <label for="chainrings">Chainrings (comma-separated)</label>
+                  <input id="chainrings" type="text" value="48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66" />
+                </div>
+
+                <div class="field">
+                  <label for="cogs">Cogs (comma-separated)</label>
+                  <input id="cogs" type="text" value="12,13,14,15,16,17,18" />
+                </div>
+              </div>
+
+              <div class="button-row">
+                <button id="calculateBtn" class="btn-primary" type="button">Calculate</button>
+                <button id="resetBtn" class="btn-secondary" type="button">Reset</button>
+              </div>
+            </section>
+
+            <section class="results-stack">
+              <article class="panel" id="actualPanel">
+                <h2 class="panel-title" id="standardPanelTitle">Gear in known conditions (1.168kg/m^3)</h2>
+                <div class="stat-grid" id="actualStats"></div>
+                <p class="summary-line" id="actualSummary"></p>
+                <div class="table-wrap" id="actualCombosWrap"></div>
+              </article>
+
+              <article class="panel" id="stdPanel">
+                <h2 class="panel-title" id="actualPanelTitle">Gear in target conditions (1.168 kg/m^3)</h2>
+                <div class="stat-grid" id="stdStats"></div>
+                <p class="summary-line" id="stdSummary"></p>
+                <div class="table-wrap" id="stdCombosWrap"></div>
+              </article>
+
+              <article class="panel">
+                <h2 class="panel-title">Difference Summary</h2>
+                <div class="stat-grid" id="deltaStats"></div>
+              </article>
+            </section>
+          </div>
+        </section>
+
+        <section id="tabVideo" class="tab-panel" role="tabpanel" aria-labelledby="tabBtnVideo">
+          <div class="panel">
+            <h2 class="panel-title">Gear From Video</h2>
+            <div id="videoErrorBox" class="error-box" role="alert" aria-live="polite"></div>
+
+            <div class="video-layout">
+              <div>
+                <div class="field-group">
+                  <div class="field">
+                    <label for="videoInput">Upload Video</label>
+                    <input id="videoInput" type="file" accept="video/mp4,video/quicktime" />
+                  </div>
+                  <div class="field">
+                    <label for="fpsInput">FPS</label>
+                    <input id="fpsInput" type="number" min="1" max="240" step="1" value="50" />
+                  </div>
+                </div>
+
+                <video id="video" class="video-player" controls style="display:none;"></video>
+
+                <div class="video-controls-inline">
+                  <button id="prevFrame" class="btn-secondary" type="button">Previous Frame</button>
+                  <button id="nextFrame" class="btn-secondary" type="button">Next Frame</button>
+                  <label>
+                    <input id="halfSpeedToggle" type="checkbox" />
+                    Play at 0.5x
+                  </label>
+                </div>
+
+                <p class="video-time">Current Time: <strong><span id="currentTime">0.00</span>s</strong></p>
+                <p class="helper-text">Hotkeys: Left/Right arrows step one frame backward/forward.</p>
+              </div>
+
+              <div class="marking-stack">
+                <div class="panel">
+                  <h3 class="result-title">Speed Marks</h3>
+                  <div class="field-group">
+                    <div class="field">
+                      <label for="lineDistance">Distance Between Lines (m)</label>
+                      <input id="lineDistance" type="number" min="0" step="0.1" value="125" />
+                    </div>
+                  </div>
+                  <div class="button-row">
+                    <button id="markLine1Btn" class="btn-secondary" type="button">Mark Line 1</button>
+                    <button id="markLine2Btn" class="btn-secondary" type="button">Mark Line 2</button>
+                  </div>
+                  <div class="mini-stat" id="lineMarksSummary">Line 1: -, Line 2: -, Duration: -, Speed: -</div>
+                </div>
+
+                <div class="panel">
+                  <h3 class="result-title">Cadence Marks</h3>
+                  <div class="field-group">
+                    <div class="field">
+                      <label for="revCount">Number of Revs</label>
+                      <input id="revCount" type="number" min="0" step="0.01" placeholder="e.g. 5" />
+                    </div>
+                  </div>
+                  <div class="button-row">
+                    <button id="markRevStartBtn" class="btn-secondary" type="button">Mark Revs Start</button>
+                    <button id="markRevEndBtn" class="btn-secondary" type="button">Mark Revs End</button>
+                  </div>
+                  <div class="mini-stat" id="revMarksSummary">Start: -, End: -, Duration: -, Revs/s: -</div>
+                </div>
+
+                <div class="panel">
+                  <h3 class="result-title">Gear Result</h3>
+                  <div class="button-row">
+                    <button id="calculateVideoGearBtn" class="btn-primary" type="button">Calculate Gear</button>
+                    <button id="resetVideoMarksBtn" class="btn-secondary" type="button">Reset Marks</button>
+                  </div>
+                  <div class="stat-grid" id="videoGearStats"></div>
+                </div>
               </div>
             </div>
-
-            <div class="field-group">
-              <div class="field">
-                <label for="stdAirDensity">Known Air Density (kg/m^3)</label>
-                <input id="stdAirDensity" type="number" min="0" step="0.001" value="1.168" />
-                <p class="helper-text">STD = 1.168</p>
-              </div>
-
-              <div class="field">
-                <label for="airDensity">Target Air Density (kg/m^3)</label>
-                <input id="airDensity" type="number" min="0" step="0.001" value="1.168" />
-                <p class="helper-text">Expected time = known time x (known air density / target air density)^0.3327</p>
-              </div>
-            </div>
-
-            <div class="field-group">
-              <div class="field">
-                <label for="lapDistance">Lap Distance (m)</label>
-                <input id="lapDistance" type="number" min="0" step="0.1" value="250" />
-              </div>
-            </div>
-
-            <div class="field-group">
-              <div class="field">
-                <label for="chainrings">Chainrings (comma-separated)</label>
-                <input id="chainrings" type="text" value="48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66" />
-              </div>
-
-              <div class="field">
-                <label for="cogs">Cogs (comma-separated)</label>
-                <input id="cogs" type="text" value="12,13,14,15,16,17,18" />
-              </div>
-            </div>
-
-            <div class="button-row">
-              <button id="calculateBtn" class="btn-primary" type="button">Calculate</button>
-              <button id="resetBtn" class="btn-secondary" type="button">Reset</button>
-            </div>
-          </section>
-
-          <section class="results-stack">
-            <article class="panel" id="actualPanel">
-              <h2 class="panel-title" id="standardPanelTitle">Gear in known conditions (1.168kg/m^3)</h2>
-              <div class="stat-grid" id="actualStats"></div>
-              <p class="summary-line" id="actualSummary"></p>
-              <div class="table-wrap" id="actualCombosWrap"></div>
-            </article>
-
-            <article class="panel" id="stdPanel">
-              <h2 class="panel-title" id="actualPanelTitle">Gear in target conditions (1.168 kg/m^3)</h2>
-              <div class="stat-grid" id="stdStats"></div>
-              <p class="summary-line" id="stdSummary"></p>
-              <div class="table-wrap" id="stdCombosWrap"></div>
-            </article>
-
-            <article class="panel">
-              <h2 class="panel-title">Difference Summary</h2>
-              <div class="stat-grid" id="deltaStats"></div>
-            </article>
-          </section>
+          </div>
+        </section>
         </div>
       </div>
     </section>
@@ -166,6 +323,10 @@
       const MAX_COMBO_RESULTS = 3;
 
       const el = {
+        tabBtnMain: document.getElementById("tabBtnMain"),
+        tabBtnVideo: document.getElementById("tabBtnVideo"),
+        tabMain: document.getElementById("tabMain"),
+        tabVideo: document.getElementById("tabVideo"),
         splitTime: document.getElementById("splitTime"),
         cadence: document.getElementById("cadence"),
         stdAirDensity: document.getElementById("stdAirDensity"),
@@ -184,7 +345,34 @@
         actualCombosWrap: document.getElementById("actualCombosWrap"),
         stdCombosWrap: document.getElementById("stdCombosWrap"),
         standardPanelTitle: document.getElementById("standardPanelTitle"),
-        actualPanelTitle: document.getElementById("actualPanelTitle")
+        actualPanelTitle: document.getElementById("actualPanelTitle"),
+
+        videoErrorBox: document.getElementById("videoErrorBox"),
+        videoInput: document.getElementById("videoInput"),
+        video: document.getElementById("video"),
+        fpsInput: document.getElementById("fpsInput"),
+        prevFrame: document.getElementById("prevFrame"),
+        nextFrame: document.getElementById("nextFrame"),
+        halfSpeedToggle: document.getElementById("halfSpeedToggle"),
+        currentTime: document.getElementById("currentTime"),
+        lineDistance: document.getElementById("lineDistance"),
+        markLine1Btn: document.getElementById("markLine1Btn"),
+        markLine2Btn: document.getElementById("markLine2Btn"),
+        lineMarksSummary: document.getElementById("lineMarksSummary"),
+        revCount: document.getElementById("revCount"),
+        markRevStartBtn: document.getElementById("markRevStartBtn"),
+        markRevEndBtn: document.getElementById("markRevEndBtn"),
+        revMarksSummary: document.getElementById("revMarksSummary"),
+        calculateVideoGearBtn: document.getElementById("calculateVideoGearBtn"),
+        resetVideoMarksBtn: document.getElementById("resetVideoMarksBtn"),
+        videoGearStats: document.getElementById("videoGearStats")
+      };
+
+      const videoState = {
+        line1: null,
+        line2: null,
+        revStart: null,
+        revEnd: null
       };
 
       function num(value) {
@@ -216,9 +404,19 @@
         el.errorBox.style.display = "block";
       }
 
+      function showVideoError(message) {
+        el.videoErrorBox.textContent = message;
+        el.videoErrorBox.style.display = "block";
+      }
+
       function clearError() {
         el.errorBox.textContent = "";
         el.errorBox.style.display = "none";
+      }
+
+      function clearVideoError() {
+        el.videoErrorBox.textContent = "";
+        el.videoErrorBox.style.display = "none";
       }
 
       function buildStatCard(label, value) {
@@ -442,8 +640,220 @@
         el.stdCombosWrap.innerHTML = "";
       }
 
+      function setActiveTab(tabName) {
+        const isMain = tabName === "main";
+        el.tabBtnMain.setAttribute("aria-selected", isMain ? "true" : "false");
+        el.tabBtnVideo.setAttribute("aria-selected", isMain ? "false" : "true");
+        el.tabMain.classList.toggle("active", isMain);
+        el.tabVideo.classList.toggle("active", !isMain);
+      }
+
+      function getFrameDuration() {
+        const fps = Number(el.fpsInput.value);
+        const safeFps = Number.isFinite(fps) && fps > 0 ? fps : 50;
+        return 1 / safeFps;
+      }
+
+      function stepVideoByFrames(frameCount) {
+        const frameDuration = getFrameDuration();
+        el.video.pause();
+        const nextTime = el.video.currentTime + frameDuration * frameCount;
+        const maxTime = Number.isFinite(el.video.duration) ? el.video.duration : Number.MAX_SAFE_INTEGER;
+        el.video.currentTime = Math.max(0, Math.min(maxTime, nextTime));
+      }
+
+      function updateLineSummary() {
+        const line1Text = videoState.line1 === null ? "-" : fmt(videoState.line1, 3) + "s";
+        const line2Text = videoState.line2 === null ? "-" : fmt(videoState.line2, 3) + "s";
+
+        let durationText = "-";
+        let speedText = "-";
+        if (videoState.line1 !== null && videoState.line2 !== null && videoState.line2 > videoState.line1) {
+          const duration = videoState.line2 - videoState.line1;
+          const distance = Number(el.lineDistance.value);
+          if (isPositiveFinite(distance)) {
+            durationText = fmt(duration, 3) + "s";
+            speedText = fmt(distance / duration, 3) + " m/s";
+          }
+        }
+
+        el.lineMarksSummary.textContent = "Line 1: " + line1Text + ", Line 2: " + line2Text + ", Duration: " + durationText + ", Speed: " + speedText;
+      }
+
+      function updateRevSummary() {
+        const startText = videoState.revStart === null ? "-" : fmt(videoState.revStart, 3) + "s";
+        const endText = videoState.revEnd === null ? "-" : fmt(videoState.revEnd, 3) + "s";
+
+        let durationText = "-";
+        let revPerSecText = "-";
+        if (videoState.revStart !== null && videoState.revEnd !== null && videoState.revEnd > videoState.revStart) {
+          const duration = videoState.revEnd - videoState.revStart;
+          const revCount = Number(el.revCount.value);
+          if (isPositiveFinite(revCount)) {
+            durationText = fmt(duration, 3) + "s";
+            revPerSecText = fmt(revCount / duration, 3);
+          }
+        }
+
+        el.revMarksSummary.textContent = "Start: " + startText + ", End: " + endText + ", Duration: " + durationText + ", Revs/s: " + revPerSecText;
+      }
+
+      function calculateVideoGear() {
+        clearVideoError();
+
+        try {
+          const distance = Number(el.lineDistance.value);
+          const revCount = Number(el.revCount.value);
+          const chainrings = uniqueSorted(parseGearList(el.chainrings.value));
+          const cogs = uniqueSorted(parseGearList(el.cogs.value));
+
+          if (!isPositiveFinite(distance)) {
+            throw new Error("Enter a valid distance between pursuit lines greater than 0.");
+          }
+
+          if (!isPositiveFinite(revCount)) {
+            throw new Error("Enter a valid number of revs greater than 0.");
+          }
+
+          if (!chainrings.length) {
+            throw new Error("Provide at least one valid chainring value in tab 1.");
+          }
+
+          if (!cogs.length) {
+            throw new Error("Provide at least one valid cog value in tab 1.");
+          }
+
+          if (videoState.line1 === null || videoState.line2 === null || videoState.line2 <= videoState.line1) {
+            throw new Error("Mark Line 1 and Line 2 with Line 2 after Line 1.");
+          }
+
+          if (videoState.revStart === null || videoState.revEnd === null || videoState.revEnd <= videoState.revStart) {
+            throw new Error("Mark Revs Start and Revs End with End after Start.");
+          }
+
+          const lineDuration = videoState.line2 - videoState.line1;
+          const revDuration = videoState.revEnd - videoState.revStart;
+
+          const speedMps = distance / lineDuration;
+          const revPerSec = revCount / revDuration;
+          const developmentMPerRev = speedMps / revPerSec;
+          const ratio = developmentMPerRev / WHEEL_CIRCUMFERENCE_M;
+          const gearInches = ratio * GEAR_INCH_BASE;
+          const nearest = rankCombos(ratio, chainrings, cogs)[0];
+
+          renderStats(el.videoGearStats, [
+            { label: "Speed", value: fmt(speedMps, 3) + " m/s" },
+            { label: "Cadence", value: fmt(revPerSec, 3) + " rev/s" },
+            { label: "Development", value: fmt(developmentMPerRev, 3) + " m/rev" },
+            { label: "Gear Ratio", value: fmt(ratio, 3) + ":1" },
+            { label: "Gear", value: fmt(gearInches, 2) + " in" },
+            { label: "Nearest Combo", value: nearest.ring + " x " + nearest.cog },
+            { label: "Nearest Ratio", value: fmt(nearest.ratio, 3) + ":1" },
+            { label: "Nearest Gear", value: fmt(nearest.gearInches, 2) + " in" }
+          ]);
+        } catch (error) {
+          showVideoError(error.message || "Unable to calculate video gear. Check your marks and inputs.");
+        }
+      }
+
+      function resetVideoMarks() {
+        videoState.line1 = null;
+        videoState.line2 = null;
+        videoState.revStart = null;
+        videoState.revEnd = null;
+
+        el.lineDistance.value = "125";
+        el.revCount.value = "";
+        el.videoGearStats.innerHTML = "";
+        clearVideoError();
+        updateLineSummary();
+        updateRevSummary();
+      }
+
       el.calculateBtn.addEventListener("click", calculateAndRender);
       el.resetBtn.addEventListener("click", resetAll);
+
+      el.tabBtnMain.addEventListener("click", () => setActiveTab("main"));
+      el.tabBtnVideo.addEventListener("click", () => setActiveTab("video"));
+
+      el.videoInput.addEventListener("change", (event) => {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+
+        const url = URL.createObjectURL(file);
+        el.video.src = url;
+        el.video.load();
+        el.video.style.display = "block";
+      });
+
+      el.video.addEventListener("timeupdate", () => {
+        el.currentTime.textContent = fmt(el.video.currentTime || 0, 2);
+      });
+
+      el.prevFrame.addEventListener("click", () => stepVideoByFrames(-1));
+      el.nextFrame.addEventListener("click", () => stepVideoByFrames(1));
+
+      el.halfSpeedToggle.addEventListener("change", () => {
+        el.video.playbackRate = el.halfSpeedToggle.checked ? 0.5 : 1;
+      });
+
+      el.markLine1Btn.addEventListener("click", () => {
+        clearVideoError();
+        videoState.line1 = el.video.currentTime;
+        updateLineSummary();
+      });
+
+      el.markLine2Btn.addEventListener("click", () => {
+        clearVideoError();
+        videoState.line2 = el.video.currentTime;
+        updateLineSummary();
+      });
+
+      el.markRevStartBtn.addEventListener("click", () => {
+        clearVideoError();
+        videoState.revStart = el.video.currentTime;
+        updateRevSummary();
+      });
+
+      el.markRevEndBtn.addEventListener("click", () => {
+        clearVideoError();
+        videoState.revEnd = el.video.currentTime;
+        updateRevSummary();
+      });
+
+      el.lineDistance.addEventListener("input", updateLineSummary);
+      el.revCount.addEventListener("input", updateRevSummary);
+
+      el.calculateVideoGearBtn.addEventListener("click", calculateVideoGear);
+      el.resetVideoMarksBtn.addEventListener("click", resetVideoMarks);
+
+      function handleVideoFrameHotkeys(event) {
+        if (!el.tabVideo.classList.contains("active")) return;
+
+        const activeElement = document.activeElement;
+        const activeTag = activeElement ? activeElement.tagName : "";
+        const isEditable =
+          activeTag === "INPUT" ||
+          activeTag === "TEXTAREA" ||
+          (activeElement && activeElement.isContentEditable);
+        if (isEditable) return;
+
+        if (event.key === "ArrowRight") {
+          event.preventDefault();
+          event.stopPropagation();
+          stepVideoByFrames(1);
+        } else if (event.key === "ArrowLeft") {
+          event.preventDefault();
+          event.stopPropagation();
+          stepVideoByFrames(-1);
+        }
+      }
+
+      // Capture phase ensures arrows are handled before native video control shortcuts.
+      window.addEventListener("keydown", handleVideoFrameHotkeys, true);
+
+      updateLineSummary();
+      updateRevSummary();
     })();
   </script>
 </body>
