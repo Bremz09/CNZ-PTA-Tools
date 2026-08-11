@@ -117,6 +117,51 @@
       gap: 10px;
       margin-bottom: 12px;
     }
+    .workbook-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .workbook-meta {
+      border: 1px solid #dbe2ea;
+      border-radius: 8px;
+      background: #f8fafc;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      font-size: 13px;
+      color: #334155;
+    }
+    .workbook-meta strong {
+      color: #0f172a;
+    }
+    .workbook-meta-line {
+      margin: 0 0 4px;
+    }
+    .workbook-meta-line:last-child {
+      margin-bottom: 0;
+    }
+    .workbook-meta-message {
+      color: #b45309;
+    }
+    .workbook-meta-message.ok {
+      color: #166534;
+    }
+    .session-picker {
+      margin-bottom: 10px;
+    }
+    .session-picker label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+      color: #334155;
+    }
+    .session-picker select {
+      width: 100%;
+      max-width: 360px;
+      box-sizing: border-box;
+      padding: 6px 8px;
+    }
     .fit-sync-panel {
       margin: 18px 20px 0;
       border: 1px solid #dbe2ea;
@@ -836,6 +881,22 @@
         <button id="snapToStartBtn" type="button" disabled>Snap to start</button>
         <input type="file" id="csvUploadInput" accept=".csv" style="display:none;">
       </div>
+      <div class="workbook-actions">
+        <button id="selectExcelBtn" type="button">Select Excel/CSV file</button>
+        <button id="refreshExcelBtn" type="button" disabled>Refresh data</button>
+        <button id="changeExcelBtn" type="button" disabled>Change Excel/CSV file</button>
+        <button id="clearExcelBtn" type="button" disabled>Clear saved file</button>
+        <input type="file" id="excelWorkbookInput" accept=".xlsx,.xlsm,.xls,.csv,text/csv" style="display:none;">
+      </div>
+      <div id="timingSessionPicker" class="session-picker" hidden>
+        <label for="timingSessionSelect">Race in loaded file</label>
+        <select id="timingSessionSelect"></select>
+      </div>
+      <div id="workbookMeta" class="workbook-meta" hidden>
+        <p class="workbook-meta-line">Saved file: <strong id="workbookMetaName">None</strong></p>
+        <p class="workbook-meta-line">Last imported: <strong id="workbookMetaDate">-</strong></p>
+        <p id="workbookMetaMessage" class="workbook-meta-line workbook-meta-message">No saved file.</p>
+      </div>
 
       <h3 id="reportTitle">Team Pursuit Report</h3>
       <div class="report-table-wrap">
@@ -1115,6 +1176,17 @@
     const createReportBtn = document.getElementById('createReportBtn');
     const snapToStartBtn = document.getElementById('snapToStartBtn');
     const csvUploadInput = document.getElementById('csvUploadInput');
+    const selectExcelBtn = document.getElementById('selectExcelBtn');
+    const refreshExcelBtn = document.getElementById('refreshExcelBtn');
+    const changeExcelBtn = document.getElementById('changeExcelBtn');
+    const clearExcelBtn = document.getElementById('clearExcelBtn');
+    const excelWorkbookInput = document.getElementById('excelWorkbookInput');
+    const timingSessionPicker = document.getElementById('timingSessionPicker');
+    const timingSessionSelect = document.getElementById('timingSessionSelect');
+    const workbookMeta = document.getElementById('workbookMeta');
+    const workbookMetaName = document.getElementById('workbookMetaName');
+    const workbookMetaDate = document.getElementById('workbookMetaDate');
+    const workbookMetaMessage = document.getElementById('workbookMetaMessage');
     const uploadAllBtn = document.getElementById('uploadAllBtn');
     const uploadAllInput = document.getElementById('uploadAllInput');
 
@@ -1228,6 +1300,24 @@
       viewScale: 1,
       dragSensitivity: 0.2
     };
+
+    const defaultPreloadConfig = {
+      data: '',
+      video: '',
+      sync: ''
+    };
+    const WORKBOOK_DB_NAME = 'tp-timing-with-fitfile';
+    const WORKBOOK_DB_VERSION = 1;
+    const WORKBOOK_STORE_NAME = 'appState';
+    const WORKBOOK_RECORD_KEY = 'savedWorkbook';
+    const workbookState = {
+      record: null,
+      fileHandleSupported: typeof window.showOpenFilePicker === 'function',
+      chooserAction: 'select'
+    };
+    const TIMING_CSV_HEADERS = ['Split', 'Athlete In Front', 'Quarter Time (s)', 'Team Speed (km/h)', 'Delivery Speed (km/h)', 'Event', 'splitType', 'endTime', 'frontRiderIndex', 'deliveryAdjusted'];
+    let loadedTimingSessions = [];
+    let activeTimingSessionIndex = -1;
 
     // Each row: { splitType, splitLabel, endTime, frontRiderIndex, quarterTime, teamSpeed, deliverySpeed, eventLabel, deliveryAdjusted }
     const splitRows = [];
@@ -2970,6 +3060,576 @@
       throw new Error('Unable to find a blank row to append into.');
     }
 
+    function parseCsvRow(line) {
+      const cols = [];
+      let current = '';
+      let inQuotes = false;
+      for (const ch of String(line || '')) {
+        if (ch === '"') {
+          inQuotes = !inQuotes;
+        } else if (ch === ',' && !inQuotes) {
+          cols.push(current);
+          current = '';
+        } else {
+          current += ch;
+        }
+      }
+      cols.push(current);
+      return cols;
+    }
+
+    function isTimingHeaderRow(line) {
+      const cols = parseCsvRow(line).map((value) => String(value || '').trim());
+      if (cols.length < TIMING_CSV_HEADERS.length) return false;
+      for (let i = 0; i < TIMING_CSV_HEADERS.length; i++) {
+        if (cols[i] !== TIMING_CSV_HEADERS[i]) return false;
+      }
+      return true;
+    }
+
+    function buildSessionLabel(session, index) {
+      const title = session.title ? session.title.trim() : '';
+      const base = title || `Race ${index + 1}`;
+      if (Number.isFinite(session.startTime)) {
+        return `${base} (${formatTime(session.startTime)}s start)`;
+      }
+      return base;
+    }
+
+    function parseTimingSessionsFromCsvText(text) {
+      const lines = String(text || '').split(/\r?\n/);
+      const rawSessions = [];
+      let currentSession = null;
+      let sharedHeader = null; // reused when header row is not repeated per race
+      let inMetaBlock = false; // true after the first # line in a session
+
+      for (const originalLine of lines) {
+        const line = String(originalLine || '');
+        if (!line.trim()) continue;
+
+        // An explicit column-header row always starts a fresh session.
+        if (isTimingHeaderRow(line)) {
+          if (currentSession && currentSession.dataLines.length > 0) {
+            rawSessions.push(currentSession);
+          }
+          sharedHeader = line;
+          currentSession = { dataLines: [line], metaLines: [] };
+          inMetaBlock = false;
+          continue;
+        }
+
+        if (line.startsWith('# ')) {
+          if (!currentSession) continue;
+          currentSession.metaLines.push(line);
+          inMetaBlock = true; // meta block has started for current session
+          continue;
+        }
+
+        // Data row after a meta block → meta belonged to the previous race,
+        // so start a new session (header row is not repeated in this format).
+        if (inMetaBlock && currentSession && currentSession.dataLines.length > 0) {
+          rawSessions.push(currentSession);
+          currentSession = { dataLines: sharedHeader ? [sharedHeader] : [], metaLines: [] };
+          inMetaBlock = false;
+        }
+
+        if (!currentSession) continue;
+        currentSession.dataLines.push(line);
+      }
+
+      if (currentSession && currentSession.dataLines.length > 0) {
+        rawSessions.push(currentSession);
+      }
+
+      if (rawSessions.length === 0) {
+        throw new Error('CSV columns not recognised.');
+      }
+
+      return rawSessions.map((session, index) => {
+        const header = parseCsvRow(session.dataLines[0]);
+        const col = (name) => header.indexOf(name);
+        const iSplitType = col('splitType');
+        const iEndTime = col('endTime');
+        const iRiderIdx = col('frontRiderIndex');
+        const iAdjusted = col('deliveryAdjusted');
+        const iEvent = col('Event');
+        const iQTime = col('Quarter Time (s)');
+
+        if ([iSplitType, iEndTime, iRiderIdx, iAdjusted, iEvent, iQTime].some((value) => value < 0)) {
+          throw new Error('CSV columns not recognised.');
+        }
+
+        let restoredStartTime = null;
+        let title = '';
+        const riderNames = ['', '', '', ''];
+
+        for (const metaLine of session.metaLines) {
+          const parts = parseCsvRow(metaLine.slice(2));
+          if (parts[0] === 'startTime' && parts[1]) restoredStartTime = parseFloat(parts[1]);
+          if (parts[0] === 'title' || parts[0] === 'country') title = (parts[1] || '').replace(/^"|"$/g, '');
+          riderNames.forEach((_, riderIndex) => {
+            if (parts[0] === `rider${riderIndex + 1}`) riderNames[riderIndex] = (parts[1] || '').replace(/^"|"$/g, '');
+          });
+        }
+
+        const rows = [];
+        for (const line of session.dataLines.slice(1)) {
+          if (!line.trim()) continue;
+          const cols = parseCsvRow(line);
+          const splitType = cols[iSplitType];
+          const endTime = parseFloat(cols[iEndTime]);
+          const frontRiderIndex = parseInt(cols[iRiderIdx], 10);
+          const deliveryAdjusted = cols[iAdjusted] === '1';
+          const eventLabel = cols[iEvent] || 'None';
+          const quarterTime = parseFloat(cols[iQTime]);
+          const teamSpeed = speedFromTime(quarterTime);
+          rows.push({
+            splitType,
+            splitLabel: '',
+            endTime,
+            frontRiderIndex,
+            quarterTime,
+            teamSpeed,
+            deliverySpeed: teamSpeed,
+            eventLabel,
+            deliveryAdjusted
+          });
+        }
+
+        return {
+          index,
+          title,
+          riderNames,
+          startTime: restoredStartTime,
+          rows,
+          label: ''
+        };
+      }).map((session, index) => ({
+        ...session,
+        label: buildSessionLabel(session, index)
+      }));
+    }
+
+    function renderTimingSessionPicker() {
+      if (loadedTimingSessions.length <= 1) {
+        timingSessionPicker.hidden = true;
+        timingSessionSelect.innerHTML = '';
+        return;
+      }
+      timingSessionPicker.hidden = false;
+      timingSessionSelect.innerHTML = loadedTimingSessions
+        .map((session, index) => `<option value="${index}">${session.label}</option>`)
+        .join('');
+      timingSessionSelect.value = String(activeTimingSessionIndex >= 0 ? activeTimingSessionIndex : 0);
+    }
+
+    function restoreTimingSession(session, sessionIndex = 0) {
+      activeTimingSessionIndex = sessionIndex;
+      resetSession();
+      startTime = session.startTime;
+      uploadedCsvStartTime = session.startTime;
+      hasUploadedTimingData = true;
+      updateSnapToStartAvailability();
+
+      countryInput.value = session.title || '';
+      riderInputs.forEach((input, index) => {
+        input.value = session.riderNames[index] || '';
+      });
+
+      for (const row of session.rows) {
+        splitRows.push({ ...row });
+        if (row.splitType === 'TEAM_FINISH') teamFinished = true;
+      }
+
+      lastMarkerTime = splitRows.length > 0
+        ? splitRows[splitRows.length - 1].endTime
+        : startTime;
+
+      replayRiderRotations();
+      renumberRows();
+      updateReport();
+      renderTimingSessionPicker();
+      return splitRows.length;
+    }
+
+    function detectPersistentFileType(fileName = '', mimeType = '') {
+      const lowerName = String(fileName || '').toLowerCase();
+      const lowerMime = String(mimeType || '').toLowerCase();
+      if (lowerName.endsWith('.csv') || lowerMime.includes('text/csv') || lowerMime.includes('csv')) {
+        return 'csv';
+      }
+      return 'workbook';
+    }
+
+    function getPersistentFileLabel(record) {
+      return record && record.fileType === 'csv' ? 'CSV file' : 'workbook';
+    }
+
+    function formatWorkbookDate(value) {
+      if (!value) return '-';
+      const date = new Date(value);
+      if (!Number.isFinite(date.getTime())) return '-';
+      return date.toLocaleString();
+    }
+
+    function updateWorkbookButtons() {
+      const hasSavedWorkbook = !!workbookState.record;
+      const hasRefreshHandle = hasSavedWorkbook && !!workbookState.record.fileHandle;
+      refreshExcelBtn.disabled = !hasRefreshHandle;
+      changeExcelBtn.disabled = !hasSavedWorkbook;
+      clearExcelBtn.disabled = !hasSavedWorkbook;
+      refreshExcelBtn.title = hasRefreshHandle
+        ? 'Reload the originally selected file if the browser still allows access.'
+        : 'Refresh is unavailable until the browser grants a reusable file handle.';
+    }
+
+    function setWorkbookMeta(record, message = '', level = 'warn') {
+      workbookState.record = record || null;
+      if (!record) {
+        workbookMeta.hidden = true;
+        workbookMetaName.textContent = 'None';
+        workbookMetaDate.textContent = '-';
+        workbookMetaMessage.textContent = 'No saved file.';
+        workbookMetaMessage.classList.remove('ok');
+        updateWorkbookButtons();
+        return;
+      }
+      workbookMeta.hidden = false;
+      workbookMetaName.textContent = record.fileName || 'Unnamed file';
+      workbookMetaDate.textContent = formatWorkbookDate(record.importedAt);
+      workbookMetaMessage.textContent = message || 'Saved file is available for automatic restore.';
+      workbookMetaMessage.classList.toggle('ok', level === 'ok');
+      updateWorkbookButtons();
+    }
+
+    function openWorkbookDb() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(WORKBOOK_DB_NAME, WORKBOOK_DB_VERSION);
+        request.onupgradeneeded = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains(WORKBOOK_STORE_NAME)) {
+            db.createObjectStore(WORKBOOK_STORE_NAME);
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error('Unable to open workbook storage.'));
+      });
+    }
+
+    async function idbGet(key) {
+      const db = await openWorkbookDb();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(WORKBOOK_STORE_NAME, 'readonly');
+        const store = tx.objectStore(WORKBOOK_STORE_NAME);
+        const request = store.get(key);
+        request.onsuccess = () => resolve(request.result || null);
+        request.onerror = () => reject(request.error || new Error('Unable to read workbook storage.'));
+        tx.oncomplete = () => db.close();
+        tx.onabort = () => reject(tx.error || new Error('Workbook read transaction failed.'));
+      });
+    }
+
+    async function idbPut(key, value) {
+      const db = await openWorkbookDb();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(WORKBOOK_STORE_NAME, 'readwrite');
+        const store = tx.objectStore(WORKBOOK_STORE_NAME);
+        store.put(value, key);
+        tx.oncomplete = () => {
+          db.close();
+          resolve();
+        };
+        tx.onerror = () => reject(tx.error || new Error('Unable to save workbook storage.'));
+        tx.onabort = () => reject(tx.error || new Error('Workbook save transaction failed.'));
+      });
+    }
+
+    async function idbDelete(key) {
+      const db = await openWorkbookDb();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(WORKBOOK_STORE_NAME, 'readwrite');
+        const store = tx.objectStore(WORKBOOK_STORE_NAME);
+        store.delete(key);
+        tx.oncomplete = () => {
+          db.close();
+          resolve();
+        };
+        tx.onerror = () => reject(tx.error || new Error('Unable to clear workbook storage.'));
+        tx.onabort = () => reject(tx.error || new Error('Workbook delete transaction failed.'));
+      });
+    }
+
+    async function persistWorkbookRecord(record) {
+      try {
+        await idbPut(WORKBOOK_RECORD_KEY, record);
+        return record;
+      } catch (error) {
+        if (!record.fileHandle) throw error;
+        const fallbackRecord = { ...record };
+        delete fallbackRecord.fileHandle;
+        await idbPut(WORKBOOK_RECORD_KEY, fallbackRecord);
+        return fallbackRecord;
+      }
+    }
+
+    async function workbookArrayBufferToCsvText(arrayBuffer) {
+      const XLSX = await ensureXLSXLoaded();
+      const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      if (!firstSheetName) {
+        throw new Error('Workbook does not contain any sheets.');
+      }
+      const sheet = workbook.Sheets[firstSheetName];
+      const csvText = XLSX.utils.sheet_to_csv(sheet, { blankrows: false });
+      if (!csvText.trim()) {
+        throw new Error(`Sheet \"${firstSheetName}\" is empty.`);
+      }
+      return { csvText, firstSheetName };
+    }
+
+    async function persistentFileRecordToCsvText(record) {
+      if (record.fileType === 'csv') {
+        const decoder = new TextDecoder('utf-8');
+        return { csvText: decoder.decode(record.arrayBuffer), firstSheetName: null };
+      }
+      return workbookArrayBufferToCsvText(record.arrayBuffer);
+    }
+
+    async function importWorkbookBinary(record, options = {}) {
+      const { announce = true, verifySource = false } = options;
+      const { csvText, firstSheetName } = await persistentFileRecordToCsvText(record);
+      const rowCount = restoreTimingDataFromCsvText(csvText);
+      const normalizedRecord = {
+        ...record,
+        sheetName: firstSheetName
+      };
+      const persistentFileLabel = getPersistentFileLabel(normalizedRecord);
+
+      let metaMessage = normalizedRecord.fileType === 'csv'
+        ? `Restored ${rowCount} timing rows from saved CSV file.`
+        : `Restored ${rowCount} timing rows from sheet \"${firstSheetName}\".`;
+      let metaLevel = 'ok';
+
+      if (verifySource && normalizedRecord.fileHandle) {
+        try {
+          const permission = normalizedRecord.fileHandle.queryPermission
+            ? await normalizedRecord.fileHandle.queryPermission({ mode: 'read' })
+            : 'prompt';
+          if (permission === 'granted') {
+            const liveFile = await normalizedRecord.fileHandle.getFile();
+            if (Number.isFinite(normalizedRecord.fileLastModified) && liveFile.lastModified !== normalizedRecord.fileLastModified) {
+              metaMessage = `Restored saved copy from \"${normalizedRecord.fileName}\". The original ${persistentFileLabel} has changed since ${formatWorkbookDate(normalizedRecord.importedAt)}; click Refresh data to pull the latest version.`;
+              metaLevel = 'warn';
+            }
+          } else {
+            metaMessage = `Restored saved copy from \"${normalizedRecord.fileName}\". Browser access to the original ${persistentFileLabel} is not currently granted; use Refresh data or Change Excel/CSV file if needed.`;
+            metaLevel = 'warn';
+          }
+        } catch (error) {
+          metaMessage = `Restored saved copy from \"${normalizedRecord.fileName}\". The original ${persistentFileLabel} could not be accessed (${error.message || error}); use Change Excel/CSV file to relink it.`;
+          metaLevel = 'warn';
+        }
+      }
+
+      setWorkbookMeta(normalizedRecord, metaMessage, metaLevel);
+      if (announce) setStatus(`Loaded ${rowCount} rows from ${normalizedRecord.fileType === 'csv' ? 'CSV file' : 'workbook'} ${normalizedRecord.fileName}.`);
+      return { rowCount, record: normalizedRecord };
+    }
+
+    async function importWorkbookFile(file, fileHandle = null, options = {}) {
+      const arrayBuffer = await file.arrayBuffer();
+      const fileType = detectPersistentFileType(file.name, file.type);
+      const baseRecord = {
+        fileName: file.name,
+        fileType,
+        importedAt: new Date().toISOString(),
+        fileLastModified: file.lastModified || null,
+        fileSize: file.size || null,
+        arrayBuffer,
+        fileHandle
+      };
+      const persistedRecord = await persistWorkbookRecord(baseRecord);
+      await importWorkbookBinary(persistedRecord, { announce: false, verifySource: false });
+      setStatus(`Loaded ${fileType === 'csv' ? 'CSV file' : 'workbook'} ${persistedRecord.fileName} and saved it for automatic restore.`);
+      return persistedRecord;
+    }
+
+    async function restoreSavedWorkbookFromStorage() {
+      const savedRecord = await idbGet(WORKBOOK_RECORD_KEY);
+      if (!savedRecord || !savedRecord.arrayBuffer) {
+        setWorkbookMeta(null);
+        return false;
+      }
+      await importWorkbookBinary(savedRecord, { announce: false, verifySource: true });
+      return true;
+    }
+
+    async function chooseExcelWorkbook() {
+      if (workbookState.fileHandleSupported) {
+        try {
+          const [fileHandle] = await window.showOpenFilePicker({
+            types: [{
+              description: 'Excel or CSV files',
+              accept: {
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+                'application/vnd.ms-excel.sheet.macroEnabled.12': ['.xlsm'],
+                'application/vnd.ms-excel': ['.xls'],
+                'text/csv': ['.csv']
+              }
+            }],
+            multiple: false
+          });
+          if (!fileHandle) return;
+          const file = await fileHandle.getFile();
+          await importWorkbookFile(file, fileHandle);
+          return;
+        } catch (error) {
+          if (error && error.name === 'AbortError') return;
+          console.warn('Falling back to file input for workbook selection.', error);
+        }
+      }
+      excelWorkbookInput.value = '';
+      excelWorkbookInput.click();
+    }
+
+    async function refreshSavedWorkbookFromHandle() {
+      const record = workbookState.record;
+      if (!record || !record.fileHandle) {
+        setWorkbookMeta(record, 'Browser refresh is unavailable for this saved file. Use Change Excel/CSV file to pick it again.', 'warn');
+        return;
+      }
+      try {
+        const permissionState = record.fileHandle.queryPermission
+          ? await record.fileHandle.queryPermission({ mode: 'read' })
+          : 'prompt';
+        const granted = permissionState === 'granted' || (record.fileHandle.requestPermission && await record.fileHandle.requestPermission({ mode: 'read' }) === 'granted');
+        if (!granted) {
+          setWorkbookMeta(record, 'Browser permission was not granted to reopen the original file. Use Change Excel/CSV file if needed.', 'warn');
+          return;
+        }
+        const file = await record.fileHandle.getFile();
+        await importWorkbookFile(file, record.fileHandle);
+        setWorkbookMeta(workbookState.record, `Refreshed from the original file ${file.name}.`, 'ok');
+      } catch (error) {
+        console.error(error);
+        setWorkbookMeta(record, `The original file could not be accessed (${error.message || error}). Use Change Excel/CSV file to relink it.`, 'warn');
+        setStatus(`Workbook refresh failed: ${error.message || error}`);
+      }
+    }
+
+    async function clearSavedWorkbook() {
+      await idbDelete(WORKBOOK_RECORD_KEY);
+      setWorkbookMeta(null);
+      setStatus('Saved file cleared from browser storage.');
+    }
+
+    function restoreTimingDataFromCsvText(text) {
+      loadedTimingSessions = parseTimingSessionsFromCsvText(text);
+      return restoreTimingSession(loadedTimingSessions[0], 0);
+    }
+
+    function loadVideoFromUrl(url) {
+      return new Promise((resolve, reject) => {
+        if (!url) {
+          resolve(false);
+          return;
+        }
+        const resolvedUrl = new URL(url, window.location.href).href;
+        const onLoadedMetadata = () => {
+          video.removeEventListener('loadedmetadata', onLoadedMetadata);
+          video.removeEventListener('error', onVideoError);
+          hasVideoLoaded = true;
+          updateSnapToStartAvailability();
+          video.style.display = '';
+          video.addEventListener('focus', () => video.blur());
+          try {
+            const pathName = new URL(resolvedUrl).pathname;
+            const fileName = pathName.split('/').pop() || 'data';
+            videoFileName = fileName.replace(/\.[^.]+$/, '') || 'data';
+          } catch (_) {
+            videoFileName = 'data';
+          }
+          resolve(true);
+        };
+        const onVideoError = () => {
+          video.removeEventListener('loadedmetadata', onLoadedMetadata);
+          video.removeEventListener('error', onVideoError);
+          reject(new Error(`Failed to load linked video: ${resolvedUrl}`));
+        };
+        video.addEventListener('loadedmetadata', onLoadedMetadata, { once: true });
+        video.addEventListener('error', onVideoError, { once: true });
+        video.src = resolvedUrl;
+        video.load();
+      });
+    }
+
+    async function loadTimingDataFromUrl(url) {
+      const resolvedUrl = new URL(url, window.location.href).href;
+      const response = await fetch(resolvedUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch linked timing data (${response.status}).`);
+      }
+      const text = await response.text();
+      const rowCount = restoreTimingDataFromCsvText(text);
+      return { resolvedUrl, rowCount };
+    }
+
+    async function loadSyncedFitPayloadFromUrl(url) {
+      const resolvedUrl = new URL(url, window.location.href).href;
+      const response = await fetch(resolvedUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch linked FIT sync data (${response.status}).`);
+      }
+      const payload = await response.json();
+      restoreSyncedFitPayload(payload);
+      return resolvedUrl;
+    }
+
+    async function preloadLinkedSessionFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const allowDefaultFetchPreload = window.location.protocol !== 'file:';
+      const dataUrl = params.get('data') || params.get('csv') || (allowDefaultFetchPreload ? defaultPreloadConfig.data : '');
+      const videoUrl = params.get('video') || (allowDefaultFetchPreload ? defaultPreloadConfig.video : '');
+      const syncUrl = params.get('sync') || (allowDefaultFetchPreload ? defaultPreloadConfig.sync : '');
+      if (!dataUrl && !videoUrl && !syncUrl) return;
+
+      setStatus('Preloading linked session data...');
+      const preloadTasks = [];
+      if (videoUrl) preloadTasks.push(loadVideoFromUrl(videoUrl));
+      if (dataUrl) preloadTasks.push(loadTimingDataFromUrl(dataUrl));
+      if (syncUrl) preloadTasks.push(loadSyncedFitPayloadFromUrl(syncUrl));
+
+      const results = await Promise.allSettled(preloadTasks);
+      const errors = results.filter((result) => result.status === 'rejected');
+      if (errors.length > 0) {
+        throw new Error(errors.map((result) => result.reason?.message || 'Preload failed.').join(' '));
+      }
+
+      if (hasVideoLoaded && hasUploadedTimingData && Number.isFinite(uploadedCsvStartTime)) {
+        video.currentTime = Math.max(0, uploadedCsvStartTime);
+        currentTimeDisplay.textContent = video.currentTime.toFixed(2);
+        updateFitStats();
+        drawFitPlot();
+        setStatus(`Linked session preloaded — snapped to start at ${uploadedCsvStartTime.toFixed(2)}s.`);
+        return;
+      }
+
+      const loaded = [videoUrl && 'video', dataUrl && 'data', syncUrl && 'sync'].filter(Boolean);
+      setStatus(`Linked preload complete: ${loaded.join(', ')}.`);
+    }
+
+    async function initializePersistedWorkbookRestore() {
+      if (hasUploadedTimingData) return;
+      try {
+        const restored = await restoreSavedWorkbookFromStorage();
+        if (!restored) return;
+      } catch (error) {
+        console.error(error);
+        setWorkbookMeta(workbookState.record, error.message || 'Saved workbook restore failed.', 'warn');
+        setStatus(`Saved workbook restore failed: ${error.message || error}`);
+      }
+    }
+
     // Re-reads names + re-applies current change time to all adjusted rows
     function updateReport() {
       updateTitle();
@@ -3396,89 +4056,37 @@
       const reader = new FileReader();
       reader.onload = (evt) => {
         try {
-          const text = evt.target.result;
-          const allLines = text.split(/\r?\n/);
-          // Separate metadata comment lines from data lines
-          const metaLines = allLines.filter(l => l.startsWith('# '));
-          const dataLines = allLines.filter(l => l.trim() && !l.startsWith('#'));
-
-          // Parse header to find column indices (skip header row)
-          const header = dataLines[0].split(',');
-          const col = (name) => header.indexOf(name);
-          const iSplitType   = col('splitType');
-          const iEndTime     = col('endTime');
-          const iRiderIdx    = col('frontRiderIndex');
-          const iAdjusted    = col('deliveryAdjusted');
-          const iEvent       = col('Event');
-          const iQTime       = col('Quarter Time (s)');
-
-          if ([iSplitType, iEndTime, iRiderIdx, iAdjusted, iEvent, iQTime].some(x => x < 0)) {
-            setStatus('Upload failed: CSV columns not recognised.');
-            return;
-          }
-
-          // Parse metadata
-          let uploadedStartTime = null;
-          for (const ml of metaLines) {
-            const parts = ml.slice(2).split(',');
-            if (parts[0] === 'startTime' && parts[1]) uploadedStartTime = parseFloat(parts[1]);
-            if (parts[0] === 'title' || parts[0] === 'country') countryInput.value = parts[1].replace(/^"|"$/g, '');
-            riderInputs.forEach((inp, i) => {
-              if (parts[0] === `rider${i + 1}`) inp.value = parts[1].replace(/^"|"$/g, '');
-            });
-          }
-
-          // Restore splitRows
-          resetSession();
-          startTime = uploadedStartTime;
-          uploadedCsvStartTime = uploadedStartTime;
-          hasUploadedTimingData = true;
-          updateSnapToStartAvailability();
-          for (const line of dataLines.slice(1)) {
-            if (!line.trim()) continue;
-            // CSV-aware split that handles quoted fields
-            const cols = [];
-            let cur = '', inQ = false;
-            for (const ch of line) {
-              if (ch === '"') { inQ = !inQ; }
-              else if (ch === ',' && !inQ) { cols.push(cur); cur = ''; }
-              else { cur += ch; }
-            }
-            cols.push(cur);
-
-            const splitType = cols[iSplitType];
-            const endTime = parseFloat(cols[iEndTime]);
-            const frontRiderIndex = parseInt(cols[iRiderIdx], 10);
-            const deliveryAdjusted = cols[iAdjusted] === '1';
-            const eventLabel = cols[iEvent] || 'None';
-            const quarterTime = parseFloat(cols[iQTime]);
-            const ct = getChangeTimeSeconds();
-            const teamSpeed = speedFromTime(quarterTime);
-            const deliverySpeed = deliveryAdjusted
-              ? speedFromTime(Math.max(quarterTime - ct, 0.001))
-              : teamSpeed;
-
-            splitRows.push({ splitType, splitLabel: '', endTime, frontRiderIndex,
-                             quarterTime, teamSpeed, deliverySpeed, eventLabel, deliveryAdjusted });
-
-            if (splitType === 'TEAM_FINISH') teamFinished = true;
-          }
-
-          lastMarkerTime = splitRows.length > 0
-            ? splitRows[splitRows.length - 1].endTime
-            : startTime;
-
-          replayRiderRotations();
-          renumberRows();
-          updateTitle();
-          renderRows();
+          const rowCount = restoreTimingDataFromCsvText(evt.target.result);
           csvUploadInput.value = '';
-          setStatus(`Loaded ${splitRows.length} rows from CSV.`);
+          setStatus(`Loaded ${rowCount} rows from CSV.`);
         } catch (err) {
           setStatus('Upload failed: ' + err.message);
         }
       };
       reader.readAsText(file);
+    });
+
+    excelWorkbookInput.addEventListener('change', async (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      try {
+        await importWorkbookFile(file, null);
+        if (!workbookState.fileHandleSupported) {
+          setWorkbookMeta(workbookState.record, 'Saved file restored from browser storage on open. Refreshing the original file is not available in this browser mode; use Change Excel/CSV file to re-import it.', 'warn');
+        }
+      } catch (error) {
+        console.error(error);
+        setStatus(`Workbook import failed: ${error.message || error}`);
+      } finally {
+        excelWorkbookInput.value = '';
+      }
+    });
+
+    timingSessionSelect.addEventListener('change', (event) => {
+      const sessionIndex = parseInt(event.target.value, 10);
+      if (!Number.isFinite(sessionIndex) || !loadedTimingSessions[sessionIndex]) return;
+      const rowCount = restoreTimingSession(loadedTimingSessions[sessionIndex], sessionIndex);
+      setStatus(`Loaded ${rowCount} rows from ${loadedTimingSessions[sessionIndex].label}.`);
     });
 
     videoInput.addEventListener('change', (e) => {
@@ -3550,6 +4158,22 @@
 
     uploadAllBtn.addEventListener('click', () => uploadAllInput.click());
 
+    selectExcelBtn.addEventListener('click', async () => {
+      await chooseExcelWorkbook();
+    });
+
+    changeExcelBtn.addEventListener('click', async () => {
+      await chooseExcelWorkbook();
+    });
+
+    refreshExcelBtn.addEventListener('click', async () => {
+      await refreshSavedWorkbookFromHandle();
+    });
+
+    clearExcelBtn.addEventListener('click', async () => {
+      await clearSavedWorkbook();
+    });
+
     uploadAllInput.addEventListener('change', async (e) => {
       const files = Array.from(e.target.files || []);
       uploadAllInput.value = '';
@@ -3581,66 +4205,7 @@
           const reader = new FileReader();
           reader.onload = (evt) => {
             try {
-              const text = evt.target.result;
-              const allLines = text.split(/\r?\n/);
-              const metaLines = allLines.filter(l => l.startsWith('# '));
-              const dataLines = allLines.filter(l => l.trim() && !l.startsWith('#'));
-              const header = dataLines[0].split(',');
-              const col = (name) => header.indexOf(name);
-              const iSplitType = col('splitType');
-              const iEndTime   = col('endTime');
-              const iRiderIdx  = col('frontRiderIndex');
-              const iAdjusted  = col('deliveryAdjusted');
-              const iEvent     = col('Event');
-              const iQTime     = col('Quarter Time (s)');
-              if ([iSplitType, iEndTime, iRiderIdx, iAdjusted, iEvent, iQTime].some(x => x < 0)) {
-                setStatus('CSV upload failed: columns not recognised.');
-                return resolve();
-              }
-              let uploadedStartTime = null;
-              for (const ml of metaLines) {
-                const parts = ml.slice(2).split(',');
-                if (parts[0] === 'startTime' && parts[1]) uploadedStartTime = parseFloat(parts[1]);
-                if (parts[0] === 'title' || parts[0] === 'country') countryInput.value = parts[1].replace(/^"|"$/g, '');
-                riderInputs.forEach((inp, i) => {
-                  if (parts[0] === `rider${i + 1}`) inp.value = parts[1].replace(/^"|"$/g, '');
-                });
-              }
-              resetSession();
-              startTime = uploadedStartTime;
-              uploadedCsvStartTime = uploadedStartTime;
-              hasUploadedTimingData = true;
-              updateSnapToStartAvailability();
-              for (const line of dataLines.slice(1)) {
-                if (!line.trim()) continue;
-                const cols = [];
-                let cur = '', inQ = false;
-                for (const ch of line) {
-                  if (ch === '"') { inQ = !inQ; }
-                  else if (ch === ',' && !inQ) { cols.push(cur); cur = ''; }
-                  else { cur += ch; }
-                }
-                cols.push(cur);
-                const splitType = cols[iSplitType];
-                const endTime = parseFloat(cols[iEndTime]);
-                const frontRiderIndex = parseInt(cols[iRiderIdx], 10);
-                const deliveryAdjusted = cols[iAdjusted] === '1';
-                const eventLabel = cols[iEvent] || 'None';
-                const quarterTime = parseFloat(cols[iQTime]);
-                const ct = getChangeTimeSeconds();
-                const teamSpeed = speedFromTime(quarterTime);
-                const deliverySpeed = deliveryAdjusted
-                  ? speedFromTime(Math.max(quarterTime - ct, 0.001))
-                  : teamSpeed;
-                splitRows.push({ splitType, splitLabel: '', endTime, frontRiderIndex,
-                                 quarterTime, teamSpeed, deliverySpeed, eventLabel, deliveryAdjusted });
-                if (splitType === 'TEAM_FINISH') teamFinished = true;
-              }
-              lastMarkerTime = splitRows.length > 0 ? splitRows[splitRows.length - 1].endTime : startTime;
-              replayRiderRotations();
-              renumberRows();
-              updateTitle();
-              renderRows();
+              restoreTimingDataFromCsvText(evt.target.result);
             } catch (err) {
               setStatus('CSV upload failed: ' + err.message);
             }
@@ -3919,8 +4484,17 @@
     updateFitStats();
     updateSnapToStartAvailability();
     renderFitLegend();
+    updateWorkbookButtons();
     updateTitle();
     resetSession();
+    preloadLinkedSessionFromUrl()
+      .catch((error) => {
+        console.error(error);
+        setStatus(error.message || 'Linked preload failed.');
+      })
+      .finally(() => {
+        initializePersistedWorkbookRestore();
+      });
   </script>
 </body>
 </html>
