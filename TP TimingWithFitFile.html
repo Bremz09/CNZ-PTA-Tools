@@ -191,6 +191,118 @@
       box-sizing: border-box;
       padding: 6px 8px;
     }
+    .session-picker-note {
+      margin: 5px 0 0;
+      font-size: 12px;
+      color: #64748b;
+    }
+    .selection-compare-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+    .selection-compare-controls {
+      flex: 1 1 360px;
+      min-width: 280px;
+    }
+    .race-compare-slots {
+      flex: 1 1 320px;
+      min-width: 280px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .race-slot {
+      position: relative;
+      border: 1px solid #dbe2ea;
+      border-radius: 8px;
+      background: #f8fafc;
+      padding: 8px;
+      min-height: 64px;
+      cursor: pointer;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+    .race-slot:hover {
+      border-color: #93c5fd;
+      background: #f0f9ff;
+    }
+    .race-slot.active {
+      border-color: #2563eb;
+      background: #eff6ff;
+      box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.12);
+    }
+    .race-slot-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+    .race-slot-value {
+      font-size: 12px;
+      line-height: 1.3;
+      color: #0f172a;
+      word-break: break-word;
+    }
+    .race-slot-value.empty {
+      color: #94a3b8;
+      font-style: italic;
+    }
+    .race-slot-remove {
+      position: absolute;
+      top: 5px;
+      right: 6px;
+      width: 20px;
+      height: 20px;
+      border: 1px solid #cbd5e1;
+      border-radius: 999px;
+      background: #ffffff;
+      color: #64748b;
+      font-size: 12px;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+    .race-slot-remove:hover {
+      color: #0f172a;
+      border-color: #94a3b8;
+      background: #f1f5f9;
+    }
+    .race-slot-remove:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .compare-profiles {
+      display: grid;
+      gap: 10px;
+    }
+    .compare-profile-card {
+      border: 1px solid #dbe2ea;
+      border-radius: 8px;
+      padding: 6px 8px;
+      background: #ffffff;
+    }
+    .compare-profile-card h5 {
+      margin: 0 0 6px;
+      font-size: 13px;
+      color: #1f2937;
+    }
+    .compare-profile-card .chart-wrapper {
+      min-height: 260px;
+    }
+    .compare-profile-card .chart-wrapper canvas {
+      height: 260px;
+    }
+    .delivery-compare-section {
+      margin-top: 12px;
+    }
     .dataset-picker {
       margin-bottom: 10px;
     }
@@ -937,16 +1049,38 @@
         <button id="clearExcelBtn" type="button" disabled>Clear saved file</button>
         <input type="file" id="excelWorkbookInput" accept=".xlsx,.xlsm,.xls,.csv,text/csv" style="display:none;">
       </div>
-      <div class="dataset-picker">
-        <label for="genderDatasetSelect">TP data source</label>
-        <select id="genderDatasetSelect">
-          <option value="women" selected>Women</option>
-          <option value="men">Men</option>
-        </select>
-      </div>
-      <div id="timingSessionPicker" class="session-picker" hidden>
-        <label for="timingSessionSelect">Race in loaded file</label>
-        <select id="timingSessionSelect"></select>
+      <div class="selection-compare-row">
+        <div class="selection-compare-controls">
+          <div class="dataset-picker">
+            <label for="genderDatasetSelect">TP data source</label>
+            <select id="genderDatasetSelect">
+              <option value="women" selected>Women</option>
+              <option value="men">Men</option>
+            </select>
+          </div>
+          <div id="timingSessionPicker" class="session-picker" hidden>
+            <label for="timingSessionSelect">Race in loaded file</label>
+            <select id="timingSessionSelect"></select>
+            <p class="session-picker-note">Click races to fill Race 1-3 compare slots.</p>
+          </div>
+        </div>
+        <div class="race-compare-slots" id="raceCompareSlots">
+          <div class="race-slot">
+            <span class="race-slot-label">Race 1</span>
+            <button type="button" class="race-slot-remove" data-race-slot="0" title="Remove Race 1">×</button>
+            <div class="race-slot-value empty" id="raceSlot1Value">Not selected</div>
+          </div>
+          <div class="race-slot">
+            <span class="race-slot-label">Race 2</span>
+            <button type="button" class="race-slot-remove" data-race-slot="1" title="Remove Race 2">×</button>
+            <div class="race-slot-value empty" id="raceSlot2Value">Not selected</div>
+          </div>
+          <div class="race-slot">
+            <span class="race-slot-label">Race 3</span>
+            <button type="button" class="race-slot-remove" data-race-slot="2" title="Remove Race 3">×</button>
+            <div class="race-slot-value empty" id="raceSlot3Value">Not selected</div>
+          </div>
+        </div>
       </div>
       <div id="workbookMeta" class="workbook-meta" hidden>
         <p class="workbook-meta-line">Saved file: <strong id="workbookMetaName">None</strong></p>
@@ -1127,11 +1261,16 @@
         <!-- RIGHT: Chart + tables below -->
         <div class="chart-and-tables">
           <div class="chart-card">
-            <h4 id="speedProfileTitle">Half Lap Speed Profile</h4>
-            <div id="reportChartWrapper" class="chart-wrapper">
-              <canvas id="reportChart" width="900" height="360"></canvas>
-            </div>
+            <h4 id="speedProfileTitle">Quarter Lap Speed Profiles</h4>
+            <div id="speedProfilesContainer" class="compare-profiles"></div>
             <div id="reportChartEmpty" class="chart-empty" hidden>Add quarter splits to generate the speed dashboard.</div>
+            <div id="deliveryCompareSection" class="delivery-compare-section" hidden>
+              <h4>Delivery Speed Comparison Trace</h4>
+              <div id="deliveryCompareWrapper" class="chart-wrapper">
+                <canvas id="deliveryCompareChart" width="900" height="320"></canvas>
+              </div>
+              <div id="deliveryCompareEmpty" class="chart-empty" hidden>Select at least one race with split data.</div>
+            </div>
             <div id="chartLegend" class="chart-legend"></div>
           </div>
           <div class="bottom-tables-row">
@@ -1243,6 +1382,13 @@
     const genderDatasetSelect = document.getElementById('genderDatasetSelect');
     const timingSessionPicker = document.getElementById('timingSessionPicker');
     const timingSessionSelect = document.getElementById('timingSessionSelect');
+    const raceSlotValueEls = [
+      document.getElementById('raceSlot1Value'),
+      document.getElementById('raceSlot2Value'),
+      document.getElementById('raceSlot3Value')
+    ];
+    const raceSlotEls = Array.from(document.querySelectorAll('.race-slot'));
+    const raceSlotRemoveBtns = Array.from(document.querySelectorAll('.race-slot-remove'));
     const workbookMeta = document.getElementById('workbookMeta');
     const workbookMetaName = document.getElementById('workbookMetaName');
     const workbookMetaDate = document.getElementById('workbookMetaDate');
@@ -1264,10 +1410,14 @@
     const closeReportBtn = document.getElementById('closeReportBtn');
     const exportReportBtn = document.getElementById('exportReportBtn');
     const appendToFileBtn = document.getElementById('appendToFileBtn');
-    const reportChartWrapper = document.getElementById('reportChartWrapper');
-    const reportChart = document.getElementById('reportChart');
+    const speedProfilesContainer = document.getElementById('speedProfilesContainer');
+    const speedProfileTitle = document.getElementById('speedProfileTitle');
     const reportChartEmpty = document.getElementById('reportChartEmpty');
-    const reportChartContext = reportChart.getContext('2d');
+    const deliveryCompareSection = document.getElementById('deliveryCompareSection');
+    const deliveryCompareWrapper = document.getElementById('deliveryCompareWrapper');
+    const deliveryCompareChart = document.getElementById('deliveryCompareChart');
+    const deliveryCompareEmpty = document.getElementById('deliveryCompareEmpty');
+    const deliveryCompareContext = deliveryCompareChart.getContext('2d');
     const chartLegend = document.getElementById('chartLegend');
     const lapSummaryTable = document.getElementById('lapSummaryTable');
     const lapSummaryTableBody = lapSummaryTable.querySelector('tbody');
@@ -1371,6 +1521,10 @@
       video: '',
       sync: ''
     };
+    const defaultWorkbookConfig = {
+      women: 'https://raw.githubusercontent.com/Bremz09/CNZ-PTA-Tools/main/WomensVideoAnalysis.xlsx',
+      men: 'https://raw.githubusercontent.com/Bremz09/CNZ-PTA-Tools/main/MensVideoAnalysis.xlsx'
+    };
     const WORKBOOK_DB_NAME = 'tp-timing-with-fitfile';
     const WORKBOOK_DB_VERSION = 1;
     const WORKBOOK_STORE_NAME = 'appState';
@@ -1393,6 +1547,8 @@
       const TIMING_TABLE_HEADERS = ['Title', 'Save_date', 'Distance', 'Time', 'Split', 'Del_speed', 'Avg_Speed', 'Action', 'Front', 'Video'];
     let loadedTimingSessions = [];
     let activeTimingSessionIndex = -1;
+    let compareSelectedSessionIndexes = [];
+    const compareRacePalette = ['#2563eb', '#0ea5e9', '#16a34a'];
 
     // Each row: { splitType, splitLabel, endTime, frontRiderIndex, quarterTime, teamSpeed, deliverySpeed, eventLabel, deliveryAdjusted }
     const splitRows = [];
@@ -2359,181 +2515,165 @@
       renderLeadLapsTable();
     }
 
-    function getChartRows() {
-      return splitRows.map((row) => ({
-        label: row.splitLabel,
-        riderIndex: row.frontRiderIndex,
-        riderName: getRiderNames()[row.frontRiderIndex] || 'No Active Rider',
-        teamSpeed: row.teamSpeed,
-        deliverySpeed: row.deliverySpeed,
-        quarterTime: row.quarterTime,
-        deliveryAdjusted: row.deliveryAdjusted
-      }));
-    }
-
     function getRiderColor(riderIndex) {
       return riderIndex >= 0 ? riderPalette[riderIndex % riderPalette.length] : inactiveRiderColor;
     }
 
-    function renderChartLegend(rows, showPostFirstLapAverageLine) {
-      const names = getRiderNames();
-      chartLegend.innerHTML = '';
-
-      const riderIndexes = [...new Set(rows.map((row) => row.riderIndex).filter((idx) => idx >= 0))];
-      riderIndexes.forEach((riderIndex) => {
-        const item = document.createElement('span');
-        item.className = 'legend-item';
-        item.innerHTML = `<span class="legend-swatch" style="background:${getRiderColor(riderIndex)}"></span>${names[riderIndex] || `Rider ${riderIndex + 1}`}`;
-        chartLegend.appendChild(item);
-      });
-
-      if (rows.some((row) => row.riderIndex < 0)) {
-        const item = document.createElement('span');
-        item.className = 'legend-item';
-        item.innerHTML = `<span class="legend-swatch" style="background:${inactiveRiderColor}"></span>No Active Rider`;
-        chartLegend.appendChild(item);
-      }
-
-      const deliveryItem = document.createElement('span');
-      deliveryItem.className = 'legend-item';
-      deliveryItem.innerHTML = '<span class="legend-dot"></span>Delivery speed';
-      chartLegend.appendChild(deliveryItem);
-
-      if (showPostFirstLapAverageLine) {
-        const averageItem = document.createElement('span');
-        averageItem.className = 'legend-item';
-        averageItem.innerHTML = '<span class="legend-line"></span>Post-lap-1 average';
-        chartLegend.appendChild(averageItem);
-      }
+    function buildChartRowsFromSession(session) {
+      const sourceRows = Array.isArray(session?.rows) ? session.rows : splitRows;
+      const names = Array.isArray(session?.riderNames) && session.riderNames.length > 0
+        ? session.riderNames
+        : getRiderNames();
+      return sourceRows.map((row, index) => ({
+        deliverySpeedSource: Number.isFinite(row.importedDeliverySpeed) ? 'imported' : (Number.isFinite(row.deliverySpeed) ? 'computed' : 'fallback'),
+        label: row.splitLabel || `S${index + 1}`,
+        riderIndex: Number.isFinite(row.frontRiderIndex) ? row.frontRiderIndex : -1,
+        riderName: names[row.frontRiderIndex] || (row.frontRiderIndex >= 0 ? `Rider ${row.frontRiderIndex + 1}` : 'No Active Rider'),
+        teamSpeed: Number.isFinite(row.teamSpeed) ? row.teamSpeed : speedFromTime(row.quarterTime),
+        deliverySpeed: Number.isFinite(row.importedDeliverySpeed)
+          ? row.importedDeliverySpeed
+          : (row.deliveryAdjusted
+            ? speedFromTime(Math.max((Number.isFinite(row.quarterTime) ? row.quarterTime : 0) - getChangeTimeSeconds(), 0.001))
+            : (Number.isFinite(row.deliverySpeed) ? row.deliverySpeed : (Number.isFinite(row.teamSpeed) ? row.teamSpeed : speedFromTime(row.quarterTime)))),
+        quarterTime: Number.isFinite(row.quarterTime) ? row.quarterTime : 0,
+        deliveryAdjusted: !!row.deliveryAdjusted
+      }));
     }
 
-    function resizeChartCanvas() {
-      const width = Math.max(320, Math.floor(reportChartWrapper.clientWidth || 900));
-      const height = window.innerWidth <= 700 ? 280 : 360;
-      if (reportChart.width !== width || reportChart.height !== height) {
-        reportChart.width = width;
-        reportChart.height = height;
+    function buildProfileRows(chartRows, hlMode) {
+      const globalStartIndex = flyingMode ? 0 : 4;
+      const quarterRows = flyingMode ? chartRows : chartRows.slice(4);
+      if (!(hlMode && quarterRows.length >= 3)) {
+        return quarterRows.map((row, index) => ({
+          ...row,
+          xDistance: (globalStartIndex + index + 1) * SPLIT_DISTANCE_METERS
+        }));
+      }
+
+      const inner = quarterRows.slice(1, quarterRows.length - 1);
+      const rows = [];
+      for (let p = 0; p + 1 < inner.length; p += 2) {
+        const a = inner[p];
+        const b = inner[p + 1];
+        const combinedTime = (a.quarterTime || 0) + (b.quarterTime || 0);
+        const hlTeamSpeed = combinedTime > 0 ? (125 / combinedTime) * 3.6 : 0;
+        const hasChangeOrDrop = a.deliveryAdjusted || b.deliveryAdjusted;
+        const deliveryValues = [a.deliverySpeed, b.deliverySpeed].filter((value) => Number.isFinite(value));
+        const hlDeliverySpeed = deliveryValues.length > 0
+          ? (deliveryValues.reduce((sum, value) => sum + value, 0) / deliveryValues.length)
+          : (hasChangeOrDrop
+            ? (125 / Math.max(combinedTime - getChangeTimeSeconds(), 0.001)) * 3.6
+            : hlTeamSpeed);
+        rows.push({
+          label: b.label,
+          riderIndex: a.riderIndex,
+          riderName: a.riderName,
+          teamSpeed: hlTeamSpeed,
+          deliverySpeed: hlDeliverySpeed,
+          quarterTime: combinedTime,
+          deliveryAdjusted: hasChangeOrDrop,
+          xDistance: (globalStartIndex + p + 3) * SPLIT_DISTANCE_METERS
+        });
+      }
+      return rows;
+    }
+
+    function getLapTotalsFromRows(sourceRows) {
+      const totals = [];
+      for (let i = 0; i < sourceRows.length; i += 4) {
+        const lapRows = sourceRows.slice(i, i + 4);
+        if (lapRows.length < 4) continue;
+        totals.push(lapRows.reduce((acc, row) => acc + (Number.isFinite(row.quarterTime) ? row.quarterTime : 0), 0));
+      }
+      return totals;
+    }
+
+    function getPostLapOneAverageSpeedFromRows(sourceRows) {
+      const lapTotals = getLapTotalsFromRows(sourceRows);
+      const avg = getAverageLapSplitAfterFirstLap(lapTotals);
+      return Number.isFinite(avg) ? speedFromDistanceTime(LAP_DISTANCE_METERS, avg) : null;
+    }
+
+    function resizeCanvasToWrapper(canvas, wrapper, preferredHeight) {
+      const width = Math.max(320, Math.floor((wrapper && wrapper.clientWidth) || 900));
+      const height = preferredHeight;
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
       }
       return { width, height };
     }
 
-    function renderReportChart() {
-      const allRows = getChartRows();
-      const globalStartIndex = flyingMode ? 0 : 4;
-      const hlMode = hlToggle ? hlToggle.checked : true;
-      const speedProfileTitle = document.getElementById('speedProfileTitle');
-      if (speedProfileTitle) speedProfileTitle.textContent = hlMode ? 'Half Lap Speed Profile' : 'Quarter Split Speed Profile';
-      const quarterRows = flyingMode ? allRows : allRows.slice(4);
-
-      // In HL mode: skip first and last quarters, pair up remaining into half-laps
-      let rows;
-      if (hlMode && quarterRows.length >= 3) {
-        const inner = quarterRows.slice(1, quarterRows.length - 1);
-        rows = [];
-        for (let p = 0; p + 1 < inner.length; p += 2) {
-          const a = inner[p];
-          const b = inner[p + 1];
-          const combinedTime = (a.quarterTime || 0) + (b.quarterTime || 0);
-          const hlTeamSpeed = combinedTime > 0 ? (125 / combinedTime) * 3.6 : 0;
-          const hasChangeOrDrop = a.deliveryAdjusted || b.deliveryAdjusted;
-          const hlDeliverySpeed = hasChangeOrDrop
-            ? (125 / Math.max(combinedTime - getChangeTimeSeconds(), 0.001)) * 3.6
-            : hlTeamSpeed;
-          rows.push({
-            label: b.label,
-            riderIndex: a.riderIndex,
-            riderName: a.riderName,
-            teamSpeed: hlTeamSpeed,
-            deliverySpeed: hlDeliverySpeed,
-            _hlIndex: p / 2,
-            _hlEndQuarterIndex: globalStartIndex + 1 + p + 1
-          });
-        }
-      } else {
-        rows = quarterRows;
-      }
-      const hasRows = rows.length > 0;
-      const postFirstLapAverage = getAverageLapSplitAfterFirstLap();
-      const postFirstLapAverageSpeed = Number.isFinite(postFirstLapAverage)
-        ? speedFromDistanceTime(LAP_DISTANCE_METERS, postFirstLapAverage)
-        : null;
-      reportChartWrapper.hidden = !hasRows;
-      reportChartEmpty.hidden = hasRows;
-      renderChartLegend(rows, Number.isFinite(postFirstLapAverageSpeed));
-
-      const { width, height } = resizeChartCanvas();
-      reportChartContext.clearRect(0, 0, width, height);
-      if (!hasRows) return;
+    function drawSpeedProfileChart(canvas, wrapper, rows, postFirstLapAverageSpeed) {
+      const { width, height } = resizeCanvasToWrapper(canvas, wrapper, 260);
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, width, height);
+      if (!rows || rows.length === 0) return;
 
       const padding = {
-        top: 22,
-        right: 18,
-        bottom: 80,
-        left: 68
+        top: 16,
+        right: 14,
+        bottom: 66,
+        left: 56
       };
       const chartWidth = width - padding.left - padding.right;
       const chartHeight = height - padding.top - padding.bottom;
-      const maxDeliverySpeed = Math.max(...rows.map((row) => row.deliverySpeed), 1);
+      const maxTeamSpeed = Math.max(...rows.map((row) => row.teamSpeed), 1);
       const minTeamSpeed = Math.min(...rows.map((row) => row.teamSpeed));
+      const maxDeliverySpeed = Math.max(...rows.map((row) => row.deliverySpeed), 1);
+      const minDeliverySpeed = Math.min(...rows.map((row) => row.deliverySpeed));
+      const maxSpeed = Math.max(maxTeamSpeed, maxDeliverySpeed);
+      const minSpeed = Math.min(minTeamSpeed, minDeliverySpeed);
       const userYMin = parseFloat(document.getElementById('chartYMinInput').value);
       const userYMax = parseFloat(document.getElementById('chartYMaxInput').value);
-      const axisMin = Number.isFinite(userYMin) ? userYMin : minTeamSpeed - 1;
-      const axisMax = Number.isFinite(userYMax) ? Math.max(userYMax, axisMin + 1) : Math.max(maxDeliverySpeed + 1, axisMin + 1);
+      const axisMin = Number.isFinite(userYMin) ? userYMin : minSpeed - 1;
+      const axisMax = Number.isFinite(userYMax) ? Math.max(userYMax, axisMin + 1) : Math.max(maxSpeed + 1, axisMin + 1);
       const axisRange = Math.max(0.001, axisMax - axisMin);
-      const tickCount = 5;
+      const tickCount = 4;
       const baseY = padding.top + chartHeight;
       const barSlot = chartWidth / rows.length;
-      const barWidth = Math.min(30, Math.max(8, barSlot * 0.35));
+      const barWidth = Math.min(26, Math.max(8, barSlot * 0.35));
 
-      reportChartContext.font = '12px sans-serif';
-      reportChartContext.textAlign = 'right';
-      reportChartContext.textBaseline = 'middle';
-      reportChartContext.strokeStyle = '#cbd5e1';
-      reportChartContext.fillStyle = '#475569';
-      reportChartContext.lineWidth = 1;
+      ctx.font = '11px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.fillStyle = '#475569';
+      ctx.lineWidth = 1;
 
       for (let tick = 0; tick <= tickCount; tick++) {
         const value = axisMin + (axisRange / tickCount) * tick;
         const y = baseY - ((value - axisMin) / axisRange) * chartHeight;
-        reportChartContext.beginPath();
-        reportChartContext.moveTo(padding.left, y);
-        reportChartContext.lineTo(width - padding.right, y);
-        reportChartContext.stroke();
-        reportChartContext.fillText(value.toFixed(1), padding.left - 10, y);
+        ctx.beginPath();
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(width - padding.right, y);
+        ctx.stroke();
+        ctx.fillText(value.toFixed(1), padding.left - 8, y);
       }
 
-      reportChartContext.strokeStyle = '#0f172a';
-      reportChartContext.lineWidth = 1.2;
-      reportChartContext.beginPath();
-      reportChartContext.moveTo(padding.left, padding.top);
-      reportChartContext.lineTo(padding.left, baseY);
-      reportChartContext.lineTo(width - padding.right, baseY);
-      reportChartContext.stroke();
-
-      reportChartContext.save();
-      reportChartContext.translate(18, padding.top + chartHeight / 2);
-      reportChartContext.rotate(-Math.PI / 2);
-      reportChartContext.textAlign = 'center';
-      reportChartContext.fillStyle = '#0f172a';
-      reportChartContext.fillText('Speed (km/h)', 0, 0);
-      reportChartContext.restore();
-
-      reportChartContext.textAlign = 'center';
-      reportChartContext.textBaseline = 'top';
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(padding.left, padding.top);
+      ctx.lineTo(padding.left, baseY);
+      ctx.lineTo(width - padding.right, baseY);
+      ctx.stroke();
 
       if (Number.isFinite(postFirstLapAverageSpeed)) {
         const avgY = baseY - ((postFirstLapAverageSpeed - axisMin) / axisRange) * chartHeight;
-        reportChartContext.save();
-        reportChartContext.strokeStyle = averageLineColor;
-        reportChartContext.lineWidth = 2;
-        reportChartContext.setLineDash([6, 6]);
-        reportChartContext.beginPath();
-        reportChartContext.moveTo(padding.left, avgY);
-        reportChartContext.lineTo(width - padding.right, avgY);
-        reportChartContext.stroke();
-        reportChartContext.restore();
+        ctx.save();
+        ctx.strokeStyle = averageLineColor;
+        ctx.lineWidth = 1.7;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(padding.left, avgY);
+        ctx.lineTo(width - padding.right, avgY);
+        ctx.stroke();
+        ctx.restore();
       }
 
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
       rows.forEach((row, index) => {
         const centerX = padding.left + barSlot * index + barSlot / 2;
         const barHeight = ((row.teamSpeed - axisMin) / axisRange) * chartHeight;
@@ -2541,26 +2681,215 @@
         const barY = baseY - barHeight;
         const dotY = baseY - ((row.deliverySpeed - axisMin) / axisRange) * chartHeight;
 
-        reportChartContext.fillStyle = getRiderColor(row.riderIndex);
-        reportChartContext.fillRect(barX, barY, barWidth, barHeight);
+        ctx.fillStyle = getRiderColor(row.riderIndex);
+        ctx.fillRect(barX, barY, barWidth, barHeight);
 
-        reportChartContext.fillStyle = deliverySpeedColor;
-        reportChartContext.beginPath();
-        reportChartContext.arc(centerX, dotY, 5, 0, Math.PI * 2);
-        reportChartContext.fill();
+        ctx.fillStyle = deliverySpeedColor;
+        ctx.beginPath();
+        ctx.arc(centerX, dotY, 4, 0, Math.PI * 2);
+        ctx.fill();
 
-        reportChartContext.save();
-        reportChartContext.translate(centerX, baseY + 8);
-        reportChartContext.rotate(Math.PI / 2);
-        reportChartContext.textAlign = 'left';
-        reportChartContext.textBaseline = 'middle';
-        reportChartContext.fillStyle = '#475569';
-        const xLabel = hlMode && row._hlEndQuarterIndex != null
-          ? `${(row._hlEndQuarterIndex + 1) * SPLIT_DISTANCE_METERS}m`
-          : `${(globalStartIndex + index + 1) * SPLIT_DISTANCE_METERS}m`;
-        reportChartContext.fillText(xLabel, 0, 0);
-        reportChartContext.restore();
+        ctx.save();
+        ctx.translate(centerX, baseY + 8);
+        ctx.rotate(Math.PI / 2);
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#475569';
+        ctx.fillText(`${Math.round(row.xDistance)}m`, 0, 0);
+        ctx.restore();
       });
+    }
+
+    function drawDeliveryComparisonChart(seriesList) {
+      const hasSeries = seriesList.some((series) => series.points.length > 0);
+      deliveryCompareWrapper.hidden = !hasSeries;
+      deliveryCompareEmpty.hidden = hasSeries;
+      const { width, height } = resizeCanvasToWrapper(deliveryCompareChart, deliveryCompareWrapper, 320);
+      deliveryCompareContext.clearRect(0, 0, width, height);
+      if (!hasSeries) return;
+
+      const padding = {
+        top: 20,
+        right: 18,
+        bottom: 46,
+        left: 58
+      };
+      const chartWidth = width - padding.left - padding.right;
+      const chartHeight = height - padding.top - padding.bottom;
+      const allPoints = seriesList.flatMap((series) => series.points);
+      const maxX = Math.max(...allPoints.map((point) => point.x), 1);
+      const minY = Math.min(...allPoints.map((point) => point.y));
+      const maxY = Math.max(...allPoints.map((point) => point.y));
+      const userYMin = parseFloat(document.getElementById('chartYMinInput').value);
+      const userYMax = parseFloat(document.getElementById('chartYMaxInput').value);
+      const axisMin = Number.isFinite(userYMin) ? userYMin : Math.floor(minY - 1);
+      const axisMax = Number.isFinite(userYMax) ? Math.max(userYMax, axisMin + 1) : Math.max(Math.ceil(maxY + 1), axisMin + 1);
+      const axisRange = Math.max(0.001, axisMax - axisMin);
+
+      deliveryCompareContext.font = '12px sans-serif';
+      deliveryCompareContext.strokeStyle = '#cbd5e1';
+      deliveryCompareContext.fillStyle = '#475569';
+      deliveryCompareContext.lineWidth = 1;
+
+      const tickCount = 5;
+      for (let tick = 0; tick <= tickCount; tick++) {
+        const value = axisMin + (axisRange / tickCount) * tick;
+        const y = padding.top + chartHeight - ((value - axisMin) / axisRange) * chartHeight;
+        deliveryCompareContext.beginPath();
+        deliveryCompareContext.moveTo(padding.left, y);
+        deliveryCompareContext.lineTo(width - padding.right, y);
+        deliveryCompareContext.stroke();
+        deliveryCompareContext.textAlign = 'right';
+        deliveryCompareContext.textBaseline = 'middle';
+        deliveryCompareContext.fillText(value.toFixed(1), padding.left - 8, y);
+      }
+
+      deliveryCompareContext.strokeStyle = '#0f172a';
+      deliveryCompareContext.lineWidth = 1.2;
+      deliveryCompareContext.beginPath();
+      deliveryCompareContext.moveTo(padding.left, padding.top);
+      deliveryCompareContext.lineTo(padding.left, padding.top + chartHeight);
+      deliveryCompareContext.lineTo(width - padding.right, padding.top + chartHeight);
+      deliveryCompareContext.stroke();
+
+      seriesList.forEach((series) => {
+        if (series.points.length === 0) return;
+        deliveryCompareContext.beginPath();
+        deliveryCompareContext.strokeStyle = series.color;
+        deliveryCompareContext.lineWidth = 2.2;
+        series.points.forEach((point, index) => {
+          const x = padding.left + (point.x / maxX) * chartWidth;
+          const y = padding.top + chartHeight - ((point.y - axisMin) / axisRange) * chartHeight;
+          if (index === 0) deliveryCompareContext.moveTo(x, y);
+          else deliveryCompareContext.lineTo(x, y);
+        });
+        deliveryCompareContext.stroke();
+      });
+
+      deliveryCompareContext.textAlign = 'center';
+      deliveryCompareContext.textBaseline = 'top';
+      deliveryCompareContext.fillStyle = '#334155';
+      deliveryCompareContext.fillText('Distance (m)', padding.left + chartWidth / 2, height - 24);
+    }
+
+    function renderComparisonLegend(seriesList) {
+      chartLegend.innerHTML = '';
+      if (!seriesList || seriesList.length === 0) return;
+      seriesList.forEach((series) => {
+        const item = document.createElement('span');
+        item.className = 'legend-item';
+        item.innerHTML = `<span class="legend-swatch" style="background:${series.color}"></span>${series.label}`;
+        chartLegend.appendChild(item);
+      });
+      const averageItem = document.createElement('span');
+      averageItem.className = 'legend-item';
+      averageItem.innerHTML = '<span class="legend-line"></span>Post-lap-1 average';
+      chartLegend.appendChild(averageItem);
+      const deliveryItem = document.createElement('span');
+      deliveryItem.className = 'legend-item';
+      deliveryItem.innerHTML = '<span class="legend-dot"></span>Delivery speed';
+      chartLegend.appendChild(deliveryItem);
+    }
+
+    function getSelectedSessionsForComparison() {
+      const validIndexes = compareSelectedSessionIndexes
+        .filter((idx) => Number.isInteger(idx) && idx >= 0 && idx < loadedTimingSessions.length)
+        .slice(0, 3);
+
+      const getSessionDataForIndex = (idx) => {
+        const baseSession = loadedTimingSessions[idx];
+        if (!baseSession) return null;
+        if (idx !== activeTimingSessionIndex) return baseSession;
+        return {
+          ...baseSession,
+          title: getTitleText(),
+          riderNames: getRiderNames(),
+          rows: splitRows.map((row) => ({ ...row }))
+        };
+      };
+
+      if (loadedTimingSessions.length > 0) {
+        if (validIndexes.length > 0) {
+          return validIndexes.map((idx) => ({
+            index: idx,
+            label: loadedTimingSessions[idx].label || `Race ${idx + 1}`,
+            session: getSessionDataForIndex(idx)
+          }));
+        }
+        const fallbackIndex = activeTimingSessionIndex >= 0 ? activeTimingSessionIndex : 0;
+        const fallbackSession = getSessionDataForIndex(fallbackIndex);
+        return fallbackSession ? [{ index: fallbackIndex, label: fallbackSession.label || `Race ${fallbackIndex + 1}`, session: fallbackSession }] : [];
+      }
+      if (splitRows.length === 0) return [];
+      return [{
+        index: 0,
+        label: getTitleText(),
+        session: {
+          title: getTitleText(),
+          riderNames: getRiderNames(),
+          rows: splitRows
+        }
+      }];
+    }
+
+    function renderReportChart() {
+      const hlMode = hlToggle ? hlToggle.checked : true;
+      if (speedProfileTitle) speedProfileTitle.textContent = hlMode ? 'Half Lap Speed Profiles' : 'Quarter Split Speed Profiles';
+
+      const selectedSessions = getSelectedSessionsForComparison();
+      const profileSeries = [];
+      speedProfilesContainer.innerHTML = '';
+
+      selectedSessions.forEach((entry, idx) => {
+        const chartRows = buildChartRowsFromSession(entry.session);
+        const profileRows = buildProfileRows(chartRows, hlMode);
+        if (profileRows.length === 0) return;
+        const postFirstLapAverageSpeed = getPostLapOneAverageSpeedFromRows(entry.session.rows || splitRows);
+        profileSeries.push({
+          label: entry.label || `Race ${idx + 1}`,
+          color: compareRacePalette[idx % compareRacePalette.length],
+          chartRows,
+          profileRows
+        });
+
+        const card = document.createElement('div');
+        card.className = 'compare-profile-card';
+        const heading = document.createElement('h5');
+        heading.textContent = entry.label || `Race ${idx + 1}`;
+        card.appendChild(heading);
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'chart-wrapper';
+        const canvas = document.createElement('canvas');
+        canvas.width = 900;
+        canvas.height = 260;
+        wrapper.appendChild(canvas);
+        card.appendChild(wrapper);
+        speedProfilesContainer.appendChild(card);
+
+        drawSpeedProfileChart(canvas, wrapper, profileRows, postFirstLapAverageSpeed);
+      });
+
+      const hasProfiles = profileSeries.length > 0;
+      reportChartEmpty.hidden = hasProfiles;
+      speedProfilesContainer.hidden = !hasProfiles;
+      deliveryCompareSection.hidden = !hasProfiles;
+
+      const deliverySeries = profileSeries.map((series) => {
+        const quarterRows = flyingMode ? series.chartRows : series.chartRows.slice(4);
+        const points = quarterRows.map((row, index) => ({
+          x: (index + 1) * SPLIT_DISTANCE_METERS,
+          y: row.deliverySpeed
+        }));
+        return {
+          label: series.label,
+          color: series.color,
+          points
+        };
+      });
+
+      drawDeliveryComparisonChart(deliverySeries);
+      renderComparisonLegend(deliverySeries);
     }
 
     function renderLapSummaryTable() {
@@ -3181,6 +3510,9 @@
     }
 
     function openReportModal() {
+      if (hlToggle) {
+        hlToggle.checked = false;
+      }
       reportModal.classList.add('open');
       reportModal.setAttribute('aria-hidden', 'false');
       renderReportChart();
@@ -3362,14 +3694,7 @@
     function sortTimingSessionsMostRecentFirst(sessions) {
       return sessions
         .map((session, index) => ({ ...session, __sourceIndex: index }))
-        .sort((a, b) => {
-          const aMs = Number.isFinite(a.savedAtMs) ? a.savedAtMs : null;
-          const bMs = Number.isFinite(b.savedAtMs) ? b.savedAtMs : null;
-          if (aMs != null && bMs != null && aMs !== bMs) return bMs - aMs;
-          if (aMs != null && bMs == null) return -1;
-          if (aMs == null && bMs != null) return 1;
-          return b.__sourceIndex - a.__sourceIndex;
-        })
+        .sort((a, b) => b.__sourceIndex - a.__sourceIndex)
         .map((session, index) => {
           const normalized = {
             ...session,
@@ -3503,15 +3828,28 @@
 
       const header = parseCsvRow(headerLine);
       const col = (name) => header.indexOf(name);
-      const iTitle = col('Title');
-      const iSaveDate = col('Save_date');
-      const iTime = col('Time');
-      const iSplit = col('Split');
-      const iDelSpeed = col('Del_speed');
-      const iAvgSpeed = col('Avg_Speed');
-      const iAction = col('Action');
-      const iFront = col('Front');
-      const iVideo = col('Video');
+      const normalizedHeader = header.map((value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, ''));
+      const findColumnIndex = (primaryName, aliases = []) => {
+        const directIndex = col(primaryName);
+        if (directIndex >= 0) return directIndex;
+        const normalizedTargets = [primaryName, ...aliases]
+          .map((value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, ''))
+          .filter(Boolean);
+        for (let i = 0; i < normalizedHeader.length; i++) {
+          if (normalizedTargets.includes(normalizedHeader[i])) return i;
+        }
+        return -1;
+      };
+
+      const iTitle = findColumnIndex('Title');
+      const iSaveDate = findColumnIndex('Save_date', ['savedate']);
+      const iTime = findColumnIndex('Time');
+      const iSplit = findColumnIndex('Split');
+      const iDelSpeed = findColumnIndex('Del_speed', ['deliveryspeed', 'delspeed', 'delivery']);
+      const iAvgSpeed = findColumnIndex('Avg_Speed', ['avgspeed', 'teamspeed', 'avg']);
+      const iAction = findColumnIndex('Action', ['event']);
+      const iFront = findColumnIndex('Front', ['athleteinfront', 'lead']);
+      const iVideo = findColumnIndex('Video');
 
       if ([iTitle, iTime, iSplit, iFront].some((value) => value < 0)) {
         throw new Error('CSV columns not recognised.');
@@ -3621,17 +3959,104 @@
       return WORKBOOK_RECORD_KEYS[normalizeDataset(dataset)] || WORKBOOK_RECORD_KEYS.women;
     }
 
+    function getDefaultWorkbookUrlForDataset(dataset = workbookState.dataset) {
+      const normalizedDataset = normalizeDataset(dataset);
+      return String(defaultWorkbookConfig[normalizedDataset] || '').trim();
+    }
+
+    function sanitizeCompareSessionSelection(indexes = []) {
+      const valid = [];
+      indexes.forEach((value) => {
+        const idx = Number.parseInt(value, 10);
+        if (!Number.isInteger(idx) || idx < 0 || idx >= loadedTimingSessions.length) return;
+        if (!valid.includes(idx)) valid.push(idx);
+      });
+      return valid.slice(0, 3);
+    }
+
+    function renderSelectedRaceSlots() {
+      raceSlotValueEls.forEach((el, slotIndex) => {
+        const sessionIndex = compareSelectedSessionIndexes[slotIndex];
+        const session = Number.isInteger(sessionIndex) ? loadedTimingSessions[sessionIndex] : null;
+        if (session) {
+          el.textContent = session.label || session.title || `Race ${sessionIndex + 1}`;
+          el.title = el.textContent;
+          el.classList.remove('empty');
+        } else {
+          el.textContent = 'Not selected';
+          el.title = '';
+          el.classList.add('empty');
+        }
+      });
+      raceSlotEls.forEach((slotEl, slotIndex) => {
+        const sessionIndex = compareSelectedSessionIndexes[slotIndex];
+        slotEl.classList.toggle('active', Number.isInteger(sessionIndex) && sessionIndex === activeTimingSessionIndex);
+      });
+      raceSlotRemoveBtns.forEach((btn) => {
+        const slotIndex = Number.parseInt(btn.dataset.raceSlot, 10);
+        btn.disabled = !Number.isInteger(compareSelectedSessionIndexes[slotIndex]);
+      });
+    }
+
+    function addRaceToCompareSlots(sessionIndex) {
+      if (!Number.isInteger(sessionIndex) || sessionIndex < 0 || sessionIndex >= loadedTimingSessions.length) return;
+      compareSelectedSessionIndexes = compareSelectedSessionIndexes.filter((idx) => idx !== sessionIndex);
+      compareSelectedSessionIndexes.push(sessionIndex);
+      if (compareSelectedSessionIndexes.length > 3) {
+        compareSelectedSessionIndexes = compareSelectedSessionIndexes.slice(compareSelectedSessionIndexes.length - 3);
+      }
+      compareSelectedSessionIndexes = sanitizeCompareSessionSelection(compareSelectedSessionIndexes);
+      renderSelectedRaceSlots();
+    }
+
+    function removeRaceFromCompareSlot(slotIndex) {
+      if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex > 2) return;
+      const removedSessionIndex = compareSelectedSessionIndexes[slotIndex];
+      if (!Number.isInteger(removedSessionIndex)) return;
+      const removedWasActive = removedSessionIndex === activeTimingSessionIndex;
+      compareSelectedSessionIndexes.splice(slotIndex, 1);
+      compareSelectedSessionIndexes = sanitizeCompareSessionSelection(compareSelectedSessionIndexes);
+
+      if (removedWasActive) {
+        const fallbackSessionIndex = compareSelectedSessionIndexes[0];
+        if (Number.isInteger(fallbackSessionIndex) && loadedTimingSessions[fallbackSessionIndex]) {
+          const rowCount = restoreTimingSession(loadedTimingSessions[fallbackSessionIndex], fallbackSessionIndex);
+          setStatus(`Loaded ${rowCount} rows from ${loadedTimingSessions[fallbackSessionIndex].label}.`);
+        }
+      }
+
+      renderSelectedRaceSlots();
+      renderReportChart();
+    }
+
+    function activateRaceSlot(slotIndex) {
+      if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex > 2) return;
+      const sessionIndex = compareSelectedSessionIndexes[slotIndex];
+      if (!Number.isInteger(sessionIndex) || !loadedTimingSessions[sessionIndex]) return;
+      const rowCount = restoreTimingSession(loadedTimingSessions[sessionIndex], sessionIndex);
+      setStatus(`Loaded ${rowCount} rows from ${loadedTimingSessions[sessionIndex].label}.`);
+      renderReportChart();
+    }
+
     function renderTimingSessionPicker() {
       if (loadedTimingSessions.length <= 1) {
         timingSessionPicker.hidden = true;
         timingSessionSelect.innerHTML = '';
+        compareSelectedSessionIndexes = loadedTimingSessions.length === 1 ? [0] : [];
+        renderSelectedRaceSlots();
         return;
       }
+      compareSelectedSessionIndexes = sanitizeCompareSessionSelection(
+        compareSelectedSessionIndexes.length > 0
+          ? compareSelectedSessionIndexes
+          : [activeTimingSessionIndex >= 0 ? activeTimingSessionIndex : 0]
+      );
       timingSessionPicker.hidden = false;
       timingSessionSelect.innerHTML = loadedTimingSessions
         .map((session, index) => `<option value="${index}">${session.label}</option>`)
         .join('');
       timingSessionSelect.value = String(activeTimingSessionIndex >= 0 ? activeTimingSessionIndex : 0);
+      renderSelectedRaceSlots();
     }
 
     function restoreTimingSession(session, sessionIndex = 0) {
@@ -3954,6 +4379,62 @@
       return true;
     }
 
+    async function importWorkbookFromUrl(url, options = {}) {
+      const {
+        dataset = workbookState.dataset,
+        preferredSheetName = TP_SHEET_NAME,
+        persist = false,
+        announce = true
+      } = options;
+      const normalizedDataset = normalizeDataset(dataset);
+      const datasetLabel = getWorkbookDatasetLabel(normalizedDataset);
+      const resolvedUrl = new URL(url, window.location.href).href;
+      const response = await fetch(resolvedUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch workbook (${response.status}).`);
+      }
+
+      const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+      const fileNameFromUrl = resolvedUrl.split('/').pop() || `${datasetLabel}VideoAnalysis.xlsx`;
+      const detectedFileType = detectPersistentFileType(fileNameFromUrl, contentType);
+
+      if (detectedFileType === 'csv') {
+        const csvText = await response.text();
+        const rowCount = restoreTimingDataFromCsvText(csvText);
+        if (announce) setStatus(`Loaded ${datasetLabel} TP data (${rowCount} rows) from linked CSV.`);
+        return { rowCount, resolvedUrl, fileType: 'csv' };
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const baseRecord = {
+        fileName: fileNameFromUrl,
+        fileType: 'workbook',
+        importedAt: new Date().toISOString(),
+        fileLastModified: null,
+        fileSize: Number.isFinite(arrayBuffer.byteLength) ? arrayBuffer.byteLength : null,
+        arrayBuffer,
+        fileHandle: null,
+        dataset: normalizedDataset,
+        sourceUrl: resolvedUrl
+      };
+
+      const recordToImport = persist
+        ? await persistWorkbookRecord(baseRecord, normalizedDataset)
+        : baseRecord;
+
+      const { rowCount } = await importWorkbookBinary(recordToImport, {
+        announce: false,
+        verifySource: false,
+        preferredSheetName,
+        dataset: normalizedDataset
+      });
+
+      if (announce) {
+        setStatus(`Loaded ${datasetLabel} TP data (${rowCount} rows) from linked workbook.`);
+      }
+      return { rowCount, resolvedUrl, fileType: 'workbook' };
+    }
+
     async function switchWorkbookDataset(dataset) {
       const normalizedDataset = normalizeDataset(dataset);
       if (workbookState.dataset === normalizedDataset && workbookState.record) return;
@@ -3964,7 +4445,17 @@
         if (restored) {
           setStatus(`Loaded ${getWorkbookDatasetLabel(normalizedDataset)} TP data from saved workbook.`);
         } else {
-          setStatus(`No saved ${getWorkbookDatasetLabel(normalizedDataset)} workbook yet. Click Select Excel/CSV file.`);
+          const linkedWorkbookUrl = getDefaultWorkbookUrlForDataset(normalizedDataset);
+          if (linkedWorkbookUrl) {
+            await importWorkbookFromUrl(linkedWorkbookUrl, {
+              dataset: normalizedDataset,
+              preferredSheetName: TP_SHEET_NAME,
+              persist: false,
+              announce: true
+            });
+          } else {
+            setStatus(`No saved ${getWorkbookDatasetLabel(normalizedDataset)} workbook yet. Click Select Excel/CSV file.`);
+          }
         }
       } catch (error) {
         console.error(error);
@@ -4041,6 +4532,8 @@
 
     function restoreTimingDataFromCsvText(text) {
       loadedTimingSessions = parseTimingSessionsFromCsvText(text);
+      compareSelectedSessionIndexes = loadedTimingSessions.length > 0 ? [0] : [];
+      renderSelectedRaceSlots();
       return restoreTimingSession(loadedTimingSessions[0], 0);
     }
 
@@ -4140,7 +4633,15 @@
       if (hasUploadedTimingData) return;
       try {
         const restored = await restoreSavedWorkbookFromStorage(workbookState.dataset);
-        if (!restored) return;
+        if (restored) return;
+        const linkedWorkbookUrl = getDefaultWorkbookUrlForDataset(workbookState.dataset);
+        if (!linkedWorkbookUrl) return;
+        await importWorkbookFromUrl(linkedWorkbookUrl, {
+          dataset: workbookState.dataset,
+          preferredSheetName: TP_SHEET_NAME,
+          persist: false,
+          announce: true
+        });
       } catch (error) {
         console.error(error);
         setWorkbookMeta(workbookState.record, error.message || 'Saved workbook restore failed.', 'warn');
@@ -4614,11 +5115,47 @@
       }
     });
 
-    timingSessionSelect.addEventListener('change', (event) => {
-      const sessionIndex = parseInt(event.target.value, 10);
-      if (!Number.isFinite(sessionIndex) || !loadedTimingSessions[sessionIndex]) return;
+    function selectRaceForComparison(sessionIndex) {
+      if (!Number.isFinite(sessionIndex) || !loadedTimingSessions[sessionIndex]) {
+        renderReportChart();
+        return;
+      }
+
+      addRaceToCompareSlots(sessionIndex);
+      if (compareSelectedSessionIndexes.length === 3) {
+        setStatus('Race compare slots updated (max 3).');
+      }
+
       const rowCount = restoreTimingSession(loadedTimingSessions[sessionIndex], sessionIndex);
       setStatus(`Loaded ${rowCount} rows from ${loadedTimingSessions[sessionIndex].label}.`);
+      renderReportChart();
+    }
+
+    timingSessionSelect.addEventListener('change', (event) => {
+      const sessionIndex = parseInt(event.target.value, 10);
+      selectRaceForComparison(sessionIndex);
+    });
+
+    timingSessionSelect.addEventListener('click', (event) => {
+      const targetOption = event.target.closest ? event.target.closest('option') : null;
+      const value = targetOption ? targetOption.value : timingSessionSelect.value;
+      const sessionIndex = parseInt(value, 10);
+      selectRaceForComparison(sessionIndex);
+    });
+
+    raceSlotRemoveBtns.forEach((button) => {
+      button.addEventListener('click', () => {
+        const slotIndex = Number.parseInt(button.dataset.raceSlot, 10);
+        removeRaceFromCompareSlot(slotIndex);
+      });
+    });
+
+    raceSlotEls.forEach((slotEl, slotIndex) => {
+      slotEl.addEventListener('click', (event) => {
+        const target = event.target;
+        if (target && target.closest && target.closest('.race-slot-remove')) return;
+        activateRaceSlot(slotIndex);
+      });
     });
 
     genderDatasetSelect.addEventListener('change', async (event) => {
