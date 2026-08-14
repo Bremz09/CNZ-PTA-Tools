@@ -32,6 +32,7 @@
 
 html {
   color-scheme: light;
+  overflow-y: scroll;
 }
 
 body {
@@ -347,8 +348,26 @@ tbody tr:hover {
 
 .tool-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(4, 270px);
+  justify-content: start;
   gap: 18px;
+}
+
+.tool-section {
+  display: grid;
+  gap: 14px;
+}
+
+.tool-section-title {
+  margin: 0;
+  color: var(--color-brand-blue);
+  font-size: 22px;
+}
+
+.tool-section-break {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--color-border);
 }
 
 .tool-card {
@@ -469,6 +488,10 @@ tbody tr:hover {
   .grid-two {
     grid-template-columns: 1fr;
   }
+
+  .tool-grid {
+    grid-template-columns: repeat(2, 270px);
+  }
 }
 
 @media (max-width: 640px) {
@@ -482,5 +505,9 @@ tbody tr:hover {
 
   .page-actions .btn {
     flex: 1 1 auto;
+  }
+
+  .tool-grid {
+    grid-template-columns: 270px;
   }
 }

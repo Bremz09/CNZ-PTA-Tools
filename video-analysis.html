@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <script src="auth-gate.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Video Analysis | CNZ PTA Tools</title>
+  <link rel="stylesheet" href="theme.css" />
+</head>
+<body>
+  <main class="page-shell">
+    <section class="page-frame">
+      <header class="page-header">
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">Video Analysis</h1>
+            <p class="page-subtitle">Choose a video timing, overlay, or synchronisation tool.</p>
+          </div>
+        </div>
+      </header>
+      <div class="page-body grid-stack">
+        <div class="page-actions">
+          <a class="btn btn-surface" href="index.html">Back to all tools</a>
+        </div>
+        <section class="tool-grid">
+          <a class="tool-card" href="Video Timing.html">
+            <div class="tool-card-header">
+              <div class="tool-icon">FPS</div>
+              <span class="tool-tag">Video</span>
+            </div>
+            <div>
+              <h3>Video Timing</h3>
+              <p>Step through video frame by frame, capture lap splits, and review elapsed timing data beside the footage.</p>
+            </div>
+          </a>
+          <a class="tool-card" href="VideoOverlayFitFiles.html">
+            <div class="tool-card-header">
+              <div class="tool-icon">FIT</div>
+              <span class="tool-tag">Overlay</span>
+            </div>
+            <div>
+              <h3>FIT File Overlay</h3>
+              <p>Load one video with multiple FIT files, align traces per rider, and inspect shared metrics against the video playhead.</p>
+            </div>
+          </a>
+          <a class="tool-card" href="Sync Viewer.html">
+            <div class="tool-card-header">
+              <div class="tool-icon">SYNC</div>
+              <span class="tool-tag">Viewer</span>
+            </div>
+            <div>
+              <h3>Sync Viewer</h3>
+              <p>Upload a video with a .tpsync or .ipsync file to review per-rider scrolling traces and live metrics in sync.</p>
+            </div>
+          </a>
+          <a class="tool-card" href="VideoOverlayExcelData.html">
+            <div class="tool-card-header">
+              <div class="tool-icon">XLSX</div>
+              <span class="tool-tag">Overlay</span>
+            </div>
+            <div>
+              <h3>Excel Data Overlay</h3>
+              <p>Overlay a video with one Excel export, compare shared metrics across selected sheets, and calculate interval summaries.</p>
+            </div>
+          </a>
+        </section>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

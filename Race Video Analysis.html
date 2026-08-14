@@ -3,7 +3,7 @@
 <head>
   <script src="auth-gate.js"></script>
   <meta charset="UTF-8">
-  <title>Team Pursuit Video Timing</title>
+  <title>Race Video Analysis</title>
   <style>
     body {
       font-family: sans-serif;
@@ -49,6 +49,21 @@
       aspect-ratio: 16 / 9;
       background: #000;
       margin-bottom: 10px;
+    }
+    .video-embed-wrap {
+      width: 100%;
+      max-width: 960px;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      margin-bottom: 10px;
+      display: none;
+      position: relative;
+    }
+    .video-embed-wrap iframe,
+    .video-embed-wrap > div {
+      width: 100%;
+      height: 100%;
+      border: 0;
     }
     .controls {
       display: flex;
@@ -116,6 +131,228 @@
       flex-wrap: wrap;
       gap: 10px;
       margin-bottom: 12px;
+    }
+    .workbook-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .workbook-meta {
+      border: 1px solid #dbe2ea;
+      border-radius: 8px;
+      background: #f8fafc;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      font-size: 13px;
+      color: #334155;
+    }
+    .workbook-meta strong {
+      color: #0f172a;
+    }
+    .workbook-meta-line {
+      margin: 0 0 4px;
+    }
+    .workbook-meta-line:last-child {
+      margin-bottom: 0;
+    }
+    .workbook-meta-message {
+      color: #b45309;
+    }
+    .workbook-meta-message.ok {
+      color: #166534;
+    }
+    .media-source-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin: 8px 0 10px;
+    }
+    .media-source-row input {
+      flex: 0 1 300px;
+      min-width: 180px;
+      max-width: 360px;
+      padding: 6px 8px;
+      box-sizing: border-box;
+    }
+    .session-picker {
+      margin-bottom: 10px;
+    }
+    .session-picker label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+      color: #334155;
+    }
+    .session-picker select {
+      width: 100%;
+      max-width: 360px;
+      box-sizing: border-box;
+      padding: 6px 8px;
+    }
+    .session-picker-note {
+      margin: 5px 0 0;
+      font-size: 12px;
+      color: #64748b;
+    }
+    .selection-compare-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+    .selection-compare-controls {
+      flex: 1 1 360px;
+      min-width: 280px;
+    }
+    .race-compare-slots {
+      flex: 1 1 320px;
+      min-width: 280px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .race-slot {
+      position: relative;
+      border: 1px solid #dbe2ea;
+      border-radius: 8px;
+      background: #f8fafc;
+      padding: 8px;
+      min-height: 64px;
+      cursor: pointer;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+    .race-slot:hover {
+      border-color: #93c5fd;
+      background: #f0f9ff;
+    }
+    .race-slot.active {
+      border-color: #2563eb;
+      background: #eff6ff;
+      box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.12);
+    }
+    .race-slot-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+    .race-slot-value {
+      font-size: 12px;
+      line-height: 1.3;
+      color: #0f172a;
+      word-break: break-word;
+    }
+    .race-slot-value.empty {
+      color: #94a3b8;
+      font-style: italic;
+    }
+    .race-slot-remove {
+      position: absolute;
+      top: 5px;
+      right: 6px;
+      width: 20px;
+      height: 20px;
+      border: 1px solid #cbd5e1;
+      border-radius: 999px;
+      background: #ffffff;
+      color: #64748b;
+      font-size: 12px;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+    .race-slot-remove:hover {
+      color: #0f172a;
+      border-color: #94a3b8;
+      background: #f1f5f9;
+    }
+    .race-slot-remove:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .compare-profiles {
+      display: grid;
+      gap: 10px;
+    }
+    .compare-profile-card {
+      border: 1px solid #dbe2ea;
+      border-radius: 8px;
+      padding: 6px 8px;
+      background: #ffffff;
+    }
+    .compare-profile-card h5 {
+      margin: 0 0 6px;
+      font-size: 13px;
+      color: #1f2937;
+    }
+    .compare-profile-card .chart-wrapper {
+      min-height: 260px;
+    }
+    .compare-profile-card .chart-wrapper canvas {
+      height: 260px;
+    }
+    .delivery-compare-section {
+      margin-top: 12px;
+    }
+    .dataset-picker {
+      margin-bottom: 10px;
+    }
+    .ts-report-card {
+      margin-top: 12px;
+    }
+    #tsSummaryTable {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    #tsSummaryTable th,
+    #tsSummaryTable td {
+      border: 1px solid #dbe2ea;
+      padding: 8px 10px;
+      text-align: left;
+      white-space: nowrap;
+    }
+    #tsSummaryTable th {
+      background: #f8fafc;
+    }
+    .ts-summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      table-layout: fixed;
+    }
+    .ts-summary-table th,
+    .ts-summary-table td {
+      border: 1px solid #dbe2ea;
+      padding: 6px 8px;
+      text-align: left;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ts-summary-table th {
+      background: #f8fafc;
+    }
+    .dataset-picker label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+      color: #334155;
+    }
+    .dataset-picker select {
+      width: 100%;
+      max-width: 240px;
+      box-sizing: border-box;
+      padding: 6px 8px;
     }
     .fit-sync-panel {
       margin: 18px 20px 0;
@@ -760,15 +997,20 @@
   </style>
 </head>
 <body>
-  <h2>Team Pursuit Video Timing</h2>
+  <h2>Race Video Analysis</h2>
   <h3>Keys: S start, Z quarter lap, C change, D drop, R rider finish, T team finish, Space play/pause, arrows frame-step, Ctrl+arrows jump.</h3>
   <input type="file" accept="video/mp4,video/quicktime" id="videoInput">
+  <div class="media-source-row">
+    <input id="youtubeUrlInput" type="text" placeholder="YouTube URL for this race">
+    <button id="loadYoutubeBtn" type="button">Load YouTube</button>
+  </div>
   <button id="uploadAllBtn" type="button" title="Upload video (.mp4/.mov), timing data (.csv) and FIT sync (.tpsync) together — snaps to start automatically">Upload all files</button>
   <input type="file" id="uploadAllInput" accept="video/mp4,video/quicktime,.csv,.json,.tpsync,application/octet-stream" multiple style="display:none;"><br><br>
 
   <div class="container">
     <div class="video-section">
       <video id="video" controls style="display:none;"></video>
+      <div id="youtubePlayerWrap" class="video-embed-wrap"><div id="youtubePlayer"></div></div>
 
       <div class="controls">
         <label for="fpsInput">FPS:</label>
@@ -836,8 +1078,59 @@
         <button id="snapToStartBtn" type="button" disabled>Snap to start</button>
         <input type="file" id="csvUploadInput" accept=".csv" style="display:none;">
       </div>
+      <div class="workbook-actions">
+        <button id="selectExcelBtn" type="button">Select Excel/CSV file</button>
+        <button id="refreshExcelBtn" type="button" disabled>Refresh data</button>
+        <button id="changeExcelBtn" type="button" disabled>Change Excel/CSV file</button>
+        <button id="clearExcelBtn" type="button" disabled>Clear saved file</button>
+        <input type="file" id="excelWorkbookInput" accept=".xlsx,.xlsm,.xls,.csv,text/csv" style="display:none;">
+      </div>
+      <div class="selection-compare-row">
+        <div class="selection-compare-controls">
+          <div class="dataset-picker">
+            <label for="workbookSheetSelect">Select Race Type</label>
+            <select id="workbookSheetSelect" disabled>
+              <option value="">No tabs available</option>
+            </select>
+          </div>
+          <div class="dataset-picker">
+            <label for="genderDatasetSelect">Select Gender</label>
+            <select id="genderDatasetSelect">
+              <option value="women" selected>Women</option>
+              <option value="men">Men</option>
+            </select>
+          </div>
+          <div id="timingSessionPicker" class="session-picker" hidden>
+            <label for="timingSessionSelect">Select up to 3 races</label>
+            <select id="timingSessionSelect"></select>
+            <p class="session-picker-note">Click races to fill Race 1-3 compare slots.</p>
+          </div>
+        </div>
+        <div class="race-compare-slots" id="raceCompareSlots">
+          <div class="race-slot">
+            <span class="race-slot-label">Race 1</span>
+            <button type="button" class="race-slot-remove" data-race-slot="0" title="Remove Race 1">×</button>
+            <div class="race-slot-value empty" id="raceSlot1Value">Not selected</div>
+          </div>
+          <div class="race-slot">
+            <span class="race-slot-label">Race 2</span>
+            <button type="button" class="race-slot-remove" data-race-slot="1" title="Remove Race 2">×</button>
+            <div class="race-slot-value empty" id="raceSlot2Value">Not selected</div>
+          </div>
+          <div class="race-slot">
+            <span class="race-slot-label">Race 3</span>
+            <button type="button" class="race-slot-remove" data-race-slot="2" title="Remove Race 3">×</button>
+            <div class="race-slot-value empty" id="raceSlot3Value">Not selected</div>
+          </div>
+        </div>
+      </div>
+      <div id="workbookMeta" class="workbook-meta" hidden>
+        <p class="workbook-meta-line">Saved file: <strong id="workbookMetaName">None</strong></p>
+        <p class="workbook-meta-line">Last imported: <strong id="workbookMetaDate">-</strong></p>
+        <p id="workbookMetaMessage" class="workbook-meta-line workbook-meta-message">No saved file.</p>
+      </div>
 
-      <h3 id="reportTitle">Team Pursuit Report</h3>
+      <h3 id="reportTitle">Race Video Analysis</h3>
       <div class="report-table-wrap">
         <table id="reportTable">
           <thead>
@@ -972,7 +1265,20 @@
         <h3 id="reportDashboardTitle" style="margin:0 0 0 8px;font-size:40px;">Report Dashboard</h3>
         <button id="closeReportBtn" class="modal-close" type="button" aria-label="Close report dashboard">×</button>
       </div>
-      <div class="dashboard-top">
+      <div id="teamSprintSummaryCard" class="table-card ts-report-card" hidden>
+        <h4>Team Sprint Summary</h4>
+        <div id="tsSummaryEmpty" class="table-empty">No Team Sprint event data to summarise.</div>
+        <div id="tsSummaryContainer" class="compare-profiles" hidden></div>
+        <div id="tsSpeedTraceSection" class="delivery-compare-section" hidden>
+          <h4>Team Sprint Speed Trace</h4>
+          <div id="tsSpeedTraceWrapper" class="chart-wrapper">
+            <canvas id="tsSpeedTraceChart" width="900" height="320"></canvas>
+          </div>
+          <div id="tsSpeedTraceEmpty" class="chart-empty" hidden>Select at least one race with split data.</div>
+          <div id="tsSpeedTraceLegend" class="chart-legend"></div>
+        </div>
+      </div>
+      <div id="tpDashboardSections" class="dashboard-top">
         <!-- LEFT: Lap Splits -->
         <div class="lap-splits-panel">
           <div class="table-card">
@@ -1010,11 +1316,16 @@
         <!-- RIGHT: Chart + tables below -->
         <div class="chart-and-tables">
           <div class="chart-card">
-            <h4 id="speedProfileTitle">Half Lap Speed Profile</h4>
-            <div id="reportChartWrapper" class="chart-wrapper">
-              <canvas id="reportChart" width="900" height="360"></canvas>
-            </div>
+            <h4 id="speedProfileTitle">Quarter Lap Speed Profiles</h4>
+            <div id="speedProfilesContainer" class="compare-profiles"></div>
             <div id="reportChartEmpty" class="chart-empty" hidden>Add quarter splits to generate the speed dashboard.</div>
+            <div id="deliveryCompareSection" class="delivery-compare-section" hidden>
+              <h4>Delivery Speed Comparison Trace</h4>
+              <div id="deliveryCompareWrapper" class="chart-wrapper">
+                <canvas id="deliveryCompareChart" width="900" height="320"></canvas>
+              </div>
+              <div id="deliveryCompareEmpty" class="chart-empty" hidden>Select at least one race with split data.</div>
+            </div>
             <div id="chartLegend" class="chart-legend"></div>
           </div>
           <div class="bottom-tables-row">
@@ -1085,6 +1396,9 @@
 
     const video = document.getElementById('video');
     const videoInput = document.getElementById('videoInput');
+    const youtubeUrlInput = document.getElementById('youtubeUrlInput');
+    const loadYoutubeBtn = document.getElementById('loadYoutubeBtn');
+    const youtubePlayerWrap = document.getElementById('youtubePlayerWrap');
     const currentTimeDisplay = document.getElementById('currentTime');
     const statusDisplay = document.getElementById('status');
 
@@ -1115,6 +1429,26 @@
     const createReportBtn = document.getElementById('createReportBtn');
     const snapToStartBtn = document.getElementById('snapToStartBtn');
     const csvUploadInput = document.getElementById('csvUploadInput');
+    const selectExcelBtn = document.getElementById('selectExcelBtn');
+    const refreshExcelBtn = document.getElementById('refreshExcelBtn');
+    const changeExcelBtn = document.getElementById('changeExcelBtn');
+    const clearExcelBtn = document.getElementById('clearExcelBtn');
+    const excelWorkbookInput = document.getElementById('excelWorkbookInput');
+    const genderDatasetSelect = document.getElementById('genderDatasetSelect');
+    const workbookSheetSelect = document.getElementById('workbookSheetSelect');
+    const timingSessionPicker = document.getElementById('timingSessionPicker');
+    const timingSessionSelect = document.getElementById('timingSessionSelect');
+    const raceSlotValueEls = [
+      document.getElementById('raceSlot1Value'),
+      document.getElementById('raceSlot2Value'),
+      document.getElementById('raceSlot3Value')
+    ];
+    const raceSlotEls = Array.from(document.querySelectorAll('.race-slot'));
+    const raceSlotRemoveBtns = Array.from(document.querySelectorAll('.race-slot-remove'));
+    const workbookMeta = document.getElementById('workbookMeta');
+    const workbookMetaName = document.getElementById('workbookMetaName');
+    const workbookMetaDate = document.getElementById('workbookMetaDate');
+    const workbookMetaMessage = document.getElementById('workbookMetaMessage');
     const uploadAllBtn = document.getElementById('uploadAllBtn');
     const uploadAllInput = document.getElementById('uploadAllInput');
 
@@ -1132,10 +1466,14 @@
     const closeReportBtn = document.getElementById('closeReportBtn');
     const exportReportBtn = document.getElementById('exportReportBtn');
     const appendToFileBtn = document.getElementById('appendToFileBtn');
-    const reportChartWrapper = document.getElementById('reportChartWrapper');
-    const reportChart = document.getElementById('reportChart');
+    const speedProfilesContainer = document.getElementById('speedProfilesContainer');
+    const speedProfileTitle = document.getElementById('speedProfileTitle');
     const reportChartEmpty = document.getElementById('reportChartEmpty');
-    const reportChartContext = reportChart.getContext('2d');
+    const deliveryCompareSection = document.getElementById('deliveryCompareSection');
+    const deliveryCompareWrapper = document.getElementById('deliveryCompareWrapper');
+    const deliveryCompareChart = document.getElementById('deliveryCompareChart');
+    const deliveryCompareEmpty = document.getElementById('deliveryCompareEmpty');
+    const deliveryCompareContext = deliveryCompareChart.getContext('2d');
     const chartLegend = document.getElementById('chartLegend');
     const lapSummaryTable = document.getElementById('lapSummaryTable');
     const lapSummaryTableBody = lapSummaryTable.querySelector('tbody');
@@ -1154,6 +1492,16 @@
     const kiloSplitsEmpty = document.getElementById('kiloSplitsEmpty');
     const leadLapsTable = document.getElementById('leadLapsTable');
     const leadLapsEmpty = document.getElementById('leadLapsEmpty');
+    const tpDashboardSections = document.getElementById('tpDashboardSections');
+    const teamSprintSummaryCard = document.getElementById('teamSprintSummaryCard');
+    const tsSummaryContainer = document.getElementById('tsSummaryContainer');
+    const tsSummaryEmpty = document.getElementById('tsSummaryEmpty');
+    const tsSpeedTraceSection = document.getElementById('tsSpeedTraceSection');
+    const tsSpeedTraceWrapper = document.getElementById('tsSpeedTraceWrapper');
+    const tsSpeedTraceChart = document.getElementById('tsSpeedTraceChart');
+    const tsSpeedTraceContext = tsSpeedTraceChart.getContext('2d');
+    const tsSpeedTraceEmpty = document.getElementById('tsSpeedTraceEmpty');
+    const tsSpeedTraceLegend = document.getElementById('tsSpeedTraceLegend');
     const flyingToggle = document.getElementById('flyingToggle');
     const includeL1PowerToggle = document.getElementById('includeL1PowerToggle');
     const recovOnlyToggle = document.getElementById('recovOnlyToggle');
@@ -1198,6 +1546,10 @@
     const inactiveRiderColor = '#94a3b8';
     let flyingMode = false;
     let FitParserClass = null;
+    let youtubePlayer = null;
+    let youtubeApiPromise = null;
+    let youtubeTimePollId = null;
+    let activeVideoMode = 'local';
 
     // Session state
     let startTime = null;
@@ -1209,6 +1561,7 @@
     let uploadedCsvStartTime = null;
     let hasUploadedTimingData = false;
     let hasVideoLoaded = false;
+    let currentSessionVideoUrl = '';
 
     // Rider rotation: stores indices 0-3 into riderInputs
     let riderOrder = [0, 1, 2, 3];
@@ -1228,6 +1581,41 @@
       viewScale: 1,
       dragSensitivity: 0.2
     };
+
+    const defaultPreloadConfig = {
+      data: '',
+      video: '',
+      sync: ''
+    };
+    const defaultWorkbookConfig = {
+      women: 'https://raw.githubusercontent.com/Bremz09/CNZ-PTA-Tools/main/WomensVideoAnalysis.xlsx',
+      men: 'https://raw.githubusercontent.com/Bremz09/CNZ-PTA-Tools/main/MensVideoAnalysis.xlsx'
+    };
+    const WORKBOOK_DB_NAME = 'tp-timing-with-fitfile';
+    const WORKBOOK_DB_VERSION = 1;
+    const WORKBOOK_STORE_NAME = 'appState';
+    const WORKBOOK_RECORD_KEYS = {
+      women: 'savedWorkbookWomen',
+      men: 'savedWorkbookMen'
+    };
+    const TP_SHEET_NAME = 'TP';
+    const DATASET_LABELS = {
+      women: 'Women',
+      men: 'Men'
+    };
+    const workbookState = {
+      record: null,
+      fileHandleSupported: typeof window.showOpenFilePicker === 'function',
+      chooserAction: 'select',
+      dataset: 'women'
+    };
+    const TIMING_CSV_HEADERS = ['Split', 'Athlete In Front', 'Quarter Time (s)', 'Team Speed (km/h)', 'Delivery Speed (km/h)', 'Event', 'splitType', 'endTime', 'frontRiderIndex', 'deliveryAdjusted'];
+      const TIMING_TABLE_HEADERS = ['Title', 'Save_date', 'Distance', 'Time', 'Split', 'Del_speed', 'Avg_Speed', 'Action', 'Front', 'Video'];
+    let loadedTimingSessions = [];
+    let activeTimingSessionIndex = -1;
+    let activeTimingRaceType = 'TP';
+    let compareSelectedSessionIndexes = [];
+    const compareRacePalette = ['#2563eb', '#0ea5e9', '#16a34a'];
 
     // Each row: { splitType, splitLabel, endTime, frontRiderIndex, quarterTime, teamSpeed, deliverySpeed, eventLabel, deliveryAdjusted }
     const splitRows = [];
@@ -1276,6 +1664,164 @@
     function setFitStatus(message, level = 'warn') {
       fitStatusDisplay.textContent = message;
       fitStatusDisplay.classList.toggle('ok', level === 'ok');
+    }
+    function stopYoutubeTimePolling() {
+      if (youtubeTimePollId != null) {
+        window.clearInterval(youtubeTimePollId);
+        youtubeTimePollId = null;
+      }
+    }
+    function refreshMediaTimeDisplays() {
+      currentTimeDisplay.textContent = getMediaCurrentTime().toFixed(2);
+      updateFitStats();
+      drawFitPlot();
+    }
+    function startYoutubeTimePolling() {
+      stopYoutubeTimePolling();
+      youtubeTimePollId = window.setInterval(() => {
+        if (activeVideoMode !== 'youtube') return;
+        refreshMediaTimeDisplays();
+      }, 100);
+    }
+    function extractYouTubeVideoId(url) {
+      const value = String(url || '').trim();
+      if (!value) return '';
+      try {
+        const parsed = new URL(value);
+        if (parsed.hostname.includes('youtu.be')) {
+          return parsed.pathname.replace(/^\//, '').split('/')[0];
+        }
+        if (parsed.hostname.includes('youtube.com')) {
+          if (parsed.searchParams.get('v')) return parsed.searchParams.get('v');
+          const parts = parsed.pathname.split('/').filter(Boolean);
+          const embedIndex = parts.findIndex((part) => part === 'embed' || part === 'shorts' || part === 'live');
+          if (embedIndex >= 0 && parts[embedIndex + 1]) return parts[embedIndex + 1];
+        }
+      } catch (_) {
+        return value;
+      }
+      return '';
+    }
+    function setActiveVideoMode(mode) {
+      activeVideoMode = mode;
+      if (mode === 'youtube') {
+        video.pause();
+        video.style.display = 'none';
+        youtubePlayerWrap.style.display = 'block';
+      } else {
+        stopYoutubeTimePolling();
+        youtubePlayerWrap.style.display = 'none';
+        video.style.display = '';
+      }
+      refreshMediaTimeDisplays();
+    }
+    function getMediaCurrentTime() {
+      if (activeVideoMode === 'youtube' && youtubePlayer && typeof youtubePlayer.getCurrentTime === 'function') {
+        const value = youtubePlayer.getCurrentTime();
+        return Number.isFinite(value) ? value : 0;
+      }
+      return Number.isFinite(video.currentTime) ? video.currentTime : 0;
+    }
+    function getMediaDuration() {
+      if (activeVideoMode === 'youtube' && youtubePlayer && typeof youtubePlayer.getDuration === 'function') {
+        const value = youtubePlayer.getDuration();
+        return Number.isFinite(value) && value > 0 ? value : Infinity;
+      }
+      return Number.isFinite(video.duration) ? video.duration : Infinity;
+    }
+    function pauseMedia() {
+      if (activeVideoMode === 'youtube' && youtubePlayer && typeof youtubePlayer.pauseVideo === 'function') {
+        youtubePlayer.pauseVideo();
+        return;
+      }
+      video.pause();
+    }
+    function playMedia() {
+      if (activeVideoMode === 'youtube' && youtubePlayer && typeof youtubePlayer.playVideo === 'function') {
+        youtubePlayer.playVideo();
+        return;
+      }
+      video.play();
+    }
+    function isMediaPaused() {
+      if (activeVideoMode === 'youtube' && youtubePlayer && window.YT && window.YT.PlayerState) {
+        return youtubePlayer.getPlayerState() !== window.YT.PlayerState.PLAYING;
+      }
+      return video.paused;
+    }
+    function setMediaCurrentTime(nextTime) {
+      const duration = getMediaDuration();
+      const target = Number.isFinite(duration)
+        ? clampValue(nextTime, 0, duration)
+        : Math.max(0, nextTime);
+      if (activeVideoMode === 'youtube' && youtubePlayer && typeof youtubePlayer.seekTo === 'function') {
+        youtubePlayer.seekTo(target, true);
+        refreshMediaTimeDisplays();
+        return;
+      }
+      video.currentTime = target;
+    }
+    function applyLoadedMediaState() {
+      hasVideoLoaded = true;
+      updateSnapToStartAvailability();
+      refreshMediaTimeDisplays();
+    }
+    function ensureYouTubeApiLoaded() {
+      if (window.YT && window.YT.Player) return Promise.resolve(window.YT);
+      if (youtubeApiPromise) return youtubeApiPromise;
+      youtubeApiPromise = new Promise((resolve, reject) => {
+        const existing = document.querySelector('script[data-youtube-api="1"]');
+        if (existing) return;
+        const script = document.createElement('script');
+        script.src = 'https://www.youtube.com/iframe_api';
+        script.async = true;
+        script.dataset.youtubeApi = '1';
+        const priorReady = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = () => {
+          if (typeof priorReady === 'function') priorReady();
+          resolve(window.YT);
+        };
+        script.onerror = () => reject(new Error('Failed to load YouTube player API.'));
+        document.head.appendChild(script);
+      });
+      return youtubeApiPromise;
+    }
+    async function loadYouTubeVideo(url) {
+      const videoId = extractYouTubeVideoId(url);
+      if (!videoId) {
+        throw new Error('YouTube URL not recognised.');
+      }
+      youtubeUrlInput.value = url;
+      const YT = await ensureYouTubeApiLoaded();
+      await new Promise((resolve) => {
+        const finishLoad = () => {
+          setActiveVideoMode('youtube');
+          applyLoadedMediaState();
+          resolve();
+        };
+        if (youtubePlayer) {
+          youtubePlayer.loadVideoById(videoId, 0);
+          finishLoad();
+          return;
+        }
+        youtubePlayer = new YT.Player('youtubePlayer', {
+          videoId,
+          playerVars: {
+            rel: 0,
+            modestbranding: 1,
+            playsinline: 1
+          },
+          events: {
+            onReady: () => finishLoad(),
+            onStateChange: (event) => {
+              if (window.YT && event.data === window.YT.PlayerState.PLAYING) startYoutubeTimePolling();
+              else stopYoutubeTimePolling();
+              refreshMediaTimeDisplays();
+            }
+          }
+        });
+      });
+      setStatus('YouTube video loaded.');
     }
     function updateSnapToStartAvailability() {
       snapToStartBtn.disabled = !(hasVideoLoaded && hasUploadedTimingData && Number.isFinite(uploadedCsvStartTime));
@@ -1563,7 +2109,7 @@
       fitSamplingHz.textContent = fitSyncState.samplingDisplay;
       fitVideoFps.textContent = `${getFps()} fps`;
       fitTraceOffset.textContent = getFitOffsetLabel();
-      fitVideoTime.textContent = `${formatFitNum(video.currentTime || 0, 3)}s`;
+      fitVideoTime.textContent = `${formatFitNum(getMediaCurrentTime() || 0, 3)}s`;
     }
     function resetFitMetricAndPlot(options = {}) {
       const { preserveMetricOptions = false } = options;
@@ -1749,7 +2295,7 @@
         setFitStatus('Load FIT streams and select a metric before snapping.');
         return;
       }
-      const playhead = Number.isFinite(video.currentTime) ? video.currentTime : 0;
+      const playhead = getMediaCurrentTime();
       let snappedCount = 0;
       let skippedCount = 0;
       for (const series of fitSyncState.series) {
@@ -1839,7 +2385,7 @@
       }
       const baseSpan = Math.max(0.01, maxDisplayTime - minDisplayTime);
       const visibleSpan = Math.max(0.01, baseSpan * fitSyncState.viewScale);
-      const viewCenterT = Number.isFinite(video.currentTime) ? video.currentTime : 0;
+      const viewCenterT = getMediaCurrentTime();
       const viewMinT = viewCenterT - visibleSpan / 2;
       const viewMaxT = viewCenterT + visibleSpan / 2;
       const [yMin, yMax] = findFitBounds(allValues);
@@ -1960,7 +2506,7 @@
           ? ` (Raw/Std): ${formatClockTime(rawTotal)} / ${formatClockTime(stdTotal)} (ρ=${getAirDensity().toFixed(3)} kg/m³)`
           : ` ${formatClockTime(rawTotal)}`)
         : '';
-      reportTitle.textContent = `${getTitleText()} Team Pursuit Report${totalText}`;
+      reportTitle.textContent = `${getTitleText()} ${activeTimingRaceType === 'TS' ? 'Team Sprint' : (activeTimingRaceType === 'IP' ? 'Individual Pursuit' : 'Team Pursuit')} Report${totalText}`;
       reportDashboardTitle.textContent = `${getTitleText()} ${totalText}`;
     }
 
@@ -2036,181 +2582,165 @@
       renderLeadLapsTable();
     }
 
-    function getChartRows() {
-      return splitRows.map((row) => ({
-        label: row.splitLabel,
-        riderIndex: row.frontRiderIndex,
-        riderName: getRiderNames()[row.frontRiderIndex] || 'No Active Rider',
-        teamSpeed: row.teamSpeed,
-        deliverySpeed: row.deliverySpeed,
-        quarterTime: row.quarterTime,
-        deliveryAdjusted: row.deliveryAdjusted
-      }));
-    }
-
     function getRiderColor(riderIndex) {
       return riderIndex >= 0 ? riderPalette[riderIndex % riderPalette.length] : inactiveRiderColor;
     }
 
-    function renderChartLegend(rows, showPostFirstLapAverageLine) {
-      const names = getRiderNames();
-      chartLegend.innerHTML = '';
-
-      const riderIndexes = [...new Set(rows.map((row) => row.riderIndex).filter((idx) => idx >= 0))];
-      riderIndexes.forEach((riderIndex) => {
-        const item = document.createElement('span');
-        item.className = 'legend-item';
-        item.innerHTML = `<span class="legend-swatch" style="background:${getRiderColor(riderIndex)}"></span>${names[riderIndex] || `Rider ${riderIndex + 1}`}`;
-        chartLegend.appendChild(item);
-      });
-
-      if (rows.some((row) => row.riderIndex < 0)) {
-        const item = document.createElement('span');
-        item.className = 'legend-item';
-        item.innerHTML = `<span class="legend-swatch" style="background:${inactiveRiderColor}"></span>No Active Rider`;
-        chartLegend.appendChild(item);
-      }
-
-      const deliveryItem = document.createElement('span');
-      deliveryItem.className = 'legend-item';
-      deliveryItem.innerHTML = '<span class="legend-dot"></span>Delivery speed';
-      chartLegend.appendChild(deliveryItem);
-
-      if (showPostFirstLapAverageLine) {
-        const averageItem = document.createElement('span');
-        averageItem.className = 'legend-item';
-        averageItem.innerHTML = '<span class="legend-line"></span>Post-lap-1 average';
-        chartLegend.appendChild(averageItem);
-      }
+    function buildChartRowsFromSession(session) {
+      const sourceRows = Array.isArray(session?.rows) ? session.rows : splitRows;
+      const names = Array.isArray(session?.riderNames) && session.riderNames.length > 0
+        ? session.riderNames
+        : getRiderNames();
+      return sourceRows.map((row, index) => ({
+        deliverySpeedSource: Number.isFinite(row.importedDeliverySpeed) ? 'imported' : (Number.isFinite(row.deliverySpeed) ? 'computed' : 'fallback'),
+        label: row.splitLabel || `S${index + 1}`,
+        riderIndex: Number.isFinite(row.frontRiderIndex) ? row.frontRiderIndex : -1,
+        riderName: names[row.frontRiderIndex] || (row.frontRiderIndex >= 0 ? `Rider ${row.frontRiderIndex + 1}` : 'No Active Rider'),
+        teamSpeed: Number.isFinite(row.teamSpeed) ? row.teamSpeed : speedFromTime(row.quarterTime),
+        deliverySpeed: Number.isFinite(row.importedDeliverySpeed)
+          ? row.importedDeliverySpeed
+          : (row.deliveryAdjusted
+            ? speedFromTime(Math.max((Number.isFinite(row.quarterTime) ? row.quarterTime : 0) - getChangeTimeSeconds(), 0.001))
+            : (Number.isFinite(row.deliverySpeed) ? row.deliverySpeed : (Number.isFinite(row.teamSpeed) ? row.teamSpeed : speedFromTime(row.quarterTime)))),
+        quarterTime: Number.isFinite(row.quarterTime) ? row.quarterTime : 0,
+        deliveryAdjusted: !!row.deliveryAdjusted
+      }));
     }
 
-    function resizeChartCanvas() {
-      const width = Math.max(320, Math.floor(reportChartWrapper.clientWidth || 900));
-      const height = window.innerWidth <= 700 ? 280 : 360;
-      if (reportChart.width !== width || reportChart.height !== height) {
-        reportChart.width = width;
-        reportChart.height = height;
+    function buildProfileRows(chartRows, hlMode) {
+      const globalStartIndex = flyingMode ? 0 : 4;
+      const quarterRows = flyingMode ? chartRows : chartRows.slice(4);
+      if (!(hlMode && quarterRows.length >= 3)) {
+        return quarterRows.map((row, index) => ({
+          ...row,
+          xDistance: (globalStartIndex + index + 1) * SPLIT_DISTANCE_METERS
+        }));
+      }
+
+      const inner = quarterRows.slice(1, quarterRows.length - 1);
+      const rows = [];
+      for (let p = 0; p + 1 < inner.length; p += 2) {
+        const a = inner[p];
+        const b = inner[p + 1];
+        const combinedTime = (a.quarterTime || 0) + (b.quarterTime || 0);
+        const hlTeamSpeed = combinedTime > 0 ? (125 / combinedTime) * 3.6 : 0;
+        const hasChangeOrDrop = a.deliveryAdjusted || b.deliveryAdjusted;
+        const deliveryValues = [a.deliverySpeed, b.deliverySpeed].filter((value) => Number.isFinite(value));
+        const hlDeliverySpeed = deliveryValues.length > 0
+          ? (deliveryValues.reduce((sum, value) => sum + value, 0) / deliveryValues.length)
+          : (hasChangeOrDrop
+            ? (125 / Math.max(combinedTime - getChangeTimeSeconds(), 0.001)) * 3.6
+            : hlTeamSpeed);
+        rows.push({
+          label: b.label,
+          riderIndex: a.riderIndex,
+          riderName: a.riderName,
+          teamSpeed: hlTeamSpeed,
+          deliverySpeed: hlDeliverySpeed,
+          quarterTime: combinedTime,
+          deliveryAdjusted: hasChangeOrDrop,
+          xDistance: (globalStartIndex + p + 3) * SPLIT_DISTANCE_METERS
+        });
+      }
+      return rows;
+    }
+
+    function getLapTotalsFromRows(sourceRows) {
+      const totals = [];
+      for (let i = 0; i < sourceRows.length; i += 4) {
+        const lapRows = sourceRows.slice(i, i + 4);
+        if (lapRows.length < 4) continue;
+        totals.push(lapRows.reduce((acc, row) => acc + (Number.isFinite(row.quarterTime) ? row.quarterTime : 0), 0));
+      }
+      return totals;
+    }
+
+    function getPostLapOneAverageSpeedFromRows(sourceRows) {
+      const lapTotals = getLapTotalsFromRows(sourceRows);
+      const avg = getAverageLapSplitAfterFirstLap(lapTotals);
+      return Number.isFinite(avg) ? speedFromDistanceTime(LAP_DISTANCE_METERS, avg) : null;
+    }
+
+    function resizeCanvasToWrapper(canvas, wrapper, preferredHeight) {
+      const width = Math.max(320, Math.floor((wrapper && wrapper.clientWidth) || 900));
+      const height = preferredHeight;
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
       }
       return { width, height };
     }
 
-    function renderReportChart() {
-      const allRows = getChartRows();
-      const globalStartIndex = flyingMode ? 0 : 4;
-      const hlMode = hlToggle ? hlToggle.checked : true;
-      const speedProfileTitle = document.getElementById('speedProfileTitle');
-      if (speedProfileTitle) speedProfileTitle.textContent = hlMode ? 'Half Lap Speed Profile' : 'Quarter Split Speed Profile';
-      const quarterRows = flyingMode ? allRows : allRows.slice(4);
-
-      // In HL mode: skip first and last quarters, pair up remaining into half-laps
-      let rows;
-      if (hlMode && quarterRows.length >= 3) {
-        const inner = quarterRows.slice(1, quarterRows.length - 1);
-        rows = [];
-        for (let p = 0; p + 1 < inner.length; p += 2) {
-          const a = inner[p];
-          const b = inner[p + 1];
-          const combinedTime = (a.quarterTime || 0) + (b.quarterTime || 0);
-          const hlTeamSpeed = combinedTime > 0 ? (125 / combinedTime) * 3.6 : 0;
-          const hasChangeOrDrop = a.deliveryAdjusted || b.deliveryAdjusted;
-          const hlDeliverySpeed = hasChangeOrDrop
-            ? (125 / Math.max(combinedTime - getChangeTimeSeconds(), 0.001)) * 3.6
-            : hlTeamSpeed;
-          rows.push({
-            label: b.label,
-            riderIndex: a.riderIndex,
-            riderName: a.riderName,
-            teamSpeed: hlTeamSpeed,
-            deliverySpeed: hlDeliverySpeed,
-            _hlIndex: p / 2,
-            _hlEndQuarterIndex: globalStartIndex + 1 + p + 1
-          });
-        }
-      } else {
-        rows = quarterRows;
-      }
-      const hasRows = rows.length > 0;
-      const postFirstLapAverage = getAverageLapSplitAfterFirstLap();
-      const postFirstLapAverageSpeed = Number.isFinite(postFirstLapAverage)
-        ? speedFromDistanceTime(LAP_DISTANCE_METERS, postFirstLapAverage)
-        : null;
-      reportChartWrapper.hidden = !hasRows;
-      reportChartEmpty.hidden = hasRows;
-      renderChartLegend(rows, Number.isFinite(postFirstLapAverageSpeed));
-
-      const { width, height } = resizeChartCanvas();
-      reportChartContext.clearRect(0, 0, width, height);
-      if (!hasRows) return;
+    function drawSpeedProfileChart(canvas, wrapper, rows, postFirstLapAverageSpeed) {
+      const { width, height } = resizeCanvasToWrapper(canvas, wrapper, 260);
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, width, height);
+      if (!rows || rows.length === 0) return;
 
       const padding = {
-        top: 22,
-        right: 18,
-        bottom: 80,
-        left: 68
+        top: 16,
+        right: 14,
+        bottom: 66,
+        left: 56
       };
       const chartWidth = width - padding.left - padding.right;
       const chartHeight = height - padding.top - padding.bottom;
-      const maxDeliverySpeed = Math.max(...rows.map((row) => row.deliverySpeed), 1);
+      const maxTeamSpeed = Math.max(...rows.map((row) => row.teamSpeed), 1);
       const minTeamSpeed = Math.min(...rows.map((row) => row.teamSpeed));
+      const maxDeliverySpeed = Math.max(...rows.map((row) => row.deliverySpeed), 1);
+      const minDeliverySpeed = Math.min(...rows.map((row) => row.deliverySpeed));
+      const maxSpeed = Math.max(maxTeamSpeed, maxDeliverySpeed);
+      const minSpeed = Math.min(minTeamSpeed, minDeliverySpeed);
       const userYMin = parseFloat(document.getElementById('chartYMinInput').value);
       const userYMax = parseFloat(document.getElementById('chartYMaxInput').value);
-      const axisMin = Number.isFinite(userYMin) ? userYMin : minTeamSpeed - 1;
-      const axisMax = Number.isFinite(userYMax) ? Math.max(userYMax, axisMin + 1) : Math.max(maxDeliverySpeed + 1, axisMin + 1);
+      const axisMin = Number.isFinite(userYMin) ? userYMin : minSpeed - 1;
+      const axisMax = Number.isFinite(userYMax) ? Math.max(userYMax, axisMin + 1) : Math.max(maxSpeed + 1, axisMin + 1);
       const axisRange = Math.max(0.001, axisMax - axisMin);
-      const tickCount = 5;
+      const tickCount = 4;
       const baseY = padding.top + chartHeight;
       const barSlot = chartWidth / rows.length;
-      const barWidth = Math.min(30, Math.max(8, barSlot * 0.35));
+      const barWidth = Math.min(26, Math.max(8, barSlot * 0.35));
 
-      reportChartContext.font = '12px sans-serif';
-      reportChartContext.textAlign = 'right';
-      reportChartContext.textBaseline = 'middle';
-      reportChartContext.strokeStyle = '#cbd5e1';
-      reportChartContext.fillStyle = '#475569';
-      reportChartContext.lineWidth = 1;
+      ctx.font = '11px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.fillStyle = '#475569';
+      ctx.lineWidth = 1;
 
       for (let tick = 0; tick <= tickCount; tick++) {
         const value = axisMin + (axisRange / tickCount) * tick;
         const y = baseY - ((value - axisMin) / axisRange) * chartHeight;
-        reportChartContext.beginPath();
-        reportChartContext.moveTo(padding.left, y);
-        reportChartContext.lineTo(width - padding.right, y);
-        reportChartContext.stroke();
-        reportChartContext.fillText(value.toFixed(1), padding.left - 10, y);
+        ctx.beginPath();
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(width - padding.right, y);
+        ctx.stroke();
+        ctx.fillText(value.toFixed(1), padding.left - 8, y);
       }
 
-      reportChartContext.strokeStyle = '#0f172a';
-      reportChartContext.lineWidth = 1.2;
-      reportChartContext.beginPath();
-      reportChartContext.moveTo(padding.left, padding.top);
-      reportChartContext.lineTo(padding.left, baseY);
-      reportChartContext.lineTo(width - padding.right, baseY);
-      reportChartContext.stroke();
-
-      reportChartContext.save();
-      reportChartContext.translate(18, padding.top + chartHeight / 2);
-      reportChartContext.rotate(-Math.PI / 2);
-      reportChartContext.textAlign = 'center';
-      reportChartContext.fillStyle = '#0f172a';
-      reportChartContext.fillText('Speed (km/h)', 0, 0);
-      reportChartContext.restore();
-
-      reportChartContext.textAlign = 'center';
-      reportChartContext.textBaseline = 'top';
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(padding.left, padding.top);
+      ctx.lineTo(padding.left, baseY);
+      ctx.lineTo(width - padding.right, baseY);
+      ctx.stroke();
 
       if (Number.isFinite(postFirstLapAverageSpeed)) {
         const avgY = baseY - ((postFirstLapAverageSpeed - axisMin) / axisRange) * chartHeight;
-        reportChartContext.save();
-        reportChartContext.strokeStyle = averageLineColor;
-        reportChartContext.lineWidth = 2;
-        reportChartContext.setLineDash([6, 6]);
-        reportChartContext.beginPath();
-        reportChartContext.moveTo(padding.left, avgY);
-        reportChartContext.lineTo(width - padding.right, avgY);
-        reportChartContext.stroke();
-        reportChartContext.restore();
+        ctx.save();
+        ctx.strokeStyle = averageLineColor;
+        ctx.lineWidth = 1.7;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(padding.left, avgY);
+        ctx.lineTo(width - padding.right, avgY);
+        ctx.stroke();
+        ctx.restore();
       }
 
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
       rows.forEach((row, index) => {
         const centerX = padding.left + barSlot * index + barSlot / 2;
         const barHeight = ((row.teamSpeed - axisMin) / axisRange) * chartHeight;
@@ -2218,26 +2748,215 @@
         const barY = baseY - barHeight;
         const dotY = baseY - ((row.deliverySpeed - axisMin) / axisRange) * chartHeight;
 
-        reportChartContext.fillStyle = getRiderColor(row.riderIndex);
-        reportChartContext.fillRect(barX, barY, barWidth, barHeight);
+        ctx.fillStyle = getRiderColor(row.riderIndex);
+        ctx.fillRect(barX, barY, barWidth, barHeight);
 
-        reportChartContext.fillStyle = deliverySpeedColor;
-        reportChartContext.beginPath();
-        reportChartContext.arc(centerX, dotY, 5, 0, Math.PI * 2);
-        reportChartContext.fill();
+        ctx.fillStyle = deliverySpeedColor;
+        ctx.beginPath();
+        ctx.arc(centerX, dotY, 4, 0, Math.PI * 2);
+        ctx.fill();
 
-        reportChartContext.save();
-        reportChartContext.translate(centerX, baseY + 8);
-        reportChartContext.rotate(Math.PI / 2);
-        reportChartContext.textAlign = 'left';
-        reportChartContext.textBaseline = 'middle';
-        reportChartContext.fillStyle = '#475569';
-        const xLabel = hlMode && row._hlEndQuarterIndex != null
-          ? `${(row._hlEndQuarterIndex + 1) * SPLIT_DISTANCE_METERS}m`
-          : `${(globalStartIndex + index + 1) * SPLIT_DISTANCE_METERS}m`;
-        reportChartContext.fillText(xLabel, 0, 0);
-        reportChartContext.restore();
+        ctx.save();
+        ctx.translate(centerX, baseY + 8);
+        ctx.rotate(Math.PI / 2);
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#475569';
+        ctx.fillText(`${Math.round(row.xDistance)}m`, 0, 0);
+        ctx.restore();
       });
+    }
+
+    function drawDeliveryComparisonChart(seriesList) {
+      const hasSeries = seriesList.some((series) => series.points.length > 0);
+      deliveryCompareWrapper.hidden = !hasSeries;
+      deliveryCompareEmpty.hidden = hasSeries;
+      const { width, height } = resizeCanvasToWrapper(deliveryCompareChart, deliveryCompareWrapper, 320);
+      deliveryCompareContext.clearRect(0, 0, width, height);
+      if (!hasSeries) return;
+
+      const padding = {
+        top: 20,
+        right: 18,
+        bottom: 46,
+        left: 58
+      };
+      const chartWidth = width - padding.left - padding.right;
+      const chartHeight = height - padding.top - padding.bottom;
+      const allPoints = seriesList.flatMap((series) => series.points);
+      const maxX = Math.max(...allPoints.map((point) => point.x), 1);
+      const minY = Math.min(...allPoints.map((point) => point.y));
+      const maxY = Math.max(...allPoints.map((point) => point.y));
+      const userYMin = parseFloat(document.getElementById('chartYMinInput').value);
+      const userYMax = parseFloat(document.getElementById('chartYMaxInput').value);
+      const axisMin = Number.isFinite(userYMin) ? userYMin : Math.floor(minY - 1);
+      const axisMax = Number.isFinite(userYMax) ? Math.max(userYMax, axisMin + 1) : Math.max(Math.ceil(maxY + 1), axisMin + 1);
+      const axisRange = Math.max(0.001, axisMax - axisMin);
+
+      deliveryCompareContext.font = '12px sans-serif';
+      deliveryCompareContext.strokeStyle = '#cbd5e1';
+      deliveryCompareContext.fillStyle = '#475569';
+      deliveryCompareContext.lineWidth = 1;
+
+      const tickCount = 5;
+      for (let tick = 0; tick <= tickCount; tick++) {
+        const value = axisMin + (axisRange / tickCount) * tick;
+        const y = padding.top + chartHeight - ((value - axisMin) / axisRange) * chartHeight;
+        deliveryCompareContext.beginPath();
+        deliveryCompareContext.moveTo(padding.left, y);
+        deliveryCompareContext.lineTo(width - padding.right, y);
+        deliveryCompareContext.stroke();
+        deliveryCompareContext.textAlign = 'right';
+        deliveryCompareContext.textBaseline = 'middle';
+        deliveryCompareContext.fillText(value.toFixed(1), padding.left - 8, y);
+      }
+
+      deliveryCompareContext.strokeStyle = '#0f172a';
+      deliveryCompareContext.lineWidth = 1.2;
+      deliveryCompareContext.beginPath();
+      deliveryCompareContext.moveTo(padding.left, padding.top);
+      deliveryCompareContext.lineTo(padding.left, padding.top + chartHeight);
+      deliveryCompareContext.lineTo(width - padding.right, padding.top + chartHeight);
+      deliveryCompareContext.stroke();
+
+      seriesList.forEach((series) => {
+        if (series.points.length === 0) return;
+        deliveryCompareContext.beginPath();
+        deliveryCompareContext.strokeStyle = series.color;
+        deliveryCompareContext.lineWidth = 2.2;
+        series.points.forEach((point, index) => {
+          const x = padding.left + (point.x / maxX) * chartWidth;
+          const y = padding.top + chartHeight - ((point.y - axisMin) / axisRange) * chartHeight;
+          if (index === 0) deliveryCompareContext.moveTo(x, y);
+          else deliveryCompareContext.lineTo(x, y);
+        });
+        deliveryCompareContext.stroke();
+      });
+
+      deliveryCompareContext.textAlign = 'center';
+      deliveryCompareContext.textBaseline = 'top';
+      deliveryCompareContext.fillStyle = '#334155';
+      deliveryCompareContext.fillText('Distance (m)', padding.left + chartWidth / 2, height - 24);
+    }
+
+    function renderComparisonLegend(seriesList) {
+      chartLegend.innerHTML = '';
+      if (!seriesList || seriesList.length === 0) return;
+      seriesList.forEach((series) => {
+        const item = document.createElement('span');
+        item.className = 'legend-item';
+        item.innerHTML = `<span class="legend-swatch" style="background:${series.color}"></span>${series.label}`;
+        chartLegend.appendChild(item);
+      });
+      const averageItem = document.createElement('span');
+      averageItem.className = 'legend-item';
+      averageItem.innerHTML = '<span class="legend-line"></span>Post-lap-1 average';
+      chartLegend.appendChild(averageItem);
+      const deliveryItem = document.createElement('span');
+      deliveryItem.className = 'legend-item';
+      deliveryItem.innerHTML = '<span class="legend-dot"></span>Delivery speed';
+      chartLegend.appendChild(deliveryItem);
+    }
+
+    function getSelectedSessionsForComparison() {
+      const validIndexes = compareSelectedSessionIndexes
+        .filter((idx) => Number.isInteger(idx) && idx >= 0 && idx < loadedTimingSessions.length)
+        .slice(0, 3);
+
+      const getSessionDataForIndex = (idx) => {
+        const baseSession = loadedTimingSessions[idx];
+        if (!baseSession) return null;
+        if (idx !== activeTimingSessionIndex) return baseSession;
+        return {
+          ...baseSession,
+          title: getTitleText(),
+          riderNames: getRiderNames(),
+          rows: splitRows.map((row) => ({ ...row }))
+        };
+      };
+
+      if (loadedTimingSessions.length > 0) {
+        if (validIndexes.length > 0) {
+          return validIndexes.map((idx) => ({
+            index: idx,
+            label: loadedTimingSessions[idx].label || `Race ${idx + 1}`,
+            session: getSessionDataForIndex(idx)
+          }));
+        }
+        const fallbackIndex = activeTimingSessionIndex >= 0 ? activeTimingSessionIndex : 0;
+        const fallbackSession = getSessionDataForIndex(fallbackIndex);
+        return fallbackSession ? [{ index: fallbackIndex, label: fallbackSession.label || `Race ${fallbackIndex + 1}`, session: fallbackSession }] : [];
+      }
+      if (splitRows.length === 0) return [];
+      return [{
+        index: 0,
+        label: getTitleText(),
+        session: {
+          title: getTitleText(),
+          riderNames: getRiderNames(),
+          rows: splitRows
+        }
+      }];
+    }
+
+    function renderReportChart() {
+      const hlMode = hlToggle ? hlToggle.checked : true;
+      if (speedProfileTitle) speedProfileTitle.textContent = hlMode ? 'Half Lap Speed Profiles' : 'Quarter Split Speed Profiles';
+
+      const selectedSessions = getSelectedSessionsForComparison();
+      const profileSeries = [];
+      speedProfilesContainer.innerHTML = '';
+
+      selectedSessions.forEach((entry, idx) => {
+        const chartRows = buildChartRowsFromSession(entry.session);
+        const profileRows = buildProfileRows(chartRows, hlMode);
+        if (profileRows.length === 0) return;
+        const postFirstLapAverageSpeed = getPostLapOneAverageSpeedFromRows(entry.session.rows || splitRows);
+        profileSeries.push({
+          label: entry.label || `Race ${idx + 1}`,
+          color: compareRacePalette[idx % compareRacePalette.length],
+          chartRows,
+          profileRows
+        });
+
+        const card = document.createElement('div');
+        card.className = 'compare-profile-card';
+        const heading = document.createElement('h5');
+        heading.textContent = entry.label || `Race ${idx + 1}`;
+        card.appendChild(heading);
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'chart-wrapper';
+        const canvas = document.createElement('canvas');
+        canvas.width = 900;
+        canvas.height = 260;
+        wrapper.appendChild(canvas);
+        card.appendChild(wrapper);
+        speedProfilesContainer.appendChild(card);
+
+        drawSpeedProfileChart(canvas, wrapper, profileRows, postFirstLapAverageSpeed);
+      });
+
+      const hasProfiles = profileSeries.length > 0;
+      reportChartEmpty.hidden = hasProfiles;
+      speedProfilesContainer.hidden = !hasProfiles;
+      deliveryCompareSection.hidden = !hasProfiles;
+
+      const deliverySeries = profileSeries.map((series) => {
+        const quarterRows = flyingMode ? series.chartRows : series.chartRows.slice(4);
+        const points = quarterRows.map((row, index) => ({
+          x: (index + 1) * SPLIT_DISTANCE_METERS,
+          y: row.deliverySpeed
+        }));
+        return {
+          label: series.label,
+          color: series.color,
+          points
+        };
+      });
+
+      drawDeliveryComparisonChart(deliverySeries);
+      renderComparisonLegend(deliverySeries);
     }
 
     function renderLapSummaryTable() {
@@ -2857,9 +3576,408 @@
       leadLapsEmpty.hidden = true;
     }
 
+    // Ported from TS TimingWithFitFile.html: replays Start/Rider Forward/Marker events into per-rider lap splits.
+    function getTeamSprintSummaryRowsForSession(session) {
+      const riderNames = (session.riderNames || []).map((name, index) => name || `Rider ${index + 1}`);
+      const riderGears = session.riderGears || [];
+      const eventRows = session.eventRows || [];
+      const startEvent = eventRows.find((row) => row.label === 'Start') || null;
+      const markerEvents = eventRows.filter((row) => row.label === 'Marker');
+      const riderForwardEvents = riderNames.map((_, index) => eventRows.find((row) => row.label === `Rider ${index + 1} Forward`) || null);
+
+      const rows = riderNames.map((rider, riderIndex) => ({
+        rider,
+        gear: riderGears[riderIndex] || '',
+        reactionTime: startEvent && riderForwardEvents[riderIndex]
+          ? (riderForwardEvents[riderIndex].time - startEvent.time)
+          : null,
+        lap1QuarterTimes: [null, null, null, null],
+        lap1Time: null,
+        lag1: null,
+        lap2QuarterTimes: [null, null, null, null],
+        lap2Time: null,
+        lag2: null,
+        lap3QuarterTimes: [null, null, null, null],
+        lap3Time: null,
+        tissot1: null,
+        tissot2: null,
+        tissot3: null
+      }));
+      const lap1LastMarkerTimes = Array(riderNames.length).fill(null);
+
+      for (let riderIndex = 0; riderIndex < riderNames.length; riderIndex++) {
+        const quarterTimes = [];
+        let previousMarkerTime = startEvent?.time ?? null;
+        for (let quarterIndex = 0; quarterIndex < 4; quarterIndex++) {
+          const marker = markerEvents[(quarterIndex * riderNames.length) + riderIndex] || null;
+          if (marker && Number.isFinite(previousMarkerTime)) {
+            quarterTimes.push(marker.time - previousMarkerTime);
+            previousMarkerTime = marker.time;
+            lap1LastMarkerTimes[riderIndex] = marker.time;
+          } else {
+            quarterTimes.push(null);
+            if (marker) {
+              previousMarkerTime = marker.time;
+              lap1LastMarkerTimes[riderIndex] = marker.time;
+            }
+          }
+        }
+        rows[riderIndex].lap1QuarterTimes = quarterTimes;
+        rows[riderIndex].lap1Time = quarterTimes.every((value) => Number.isFinite(value))
+          ? quarterTimes.reduce((sum, value) => sum + value, 0)
+          : null;
+      }
+
+      rows.forEach((row, index) => {
+        if (index === 0) {
+          row.lag1 = null;
+          return;
+        }
+        const previousLap1Time = rows[index - 1].lap1Time;
+        row.lag1 = Number.isFinite(row.lap1Time) && Number.isFinite(previousLap1Time)
+          ? row.lap1Time - previousLap1Time
+          : null;
+      });
+
+      const lap2RiderIndexes = riderNames.map((_, index) => index).slice(1);
+      const lap2MarkerOffset = riderNames.length * 4;
+
+      lap2RiderIndexes.forEach((riderIndex, activeIndex) => {
+        const quarterTimes = [];
+        let previousMarkerTime = lap1LastMarkerTimes[riderIndex];
+        for (let quarterIndex = 0; quarterIndex < 4; quarterIndex++) {
+          const marker = markerEvents[lap2MarkerOffset + (quarterIndex * lap2RiderIndexes.length) + activeIndex] || null;
+          if (marker && Number.isFinite(previousMarkerTime)) {
+            quarterTimes.push(marker.time - previousMarkerTime);
+            previousMarkerTime = marker.time;
+          } else {
+            quarterTimes.push(null);
+            if (marker) previousMarkerTime = marker.time;
+          }
+        }
+        rows[riderIndex].lap2QuarterTimes = quarterTimes;
+        rows[riderIndex].lap2Time = quarterTimes.every((value) => Number.isFinite(value))
+          ? quarterTimes.reduce((sum, value) => sum + value, 0)
+          : null;
+      });
+
+      lap2RiderIndexes.forEach((riderIndex, activeIndex) => {
+        if (activeIndex === 0) {
+          rows[riderIndex].lag2 = null;
+          return;
+        }
+        const previousActiveRiderIndex = lap2RiderIndexes[activeIndex - 1];
+        const previousTotalTime = Number.isFinite(rows[previousActiveRiderIndex].lap1Time) && Number.isFinite(rows[previousActiveRiderIndex].lap2Time)
+          ? rows[previousActiveRiderIndex].lap1Time + rows[previousActiveRiderIndex].lap2Time
+          : null;
+        const riderTotalTime = Number.isFinite(rows[riderIndex].lap1Time) && Number.isFinite(rows[riderIndex].lap2Time)
+          ? rows[riderIndex].lap1Time + rows[riderIndex].lap2Time
+          : null;
+        rows[riderIndex].lag2 = Number.isFinite(riderTotalTime) && Number.isFinite(previousTotalTime)
+          ? riderTotalTime - previousTotalTime
+          : null;
+      });
+
+      const finalSoloRiderIndex = riderNames.length - 1;
+      const lap3MarkerOffset = lap2MarkerOffset + (lap2RiderIndexes.length * 4);
+      const lap3QuarterTimes = [];
+      let previousMarkerTime = markerEvents[19]?.time ?? null;
+      for (let quarterIndex = 0; quarterIndex < 4; quarterIndex++) {
+        const marker = markerEvents[lap3MarkerOffset + quarterIndex] || null;
+        if (marker && Number.isFinite(previousMarkerTime)) {
+          lap3QuarterTimes.push(marker.time - previousMarkerTime);
+          previousMarkerTime = marker.time;
+        } else {
+          lap3QuarterTimes.push(null);
+          if (marker) previousMarkerTime = marker.time;
+        }
+      }
+      if (finalSoloRiderIndex >= 0 && rows[finalSoloRiderIndex]) {
+        rows[finalSoloRiderIndex].lap3QuarterTimes = lap3QuarterTimes;
+        rows[finalSoloRiderIndex].lap3Time = lap3QuarterTimes.every((value) => Number.isFinite(value))
+          ? lap3QuarterTimes.reduce((sum, value) => sum + value, 0)
+          : null;
+      }
+
+      if (rows.length > 0) {
+        rows[0].tissot1 = Number.isFinite(rows[0].lap1Time) ? rows[0].lap1Time : null;
+      }
+      if (rows.length > 1) {
+        rows[1].tissot2 = Number.isFinite(rows[1].lap2Time) && Number.isFinite(rows[1].lag1)
+          ? rows[1].lap2Time + rows[1].lag1
+          : null;
+      }
+      if (rows.length > 2) {
+        rows[2].tissot3 = Number.isFinite(rows[2].lap3Time) ? rows[2].lap3Time : null;
+      }
+
+      return rows;
+    }
+
+    // Fixed column widths shared by every compare-card table so columns line up across races.
+    function buildTeamSprintColgroupHtml(showStd) {
+      const widths = [110, 56, 50, 56, 56, 56, 56, 70, 56, 56, 56, 56, 56, 70, 56, 56, 56, 56, 56, 70, 70, 70, 70];
+      if (showStd) widths.push(70, 70, 70);
+      return `<colgroup>${widths.map((w) => `<col style="width:${w}px;">`).join('')}</colgroup>`;
+    }
+
+    function buildTeamSprintSummaryTableHtml(session) {
+      const rows = getTeamSprintSummaryRowsForSession(session);
+      const showStd = isStandardizationEnabled();
+
+      const hasAnyData = rows.some((row) =>
+        Number.isFinite(row.reactionTime) ||
+        row.lap1QuarterTimes.some((value) => Number.isFinite(value)) ||
+        Number.isFinite(row.lap1Time) ||
+        Number.isFinite(row.lag1) ||
+        row.lap2QuarterTimes.some((value) => Number.isFinite(value)) ||
+        Number.isFinite(row.lap2Time) ||
+        Number.isFinite(row.lag2) ||
+        row.lap3QuarterTimes.some((value) => Number.isFinite(value)) ||
+        Number.isFinite(row.lap3Time) ||
+        Number.isFinite(row.tissot1) ||
+        Number.isFinite(row.tissot2) ||
+        Number.isFinite(row.tissot3)
+      );
+
+      if (!hasAnyData) {
+        return '<p class="table-empty">No Team Sprint event data to summarise.</p>';
+      }
+
+      const heatValues = [];
+      for (const row of rows) {
+        for (let qi = 2; qi < 4; qi++) { if (Number.isFinite(row.lap1QuarterTimes[qi])) heatValues.push(row.lap1QuarterTimes[qi]); }
+        for (const v of row.lap2QuarterTimes) { if (Number.isFinite(v)) heatValues.push(v); }
+        for (const v of row.lap3QuarterTimes) { if (Number.isFinite(v)) heatValues.push(v); }
+      }
+      const heatMin = heatValues.length ? Math.min(...heatValues) : 0;
+      const heatMax = heatValues.length ? Math.max(...heatValues) : 1;
+      const heatBg = (v) => {
+        if (!Number.isFinite(v) || heatMax === heatMin) return '';
+        const t = (v - heatMin) / (heatMax - heatMin);
+        return `background:hsl(${Math.round((1 - t) * 120)},70%,75%)`;
+      };
+      const htd = (v) => `<td style="${heatBg(v)}">${formatTime(v)}</td>`;
+
+      const rho = getAirDensity();
+      const stdFactor1 = Math.pow(1.169 / rho, 0.0717);
+      const stdFactor23 = Math.pow(1.169 / rho, 0.3277);
+
+      const headHtml = `
+        <th>Rider</th><th>Gears</th><th>RT</th>
+        <th>62.5</th><th>125</th><th>187.5</th><th>250</th>
+        <th>Lap 1 Time</th><th>Lag 1</th>
+        <th>312.5</th><th>375</th><th>437.5</th><th>500</th>
+        <th>Lap 2 Time</th><th>Lag 2</th>
+        <th>562.5</th><th>625</th><th>687.5</th><th>750</th>
+        <th>Lap 3 Time</th>
+        <th>Tissot 1</th><th>Tissot 2</th><th>Tissot 3</th>
+        ${showStd ? '<th>Std 1</th><th>Std 2</th><th>Std 3</th>' : ''}
+      `;
+
+      const bodyHtml = rows.map((row) => {
+        const std1 = showStd && Number.isFinite(row.tissot1) ? row.tissot1 * stdFactor1 : null;
+        const std2 = showStd && Number.isFinite(row.tissot2) ? row.tissot2 * stdFactor23 : null;
+        const std3 = showStd && Number.isFinite(row.tissot3) ? row.tissot3 * stdFactor23 : null;
+        return `<tr>
+          <td title="${row.rider}">${row.rider}</td>
+          <td>${row.gear}</td>
+          <td>${formatTime(row.reactionTime)}</td>
+          <td>${formatTime(row.lap1QuarterTimes[0])}</td>
+          <td>${formatTime(row.lap1QuarterTimes[1])}</td>
+          ${htd(row.lap1QuarterTimes[2])}
+          ${htd(row.lap1QuarterTimes[3])}
+          <td>${formatTime(row.lap1Time)}</td>
+          <td>${formatTime(row.lag1)}</td>
+          ${htd(row.lap2QuarterTimes[0])}
+          ${htd(row.lap2QuarterTimes[1])}
+          ${htd(row.lap2QuarterTimes[2])}
+          ${htd(row.lap2QuarterTimes[3])}
+          <td>${formatTime(row.lap2Time)}</td>
+          <td>${formatTime(row.lag2)}</td>
+          ${htd(row.lap3QuarterTimes[0])}
+          ${htd(row.lap3QuarterTimes[1])}
+          ${htd(row.lap3QuarterTimes[2])}
+          ${htd(row.lap3QuarterTimes[3])}
+          <td>${formatTime(row.lap3Time)}</td>
+          <td>${formatTime(row.tissot1)}</td>
+          <td>${formatTime(row.tissot2)}</td>
+          <td>${formatTime(row.tissot3)}</td>
+          ${showStd ? `<td>${formatTime(std1)}</td><td>${formatTime(std2)}</td><td>${formatTime(std3)}</td>` : ''}
+        </tr>`;
+      }).join('');
+
+      return `<div class="lap-table-wrap"><table class="ts-summary-table">${buildTeamSprintColgroupHtml(showStd)}<thead><tr>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table></div>`;
+    }
+
+    // Selected Race 1-3 compare slots, restricted to Team Sprint sessions (falls back to the active session).
+    function getSelectedTeamSprintSessionEntries() {
+      const validIndexes = compareSelectedSessionIndexes
+        .filter((idx) => Number.isInteger(idx) && idx >= 0 && idx < loadedTimingSessions.length)
+        .slice(0, 3);
+      const indexes = validIndexes.length > 0
+        ? validIndexes
+        : (activeTimingSessionIndex >= 0 ? [activeTimingSessionIndex] : []);
+      return indexes
+        .map((index) => ({ index, session: loadedTimingSessions[index] }))
+        .filter((entry) => entry.session && entry.session.raceType === 'TS');
+    }
+
+    function renderTeamSprintSummaryCards() {
+      const entries = getSelectedTeamSprintSessionEntries();
+      tsSummaryContainer.innerHTML = '';
+
+      if (entries.length === 0) {
+        tsSummaryContainer.hidden = true;
+        tsSummaryEmpty.hidden = false;
+        tsSpeedTraceSection.hidden = true;
+        return;
+      }
+
+      entries.forEach(({ session, index }) => {
+        const card = document.createElement('div');
+        card.className = 'compare-profile-card';
+        const heading = document.createElement('h5');
+        heading.textContent = session.label || session.title || `Race ${index + 1}`;
+        card.appendChild(heading);
+        card.insertAdjacentHTML('beforeend', buildTeamSprintSummaryTableHtml(session));
+        tsSummaryContainer.appendChild(card);
+      });
+
+      tsSummaryContainer.hidden = false;
+      tsSummaryEmpty.hidden = true;
+      tsSpeedTraceSection.hidden = false;
+      renderTeamSprintSpeedTraceChart(entries);
+    }
+
+    // Speed at each 62.5m point using whichever rider is leading at that point (rider 1 lap 1, rider 2 lap 2, rider 3 lap 3).
+    function buildTeamSprintSpeedTracePointsForSession(session) {
+      const rows = getTeamSprintSummaryRowsForSession(session);
+      if (rows.length === 0) return [];
+      const lap1QuarterTimes = rows[0]?.lap1QuarterTimes || [];
+      const lap2QuarterTimes = rows[1]?.lap2QuarterTimes || [];
+      const lap3QuarterTimes = rows[rows.length - 1]?.lap3QuarterTimes || [];
+      const quarterTimes = [...lap1QuarterTimes, ...lap2QuarterTimes, ...lap3QuarterTimes];
+      const points = [];
+      quarterTimes.forEach((quarterTime, index) => {
+        if (!Number.isFinite(quarterTime) || quarterTime <= 0) return;
+        points.push({ x: (index + 1) * SPLIT_DISTANCE_METERS, y: speedFromTime(quarterTime) });
+      });
+      return points;
+    }
+
+    function drawTeamSprintSpeedTraceChart(seriesList) {
+      const hasSeries = seriesList.some((series) => series.points.length > 0);
+      tsSpeedTraceWrapper.hidden = !hasSeries;
+      tsSpeedTraceEmpty.hidden = hasSeries;
+      const { width, height } = resizeCanvasToWrapper(tsSpeedTraceChart, tsSpeedTraceWrapper, 320);
+      tsSpeedTraceContext.clearRect(0, 0, width, height);
+      if (!hasSeries) return;
+
+      const padding = { top: 20, right: 18, bottom: 46, left: 58 };
+      const chartWidth = width - padding.left - padding.right;
+      const chartHeight = height - padding.top - padding.bottom;
+      const allPoints = seriesList.flatMap((series) => series.points);
+      const maxX = Math.max(...allPoints.map((point) => point.x), 1);
+      const minY = Math.min(...allPoints.map((point) => point.y));
+      const maxY = Math.max(...allPoints.map((point) => point.y));
+      const axisMin = Math.floor(minY - 1);
+      const axisMax = Math.max(Math.ceil(maxY + 1), axisMin + 1);
+      const axisRange = Math.max(0.001, axisMax - axisMin);
+
+      tsSpeedTraceContext.font = '12px sans-serif';
+      tsSpeedTraceContext.strokeStyle = '#cbd5e1';
+      tsSpeedTraceContext.fillStyle = '#475569';
+      tsSpeedTraceContext.lineWidth = 1;
+
+      const tickCount = 5;
+      for (let tick = 0; tick <= tickCount; tick++) {
+        const value = axisMin + (axisRange / tickCount) * tick;
+        const y = padding.top + chartHeight - ((value - axisMin) / axisRange) * chartHeight;
+        tsSpeedTraceContext.beginPath();
+        tsSpeedTraceContext.moveTo(padding.left, y);
+        tsSpeedTraceContext.lineTo(width - padding.right, y);
+        tsSpeedTraceContext.stroke();
+        tsSpeedTraceContext.textAlign = 'right';
+        tsSpeedTraceContext.textBaseline = 'middle';
+        tsSpeedTraceContext.fillText(value.toFixed(1), padding.left - 8, y);
+      }
+
+      tsSpeedTraceContext.strokeStyle = '#0f172a';
+      tsSpeedTraceContext.lineWidth = 1.2;
+      tsSpeedTraceContext.beginPath();
+      tsSpeedTraceContext.moveTo(padding.left, padding.top);
+      tsSpeedTraceContext.lineTo(padding.left, padding.top + chartHeight);
+      tsSpeedTraceContext.lineTo(width - padding.right, padding.top + chartHeight);
+      tsSpeedTraceContext.stroke();
+
+      seriesList.forEach((series) => {
+        if (series.points.length === 0) return;
+        tsSpeedTraceContext.beginPath();
+        tsSpeedTraceContext.strokeStyle = series.color;
+        tsSpeedTraceContext.lineWidth = 2.2;
+        series.points.forEach((point, index) => {
+          const x = padding.left + (point.x / maxX) * chartWidth;
+          const y = padding.top + chartHeight - ((point.y - axisMin) / axisRange) * chartHeight;
+          if (index === 0) tsSpeedTraceContext.moveTo(x, y);
+          else tsSpeedTraceContext.lineTo(x, y);
+        });
+        tsSpeedTraceContext.stroke();
+      });
+
+      tsSpeedTraceContext.textAlign = 'center';
+      tsSpeedTraceContext.textBaseline = 'top';
+      tsSpeedTraceContext.fillStyle = '#334155';
+      tsSpeedTraceContext.fillText('Distance (m)', padding.left + chartWidth / 2, height - 24);
+    }
+
+    function renderTeamSprintSpeedTraceLegend(seriesList) {
+      tsSpeedTraceLegend.innerHTML = '';
+      seriesList.forEach((series) => {
+        const item = document.createElement('span');
+        item.className = 'legend-item';
+        item.innerHTML = `<span class="legend-swatch" style="background:${series.color}"></span>${series.label}`;
+        tsSpeedTraceLegend.appendChild(item);
+      });
+    }
+
+    function renderTeamSprintSpeedTraceChart(entries) {
+      const seriesList = entries.map(({ session, index }) => ({
+        label: session.label || session.title || `Race ${index + 1}`,
+        color: compareRacePalette[index % compareRacePalette.length],
+        points: buildTeamSprintSpeedTracePointsForSession(session)
+      }));
+      drawTeamSprintSpeedTraceChart(seriesList);
+      renderTeamSprintSpeedTraceLegend(seriesList);
+    }
+
+    function refreshReportDashboardIfOpen() {
+      if (!reportModal.classList.contains('open')) return;
+      const isTeamSprint = activeTimingRaceType === 'TS';
+      teamSprintSummaryCard.hidden = !isTeamSprint;
+      tpDashboardSections.hidden = isTeamSprint;
+      if (isTeamSprint) {
+        renderTeamSprintSummaryCards();
+      } else {
+        renderReportChart();
+      }
+    }
+
     function openReportModal() {
+      if (hlToggle) {
+        hlToggle.checked = false;
+      }
       reportModal.classList.add('open');
       reportModal.setAttribute('aria-hidden', 'false');
+
+      const isTeamSprint = activeTimingRaceType === 'TS';
+      teamSprintSummaryCard.hidden = !isTeamSprint;
+      tpDashboardSections.hidden = isTeamSprint;
+      if (isTeamSprint) {
+        renderTeamSprintSummaryCards();
+        return;
+      }
+
       renderReportChart();
       renderLapSummaryTable();
       renderFirstLapTable();
@@ -2970,12 +4088,1311 @@
       throw new Error('Unable to find a blank row to append into.');
     }
 
+    function parseCsvRow(line) {
+      const cols = [];
+      let current = '';
+      let inQuotes = false;
+      for (const ch of String(line || '')) {
+        if (ch === '"') {
+          inQuotes = !inQuotes;
+        } else if (ch === ',' && !inQuotes) {
+          cols.push(current);
+          current = '';
+        } else {
+          current += ch;
+        }
+      }
+      cols.push(current);
+      return cols;
+    }
+
+    function matchesHeaderRow(line, headers) {
+      const cols = parseCsvRow(line).map((value) => String(value || '').trim().toLowerCase());
+      if (cols.length < headers.length) return false;
+      for (let i = 0; i < headers.length; i++) {
+        if (cols[i] !== String(headers[i] || '').trim().toLowerCase()) return false;
+      }
+      return true;
+    }
+
+    function isTimingHeaderRow(line) {
+      return matchesHeaderRow(line, TIMING_CSV_HEADERS);
+    }
+
+    function getNormalizedHeaderCells(line) {
+      return parseCsvRow(line)
+        .map((value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, ''))
+        .filter(Boolean);
+    }
+
+    function isTimingTableHeaderRow(line) {
+      if (matchesHeaderRow(line, TIMING_TABLE_HEADERS)) return true;
+      if (isTeamSprintTableHeaderRow(line)) return false;
+      const normalized = getNormalizedHeaderCells(line);
+      const hasTitle = normalized.includes('title');
+      const hasTime = normalized.includes('time') || normalized.includes('starttime');
+      const hasSplit = normalized.includes('split');
+      const hasFront = normalized.includes('front') || normalized.includes('athleteinfront');
+      return hasTitle && hasTime && hasSplit && hasFront;
+    }
+
+    // Team Sprint export shape: Title, Start time, Row (event label), Riders, Gears[, Save_date, Video].
+    function isTeamSprintTableHeaderRow(line) {
+      const normalized = getNormalizedHeaderCells(line);
+      const hasTitle = normalized.includes('title');
+      const hasTime = normalized.includes('starttime') || normalized.includes('time');
+      const hasRow = normalized.includes('row');
+      const hasRiders = normalized.includes('riders');
+      return hasTitle && hasTime && hasRow && hasRiders;
+    }
+
+    function buildSessionLabel(session, index) {
+      const title = session.title ? session.title.trim() : '';
+      const base = title || `Race ${index + 1}`;
+      if (Number.isFinite(session.startTime)) {
+        return `${base} (${formatTime(session.startTime)}s start)`;
+      }
+      return base;
+    }
+
+    function parseSessionDateToTimestamp(value) {
+      const raw = String(value || '').trim();
+      if (!raw) return null;
+      const directMs = Date.parse(raw);
+      if (Number.isFinite(directMs)) return directMs;
+
+      // Handle dd/mm/yyyy and dd-mm-yyyy values explicitly.
+      const dayMonthYearMatch = raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})(?:\s+(.*))?$/);
+      if (dayMonthYearMatch) {
+        const day = parseInt(dayMonthYearMatch[1], 10);
+        const month = parseInt(dayMonthYearMatch[2], 10);
+        let year = parseInt(dayMonthYearMatch[3], 10);
+        if (year < 100) year += 2000;
+        const timePart = dayMonthYearMatch[4] ? ` ${dayMonthYearMatch[4]}` : '';
+        const isoGuess = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}${timePart}`;
+        const isoMs = Date.parse(isoGuess);
+        if (Number.isFinite(isoMs)) return isoMs;
+      }
+
+      return null;
+    }
+
+    function sortTimingSessionsMostRecentFirst(sessions) {
+      return sessions
+        .map((session, index) => ({ ...session, __sourceIndex: index }))
+        .sort((a, b) => b.__sourceIndex - a.__sourceIndex)
+        .map((session, index) => {
+          const normalized = {
+            ...session,
+            index,
+            label: buildSessionLabel(session, index)
+          };
+          delete normalized.__sourceIndex;
+          return normalized;
+        });
+    }
+
+    function parseLegacyTimingSessionsFromCsvText(text) {
+      const lines = String(text || '').split(/\r?\n/);
+      const rawSessions = [];
+      let currentSession = null;
+      let sharedHeader = null; // reused when header row is not repeated per race
+      let inMetaBlock = false; // true after the first # line in a session
+
+      for (const originalLine of lines) {
+        const line = String(originalLine || '');
+        if (!line.trim()) continue;
+
+        // An explicit column-header row always starts a fresh session.
+        if (isTimingHeaderRow(line)) {
+          if (currentSession && currentSession.dataLines.length > 0) {
+            rawSessions.push(currentSession);
+          }
+          sharedHeader = line;
+          currentSession = { dataLines: [line], metaLines: [] };
+          inMetaBlock = false;
+          continue;
+        }
+
+        if (line.startsWith('# ')) {
+          if (!currentSession) continue;
+          currentSession.metaLines.push(line);
+          inMetaBlock = true; // meta block has started for current session
+          continue;
+        }
+
+        // Data row after a meta block → meta belonged to the previous race,
+        // so start a new session (header row is not repeated in this format).
+        if (inMetaBlock && currentSession && currentSession.dataLines.length > 0) {
+          rawSessions.push(currentSession);
+          currentSession = { dataLines: sharedHeader ? [sharedHeader] : [], metaLines: [] };
+          inMetaBlock = false;
+        }
+
+        if (!currentSession) continue;
+        currentSession.dataLines.push(line);
+      }
+
+      if (currentSession && currentSession.dataLines.length > 0) {
+        rawSessions.push(currentSession);
+      }
+
+      if (rawSessions.length === 0) {
+        throw new Error('CSV columns not recognised.');
+      }
+
+      return rawSessions.map((session, index) => {
+        const header = parseCsvRow(session.dataLines[0]);
+        const col = (name) => header.indexOf(name);
+        const iSplitType = col('splitType');
+        const iEndTime = col('endTime');
+        const iRiderIdx = col('frontRiderIndex');
+        const iAdjusted = col('deliveryAdjusted');
+        const iEvent = col('Event');
+        const iQTime = col('Quarter Time (s)');
+
+        if ([iSplitType, iEndTime, iRiderIdx, iAdjusted, iEvent, iQTime].some((value) => value < 0)) {
+          throw new Error('CSV columns not recognised.');
+        }
+
+        let restoredStartTime = null;
+        let title = '';
+        const riderNames = ['', '', '', ''];
+
+        for (const metaLine of session.metaLines) {
+          const parts = parseCsvRow(metaLine.slice(2));
+          if (parts[0] === 'startTime' && parts[1]) restoredStartTime = parseFloat(parts[1]);
+          if (parts[0] === 'title' || parts[0] === 'country') title = (parts[1] || '').replace(/^"|"$/g, '');
+          riderNames.forEach((_, riderIndex) => {
+            if (parts[0] === `rider${riderIndex + 1}`) riderNames[riderIndex] = (parts[1] || '').replace(/^"|"$/g, '');
+          });
+        }
+
+        const rows = [];
+        for (const line of session.dataLines.slice(1)) {
+          if (!line.trim()) continue;
+          const cols = parseCsvRow(line);
+          const splitType = cols[iSplitType];
+          const endTime = parseFloat(cols[iEndTime]);
+          const frontRiderIndex = parseInt(cols[iRiderIdx], 10);
+          const deliveryAdjusted = cols[iAdjusted] === '1';
+          const eventLabel = cols[iEvent] || 'None';
+          const quarterTime = parseFloat(cols[iQTime]);
+          const teamSpeed = speedFromTime(quarterTime);
+          rows.push({
+            splitType,
+            splitLabel: '',
+            endTime,
+            frontRiderIndex,
+            quarterTime,
+            teamSpeed,
+            deliverySpeed: teamSpeed,
+            eventLabel,
+            deliveryAdjusted
+          });
+        }
+
+        return {
+          index,
+          title,
+          riderNames,
+          startTime: restoredStartTime,
+          rows,
+          isLegacyFormat: true,
+          label: ''
+        };
+      }).map((session, index) => ({
+        ...session,
+        label: buildSessionLabel(session, index)
+      }));
+    }
+
+    function parseTableTimingSessionsFromCsvText(text) {
+      const lines = String(text || '').split(/\r?\n/);
+      const headerLine = lines.find((line) => isTimingTableHeaderRow(line));
+      if (!headerLine) throw new Error('CSV columns not recognised.');
+
+      const header = parseCsvRow(headerLine);
+      const col = (name) => header.indexOf(name);
+      const normalizedHeader = header.map((value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, ''));
+      const findColumnIndex = (primaryName, aliases = []) => {
+        const directIndex = col(primaryName);
+        if (directIndex >= 0) return directIndex;
+        const normalizedTargets = [primaryName, ...aliases]
+          .map((value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, ''))
+          .filter(Boolean);
+        for (let i = 0; i < normalizedHeader.length; i++) {
+          if (normalizedTargets.includes(normalizedHeader[i])) return i;
+        }
+        return -1;
+      };
+
+      const iTitle = findColumnIndex('Title');
+      const iSaveDate = findColumnIndex('Save_date', ['savedate']);
+      const iTime = findColumnIndex('Time', ['starttime', 'start', 'elapsedtime']);
+      const iSplit = findColumnIndex('Split', ['splittime', 'quartertime']);
+      const iDelSpeed = findColumnIndex('Del_speed', ['deliveryspeed', 'delspeed', 'delivery']);
+      const iAvgSpeed = findColumnIndex('Avg_Speed', ['avgspeed', 'teamspeed', 'avg']);
+      const iAction = findColumnIndex('Action', ['event']);
+      const iFront = findColumnIndex('Front', ['athleteinfront', 'lead']);
+      const iVideo = findColumnIndex('Video');
+
+      if ([iTitle, iTime, iFront].some((value) => value < 0)) {
+        throw new Error('CSV columns not recognised.');
+      }
+
+      const sessions = [];
+      let currentSession = null;
+      let riderNameMap = new Map();
+
+      for (const originalLine of lines) {
+        const line = String(originalLine || '');
+        if (!line.trim() || isTimingTableHeaderRow(line)) continue;
+
+        const cols = parseCsvRow(line);
+        const title = String(cols[iTitle] || '').trim();
+        if (!title) continue;
+
+        if (!currentSession || currentSession.title !== title) {
+          if (currentSession && currentSession.rows.length > 0) sessions.push(currentSession);
+          currentSession = {
+            index: sessions.length,
+            title,
+            riderNames: ['', '', '', ''],
+            startTime: null,
+            savedAtRaw: '',
+            savedAtMs: null,
+            videoUrl: '',
+            rows: [],
+            isLegacyFormat: false,
+            label: ''
+          };
+          riderNameMap = new Map();
+        }
+
+        const frontName = String(cols[iFront] || '').trim();
+        const savedAtRaw = iSaveDate >= 0 ? String(cols[iSaveDate] || '').trim() : '';
+        const videoUrl = iVideo >= 0 ? String(cols[iVideo] || '').trim() : '';
+        let frontRiderIndex = -1;
+        if (frontName) {
+          if (!riderNameMap.has(frontName)) {
+            riderNameMap.set(frontName, riderNameMap.size);
+            if (riderNameMap.size <= currentSession.riderNames.length) {
+              currentSession.riderNames[riderNameMap.size - 1] = frontName;
+            }
+          }
+          frontRiderIndex = riderNameMap.get(frontName);
+        }
+
+        const endTime = parseFloat(cols[iTime]);
+        if (!Number.isFinite(endTime)) continue;
+
+        let quarterTime = iSplit >= 0 ? parseFloat(cols[iSplit]) : NaN;
+        if (!Number.isFinite(quarterTime) && currentSession.rows.length > 0) {
+          const previousEndTime = currentSession.rows[currentSession.rows.length - 1].endTime;
+          if (Number.isFinite(previousEndTime)) {
+            quarterTime = endTime - previousEndTime;
+          }
+        }
+        if (!Number.isFinite(quarterTime) || quarterTime <= 0) {
+          quarterTime = endTime;
+        }
+        if (!Number.isFinite(quarterTime) || quarterTime <= 0) continue;
+
+        const importedTeamSpeed = parseFloat(cols[iAvgSpeed]);
+        const importedDeliverySpeed = parseFloat(cols[iDelSpeed]);
+        const eventLabel = String(cols[iAction] || '').trim() || 'None';
+        const eventKey = eventLabel.toLowerCase();
+        const deliveryAdjusted = eventKey === 'change' || eventKey === 'drop' || eventKey === 'rider finish';
+        if (!currentSession.savedAtRaw && savedAtRaw) {
+          currentSession.savedAtRaw = savedAtRaw;
+          currentSession.savedAtMs = parseSessionDateToTimestamp(savedAtRaw);
+        }
+        if (!currentSession.videoUrl && videoUrl) currentSession.videoUrl = videoUrl;
+
+        currentSession.rows.push({
+          splitType: eventKey === 'team finish' ? 'TEAM_FINISH' : 'QUARTER',
+          splitLabel: '',
+          endTime,
+          frontRiderIndex,
+          quarterTime,
+          teamSpeed: Number.isFinite(importedTeamSpeed) ? importedTeamSpeed : speedFromTime(quarterTime),
+          deliverySpeed: Number.isFinite(importedDeliverySpeed)
+            ? importedDeliverySpeed
+            : (Number.isFinite(importedTeamSpeed) ? importedTeamSpeed : speedFromTime(quarterTime)),
+          importedDeliverySpeed: Number.isFinite(importedDeliverySpeed) ? importedDeliverySpeed : null,
+          eventLabel,
+          deliveryAdjusted
+        });
+      }
+
+      if (currentSession && currentSession.rows.length > 0) sessions.push(currentSession);
+      if (sessions.length === 0) throw new Error('CSV columns not recognised.');
+
+      return sortTimingSessionsMostRecentFirst(sessions);
+    }
+
+    const TEAM_SPRINT_RIDER_COUNT = 3;
+
+    // Team Sprint sheets log one row per event (Start / Rider N Forward / Marker) rather than one row per split.
+    function parseTeamSprintSessionsFromCsvText(text) {
+      const lines = String(text || '').split(/\r?\n/);
+      const headerLine = lines.find((line) => isTeamSprintTableHeaderRow(line));
+      if (!headerLine) throw new Error('CSV columns not recognised.');
+
+      const header = parseCsvRow(headerLine);
+      const col = (name) => header.indexOf(name);
+      const normalizedHeader = header.map((value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, ''));
+      const findColumnIndex = (primaryName, aliases = []) => {
+        const directIndex = col(primaryName);
+        if (directIndex >= 0) return directIndex;
+        const normalizedTargets = [primaryName, ...aliases]
+          .map((value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, ''))
+          .filter(Boolean);
+        for (let i = 0; i < normalizedHeader.length; i++) {
+          if (normalizedTargets.includes(normalizedHeader[i])) return i;
+        }
+        return -1;
+      };
+
+      const iTitle = findColumnIndex('Title');
+      const iTime = findColumnIndex('Start time', ['starttime', 'time']);
+      const iRow = findColumnIndex('Row');
+      const iRiders = findColumnIndex('Riders');
+      const iGears = findColumnIndex('Gears');
+      const iSaveDate = findColumnIndex('Save_date', ['savedate']);
+      const iVideo = findColumnIndex('Video');
+
+      if ([iTitle, iTime, iRow, iRiders].some((value) => value < 0)) {
+        throw new Error('CSV columns not recognised.');
+      }
+
+      const sessions = [];
+      let currentSession = null;
+
+      for (const originalLine of lines) {
+        const line = String(originalLine || '');
+        if (!line.trim() || isTeamSprintTableHeaderRow(line)) continue;
+
+        const cols = parseCsvRow(line);
+        const title = String(cols[iTitle] || '').trim();
+        if (!title) continue;
+        const time = parseFloat(cols[iTime]);
+        const label = String(cols[iRow] || '').trim();
+        if (!Number.isFinite(time) || !label) continue;
+
+        if (!currentSession || currentSession.title !== title) {
+          if (currentSession && currentSession.eventRows.length > 0) sessions.push(currentSession);
+          currentSession = {
+            index: sessions.length,
+            title,
+            raceType: 'TS',
+            riderNames: Array(TEAM_SPRINT_RIDER_COUNT).fill(''),
+            riderGears: Array(TEAM_SPRINT_RIDER_COUNT).fill(''),
+            startTime: null,
+            savedAtRaw: '',
+            savedAtMs: null,
+            videoUrl: '',
+            eventRows: [],
+            rows: [],
+            isLegacyFormat: false,
+            label: ''
+          };
+        }
+
+        const rider = String(cols[iRiders] || '').trim();
+        const gear = iGears >= 0 ? String(cols[iGears] || '').trim() : '';
+        const savedAtRaw = iSaveDate >= 0 ? String(cols[iSaveDate] || '').trim() : '';
+        const videoUrl = iVideo >= 0 ? String(cols[iVideo] || '').trim() : '';
+
+        // Rider name/gear are only stamped on the first N event rows (one per rider), by position.
+        const eventIndex = currentSession.eventRows.length;
+        if (eventIndex < currentSession.riderNames.length) {
+          if (rider) currentSession.riderNames[eventIndex] = rider;
+          if (gear) currentSession.riderGears[eventIndex] = gear;
+        }
+        if (label === 'Start' && currentSession.startTime == null) currentSession.startTime = time;
+        if (!currentSession.savedAtRaw && savedAtRaw) {
+          currentSession.savedAtRaw = savedAtRaw;
+          currentSession.savedAtMs = parseSessionDateToTimestamp(savedAtRaw);
+        }
+        if (!currentSession.videoUrl && videoUrl) currentSession.videoUrl = videoUrl;
+
+        currentSession.eventRows.push({ time, label });
+      }
+
+      if (currentSession && currentSession.eventRows.length > 0) sessions.push(currentSession);
+      if (sessions.length === 0) throw new Error('CSV columns not recognised.');
+
+      return sortTimingSessionsMostRecentFirst(sessions);
+    }
+
+    // Individual Pursuit export shape: same 62.5m split columns as TP but no Front/Del_speed (single rider).
+    function isIndividualPursuitTableHeaderRow(line) {
+      if (isTeamSprintTableHeaderRow(line)) return false;
+      const normalized = getNormalizedHeaderCells(line);
+      const hasTitle = normalized.includes('title');
+      const hasTime = normalized.includes('time') || normalized.includes('starttime');
+      const hasSplit = normalized.includes('split');
+      const hasFront = normalized.includes('front') || normalized.includes('athleteinfront');
+      return hasTitle && hasTime && hasSplit && !hasFront;
+    }
+
+    function parseIndividualPursuitSessionsFromCsvText(text) {
+      const lines = String(text || '').split(/\r?\n/);
+      const headerLine = lines.find((line) => isIndividualPursuitTableHeaderRow(line));
+      if (!headerLine) throw new Error('CSV columns not recognised.');
+
+      const header = parseCsvRow(headerLine);
+      const col = (name) => header.indexOf(name);
+      const normalizedHeader = header.map((value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, ''));
+      const findColumnIndex = (primaryName, aliases = []) => {
+        const directIndex = col(primaryName);
+        if (directIndex >= 0) return directIndex;
+        const normalizedTargets = [primaryName, ...aliases]
+          .map((value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, ''))
+          .filter(Boolean);
+        for (let i = 0; i < normalizedHeader.length; i++) {
+          if (normalizedTargets.includes(normalizedHeader[i])) return i;
+        }
+        return -1;
+      };
+
+      const iTitle = findColumnIndex('Title');
+      const iSaveDate = findColumnIndex('Save_date', ['savedate']);
+      const iTime = findColumnIndex('Time', ['starttime', 'start', 'elapsedtime']);
+      const iSplit = findColumnIndex('Split', ['splittime', 'quartertime']);
+      const iAvgSpeed = findColumnIndex('Avg_Speed', ['avgspeed', 'speed']);
+      const iAction = findColumnIndex('Action', ['event']);
+      const iVideo = findColumnIndex('Video');
+
+      if ([iTitle, iTime].some((value) => value < 0)) {
+        throw new Error('CSV columns not recognised.');
+      }
+
+      const sessions = [];
+      let currentSession = null;
+
+      for (const originalLine of lines) {
+        const line = String(originalLine || '');
+        if (!line.trim() || isIndividualPursuitTableHeaderRow(line)) continue;
+
+        const cols = parseCsvRow(line);
+        const title = String(cols[iTitle] || '').trim();
+        if (!title) continue;
+
+        if (!currentSession || currentSession.title !== title) {
+          if (currentSession && currentSession.rows.length > 0) sessions.push(currentSession);
+          currentSession = {
+            index: sessions.length,
+            title,
+            raceType: 'IP',
+            riderNames: ['', '', '', ''],
+            startTime: null,
+            savedAtRaw: '',
+            savedAtMs: null,
+            videoUrl: '',
+            rows: [],
+            isLegacyFormat: false,
+            label: ''
+          };
+        }
+
+        const savedAtRaw = iSaveDate >= 0 ? String(cols[iSaveDate] || '').trim() : '';
+        const videoUrl = iVideo >= 0 ? String(cols[iVideo] || '').trim() : '';
+
+        const endTime = parseFloat(cols[iTime]);
+        if (!Number.isFinite(endTime)) continue;
+
+        let quarterTime = iSplit >= 0 ? parseFloat(cols[iSplit]) : NaN;
+        if (!Number.isFinite(quarterTime) && currentSession.rows.length > 0) {
+          const previousEndTime = currentSession.rows[currentSession.rows.length - 1].endTime;
+          if (Number.isFinite(previousEndTime)) quarterTime = endTime - previousEndTime;
+        }
+        if (!Number.isFinite(quarterTime) || quarterTime <= 0) quarterTime = endTime;
+        if (!Number.isFinite(quarterTime) || quarterTime <= 0) continue;
+
+        const importedSpeed = parseFloat(cols[iAvgSpeed]);
+        const eventLabel = iAction >= 0 ? (String(cols[iAction] || '').trim() || 'None') : 'None';
+        if (!currentSession.savedAtRaw && savedAtRaw) {
+          currentSession.savedAtRaw = savedAtRaw;
+          currentSession.savedAtMs = parseSessionDateToTimestamp(savedAtRaw);
+        }
+        if (!currentSession.videoUrl && videoUrl) currentSession.videoUrl = videoUrl;
+
+        const teamSpeed = Number.isFinite(importedSpeed) ? importedSpeed : speedFromTime(quarterTime);
+        currentSession.rows.push({
+          splitType: 'QUARTER',
+          splitLabel: '',
+          endTime,
+          frontRiderIndex: -1,
+          quarterTime,
+          teamSpeed,
+          deliverySpeed: teamSpeed,
+          importedDeliverySpeed: null,
+          eventLabel,
+          deliveryAdjusted: false
+        });
+      }
+
+      if (currentSession && currentSession.rows.length > 0) sessions.push(currentSession);
+      if (sessions.length === 0) throw new Error('CSV columns not recognised.');
+
+      return sortTimingSessionsMostRecentFirst(sessions);
+    }
+
+    function parseTimingSessionsFromCsvText(text) {
+      const lines = String(text || '').split(/\r?\n/).filter((line) => line.trim());
+      const firstRecognizedHeader = lines.find((line) => isTimingHeaderRow(line) || isTeamSprintTableHeaderRow(line) || isTimingTableHeaderRow(line) || isIndividualPursuitTableHeaderRow(line));
+      if (!firstRecognizedHeader) {
+        throw new Error('CSV columns not recognised.');
+      }
+      if (isTeamSprintTableHeaderRow(firstRecognizedHeader)) {
+        return parseTeamSprintSessionsFromCsvText(text);
+      }
+      if (isTimingTableHeaderRow(firstRecognizedHeader)) {
+        return parseTableTimingSessionsFromCsvText(text);
+      }
+      if (isIndividualPursuitTableHeaderRow(firstRecognizedHeader)) {
+        return parseIndividualPursuitSessionsFromCsvText(text);
+      }
+      return parseLegacyTimingSessionsFromCsvText(text);
+    }
+
+    function normalizeDataset(value) {
+      return value === 'men' ? 'men' : 'women';
+    }
+
+    function getWorkbookDatasetLabel(dataset = workbookState.dataset) {
+      return DATASET_LABELS[normalizeDataset(dataset)] || 'Women';
+    }
+
+    function getWorkbookRecordKey(dataset = workbookState.dataset) {
+      return WORKBOOK_RECORD_KEYS[normalizeDataset(dataset)] || WORKBOOK_RECORD_KEYS.women;
+    }
+
+    function getDefaultWorkbookUrlForDataset(dataset = workbookState.dataset) {
+      const normalizedDataset = normalizeDataset(dataset);
+      return String(defaultWorkbookConfig[normalizedDataset] || '').trim();
+    }
+
+    function sanitizeCompareSessionSelection(indexes = []) {
+      const valid = [];
+      indexes.forEach((value) => {
+        const idx = Number.parseInt(value, 10);
+        if (!Number.isInteger(idx) || idx < 0 || idx >= loadedTimingSessions.length) return;
+        if (!valid.includes(idx)) valid.push(idx);
+      });
+      return valid.slice(0, 3);
+    }
+
+    function renderSelectedRaceSlots() {
+      raceSlotValueEls.forEach((el, slotIndex) => {
+        const sessionIndex = compareSelectedSessionIndexes[slotIndex];
+        const session = Number.isInteger(sessionIndex) ? loadedTimingSessions[sessionIndex] : null;
+        if (session) {
+          el.textContent = session.label || session.title || `Race ${sessionIndex + 1}`;
+          el.title = el.textContent;
+          el.classList.remove('empty');
+        } else {
+          el.textContent = 'Not selected';
+          el.title = '';
+          el.classList.add('empty');
+        }
+      });
+      raceSlotEls.forEach((slotEl, slotIndex) => {
+        const sessionIndex = compareSelectedSessionIndexes[slotIndex];
+        slotEl.classList.toggle('active', Number.isInteger(sessionIndex) && sessionIndex === activeTimingSessionIndex);
+      });
+      raceSlotRemoveBtns.forEach((btn) => {
+        const slotIndex = Number.parseInt(btn.dataset.raceSlot, 10);
+        btn.disabled = !Number.isInteger(compareSelectedSessionIndexes[slotIndex]);
+      });
+    }
+
+    function addRaceToCompareSlots(sessionIndex) {
+      if (!Number.isInteger(sessionIndex) || sessionIndex < 0 || sessionIndex >= loadedTimingSessions.length) return;
+      compareSelectedSessionIndexes = compareSelectedSessionIndexes.filter((idx) => idx !== sessionIndex);
+      compareSelectedSessionIndexes.push(sessionIndex);
+      if (compareSelectedSessionIndexes.length > 3) {
+        compareSelectedSessionIndexes = compareSelectedSessionIndexes.slice(compareSelectedSessionIndexes.length - 3);
+      }
+      compareSelectedSessionIndexes = sanitizeCompareSessionSelection(compareSelectedSessionIndexes);
+      renderSelectedRaceSlots();
+    }
+
+    function removeRaceFromCompareSlot(slotIndex) {
+      if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex > 2) return;
+      const removedSessionIndex = compareSelectedSessionIndexes[slotIndex];
+      if (!Number.isInteger(removedSessionIndex)) return;
+      const removedWasActive = removedSessionIndex === activeTimingSessionIndex;
+      compareSelectedSessionIndexes.splice(slotIndex, 1);
+      compareSelectedSessionIndexes = sanitizeCompareSessionSelection(compareSelectedSessionIndexes);
+
+      if (removedWasActive) {
+        const fallbackSessionIndex = compareSelectedSessionIndexes[0];
+        if (Number.isInteger(fallbackSessionIndex) && loadedTimingSessions[fallbackSessionIndex]) {
+          const rowCount = restoreTimingSession(loadedTimingSessions[fallbackSessionIndex], fallbackSessionIndex);
+          setStatus(`Loaded ${rowCount} rows from ${loadedTimingSessions[fallbackSessionIndex].label}.`);
+        }
+      }
+
+      renderSelectedRaceSlots();
+      refreshReportDashboardIfOpen();
+    }
+
+    function activateRaceSlot(slotIndex) {
+      if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex > 2) return;
+      const sessionIndex = compareSelectedSessionIndexes[slotIndex];
+      if (!Number.isInteger(sessionIndex) || !loadedTimingSessions[sessionIndex]) return;
+      const rowCount = restoreTimingSession(loadedTimingSessions[sessionIndex], sessionIndex);
+      setStatus(`Loaded ${rowCount} rows from ${loadedTimingSessions[sessionIndex].label}.`);
+      refreshReportDashboardIfOpen();
+    }
+
+    function renderTimingSessionPicker() {
+      if (loadedTimingSessions.length <= 1) {
+        timingSessionPicker.hidden = true;
+        timingSessionSelect.innerHTML = '';
+        compareSelectedSessionIndexes = loadedTimingSessions.length === 1 ? [0] : [];
+        renderSelectedRaceSlots();
+        return;
+      }
+      compareSelectedSessionIndexes = sanitizeCompareSessionSelection(
+        compareSelectedSessionIndexes.length > 0
+          ? compareSelectedSessionIndexes
+          : [activeTimingSessionIndex >= 0 ? activeTimingSessionIndex : 0]
+      );
+      timingSessionPicker.hidden = false;
+      timingSessionSelect.innerHTML = loadedTimingSessions
+        .map((session, index) => `<option value="${index}">${session.label}</option>`)
+        .join('');
+      timingSessionSelect.value = String(activeTimingSessionIndex >= 0 ? activeTimingSessionIndex : 0);
+      renderSelectedRaceSlots();
+    }
+
+    function restoreTimingSession(session, sessionIndex = 0) {
+      activeTimingSessionIndex = sessionIndex;
+      activeTimingRaceType = session.raceType === 'TS' ? 'TS' : (session.raceType === 'IP' ? 'IP' : 'TP');
+      resetSession();
+      startTime = session.startTime;
+      uploadedCsvStartTime = session.startTime;
+      hasUploadedTimingData = true;
+      updateSnapToStartAvailability();
+
+      countryInput.value = session.title || '';
+      currentSessionVideoUrl = session.videoUrl || '';
+      youtubeUrlInput.value = currentSessionVideoUrl;
+      riderInputs.forEach((input, index) => {
+        input.value = session.riderNames[index] || '';
+      });
+
+      for (const row of session.rows) {
+        splitRows.push({ ...row });
+        if (row.splitType === 'TEAM_FINISH') teamFinished = true;
+      }
+
+      lastMarkerTime = splitRows.length > 0
+        ? splitRows[splitRows.length - 1].endTime
+        : startTime;
+
+      if (session.isLegacyFormat !== false) {
+        replayRiderRotations();
+      }
+      renumberRows();
+      updateReport();
+      renderTimingSessionPicker();
+      if (currentSessionVideoUrl) {
+        loadYouTubeVideo(currentSessionVideoUrl).catch((error) => {
+          console.error(error);
+          setStatus(`YouTube load failed: ${error.message || error}`);
+        });
+      }
+      return splitRows.length;
+    }
+
+    function detectPersistentFileType(fileName = '', mimeType = '') {
+      const lowerName = String(fileName || '').toLowerCase();
+      const lowerMime = String(mimeType || '').toLowerCase();
+      if (lowerName.endsWith('.csv') || lowerMime.includes('text/csv') || lowerMime.includes('csv')) {
+        return 'csv';
+      }
+      return 'workbook';
+    }
+
+    function getPersistentFileLabel(record) {
+      return record && record.fileType === 'csv' ? 'CSV file' : 'workbook';
+    }
+
+    function formatWorkbookDate(value) {
+      if (!value) return '-';
+      const date = new Date(value);
+      if (!Number.isFinite(date.getTime())) return '-';
+      return date.toLocaleString();
+    }
+
+    function updateWorkbookButtons() {
+      const hasSavedWorkbook = !!workbookState.record;
+      const hasRefreshHandle = hasSavedWorkbook && !!workbookState.record.fileHandle;
+      refreshExcelBtn.disabled = !hasRefreshHandle;
+      changeExcelBtn.disabled = !hasSavedWorkbook;
+      clearExcelBtn.disabled = !hasSavedWorkbook;
+      refreshExcelBtn.title = hasRefreshHandle
+        ? 'Reload the originally selected file if the browser still allows access.'
+        : 'Refresh is unavailable until the browser grants a reusable file handle.';
+    }
+
+    function setWorkbookMeta(record, message = '', level = 'warn') {
+      workbookState.record = record || null;
+      if (!record) {
+        workbookMeta.hidden = true;
+        workbookMetaName.textContent = 'None';
+        workbookMetaDate.textContent = '-';
+        workbookMetaMessage.textContent = 'No saved file.';
+        workbookMetaMessage.classList.remove('ok');
+        populateWorkbookSheetSelect([]);
+        updateWorkbookButtons();
+        return;
+      }
+      workbookMeta.hidden = false;
+      workbookMetaName.textContent = record.fileName || 'Unnamed file';
+      workbookMetaDate.textContent = formatWorkbookDate(record.importedAt);
+      workbookMetaMessage.textContent = message || 'Saved file is available for automatic restore.';
+      workbookMetaMessage.classList.toggle('ok', level === 'ok');
+      updateWorkbookButtons();
+    }
+
+    function openWorkbookDb() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(WORKBOOK_DB_NAME, WORKBOOK_DB_VERSION);
+        request.onupgradeneeded = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains(WORKBOOK_STORE_NAME)) {
+            db.createObjectStore(WORKBOOK_STORE_NAME);
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error('Unable to open workbook storage.'));
+      });
+    }
+
+    async function idbGet(key) {
+      const db = await openWorkbookDb();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(WORKBOOK_STORE_NAME, 'readonly');
+        const store = tx.objectStore(WORKBOOK_STORE_NAME);
+        const request = store.get(key);
+        request.onsuccess = () => resolve(request.result || null);
+        request.onerror = () => reject(request.error || new Error('Unable to read workbook storage.'));
+        tx.oncomplete = () => db.close();
+        tx.onabort = () => reject(tx.error || new Error('Workbook read transaction failed.'));
+      });
+    }
+
+    async function idbPut(key, value) {
+      const db = await openWorkbookDb();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(WORKBOOK_STORE_NAME, 'readwrite');
+        const store = tx.objectStore(WORKBOOK_STORE_NAME);
+        store.put(value, key);
+        tx.oncomplete = () => {
+          db.close();
+          resolve();
+        };
+        tx.onerror = () => reject(tx.error || new Error('Unable to save workbook storage.'));
+        tx.onabort = () => reject(tx.error || new Error('Workbook save transaction failed.'));
+      });
+    }
+
+    async function idbDelete(key) {
+      const db = await openWorkbookDb();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(WORKBOOK_STORE_NAME, 'readwrite');
+        const store = tx.objectStore(WORKBOOK_STORE_NAME);
+        store.delete(key);
+        tx.oncomplete = () => {
+          db.close();
+          resolve();
+        };
+        tx.onerror = () => reject(tx.error || new Error('Unable to clear workbook storage.'));
+        tx.onabort = () => reject(tx.error || new Error('Workbook delete transaction failed.'));
+      });
+    }
+
+    async function persistWorkbookRecord(record, dataset = workbookState.dataset) {
+      const recordKey = getWorkbookRecordKey(dataset);
+      try {
+        await idbPut(recordKey, record);
+        return record;
+      } catch (error) {
+        if (!record.fileHandle) throw error;
+        const fallbackRecord = { ...record };
+        delete fallbackRecord.fileHandle;
+        await idbPut(recordKey, fallbackRecord);
+        return fallbackRecord;
+      }
+    }
+
+    async function workbookArrayBufferToCsvText(arrayBuffer, preferredSheetName = '') {
+      const XLSX = await ensureXLSXLoaded();
+      const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
+      const sheetNames = workbook.SheetNames || [];
+      if (sheetNames.length === 0) {
+        throw new Error('Workbook does not contain any sheets.');
+      }
+
+      const normalizedPreferredSheetName = String(preferredSheetName || '').trim().toLowerCase();
+      if (normalizedPreferredSheetName) {
+        const matchedSheetName = sheetNames.find((sheetName) => sheetName.toLowerCase() === normalizedPreferredSheetName);
+        if (matchedSheetName) {
+          const preferredSheet = workbook.Sheets[matchedSheetName];
+          const preferredCsvText = XLSX.utils.sheet_to_csv(preferredSheet, { blankrows: false });
+          if (!preferredCsvText.trim()) {
+            throw new Error(`Sheet "${matchedSheetName}" is empty.`);
+          }
+          return { csvText: preferredCsvText, firstSheetName: matchedSheetName, sheetNames };
+        }
+      }
+
+      let fallbackSheetName = null;
+      let fallbackCsvText = '';
+
+      for (const sheetName of sheetNames) {
+        const sheet = workbook.Sheets[sheetName];
+        const csvText = XLSX.utils.sheet_to_csv(sheet, { blankrows: false });
+        if (!csvText.trim()) continue;
+        if (!fallbackCsvText) {
+          fallbackCsvText = csvText;
+          fallbackSheetName = sheetName;
+        }
+        const hasKnownHeader = csvText
+          .split(/\r?\n/)
+          .some((line) => isTimingHeaderRow(line) || isTeamSprintTableHeaderRow(line) || isTimingTableHeaderRow(line) || isIndividualPursuitTableHeaderRow(line));
+        if (hasKnownHeader) {
+          return { csvText, firstSheetName: sheetName, sheetNames };
+        }
+      }
+
+      if (fallbackCsvText) {
+        return { csvText: fallbackCsvText, firstSheetName: fallbackSheetName, sheetNames };
+      }
+
+      throw new Error('No readable timing sheet was found in this workbook.');
+    }
+
+    function populateWorkbookSheetSelect(sheetNames = [], selectedSheetName = '') {
+      const names = Array.isArray(sheetNames) ? sheetNames : [];
+      workbookSheetSelect.innerHTML = '';
+      if (names.length === 0) {
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'No tabs available';
+        workbookSheetSelect.appendChild(option);
+        workbookSheetSelect.disabled = true;
+        return;
+      }
+      names.forEach((name) => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        if (name === selectedSheetName) option.selected = true;
+        workbookSheetSelect.appendChild(option);
+      });
+      workbookSheetSelect.disabled = false;
+    }
+
+    async function persistentFileRecordToCsvText(record, options = {}) {
+      const { preferredSheetName = '' } = options;
+      if (record.fileType === 'csv') {
+        const decoder = new TextDecoder('utf-8');
+        return { csvText: decoder.decode(record.arrayBuffer), firstSheetName: null, sheetNames: [] };
+      }
+      return workbookArrayBufferToCsvText(record.arrayBuffer, preferredSheetName);
+    }
+
+    async function importWorkbookBinary(record, options = {}) {
+      const {
+        announce = true,
+        verifySource = false,
+        preferredSheetName = TP_SHEET_NAME,
+        dataset = workbookState.dataset
+      } = options;
+      const normalizedDataset = normalizeDataset(dataset);
+      const datasetLabel = getWorkbookDatasetLabel(normalizedDataset);
+      const { csvText, firstSheetName, sheetNames } = await persistentFileRecordToCsvText(record, { preferredSheetName });
+      const rowCount = restoreTimingDataFromCsvText(csvText);
+      populateWorkbookSheetSelect(sheetNames, firstSheetName);
+      const normalizedRecord = {
+        ...record,
+        sheetName: firstSheetName,
+        dataset: normalizedDataset
+      };
+      const persistentFileLabel = getPersistentFileLabel(normalizedRecord);
+
+      let metaMessage = normalizedRecord.fileType === 'csv'
+        ? `Restored ${rowCount} timing rows for ${datasetLabel} from saved CSV file.`
+        : `Restored ${rowCount} timing rows for ${datasetLabel} from sheet \"${firstSheetName}\".`;
+      let metaLevel = 'ok';
+
+      if (verifySource && normalizedRecord.fileHandle) {
+        try {
+          const permission = normalizedRecord.fileHandle.queryPermission
+            ? await normalizedRecord.fileHandle.queryPermission({ mode: 'read' })
+            : 'prompt';
+          if (permission === 'granted') {
+            const liveFile = await normalizedRecord.fileHandle.getFile();
+            if (Number.isFinite(normalizedRecord.fileLastModified) && liveFile.lastModified !== normalizedRecord.fileLastModified) {
+              metaMessage = `Restored saved copy from \"${normalizedRecord.fileName}\". The original ${persistentFileLabel} has changed since ${formatWorkbookDate(normalizedRecord.importedAt)}; click Refresh data to pull the latest version.`;
+              metaLevel = 'warn';
+            }
+          } else {
+            metaMessage = `Restored saved copy from \"${normalizedRecord.fileName}\". Browser access to the original ${persistentFileLabel} is not currently granted; use Refresh data or Change Excel/CSV file if needed.`;
+            metaLevel = 'warn';
+          }
+        } catch (error) {
+          metaMessage = `Restored saved copy from \"${normalizedRecord.fileName}\". The original ${persistentFileLabel} could not be accessed (${error.message || error}); use Change Excel/CSV file to relink it.`;
+          metaLevel = 'warn';
+        }
+      }
+
+      setWorkbookMeta(normalizedRecord, metaMessage, metaLevel);
+      if (announce) setStatus(`Loaded ${datasetLabel} TP data: ${rowCount} rows from ${normalizedRecord.fileType === 'csv' ? 'CSV file' : 'workbook'} ${normalizedRecord.fileName}.`);
+      return { rowCount, record: normalizedRecord };
+    }
+
+    async function importWorkbookFile(file, fileHandle = null, options = {}) {
+      const {
+        dataset = workbookState.dataset,
+        preferredSheetName = TP_SHEET_NAME
+      } = options;
+      const normalizedDataset = normalizeDataset(dataset);
+      const datasetLabel = getWorkbookDatasetLabel(normalizedDataset);
+      const arrayBuffer = await file.arrayBuffer();
+      const fileType = detectPersistentFileType(file.name, file.type);
+      const baseRecord = {
+        fileName: file.name,
+        fileType,
+        importedAt: new Date().toISOString(),
+        fileLastModified: file.lastModified || null,
+        fileSize: file.size || null,
+        arrayBuffer,
+        fileHandle,
+        dataset: normalizedDataset
+      };
+      const persistedRecord = await persistWorkbookRecord(baseRecord, normalizedDataset);
+      await importWorkbookBinary(persistedRecord, {
+        announce: false,
+        verifySource: false,
+        preferredSheetName,
+        dataset: normalizedDataset
+      });
+      setStatus(`Loaded ${datasetLabel} TP data from ${fileType === 'csv' ? 'CSV file' : 'workbook'} ${persistedRecord.fileName} and saved it for automatic restore.`);
+      return persistedRecord;
+    }
+
+    async function restoreSavedWorkbookFromStorage(dataset = workbookState.dataset) {
+      const normalizedDataset = normalizeDataset(dataset);
+      const recordKey = getWorkbookRecordKey(normalizedDataset);
+      const savedRecord = await idbGet(recordKey);
+      if (!savedRecord || !savedRecord.arrayBuffer) {
+        setWorkbookMeta(null);
+        return false;
+      }
+      const isLegacyDefaultWomenCsv = normalizedDataset === 'women'
+        && savedRecord.fileType === 'csv'
+        && /womens\s*tp\s*data\.csv/i.test(String(savedRecord.fileName || ''));
+      if (isLegacyDefaultWomenCsv) {
+        await idbDelete(recordKey);
+        setWorkbookMeta(null, 'Old Women CSV default was cleared. Select your new WomensVideoAnalysis workbook to set the default.', 'warn');
+        return false;
+      }
+      await importWorkbookBinary(savedRecord, {
+        announce: false,
+        verifySource: true,
+        preferredSheetName: TP_SHEET_NAME,
+        dataset: normalizedDataset
+      });
+      return true;
+    }
+
+    async function importWorkbookFromUrl(url, options = {}) {
+      const {
+        dataset = workbookState.dataset,
+        preferredSheetName = TP_SHEET_NAME,
+        persist = false,
+        announce = true
+      } = options;
+      const normalizedDataset = normalizeDataset(dataset);
+      const datasetLabel = getWorkbookDatasetLabel(normalizedDataset);
+      const resolvedUrl = new URL(url, window.location.href).href;
+      const response = await fetch(resolvedUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch workbook (${response.status}).`);
+      }
+
+      const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+      const fileNameFromUrl = resolvedUrl.split('/').pop() || `${datasetLabel}VideoAnalysis.xlsx`;
+      const detectedFileType = detectPersistentFileType(fileNameFromUrl, contentType);
+
+      if (detectedFileType === 'csv') {
+        const csvText = await response.text();
+        const rowCount = restoreTimingDataFromCsvText(csvText);
+        if (announce) setStatus(`Loaded ${datasetLabel} TP data (${rowCount} rows) from linked CSV.`);
+        return { rowCount, resolvedUrl, fileType: 'csv' };
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const baseRecord = {
+        fileName: fileNameFromUrl,
+        fileType: 'workbook',
+        importedAt: new Date().toISOString(),
+        fileLastModified: null,
+        fileSize: Number.isFinite(arrayBuffer.byteLength) ? arrayBuffer.byteLength : null,
+        arrayBuffer,
+        fileHandle: null,
+        dataset: normalizedDataset,
+        sourceUrl: resolvedUrl
+      };
+
+      const recordToImport = persist
+        ? await persistWorkbookRecord(baseRecord, normalizedDataset)
+        : baseRecord;
+
+      const { rowCount } = await importWorkbookBinary(recordToImport, {
+        announce: false,
+        verifySource: false,
+        preferredSheetName,
+        dataset: normalizedDataset
+      });
+
+      if (announce) {
+        setStatus(`Loaded ${datasetLabel} TP data (${rowCount} rows) from linked workbook.`);
+      }
+      return { rowCount, resolvedUrl, fileType: 'workbook' };
+    }
+
+    async function switchWorkbookDataset(dataset) {
+      const normalizedDataset = normalizeDataset(dataset);
+      if (workbookState.dataset === normalizedDataset && workbookState.record) return;
+      workbookState.dataset = normalizedDataset;
+      genderDatasetSelect.value = normalizedDataset;
+      try {
+        const restored = await restoreSavedWorkbookFromStorage(normalizedDataset);
+        if (restored) {
+          setStatus(`Loaded ${getWorkbookDatasetLabel(normalizedDataset)} TP data from saved workbook.`);
+        } else {
+          const linkedWorkbookUrl = getDefaultWorkbookUrlForDataset(normalizedDataset);
+          if (linkedWorkbookUrl) {
+            await importWorkbookFromUrl(linkedWorkbookUrl, {
+              dataset: normalizedDataset,
+              preferredSheetName: TP_SHEET_NAME,
+              persist: false,
+              announce: true
+            });
+          } else {
+            setStatus(`No saved ${getWorkbookDatasetLabel(normalizedDataset)} workbook yet. Click Select Excel/CSV file.`);
+          }
+        }
+      } catch (error) {
+        console.error(error);
+        setWorkbookMeta(workbookState.record, error.message || 'Saved workbook restore failed.', 'warn');
+        setStatus(`Saved workbook restore failed: ${error.message || error}`);
+      }
+    }
+
+    async function chooseExcelWorkbook() {
+      if (workbookState.fileHandleSupported) {
+        try {
+          const [fileHandle] = await window.showOpenFilePicker({
+            types: [{
+              description: 'Excel or CSV files',
+              accept: {
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+                'application/vnd.ms-excel.sheet.macroEnabled.12': ['.xlsm'],
+                'application/vnd.ms-excel': ['.xls'],
+                'text/csv': ['.csv']
+              }
+            }],
+            multiple: false
+          });
+          if (!fileHandle) return;
+          const file = await fileHandle.getFile();
+          await importWorkbookFile(file, fileHandle, {
+            dataset: workbookState.dataset,
+            preferredSheetName: TP_SHEET_NAME
+          });
+          return;
+        } catch (error) {
+          if (error && error.name === 'AbortError') return;
+          console.warn('Falling back to file input for workbook selection.', error);
+        }
+      }
+      excelWorkbookInput.value = '';
+      excelWorkbookInput.click();
+    }
+
+    async function refreshSavedWorkbookFromHandle() {
+      const record = workbookState.record;
+      if (!record || !record.fileHandle) {
+        setWorkbookMeta(record, 'Browser refresh is unavailable for this saved file. Use Change Excel/CSV file to pick it again.', 'warn');
+        return;
+      }
+      try {
+        const permissionState = record.fileHandle.queryPermission
+          ? await record.fileHandle.queryPermission({ mode: 'read' })
+          : 'prompt';
+        const granted = permissionState === 'granted' || (record.fileHandle.requestPermission && await record.fileHandle.requestPermission({ mode: 'read' }) === 'granted');
+        if (!granted) {
+          setWorkbookMeta(record, 'Browser permission was not granted to reopen the original file. Use Change Excel/CSV file if needed.', 'warn');
+          return;
+        }
+        const file = await record.fileHandle.getFile();
+        await importWorkbookFile(file, record.fileHandle, {
+          dataset: record.dataset || workbookState.dataset,
+          preferredSheetName: TP_SHEET_NAME
+        });
+        setWorkbookMeta(workbookState.record, `Refreshed from the original file ${file.name}.`, 'ok');
+      } catch (error) {
+        console.error(error);
+        setWorkbookMeta(record, `The original file could not be accessed (${error.message || error}). Use Change Excel/CSV file to relink it.`, 'warn');
+        setStatus(`Workbook refresh failed: ${error.message || error}`);
+      }
+    }
+
+    async function clearSavedWorkbook(dataset = workbookState.dataset) {
+      const normalizedDataset = normalizeDataset(dataset);
+      await idbDelete(getWorkbookRecordKey(normalizedDataset));
+      setWorkbookMeta(null);
+      setStatus(`Saved ${getWorkbookDatasetLabel(normalizedDataset)} file cleared from browser storage.`);
+    }
+
+    function restoreTimingDataFromCsvText(text) {
+      loadedTimingSessions = parseTimingSessionsFromCsvText(text);
+      compareSelectedSessionIndexes = loadedTimingSessions.length > 0 ? [0] : [];
+      renderSelectedRaceSlots();
+      return restoreTimingSession(loadedTimingSessions[0], 0);
+    }
+
+    function loadVideoFromUrl(url) {
+      return new Promise((resolve, reject) => {
+        if (!url) {
+          resolve(false);
+          return;
+        }
+        const resolvedUrl = new URL(url, window.location.href).href;
+        const onLoadedMetadata = () => {
+          video.removeEventListener('loadedmetadata', onLoadedMetadata);
+          video.removeEventListener('error', onVideoError);
+          hasVideoLoaded = true;
+          updateSnapToStartAvailability();
+          video.style.display = '';
+          video.addEventListener('focus', () => video.blur());
+          try {
+            const pathName = new URL(resolvedUrl).pathname;
+            const fileName = pathName.split('/').pop() || 'data';
+            videoFileName = fileName.replace(/\.[^.]+$/, '') || 'data';
+          } catch (_) {
+            videoFileName = 'data';
+          }
+          resolve(true);
+        };
+        const onVideoError = () => {
+          video.removeEventListener('loadedmetadata', onLoadedMetadata);
+          video.removeEventListener('error', onVideoError);
+          reject(new Error(`Failed to load linked video: ${resolvedUrl}`));
+        };
+        video.addEventListener('loadedmetadata', onLoadedMetadata, { once: true });
+        video.addEventListener('error', onVideoError, { once: true });
+        video.src = resolvedUrl;
+        video.load();
+      });
+    }
+
+    async function loadTimingDataFromUrl(url) {
+      const resolvedUrl = new URL(url, window.location.href).href;
+      const response = await fetch(resolvedUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch linked timing data (${response.status}).`);
+      }
+      const text = await response.text();
+      const rowCount = restoreTimingDataFromCsvText(text);
+      return { resolvedUrl, rowCount };
+    }
+
+    async function loadSyncedFitPayloadFromUrl(url) {
+      const resolvedUrl = new URL(url, window.location.href).href;
+      const response = await fetch(resolvedUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch linked FIT sync data (${response.status}).`);
+      }
+      const payload = await response.json();
+      restoreSyncedFitPayload(payload);
+      return resolvedUrl;
+    }
+
+    function resolveDefaultPreloadValue(url) {
+      if (!url) return '';
+      if (window.location.protocol !== 'file:') return url;
+      return /^https?:\/\//i.test(url) ? url : '';
+    }
+
+    async function preloadLinkedSessionFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const dataUrl = params.get('data') || params.get('csv') || resolveDefaultPreloadValue(defaultPreloadConfig.data);
+      const videoUrl = params.get('video') || resolveDefaultPreloadValue(defaultPreloadConfig.video);
+      const syncUrl = params.get('sync') || resolveDefaultPreloadValue(defaultPreloadConfig.sync);
+      if (!dataUrl && !videoUrl && !syncUrl) return;
+
+      setStatus('Preloading linked session data...');
+      const preloadTasks = [];
+      if (videoUrl) preloadTasks.push(loadVideoFromUrl(videoUrl));
+      if (dataUrl) preloadTasks.push(loadTimingDataFromUrl(dataUrl));
+      if (syncUrl) preloadTasks.push(loadSyncedFitPayloadFromUrl(syncUrl));
+
+      const results = await Promise.allSettled(preloadTasks);
+      const errors = results.filter((result) => result.status === 'rejected');
+      if (errors.length > 0) {
+        throw new Error(errors.map((result) => result.reason?.message || 'Preload failed.').join(' '));
+      }
+
+      if (hasVideoLoaded && hasUploadedTimingData && Number.isFinite(uploadedCsvStartTime)) {
+        setMediaCurrentTime(Math.max(0, uploadedCsvStartTime));
+        setStatus(`Linked session preloaded — snapped to start at ${uploadedCsvStartTime.toFixed(2)}s.`);
+        return;
+      }
+
+      const loaded = [videoUrl && 'video', dataUrl && 'data', syncUrl && 'sync'].filter(Boolean);
+      setStatus(`Linked preload complete: ${loaded.join(', ')}.`);
+    }
+
+    async function initializePersistedWorkbookRestore() {
+      if (hasUploadedTimingData) return;
+      try {
+        const restored = await restoreSavedWorkbookFromStorage(workbookState.dataset);
+        if (restored) return;
+        const linkedWorkbookUrl = getDefaultWorkbookUrlForDataset(workbookState.dataset);
+        if (!linkedWorkbookUrl) return;
+        await importWorkbookFromUrl(linkedWorkbookUrl, {
+          dataset: workbookState.dataset,
+          preferredSheetName: TP_SHEET_NAME,
+          persist: false,
+          announce: true
+        });
+      } catch (error) {
+        console.error(error);
+        setWorkbookMeta(workbookState.record, error.message || 'Saved workbook restore failed.', 'warn');
+        setStatus(`Saved workbook restore failed: ${error.message || error}`);
+      }
+    }
+
     // Re-reads names + re-applies current change time to all adjusted rows
     function updateReport() {
       updateTitle();
       const ct = getChangeTimeSeconds();
       for (const row of splitRows) {
-        if (row.deliveryAdjusted) {
+        if (Number.isFinite(row.importedDeliverySpeed)) {
+          row.deliverySpeed = row.importedDeliverySpeed;
+        } else if (row.deliveryAdjusted) {
           const adjTime = Math.max(row.quarterTime - ct, 0.001);
           row.deliverySpeed = speedFromTime(adjTime);
         } else {
@@ -3040,7 +5457,7 @@
 
     function startTiming() {
       resetSession();
-      startTime = video.currentTime;
+      startTime = getMediaCurrentTime();
       lastMarkerTime = startTime;
       reportTable.style.display = 'table';
       setStatus(`Started at ${startTime.toFixed(2)}s.`);
@@ -3051,7 +5468,7 @@
     // deliveryAdjusted: boolean - whether to subtract change time from delivery calc
     function addSplit(splitType, eventLabel, deliveryAdjusted) {
       if (startTime === null || teamFinished) return;
-      const now = video.currentTime;
+      const now = getMediaCurrentTime();
       if (now <= startTime) return;
 
       // Check if this timestamp falls between two existing rows (insert mode)
@@ -3136,7 +5553,7 @@
     // Team timing is finalized when a split marker (Z/C/X/T) is pressed.
     function markEvent(label) {
       if (startTime === null || teamFinished) return;
-      const now = video.currentTime;
+      const now = getMediaCurrentTime();
       const prevTime = splitRows.length > 0 ? splitRows[splitRows.length - 1].endTime : startTime;
       if (now <= prevTime + frameDuration() * 0.2) return;
       pendingDeliveryAdjustment = true;
@@ -3146,25 +5563,23 @@
     }
 
     function stepNextFrame() {
-      video.pause();
-      const duration = Number.isFinite(video.duration) ? video.duration : Infinity;
-      video.currentTime = Math.min(duration, video.currentTime + frameDuration());
+      pauseMedia();
+      setMediaCurrentTime(getMediaCurrentTime() + frameDuration());
     }
 
     function stepPrevFrame() {
-      video.pause();
-      video.currentTime = Math.max(0, video.currentTime - frameDuration());
+      pauseMedia();
+      setMediaCurrentTime(getMediaCurrentTime() - frameDuration());
     }
 
     function jumpForward() {
-      video.pause();
-      const duration = Number.isFinite(video.duration) ? video.duration : Infinity;
-      video.currentTime = Math.min(duration, video.currentTime + getJumpSeconds());
+      pauseMedia();
+      setMediaCurrentTime(getMediaCurrentTime() + getJumpSeconds());
     }
 
     function jumpBackward() {
-      video.pause();
-      video.currentTime = Math.max(0, video.currentTime - getJumpSeconds());
+      pauseMedia();
+      setMediaCurrentTime(getMediaCurrentTime() - getJumpSeconds());
     }
 
     let nextFrameInterval = null;
@@ -3227,10 +5642,7 @@
     updateBtn.addEventListener('click', updateReport);
     snapToStartBtn.addEventListener('click', () => {
       if (!Number.isFinite(uploadedCsvStartTime)) return;
-      video.currentTime = Math.max(0, uploadedCsvStartTime);
-      currentTimeDisplay.textContent = video.currentTime.toFixed(2);
-      updateFitStats();
-      drawFitPlot();
+      setMediaCurrentTime(Math.max(0, uploadedCsvStartTime));
       setStatus(`Snapped video to uploaded start at ${uploadedCsvStartTime.toFixed(2)}s.`);
     });
     createReportBtn.addEventListener('click', openReportModal);
@@ -3396,89 +5808,111 @@
       const reader = new FileReader();
       reader.onload = (evt) => {
         try {
-          const text = evt.target.result;
-          const allLines = text.split(/\r?\n/);
-          // Separate metadata comment lines from data lines
-          const metaLines = allLines.filter(l => l.startsWith('# '));
-          const dataLines = allLines.filter(l => l.trim() && !l.startsWith('#'));
-
-          // Parse header to find column indices (skip header row)
-          const header = dataLines[0].split(',');
-          const col = (name) => header.indexOf(name);
-          const iSplitType   = col('splitType');
-          const iEndTime     = col('endTime');
-          const iRiderIdx    = col('frontRiderIndex');
-          const iAdjusted    = col('deliveryAdjusted');
-          const iEvent       = col('Event');
-          const iQTime       = col('Quarter Time (s)');
-
-          if ([iSplitType, iEndTime, iRiderIdx, iAdjusted, iEvent, iQTime].some(x => x < 0)) {
-            setStatus('Upload failed: CSV columns not recognised.');
-            return;
-          }
-
-          // Parse metadata
-          let uploadedStartTime = null;
-          for (const ml of metaLines) {
-            const parts = ml.slice(2).split(',');
-            if (parts[0] === 'startTime' && parts[1]) uploadedStartTime = parseFloat(parts[1]);
-            if (parts[0] === 'title' || parts[0] === 'country') countryInput.value = parts[1].replace(/^"|"$/g, '');
-            riderInputs.forEach((inp, i) => {
-              if (parts[0] === `rider${i + 1}`) inp.value = parts[1].replace(/^"|"$/g, '');
-            });
-          }
-
-          // Restore splitRows
-          resetSession();
-          startTime = uploadedStartTime;
-          uploadedCsvStartTime = uploadedStartTime;
-          hasUploadedTimingData = true;
-          updateSnapToStartAvailability();
-          for (const line of dataLines.slice(1)) {
-            if (!line.trim()) continue;
-            // CSV-aware split that handles quoted fields
-            const cols = [];
-            let cur = '', inQ = false;
-            for (const ch of line) {
-              if (ch === '"') { inQ = !inQ; }
-              else if (ch === ',' && !inQ) { cols.push(cur); cur = ''; }
-              else { cur += ch; }
-            }
-            cols.push(cur);
-
-            const splitType = cols[iSplitType];
-            const endTime = parseFloat(cols[iEndTime]);
-            const frontRiderIndex = parseInt(cols[iRiderIdx], 10);
-            const deliveryAdjusted = cols[iAdjusted] === '1';
-            const eventLabel = cols[iEvent] || 'None';
-            const quarterTime = parseFloat(cols[iQTime]);
-            const ct = getChangeTimeSeconds();
-            const teamSpeed = speedFromTime(quarterTime);
-            const deliverySpeed = deliveryAdjusted
-              ? speedFromTime(Math.max(quarterTime - ct, 0.001))
-              : teamSpeed;
-
-            splitRows.push({ splitType, splitLabel: '', endTime, frontRiderIndex,
-                             quarterTime, teamSpeed, deliverySpeed, eventLabel, deliveryAdjusted });
-
-            if (splitType === 'TEAM_FINISH') teamFinished = true;
-          }
-
-          lastMarkerTime = splitRows.length > 0
-            ? splitRows[splitRows.length - 1].endTime
-            : startTime;
-
-          replayRiderRotations();
-          renumberRows();
-          updateTitle();
-          renderRows();
+          const rowCount = restoreTimingDataFromCsvText(evt.target.result);
           csvUploadInput.value = '';
-          setStatus(`Loaded ${splitRows.length} rows from CSV.`);
+          setStatus(`Loaded ${rowCount} rows from CSV.`);
         } catch (err) {
           setStatus('Upload failed: ' + err.message);
         }
       };
       reader.readAsText(file);
+    });
+
+    excelWorkbookInput.addEventListener('change', async (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      try {
+        await importWorkbookFile(file, null, {
+          dataset: workbookState.dataset,
+          preferredSheetName: TP_SHEET_NAME
+        });
+        if (!workbookState.fileHandleSupported) {
+          setWorkbookMeta(workbookState.record, 'Saved file restored from browser storage on open. Refreshing the original file is not available in this browser mode; use Change Excel/CSV file to re-import it.', 'warn');
+        }
+      } catch (error) {
+        console.error(error);
+        setStatus(`Workbook import failed: ${error.message || error}`);
+      } finally {
+        excelWorkbookInput.value = '';
+      }
+    });
+
+    loadYoutubeBtn.addEventListener('click', async () => {
+      const url = youtubeUrlInput.value.trim();
+      if (!url) {
+        setStatus('Enter a YouTube URL first.');
+        return;
+      }
+      try {
+        await loadYouTubeVideo(url);
+      } catch (error) {
+        console.error(error);
+        setStatus(`YouTube load failed: ${error.message || error}`);
+      }
+    });
+
+    function selectRaceForComparison(sessionIndex) {
+      if (!Number.isFinite(sessionIndex) || !loadedTimingSessions[sessionIndex]) {
+        refreshReportDashboardIfOpen();
+        return;
+      }
+
+      addRaceToCompareSlots(sessionIndex);
+      if (compareSelectedSessionIndexes.length === 3) {
+        setStatus('Race compare slots updated (max 3).');
+      }
+
+      const rowCount = restoreTimingSession(loadedTimingSessions[sessionIndex], sessionIndex);
+      setStatus(`Loaded ${rowCount} rows from ${loadedTimingSessions[sessionIndex].label}.`);
+      refreshReportDashboardIfOpen();
+    }
+
+    timingSessionSelect.addEventListener('change', (event) => {
+      const sessionIndex = parseInt(event.target.value, 10);
+      selectRaceForComparison(sessionIndex);
+    });
+
+    timingSessionSelect.addEventListener('click', (event) => {
+      const targetOption = event.target.closest ? event.target.closest('option') : null;
+      const value = targetOption ? targetOption.value : timingSessionSelect.value;
+      const sessionIndex = parseInt(value, 10);
+      selectRaceForComparison(sessionIndex);
+    });
+
+    raceSlotRemoveBtns.forEach((button) => {
+      button.addEventListener('click', () => {
+        const slotIndex = Number.parseInt(button.dataset.raceSlot, 10);
+        removeRaceFromCompareSlot(slotIndex);
+      });
+    });
+
+    raceSlotEls.forEach((slotEl, slotIndex) => {
+      slotEl.addEventListener('click', (event) => {
+        const target = event.target;
+        if (target && target.closest && target.closest('.race-slot-remove')) return;
+        activateRaceSlot(slotIndex);
+      });
+    });
+
+    genderDatasetSelect.addEventListener('change', async (event) => {
+      await switchWorkbookDataset(event.target.value);
+    });
+
+    workbookSheetSelect.addEventListener('change', async (event) => {
+      const selectedSheetName = event.target.value;
+      if (!selectedSheetName || !workbookState.record) return;
+      try {
+        const { rowCount } = await importWorkbookBinary(workbookState.record, {
+          announce: false,
+          verifySource: false,
+          preferredSheetName: selectedSheetName,
+          dataset: workbookState.dataset
+        });
+        setStatus(`Loaded ${rowCount} rows from tab "${selectedSheetName}".`);
+      } catch (error) {
+        console.error(error);
+        setStatus(`Failed to load tab "${selectedSheetName}": ${error.message || error}`);
+      }
     });
 
     videoInput.addEventListener('change', (e) => {
@@ -3491,9 +5925,8 @@
       const url = URL.createObjectURL(file);
       video.src = url;
       video.load();
-      video.style.display = '';
-      hasVideoLoaded = true;
-      updateSnapToStartAvailability();
+      setActiveVideoMode('local');
+      applyLoadedMediaState();
 
       video.addEventListener('focus', () => video.blur());
       setStatus('Video loaded. Press S to start timing.');
@@ -3550,6 +5983,22 @@
 
     uploadAllBtn.addEventListener('click', () => uploadAllInput.click());
 
+    selectExcelBtn.addEventListener('click', async () => {
+      await chooseExcelWorkbook();
+    });
+
+    changeExcelBtn.addEventListener('click', async () => {
+      await chooseExcelWorkbook();
+    });
+
+    refreshExcelBtn.addEventListener('click', async () => {
+      await refreshSavedWorkbookFromHandle();
+    });
+
+    clearExcelBtn.addEventListener('click', async () => {
+      await clearSavedWorkbook();
+    });
+
     uploadAllInput.addEventListener('change', async (e) => {
       const files = Array.from(e.target.files || []);
       uploadAllInput.value = '';
@@ -3569,9 +6018,8 @@
         videoFileName = videoFile.name.replace(/\.[^.]+$/, '');
         video.src = URL.createObjectURL(videoFile);
         video.load();
-        video.style.display = '';
-        hasVideoLoaded = true;
-        updateSnapToStartAvailability();
+        setActiveVideoMode('local');
+        applyLoadedMediaState();
         video.addEventListener('focus', () => video.blur());
         tasks.push(videoReady);
       }
@@ -3581,66 +6029,7 @@
           const reader = new FileReader();
           reader.onload = (evt) => {
             try {
-              const text = evt.target.result;
-              const allLines = text.split(/\r?\n/);
-              const metaLines = allLines.filter(l => l.startsWith('# '));
-              const dataLines = allLines.filter(l => l.trim() && !l.startsWith('#'));
-              const header = dataLines[0].split(',');
-              const col = (name) => header.indexOf(name);
-              const iSplitType = col('splitType');
-              const iEndTime   = col('endTime');
-              const iRiderIdx  = col('frontRiderIndex');
-              const iAdjusted  = col('deliveryAdjusted');
-              const iEvent     = col('Event');
-              const iQTime     = col('Quarter Time (s)');
-              if ([iSplitType, iEndTime, iRiderIdx, iAdjusted, iEvent, iQTime].some(x => x < 0)) {
-                setStatus('CSV upload failed: columns not recognised.');
-                return resolve();
-              }
-              let uploadedStartTime = null;
-              for (const ml of metaLines) {
-                const parts = ml.slice(2).split(',');
-                if (parts[0] === 'startTime' && parts[1]) uploadedStartTime = parseFloat(parts[1]);
-                if (parts[0] === 'title' || parts[0] === 'country') countryInput.value = parts[1].replace(/^"|"$/g, '');
-                riderInputs.forEach((inp, i) => {
-                  if (parts[0] === `rider${i + 1}`) inp.value = parts[1].replace(/^"|"$/g, '');
-                });
-              }
-              resetSession();
-              startTime = uploadedStartTime;
-              uploadedCsvStartTime = uploadedStartTime;
-              hasUploadedTimingData = true;
-              updateSnapToStartAvailability();
-              for (const line of dataLines.slice(1)) {
-                if (!line.trim()) continue;
-                const cols = [];
-                let cur = '', inQ = false;
-                for (const ch of line) {
-                  if (ch === '"') { inQ = !inQ; }
-                  else if (ch === ',' && !inQ) { cols.push(cur); cur = ''; }
-                  else { cur += ch; }
-                }
-                cols.push(cur);
-                const splitType = cols[iSplitType];
-                const endTime = parseFloat(cols[iEndTime]);
-                const frontRiderIndex = parseInt(cols[iRiderIdx], 10);
-                const deliveryAdjusted = cols[iAdjusted] === '1';
-                const eventLabel = cols[iEvent] || 'None';
-                const quarterTime = parseFloat(cols[iQTime]);
-                const ct = getChangeTimeSeconds();
-                const teamSpeed = speedFromTime(quarterTime);
-                const deliverySpeed = deliveryAdjusted
-                  ? speedFromTime(Math.max(quarterTime - ct, 0.001))
-                  : teamSpeed;
-                splitRows.push({ splitType, splitLabel: '', endTime, frontRiderIndex,
-                                 quarterTime, teamSpeed, deliverySpeed, eventLabel, deliveryAdjusted });
-                if (splitType === 'TEAM_FINISH') teamFinished = true;
-              }
-              lastMarkerTime = splitRows.length > 0 ? splitRows[splitRows.length - 1].endTime : startTime;
-              replayRiderRotations();
-              renumberRows();
-              updateTitle();
-              renderRows();
+              restoreTimingDataFromCsvText(evt.target.result);
             } catch (err) {
               setStatus('CSV upload failed: ' + err.message);
             }
@@ -3671,10 +6060,7 @@
       await Promise.all(tasks);
 
       if (hasVideoLoaded && hasUploadedTimingData && Number.isFinite(uploadedCsvStartTime)) {
-        video.currentTime = Math.max(0, uploadedCsvStartTime);
-        currentTimeDisplay.textContent = video.currentTime.toFixed(2);
-        updateFitStats();
-        drawFitPlot();
+        setMediaCurrentTime(Math.max(0, uploadedCsvStartTime));
         setStatus(`All files loaded — snapped to start at ${uploadedCsvStartTime.toFixed(2)}s.`);
       } else {
         const loaded = [videoFile && 'video', csvFile && 'data', syncFile && 'sync'].filter(Boolean);
@@ -3786,15 +6172,7 @@
         drawFitPlot();
         renderRiderCadenceLapTable();
       } else if (fitSyncState.pointerMode === 'left') {
-        const currentVideoT = Number.isFinite(video.currentTime) ? video.currentTime : 0;
-        const nextVideoT = currentVideoT - deltaT;
-        if (Number.isFinite(video.duration)) {
-          video.currentTime = clampValue(nextVideoT, 0, video.duration);
-        } else {
-          video.currentTime = Math.max(0, nextVideoT);
-        }
-        updateFitStats();
-        drawFitPlot();
+        setMediaCurrentTime(getMediaCurrentTime() - deltaT);
       }
     });
 
@@ -3886,10 +6264,10 @@
       } else if (key === 't') {
         addSplit('TEAM_FINISH', '', false);
       } else if (e.key === ' ') {
-        if (video.paused) {
-          video.play();
+        if (isMediaPaused()) {
+          playMedia();
         } else {
-          video.pause();
+          pauseMedia();
         }
       } else {
         return;
@@ -3899,19 +6277,19 @@
     });
 
     video.addEventListener('timeupdate', () => {
-      currentTimeDisplay.textContent = video.currentTime.toFixed(2);
-      updateFitStats();
-      drawFitPlot();
+      if (activeVideoMode === 'local') refreshMediaTimeDisplays();
     });
 
     video.addEventListener('loadedmetadata', () => {
-      updateFitStats();
-      drawFitPlot();
+      if (activeVideoMode === 'local') applyLoadedMediaState();
     });
 
     window.addEventListener('resize', () => {
       renderReportChart();
       drawFitPlot();
+      if (activeTimingRaceType === 'TS' && reportModal.classList.contains('open')) {
+        renderTeamSprintSpeedTraceChart(getSelectedTeamSprintSessionEntries());
+      }
     });
 
     renderFitAssignments();
@@ -3919,8 +6297,18 @@
     updateFitStats();
     updateSnapToStartAvailability();
     renderFitLegend();
+    updateWorkbookButtons();
+    genderDatasetSelect.value = workbookState.dataset;
     updateTitle();
     resetSession();
+    preloadLinkedSessionFromUrl()
+      .catch((error) => {
+        console.error(error);
+        setStatus(error.message || 'Linked preload failed.');
+      })
+      .finally(() => {
+        initializePersistedWorkbookRestore();
+      });
   </script>
 </body>
 </html>
