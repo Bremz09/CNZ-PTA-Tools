@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Image Alignment Tool</title>
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --text: #132238;
+      --muted: #617086;
+      --line: #d8e0e8;
+      --blue: #1769e0;
+      --blue-dark: #0e4fae;
+      --red: #e44141;
+      --green: #168b5b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    .app {
+      width: min(1500px, 100%);
+      margin: 0 auto;
+      padding: 22px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: clamp(24px, 3vw, 36px);
+    }
+
+    .subtitle {
+      margin: 0 0 20px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 8px 25px rgba(20, 40, 70, 0.07);
+    }
+
+    .uploads {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .upload-card {
+      min-width: 0;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+
+    .upload-card h2 {
+      margin: 0 0 10px;
+      font-size: 18px;
+    }
+
+    input[type="file"] {
+      width: 100%;
+      color: var(--muted);
+    }
+
+    .selectors {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .image-panel {
+      padding: 14px;
+      min-width: 0;
+    }
+
+    .image-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .image-panel-header h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .status {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .canvas-wrap {
+      position: relative;
+      min-height: 260px;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background:
+        linear-gradient(45deg, #eef1f4 25%, transparent 25%),
+        linear-gradient(-45deg, #eef1f4 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #eef1f4 75%),
+        linear-gradient(-45deg, transparent 75%, #eef1f4 75%),
+        #fff;
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+    }
+
+    canvas {
+      display: block;
+      max-width: 100%;
+      max-height: 62vh;
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    .placeholder {
+      position: absolute;
+      padding: 20px;
+      text-align: center;
+      color: var(--muted);
+      pointer-events: none;
+    }
+
+    .controls {
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    button {
+      appearance: none;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      padding: 10px 14px;
+      font: inherit;
+      font-weight: bold;
+      color: var(--text);
+      background: #fff;
+      cursor: pointer;
+    }
+
+    button:hover:not(:disabled) { background: #f1f5f9; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    button.primary {
+      color: #fff;
+      border-color: var(--blue);
+      background: var(--blue);
+    }
+
+    button.primary:hover:not(:disabled) { background: var(--blue-dark); }
+    button.active { outline: 3px solid rgba(23, 105, 224, 0.22); }
+
+    .opacity-control {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .opacity-control input { width: 150px; }
+
+    .output-panel { padding: 14px; }
+
+    .tabs { display:flex; gap:8px; margin-bottom:16px; }
+    .tab-button.active { color:#fff; background:var(--blue); border-color:var(--blue); outline:none; }
+    .tab-page { display:none; }
+    .tab-page.active { display:block; }
+    .compact-bottom { display:grid; grid-template-columns:minmax(0, 1fr) 330px; gap:16px; align-items:start; }
+    .side-controls { padding:16px; position:sticky; top:12px; }
+    .side-controls .button-row { align-items:stretch; }
+    .side-controls button { width:100%; }
+    .side-controls .opacity-control { width:100%; margin:4px 0 0; display:grid; grid-template-columns:1fr auto; }
+    .side-controls .opacity-control input { width:100%; grid-column:1 / -1; }
+    .multi-layout { display:grid; grid-template-columns:280px minmax(0,1fr); gap:16px; }
+    .multi-sidebar { padding:16px; }
+    .multi-list { display:flex; flex-direction:column; gap:8px; max-height:58vh; overflow:auto; margin:12px 0; }
+    .multi-item { display:grid; grid-template-columns:46px 1fr auto; gap:9px; align-items:center; padding:7px; border:1px solid var(--line); border-radius:9px; cursor:pointer; background:#fff; }
+    .multi-item.active { border-color:var(--blue); background:#eef5ff; }
+    .multi-item.dragging { opacity:.45; }
+    .multi-item.drag-over { border-color:var(--green); box-shadow:0 0 0 3px rgba(22,139,91,.15); }
+    .sequence-actions { display:flex; gap:4px; }
+    .sequence-actions button { width:30px; height:30px; padding:0; font-size:14px; }
+    .multi-item img { width:46px; height:38px; object-fit:cover; border-radius:5px; }
+    .multi-item small { color:var(--muted); }
+    .multi-work { padding:14px; min-width:0; }
+    .multi-output-row { display:grid; grid-template-columns:minmax(0,1fr) 280px; gap:16px; margin-top:16px; }
+    .field { display:grid; gap:5px; margin:10px 0; color:var(--muted); font-size:14px; }
+    .field input, .field select { width:100%; padding:8px; border:1px solid var(--line); border-radius:7px; background:#fff; }
+    .progress { width:100%; height:9px; background:#e5eaf0; border-radius:99px; overflow:hidden; margin-top:10px; }
+    .progress > div { height:100%; width:0; background:var(--blue); transition:width .1s; }
+
+
+    .output-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .output-header h2 { margin: 0; font-size: 18px; }
+
+    .help {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 9px;
+      color: #34445b;
+      background: #eef5ff;
+      line-height: 1.45;
+      font-size: 14px;
+    }
+
+    .error {
+      display: none;
+      margin-top: 12px;
+      padding: 10px 12px;
+      border: 1px solid #f0b9b9;
+      border-radius: 8px;
+      color: #8c2020;
+      background: #fff1f1;
+    }
+
+    .video-layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px}.video-work,.video-tools,.gallery-panel{padding:14px}.video-stage{position:relative;min-height:360px;display:grid;place-items:center;overflow:hidden;border-radius:10px;background:#111}.video-stage video{display:block;max-width:100%;max-height:70vh}.crop-overlay{position:absolute;inset:0;pointer-events:none;cursor:crosshair}.crop-box{position:absolute;display:none;border:2px solid white;background:#1769e033;box-shadow:0 0 0 9999px #0006}.gallery-panel{margin-top:16px}.gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}.gallery-card{border:1px solid var(--line);border-radius:9px;overflow:hidden}.gallery-card img{width:100%;aspect-ratio:4/3;object-fit:contain;background:#111}.gallery-card div{padding:7px}.kbd{border:1px solid #aaa;border-radius:4px;padding:2px 5px;background:white}
+    @media (max-width: 850px) {
+      .uploads, .selectors, .compact-bottom, .multi-layout, .multi-output-row, .video-layout { grid-template-columns: 1fr; }
+      .opacity-control { width: 100%; margin-left: 0; }
+      .side-controls { position:static; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+
+
+    <div class="tabs"><button class="tab-button active" data-tab="videoTab">Video screenshots</button><button class="tab-button" data-tab="pairTab">Two images</button><button class="tab-button" data-tab="multiTab">Multiple images + GIF</button></div>
+    <div id="videoTab" class="tab-page active"><section class="video-layout"><div class="panel video-work"><div class="image-panel-header"><h2>Video frame</h2><span id="videoStatus" class="status">Upload a video</span></div><div class="video-stage"><video id="sourceVideo" controls preload="metadata"></video><div id="cropOverlay" class="crop-overlay"><div id="cropBox" class="crop-box"></div></div><div id="videoPlaceholder" class="placeholder" style="color:white">Upload a video</div></div><p id="videoTime" class="status"></p></div><aside class="panel video-tools"><h2>Controls</h2><label class="field">Video<input id="videoFile" type="file" accept="video/*"></label><label class="field">Frames per second<input id="videoFps" type="number" min="1" max="240" step="0.001" value="50"></label><label class="field">Fixed skip frames<input id="fixedSkip" type="number" min="1" step="1" value="150"></label><div class="button-row"><button id="videoPrev" disabled>← Previous frame</button><button id="videoNext" disabled>Next frame →</button><button id="screenshotMode" class="primary" disabled>Screenshot mode</button><button id="captureFull" disabled>Capture full frame</button><button id="chooseFolder">Choose save folder</button></div><p id="dynamicSkip" class="status">Dynamic skip: take two screenshots</p><p id="folderStatus" class="status">No folder chosen</p><div id="videoError" class="error"></div><div class="help"><span class="kbd">←/→</span> one frame. <span class="kbd">Ctrl+←/→</span> last screenshot interval. <span class="kbd">Ctrl+Shift+←/→</span> fixed skip. <span class="kbd">S</span> crop screenshot.</div></aside></section><section class="panel gallery-panel"><div class="output-header"><h2>Project gallery</h2><span id="galleryCount" class="status">0 screenshots</span></div><div id="galleryGrid" class="gallery-grid"><span class="status">Screenshots appear here.</span></div></section></div>
+    <div id="pairTab" class="tab-page">
+    <section class="panel uploads">
+      <div class="upload-card">
+        <h2>1. Upload Image 1</h2>
+        <input id="file1" type="file" accept="image/*" />
+      </div>
+      <div class="upload-card">
+        <h2>2. Upload Image 2</h2>
+        <input id="file2" type="file" accept="image/*" />
+      </div>
+    </section>
+
+    <section class="selectors">
+      <div class="panel image-panel">
+        <div class="image-panel-header">
+          <h2>Image 1 reference</h2>
+          <span id="status1" class="status">No image loaded</span>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="selectCanvas1"></canvas>
+          <div id="placeholder1" class="placeholder">Upload Image 1</div>
+        </div>
+        <div class="button-row" style="margin-top: 10px;">
+          <button id="reset1" disabled>Reset points</button>
+        </div>
+      </div>
+
+      <div class="panel image-panel">
+        <div class="image-panel-header">
+          <h2>Image 2 reference</h2>
+          <span id="status2" class="status">No image loaded</span>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="selectCanvas2"></canvas>
+          <div id="placeholder2" class="placeholder">Upload Image 2</div>
+        </div>
+        <div class="button-row" style="margin-top: 10px;">
+          <button id="reset2" disabled>Reset points</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="compact-bottom">
+      <div class="panel output-panel">
+        <div class="output-header">
+          <h2>Aligned output</h2>
+          <span id="transformInfo" class="status">Select two points on both images</span>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="outputCanvas"></canvas>
+          <div id="outputPlaceholder" class="placeholder">The aligned result will appear here</div>
+        </div>
+      </div>
+      <aside class="panel side-controls">
+        <h2 style="margin-top:0;font-size:18px;">Output controls</h2>
+        <div class="button-row">
+          <button id="show1" disabled>Show Image 1</button>
+          <button id="show2" disabled>Show aligned Image 2</button>
+          <button id="showComposite" class="primary" disabled>Show composite</button>
+          <button id="toggle" disabled>Toggle image</button>
+          <button id="download" disabled>Download current view</button>
+          <label class="opacity-control">Image 2 opacity <strong id="opacityValue">50%</strong>
+            <input id="opacity" type="range" min="0" max="100" value="50" />
+          </label>
+        </div>
+        <div id="error" class="error"></div>
+        <div class="help">Point 1 is red and Point 2 is green. Select them left to right. Image 1 defines the output frame.</div>
+      </aside>
+    </section>
+    </div>
+
+    <div id="multiTab" class="tab-page">
+      <section class="multi-layout">
+        <aside class="panel multi-sidebar">
+          <h2 style="margin-top:0;font-size:18px;">Image sequence</h2>
+          <input id="multiFiles" type="file" accept="image/*" multiple />
+          <div id="multiList" class="multi-list"><span class="status">Choose two or more images</span></div>
+          <button id="clearMulti" style="width:100%;" disabled>Clear all</button>
+          <div class="help">The first image is the reference. Select the same two points from left to right on every image. Drag items or use the arrow buttons to change the sequence order.</div>
+        </aside>
+
+        <div>
+          <section class="panel multi-work">
+            <div class="image-panel-header">
+              <h2 id="multiTitle">Point selection</h2>
+              <span id="multiStatus" class="status">No images loaded</span>
+            </div>
+            <div class="canvas-wrap">
+              <canvas id="multiSelectCanvas"></canvas>
+              <div id="multiPlaceholder" class="placeholder">Upload multiple images</div>
+            </div>
+            <div class="button-row" style="margin-top:10px;">
+              <button id="multiReset" disabled>Reset points for this image</button>
+              <button id="multiPrev" disabled>Previous</button>
+              <button id="multiNext" disabled>Next</button>
+            </div>
+          </section>
+
+          <section class="multi-output-row">
+            <div class="panel output-panel">
+              <div class="output-header"><h2>Sequence preview</h2><span id="previewLabel" class="status">Not ready</span></div>
+              <div class="canvas-wrap"><canvas id="multiOutputCanvas"></canvas><div id="multiOutputPlaceholder" class="placeholder">Complete all point selections</div></div>
+            </div>
+            <aside class="panel side-controls">
+              <h2 style="margin-top:0;font-size:18px;">Sequence export controls</h2>
+              <label class="field">Frame duration (ms)<input id="frameDelay" type="number" min="50" max="10000" step="50" value="500" /></label>
+              <label class="field">Output width (px)<input id="gifWidth" type="number" min="100" max="1600" step="10" value="800" /></label>
+              <label class="field">Preview mode
+                <select id="compareMode">
+                  <option value="single">Single frame</option>
+                  <option value="onion">Onion skin with reference</option>
+                  <option value="redgreen">Red / green overlay</option>
+                  <option value="difference">Absolute difference</option>
+                </select>
+              </label>
+              <label class="field">Overlay amount <strong id="onionValue">50%</strong><input id="onionOpacity" type="range" min="0" max="100" value="50" /></label>
+              <div class="button-row">
+                <button id="previewPrev" disabled>Previous frame</button>
+                <button id="previewPlay" disabled>Play preview</button>
+                <button id="previewNext" disabled>Next frame</button>
+                <button id="exportGif" class="primary" disabled>Export animated GIF</button>
+                <button id="exportAligned" disabled>Export all aligned images</button>
+              </div>
+              <div class="progress"><div id="gifProgress"></div></div>
+              <div id="multiError" class="error"></div>
+              <div class="help">Exports the aligned sequence as an animated GIF at the selected frame duration. Left/right arrows change frame; Space starts or stops flicker preview.</div>
+            </aside>
+          </section>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+  <script>
+    const state = {
+      images: [null, null],
+      points: [[], []],
+      mode: 'composite',
+      toggleIndex: 0,
+      transform: null
+    };
+
+    const selectionCanvases = [
+      document.getElementById('selectCanvas1'),
+      document.getElementById('selectCanvas2')
+    ];
+    const outputCanvas = document.getElementById('outputCanvas');
+    const outputCtx = outputCanvas.getContext('2d');
+
+    const fileInputs = [document.getElementById('file1'), document.getElementById('file2')];
+    const statuses = [document.getElementById('status1'), document.getElementById('status2')];
+    const placeholders = [document.getElementById('placeholder1'), document.getElementById('placeholder2')];
+    const resetButtons = [document.getElementById('reset1'), document.getElementById('reset2')];
+
+    const show1Button = document.getElementById('show1');
+    const show2Button = document.getElementById('show2');
+    const compositeButton = document.getElementById('showComposite');
+    const toggleButton = document.getElementById('toggle');
+    const downloadButton = document.getElementById('download');
+    const opacitySlider = document.getElementById('opacity');
+    const opacityValue = document.getElementById('opacityValue');
+    const outputPlaceholder = document.getElementById('outputPlaceholder');
+    const transformInfo = document.getElementById('transformInfo');
+    const errorBox = document.getElementById('error');
+
+    function setError(message = '') {
+      errorBox.textContent = message;
+      errorBox.style.display = message ? 'block' : 'none';
+    }
+
+    function loadImage(file, index) {
+      if (!file) return;
+
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+
+      img.onload = () => {
+        if (state.images[index]?.objectUrl) URL.revokeObjectURL(state.images[index].objectUrl);
+        img.objectUrl = url;
+        state.images[index] = img;
+        state.points[index] = [];
+        placeholders[index].style.display = 'none';
+        resetButtons[index].disabled = false;
+        statuses[index].textContent = 'Click Point 1';
+        setError();
+        drawSelection(index);
+        updateAlignment();
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        setError(`Image ${index + 1} could not be loaded.`);
+      };
+
+      img.src = url;
+    }
+
+    function drawSelection(index) {
+      const canvas = selectionCanvases[index];
+      const ctx = canvas.getContext('2d');
+      const img = state.images[index];
+
+      if (!img) {
+        canvas.width = 1;
+        canvas.height = 1;
+        return;
+      }
+
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+
+      const pointRadius = Math.max(7, Math.min(canvas.width, canvas.height) * 0.012);
+      const lineWidth = Math.max(2, pointRadius * 0.25);
+
+      if (state.points[index].length === 2) {
+        const [p1, p2] = state.points[index];
+        ctx.save();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = lineWidth + 3;
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+        ctx.strokeStyle = '#1769e0';
+        ctx.lineWidth = lineWidth;
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      state.points[index].forEach((point, pointIndex) => {
+        const color = pointIndex === 0 ? '#e44141' : '#168b5b';
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, pointRadius + 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, pointRadius, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.lineWidth = lineWidth;
+        ctx.strokeStyle = '#132238';
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${Math.max(12, pointRadius * 1.25)}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(String(pointIndex + 1), point.x, point.y + 0.5);
+        ctx.restore();
+      });
+    }
+
+    function canvasPointFromEvent(canvas, event) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: (event.clientX - rect.left) * (canvas.width / rect.width),
+        y: (event.clientY - rect.top) * (canvas.height / rect.height)
+      };
+    }
+
+    function selectPoint(index, event) {
+      if (!state.images[index] || state.points[index].length >= 2) return;
+
+      const point = canvasPointFromEvent(selectionCanvases[index], event);
+      const points = state.points[index];
+
+      if (points.length === 1 && point.x <= points[0].x) {
+        setError(`For Image ${index + 1}, Point 2 must be to the right of Point 1.`);
+        return;
+      }
+
+      points.push(point);
+      setError();
+      statuses[index].textContent = points.length === 1 ? 'Click Point 2 to the right' : 'Two points selected';
+      drawSelection(index);
+      updateAlignment();
+    }
+
+    function calculateTransform() {
+      const [a1, a2] = state.points[0];
+      const [b1, b2] = state.points[1];
+
+      const sourceDx = b2.x - b1.x;
+      const sourceDy = b2.y - b1.y;
+      const targetDx = a2.x - a1.x;
+      const targetDy = a2.y - a1.y;
+
+      const sourceDistance = Math.hypot(sourceDx, sourceDy);
+      const targetDistance = Math.hypot(targetDx, targetDy);
+
+      if (sourceDistance < 0.0001 || targetDistance < 0.0001) {
+        throw new Error('The two reference points on each image must be separated.');
+      }
+
+      const scale = targetDistance / sourceDistance;
+      const rotation = Math.atan2(targetDy, targetDx) - Math.atan2(sourceDy, sourceDx);
+      const cos = Math.cos(rotation) * scale;
+      const sin = Math.sin(rotation) * scale;
+
+      // Canvas matrix maps a source point (x, y) to:
+      // x' = a*x + c*y + e
+      // y' = b*x + d*y + f
+      const a = cos;
+      const b = sin;
+      const c = -sin;
+      const d = cos;
+      const e = a1.x - (a * b1.x + c * b1.y);
+      const f = a1.y - (b * b1.x + d * b1.y);
+
+      return { a, b, c, d, e, f, scale, rotation };
+    }
+
+    function alignmentReady() {
+      return state.images[0] && state.images[1] &&
+        state.points[0].length === 2 && state.points[1].length === 2;
+    }
+
+    function updateAlignment() {
+      const ready = alignmentReady();
+      show1Button.disabled = !ready;
+      show2Button.disabled = !ready;
+      compositeButton.disabled = !ready;
+      toggleButton.disabled = !ready;
+      downloadButton.disabled = !ready;
+
+      if (!ready) {
+        state.transform = null;
+        transformInfo.textContent = 'Select two points on both images';
+        outputPlaceholder.style.display = 'block';
+        outputCanvas.width = 1;
+        outputCanvas.height = 1;
+        setActiveButton();
+        return;
+      }
+
+      try {
+        state.transform = calculateTransform();
+        const degrees = state.transform.rotation * 180 / Math.PI;
+        transformInfo.textContent = `Scale: ${state.transform.scale.toFixed(4)}x | Rotation: ${degrees.toFixed(2)}°`;
+        outputPlaceholder.style.display = 'none';
+        renderOutput();
+        setError();
+      } catch (error) {
+        state.transform = null;
+        setError(error.message);
+      }
+    }
+
+    function drawImage1() {
+      outputCtx.setTransform(1, 0, 0, 1, 0, 0);
+      outputCtx.globalAlpha = 1;
+      outputCtx.drawImage(state.images[0], 0, 0);
+    }
+
+    function drawAlignedImage2(alpha = 1) {
+      const t = state.transform;
+      outputCtx.save();
+      outputCtx.globalAlpha = alpha;
+      outputCtx.setTransform(t.a, t.b, t.c, t.d, t.e, t.f);
+      outputCtx.drawImage(state.images[1], 0, 0);
+      outputCtx.restore();
+    }
+
+    function renderOutput() {
+      if (!state.transform) return;
+
+      const reference = state.images[0];
+      if (outputCanvas.width !== reference.naturalWidth || outputCanvas.height !== reference.naturalHeight) {
+        outputCanvas.width = reference.naturalWidth;
+        outputCanvas.height = reference.naturalHeight;
+      }
+
+      outputCtx.setTransform(1, 0, 0, 1, 0, 0);
+      outputCtx.globalAlpha = 1;
+      outputCtx.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
+
+      if (state.mode === 'image1') {
+        drawImage1();
+      } else if (state.mode === 'image2') {
+        drawAlignedImage2(1);
+      } else if (state.mode === 'toggle') {
+        state.toggleIndex === 0 ? drawImage1() : drawAlignedImage2(1);
+      } else {
+        drawImage1();
+        drawAlignedImage2(Number(opacitySlider.value) / 100);
+      }
+
+      outputCtx.setTransform(1, 0, 0, 1, 0, 0);
+      outputCtx.globalAlpha = 1;
+      setActiveButton();
+    }
+
+    function setMode(mode) {
+      state.mode = mode;
+      if (mode === 'toggle') state.toggleIndex = state.toggleIndex === 0 ? 1 : 0;
+      renderOutput();
+    }
+
+    function setActiveButton() {
+      [show1Button, show2Button, compositeButton, toggleButton].forEach(button => button.classList.remove('active'));
+      if (state.mode === 'image1') show1Button.classList.add('active');
+      if (state.mode === 'image2') show2Button.classList.add('active');
+      if (state.mode === 'composite') compositeButton.classList.add('active');
+      if (state.mode === 'toggle') toggleButton.classList.add('active');
+    }
+
+    function resetPoints(index) {
+      state.points[index] = [];
+      statuses[index].textContent = state.images[index] ? 'Click Point 1' : 'No image loaded';
+      drawSelection(index);
+      setError();
+      updateAlignment();
+    }
+
+    fileInputs.forEach((input, index) => {
+      input.addEventListener('change', event => loadImage(event.target.files[0], index));
+    });
+
+    selectionCanvases.forEach((canvas, index) => {
+      canvas.addEventListener('pointerdown', event => selectPoint(index, event));
+    });
+
+    resetButtons.forEach((button, index) => {
+      button.addEventListener('click', () => resetPoints(index));
+    });
+
+    show1Button.addEventListener('click', () => setMode('image1'));
+    show2Button.addEventListener('click', () => setMode('image2'));
+    compositeButton.addEventListener('click', () => setMode('composite'));
+    toggleButton.addEventListener('click', () => setMode('toggle'));
+
+    opacitySlider.addEventListener('input', () => {
+      opacityValue.textContent = `${opacitySlider.value}%`;
+      if (state.mode === 'composite') renderOutput();
+    });
+
+    downloadButton.addEventListener('click', () => {
+      if (!state.transform) return;
+      const link = document.createElement('a');
+      link.download = 'aligned-image.png';
+      link.href = outputCanvas.toDataURL('image/png');
+      link.click();
+    });
+
+    // Keyboard shortcut: Space toggles between the aligned images when the output is ready.
+    window.addEventListener('keydown', event => {
+      if (event.code === 'Space' && !document.getElementById('videoTab').classList.contains('active') && alignmentReady() && !['INPUT', 'BUTTON'].includes(document.activeElement.tagName)) {
+        event.preventDefault();
+        setMode('toggle');
+      }
+    });
+
+    setActiveButton();
+
+
+    // Video screenshots
+    const V=id=>document.getElementById(id),vid=V('sourceVideo'),ov=V('cropOverlay'),box=V('cropBox'),fps=V('videoFps'),vp=V('videoPrev'),vn=V('videoNext'),sm=V('screenshotMode'),cf=V('captureFull'),grid=V('galleryGrid'),gc=V('galleryCount');const VS={url:null,crop:false,start:null,folder:null,items:[],n:1};
+    const ve=(m='')=>{V('videoError').textContent=m;V('videoError').style.display=m?'block':'none'},tm=t=>{t=Number.isFinite(t)?t:0;return new Date(t*1000).toISOString().slice(14,23)},frame=()=>Math.round(vid.currentTime*Math.max(1,+fps.value||50));
+    V('videoFile').onchange=e=>{const f=e.target.files[0];if(!f)return;if(VS.url)URL.revokeObjectURL(VS.url);VS.url=URL.createObjectURL(f);vid.src=VS.url;vid.load();V('videoPlaceholder').style.display='none'};vid.onloadedmetadata=()=>{[vp,vn,sm,cf].forEach(b=>b.disabled=false);status()};vid.ontimeupdate=status;vid.onseeked=status;function status(){V('videoTime').textContent=`${tm(vid.currentTime)} / ${tm(vid.duration)} · ${vid.videoWidth} × ${vid.videoHeight}px`;V('videoStatus').textContent=`Frame ${frame()}`}
+    function skipFrames(n){vid.pause();vid.currentTime=Math.max(0,Math.min(vid.duration||Infinity,vid.currentTime+n/Math.max(1,+fps.value||50)))}vp.onclick=()=>skipFrames(-1);vn.onclick=()=>skipFrames(1);function mode(on){VS.crop=on;sm.textContent=on?'Drag crop area':'Screenshot mode';sm.classList.toggle('active',on);ov.style.pointerEvents=on?'auto':'none';box.style.display='none';VS.start=null;vid.pause()}sm.onclick=()=>mode(!VS.crop);const point=e=>{const r=ov.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}};
+    ov.onpointerdown=e=>{if(!VS.crop)return;VS.start=point(e);ov.setPointerCapture(e.pointerId);box.style.display='block'};ov.onpointermove=e=>{if(!VS.start)return;const q=point(e),x=Math.min(q.x,VS.start.x),y=Math.min(q.y,VS.start.y);Object.assign(box.style,{left:x+'px',top:y+'px',width:Math.abs(q.x-VS.start.x)+'px',height:Math.abs(q.y-VS.start.y)+'px'})};ov.onpointerup=async e=>{if(!VS.start)return;const q=point(e),r={x:Math.min(q.x,VS.start.x),y:Math.min(q.y,VS.start.y),w:Math.abs(q.x-VS.start.x),h:Math.abs(q.y-VS.start.y)};VS.start=null;box.style.display='none';if(r.w<4||r.h<4)return ve('Select a larger crop.');await capture(r);mode(false)};
+    const imageFromBlob=b=>new Promise((resolve,reject)=>{const url=URL.createObjectURL(b),img=new Image();img.onload=()=>resolve({img,url});img.onerror=reject;img.src=url});async function propagate(blob,name){const z=await imageFromBlob(blob);multi.items.push({name,img:z.img,url:z.url,points:[]});renderMultiList();drawMultiSelection();updateMultiReady();if(VS.items.length>=2){const pair=await Promise.all(VS.items.slice(-2).map(x=>imageFromBlob(x.blob)));for(let i=0;i<2;i++){if(state.images[i]?.objectUrl)URL.revokeObjectURL(state.images[i].objectUrl);pair[i].img.objectUrl=pair[i].url;state.images[i]=pair[i].img;state.points[i]=[];placeholders[i].style.display='none';resetButtons[i].disabled=false;statuses[i].textContent='Click Point 1';drawSelection(i)}updateAlignment()}}
+    async function capture(r=null){const vw=vid.videoWidth,vh=vid.videoHeight;if(!vw)return;let sx=0,sy=0,sw=vw,sh=vh;if(r){const a=vid.getBoundingClientRect(),b=ov.getBoundingClientRect(),ox=a.left-b.left,oy=a.top-b.top,x1=Math.max(r.x,ox),y1=Math.max(r.y,oy),x2=Math.min(r.x+r.w,ox+a.width),y2=Math.min(r.y+r.h,oy+a.height);if(x2<=x1||y2<=y1)return ve('Crop must overlap video.');sx=(x1-ox)*vw/a.width;sy=(y1-oy)*vh/a.height;sw=(x2-x1)*vw/a.width;sh=(y2-y1)*vh/a.height}const c=document.createElement('canvas');c.width=Math.round(sw);c.height=Math.round(sh);c.getContext('2d').drawImage(vid,sx,sy,sw,sh,0,0,c.width,c.height);const blob=await canvasToBlob(c),name=`screenshot-${String(VS.n++).padStart(3,'0')}.png`,url=URL.createObjectURL(blob),f=frame();VS.items.push({blob,name,url,time:vid.currentTime,frame:f});gallery();if(VS.items.length>=2)V('dynamicSkip').textContent='Dynamic skip: '+Math.abs(VS.items.at(-1).frame-VS.items.at(-2).frame)+' frames';await propagate(blob,name);if(VS.folder)await save(blob,name)}cf.onclick=()=>capture();
+    V('chooseFolder').onclick=async()=>{try{if(!window.showDirectoryPicker)throw Error('Folder saving unavailable.');VS.folder=await showDirectoryPicker({mode:'readwrite'});V('folderStatus').textContent='Folder: '+VS.folder.name}catch(e){if(e.name!=='AbortError')ve(e.message)}};async function save(blob,name){const h=await VS.folder.getFileHandle(name,{create:true}),w=await h.createWritable();await w.write(blob);await w.close()}function gallery(){gc.textContent=VS.items.length+' screenshots';grid.innerHTML='';VS.items.forEach((q,i)=>{const d=document.createElement('div');d.className='gallery-card';d.innerHTML=`<img src="${q.url}"><div><strong>${q.name}</strong><br><small>Frame ${q.frame}</small><br><button>Download</button> <button>Remove</button></div>`;const b=d.querySelectorAll('button');b[0].onclick=()=>downloadBlob(q.blob,q.name);b[1].onclick=()=>{URL.revokeObjectURL(q.url);VS.items.splice(i,1);gallery()};grid.appendChild(d)})}
+    window.addEventListener('keydown',e=>{if(!V('videoTab').classList.contains('active')||!vid.src||['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName))return;if(e.code==='Space'){e.preventDefault();e.stopPropagation();if(vid.paused)vid.play().catch(()=>{});else vid.pause();return}if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();const dir=e.key==='ArrowLeft'?-1:1;if(e.ctrlKey&&e.shiftKey)skipFrames(dir*Math.max(1,Math.round(+V('fixedSkip').value||150)));else if(e.ctrlKey&&VS.items.length>=2)skipFrames(dir*Math.max(1,Math.abs(VS.items.at(-1).frame-VS.items.at(-2).frame)));else(dir<0?vp:vn).click();return}if(e.key.toLowerCase()==='s'){e.preventDefault();mode(true)}if(e.key==='Escape')mode(false)},true);
+
+    // Tabs
+    document.querySelectorAll('.tab-button').forEach(btn => btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-button').forEach(b => b.classList.toggle('active', b === btn));
+      document.querySelectorAll('.tab-page').forEach(p => p.classList.toggle('active', p.id === btn.dataset.tab));
+    }));
+
+    // Multiple-image mode
+    const multi = { items: [], selected: 0, preview: 0, timer: null };
+    const multiFiles = document.getElementById('multiFiles');
+    const multiList = document.getElementById('multiList');
+    const multiCanvas = document.getElementById('multiSelectCanvas');
+    const multiCtx = multiCanvas.getContext('2d');
+    const multiOut = document.getElementById('multiOutputCanvas');
+    const multiOutCtx = multiOut.getContext('2d');
+    const multiStatus = document.getElementById('multiStatus');
+    const multiTitle = document.getElementById('multiTitle');
+    const multiPlaceholder = document.getElementById('multiPlaceholder');
+    const multiOutputPlaceholder = document.getElementById('multiOutputPlaceholder');
+    const multiReset = document.getElementById('multiReset');
+    const multiPrev = document.getElementById('multiPrev');
+    const multiNext = document.getElementById('multiNext');
+    const clearMulti = document.getElementById('clearMulti');
+    const previewPrev = document.getElementById('previewPrev');
+    const previewNext = document.getElementById('previewNext');
+    const previewPlay = document.getElementById('previewPlay');
+    const exportGif = document.getElementById('exportGif');
+    const exportAligned = document.getElementById('exportAligned');
+    const compareMode = document.getElementById('compareMode');
+    const onionOpacity = document.getElementById('onionOpacity');
+    const onionValue = document.getElementById('onionValue');
+    const previewLabel = document.getElementById('previewLabel');
+    const multiError = document.getElementById('multiError');
+    const gifProgress = document.getElementById('gifProgress');
+
+    function mError(msg='') { multiError.textContent=msg; multiError.style.display=msg?'block':'none'; }
+    function loadImageFile(file) { return new Promise((resolve,reject)=>{ const u=URL.createObjectURL(file), im=new Image(); im.onload=()=>resolve({name:file.name,img:im,url:u,points:[]}); im.onerror=()=>{URL.revokeObjectURL(u);reject(new Error('Could not load '+file.name));}; im.src=u; }); }
+
+    multiFiles.addEventListener('change', async e => {
+      multi.items.forEach(x=>URL.revokeObjectURL(x.url)); multi.items=[]; stopPreview();
+      try { multi.items=await Promise.all([...e.target.files].map(loadImageFile)); multi.selected=0; multi.preview=0; mError(); renderMultiList(); drawMultiSelection(); updateMultiReady(); }
+      catch(err){mError(err.message);}
+    });
+
+    function renderMultiList(){
+      if(!multi.items.length){multiList.innerHTML='<span class="status">Choose two or more images</span>';return;}
+      multiList.innerHTML='';
+      multi.items.forEach((it,i)=>{
+        const d=document.createElement('div');
+        d.className='multi-item'+(i===multi.selected?' active':'');
+        d.draggable=true;
+        d.dataset.index=i;
+        d.innerHTML=`<img src="${it.url}" draggable="false"><div><strong>${i+1}. ${escapeHtml(it.name)}</strong><br><small>${i===0?'Reference image':(it.points.length===2?'Aligned':'Needs points')}</small></div><div class="sequence-actions"><button type="button" class="move-up" title="Move up" ${i===0?'disabled':''}>↑</button><button type="button" class="move-down" title="Move down" ${i===multi.items.length-1?'disabled':''}>↓</button></div>`;
+        d.addEventListener('click',e=>{if(e.target.closest('button'))return;multi.selected=i;renderMultiList();drawMultiSelection();});
+        d.querySelector('.move-up').onclick=e=>{e.stopPropagation();moveMultiItem(i,i-1);};
+        d.querySelector('.move-down').onclick=e=>{e.stopPropagation();moveMultiItem(i,i+1);};
+        d.addEventListener('dragstart',e=>{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',String(i));d.classList.add('dragging');});
+        d.addEventListener('dragend',()=>{document.querySelectorAll('.multi-item').forEach(x=>x.classList.remove('dragging','drag-over'));});
+        d.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move';d.classList.add('drag-over');});
+        d.addEventListener('dragleave',()=>d.classList.remove('drag-over'));
+        d.addEventListener('drop',e=>{e.preventDefault();d.classList.remove('drag-over');const from=Number(e.dataTransfer.getData('text/plain'));if(Number.isInteger(from)&&from!==i)moveMultiItem(from,i);});
+        multiList.appendChild(d);
+      });
+    }
+    function moveMultiItem(from,to){
+      if(from<0||to<0||from>=multi.items.length||to>=multi.items.length||from===to)return;
+      const selectedItem=multi.items[multi.selected];
+      const previewItem=multi.items[multi.preview];
+      const [item]=multi.items.splice(from,1);multi.items.splice(to,0,item);
+      multi.selected=Math.max(0,multi.items.indexOf(selectedItem));
+      multi.preview=Math.max(0,multi.items.indexOf(previewItem));
+      stopPreview();renderMultiList();drawMultiSelection();updateMultiReady();
+    }
+    function escapeHtml(v){const d=document.createElement('div');d.textContent=v;return d.innerHTML;}
+
+    function drawMultiSelection(){
+      const it=multi.items[multi.selected];
+      clearMulti.disabled=!multi.items.length; multiReset.disabled=!it; multiPrev.disabled=!it||multi.selected===0; multiNext.disabled=!it||multi.selected===multi.items.length-1;
+      if(!it){multiCanvas.width=multiCanvas.height=1;multiPlaceholder.style.display='block';multiStatus.textContent='No images loaded';return;}
+      multiPlaceholder.style.display='none'; multiCanvas.width=it.img.naturalWidth;multiCanvas.height=it.img.naturalHeight;multiCtx.drawImage(it.img,0,0);
+      multiTitle.textContent=`${multi.selected===0?'Reference':'Image'} ${multi.selected+1}: ${it.name}`;
+      multiStatus.textContent=it.points.length===0?'Click Point 1':it.points.length===1?'Click Point 2 to the right':'Two points selected';
+      const r=Math.max(7,Math.min(multiCanvas.width,multiCanvas.height)*.012);
+      if(it.points.length===2){multiCtx.strokeStyle='#1769e0';multiCtx.lineWidth=Math.max(2,r*.25);multiCtx.beginPath();multiCtx.moveTo(it.points[0].x,it.points[0].y);multiCtx.lineTo(it.points[1].x,it.points[1].y);multiCtx.stroke();}
+      it.points.forEach((p,j)=>{multiCtx.beginPath();multiCtx.arc(p.x,p.y,r,0,Math.PI*2);multiCtx.fillStyle=j?'#168b5b':'#e44141';multiCtx.fill();multiCtx.strokeStyle='#fff';multiCtx.lineWidth=3;multiCtx.stroke();multiCtx.fillStyle='#fff';multiCtx.font=`bold ${Math.max(12,r*1.2)}px Arial`;multiCtx.textAlign='center';multiCtx.textBaseline='middle';multiCtx.fillText(j+1,p.x,p.y);});
+    }
+    multiCanvas.addEventListener('pointerdown',e=>{const it=multi.items[multi.selected];if(!it||it.points.length===2)return;const p=canvasPointFromEvent(multiCanvas,e);if(it.points.length===1&&p.x<=it.points[0].x){mError('Point 2 must be to the right of Point 1.');return;}it.points.push(p);mError();renderMultiList();drawMultiSelection();updateMultiReady();});
+    multiReset.onclick=()=>{multi.items[multi.selected].points=[];renderMultiList();drawMultiSelection();updateMultiReady();};
+    multiPrev.onclick=()=>{if(multi.selected>0){multi.selected--;renderMultiList();drawMultiSelection();}};
+    multiNext.onclick=()=>{if(multi.selected<multi.items.length-1){multi.selected++;renderMultiList();drawMultiSelection();}};
+    clearMulti.onclick=()=>{multi.items.forEach(x=>URL.revokeObjectURL(x.url));multi.items=[];multiFiles.value='';stopPreview();renderMultiList();drawMultiSelection();updateMultiReady();};
+
+    function multiReady(){return multi.items.length>=2&&multi.items.every(x=>x.points.length===2);}
+    function transformBetween(target,source){const [a1,a2]=target.points,[b1,b2]=source.points;const sd=Math.hypot(b2.x-b1.x,b2.y-b1.y),td=Math.hypot(a2.x-a1.x,a2.y-a1.y);const rot=Math.atan2(a2.y-a1.y,a2.x-a1.x)-Math.atan2(b2.y-b1.y,b2.x-b1.x),sc=td/sd,A=Math.cos(rot)*sc,B=Math.sin(rot)*sc,C=-B,D=A;return{a:A,b:B,c:C,d:D,e:a1.x-A*b1.x-C*b1.y,f:a1.y-B*b1.x-D*b1.y};}
+    function updateMultiReady(){const ready=multiReady();[previewPrev,previewNext,previewPlay,exportGif,exportAligned].forEach(b=>b.disabled=!ready);multiOutputPlaceholder.style.display=ready?'none':'block';if(ready){multi.preview=Math.min(multi.preview,multi.items.length-1);drawPreview();}else{multiOut.width=multiOut.height=1;previewLabel.textContent='Not ready';stopPreview();}}
+    function drawAlignedTo(ctx,index,w,h){const ref=multi.items[0],sx=w/ref.img.naturalWidth,sy=h/ref.img.naturalHeight;ctx.setTransform(sx,0,0,sy,0,0);if(index===0)ctx.drawImage(ref.img,0,0);else{const t=transformBetween(ref,multi.items[index]);ctx.transform(t.a,t.b,t.c,t.d,t.e,t.f);ctx.drawImage(multi.items[index].img,0,0);}ctx.setTransform(1,0,0,1,0,0);}
+    function renderAlignedCanvas(index,w,h){
+      const c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d',{willReadFrequently:true});
+      ctx.fillStyle='#000';ctx.fillRect(0,0,w,h);drawAlignedTo(ctx,index,w,h);return c;
+    }
+    function drawComparison(ctx,w,h,index,mode){
+      const ref=renderAlignedCanvas(0,w,h), current=renderAlignedCanvas(index,w,h), amount=Number(onionOpacity.value)/100;
+      ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,w,h);
+      if(mode==='single'||index===0){ctx.drawImage(current,0,0);return;}
+      if(mode==='onion'){ctx.drawImage(ref,0,0);ctx.globalAlpha=amount;ctx.drawImage(current,0,0);ctx.globalAlpha=1;return;}
+      const a=ref.getContext('2d').getImageData(0,0,w,h),b=current.getContext('2d').getImageData(0,0,w,h),o=ctx.createImageData(w,h);
+      for(let i=0;i<o.data.length;i+=4){
+        if(mode==='difference'){o.data[i]=Math.abs(a.data[i]-b.data[i]);o.data[i+1]=Math.abs(a.data[i+1]-b.data[i+1]);o.data[i+2]=Math.abs(a.data[i+2]-b.data[i+2]);}
+        else {const ar=(a.data[i]+a.data[i+1]+a.data[i+2])/3,br=(b.data[i]+b.data[i+1]+b.data[i+2])/3;o.data[i]=br;o.data[i+1]=ar;o.data[i+2]=0;}
+        o.data[i+3]=255;
+      }
+      ctx.putImageData(o,0,0);
+    }
+    function drawPreview(){if(!multiReady())return;const ref=multi.items[0];multiOut.width=ref.img.naturalWidth;multiOut.height=ref.img.naturalHeight;drawComparison(multiOutCtx,multiOut.width,multiOut.height,multi.preview,compareMode.value);previewLabel.textContent=`Frame ${multi.preview+1} of ${multi.items.length}: ${multi.items[multi.preview].name}`;}
+    compareMode.onchange=drawPreview;
+    onionOpacity.oninput=()=>{onionValue.textContent=onionOpacity.value+'%';drawPreview();};
+    previewPrev.onclick=()=>{multi.preview=(multi.preview-1+multi.items.length)%multi.items.length;drawPreview();};
+    previewNext.onclick=()=>{multi.preview=(multi.preview+1)%multi.items.length;drawPreview();};
+    function stopPreview(){if(multi.timer){clearInterval(multi.timer);multi.timer=null;}previewPlay.textContent='Play preview';}
+    previewPlay.onclick=()=>{if(multi.timer){stopPreview();return;}previewPlay.textContent='Stop preview';multi.timer=setInterval(()=>{multi.preview=(multi.preview+1)%multi.items.length;drawPreview();},Math.max(50,+document.getElementById('frameDelay').value||500));};
+
+    function alignedFilename(name){
+      const dot=name.lastIndexOf('.');
+      const stem=dot>0?name.slice(0,dot):name;
+      return stem+'-aligned.png';
+    }
+    function downloadBlob(blob,name){
+      const url=URL.createObjectURL(blob),a=document.createElement('a');
+      a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),1500);
+    }
+    function canvasToBlob(canvas,type='image/png',quality){
+      return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Could not encode image.')),type,quality));
+    }
+    async function exportAllAligned(){
+      stopPreview();
+      const ref=multi.items[0],w=ref.img.naturalWidth,h=ref.img.naturalHeight;
+      const c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d');
+      for(let i=0;i<multi.items.length;i++){
+        ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,w,h);drawAlignedTo(ctx,i,w,h);
+        const blob=await canvasToBlob(c,'image/png');
+        downloadBlob(blob,alignedFilename(multi.items[i].name));
+        gifProgress.style.width=((i+1)/multi.items.length*100)+'%';
+        // Yield so each browser download event is handled separately.
+        await new Promise(r=>setTimeout(r,120));
+      }
+    }
+    exportAligned.onclick=async()=>{
+      exportAligned.disabled=true;mError();gifProgress.style.width='0';
+      try{await exportAllAligned();}
+      catch(e){mError('Aligned image export failed: '+e.message);}
+      finally{exportAligned.disabled=false;}
+    };
+
+    let gifWorkerUrl=null;
+    async function getGifWorkerUrl(){
+      if(gifWorkerUrl)return gifWorkerUrl;
+      const response=await fetch('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js');
+      if(!response.ok)throw new Error('Could not load the GIF encoder worker.');
+      const source=await response.text();
+      gifWorkerUrl=URL.createObjectURL(new Blob([source],{type:'application/javascript'}));
+      return gifWorkerUrl;
+    }
+    async function makeGif(){
+      stopPreview();
+
+      if(!window.GIF){
+        throw new Error('The GIF encoder could not be loaded. Check your internet connection and try again.');
+      }
+
+      const ref=multi.items[0];
+      const requestedWidth=Math.max(100,Math.min(1600,Number(document.getElementById('gifWidth').value)||800));
+      const width=Math.max(2,Math.floor(Math.min(requestedWidth,ref.img.naturalWidth)/2)*2);
+      const height=Math.max(2,Math.floor(ref.img.naturalHeight*width/ref.img.naturalWidth));
+      const frameDuration=Math.max(50,Number(document.getElementById('frameDelay').value)||500);
+
+      const canvas=document.createElement('canvas');
+      canvas.width=width;
+      canvas.height=height;
+      const ctx=canvas.getContext('2d',{alpha:false});
+      if(!ctx){
+        throw new Error('Could not create the GIF export canvas.');
+      }
+
+      const workerScript=await getGifWorkerUrl();
+      const gif=new GIF({
+        workers:2,
+        quality:10,
+        width,
+        height,
+        workerScript
+      });
+      const draw=index=>{
+        ctx.setTransform(1,0,0,1,0,0);
+        ctx.globalAlpha=1;
+        ctx.fillStyle='#000';
+        ctx.fillRect(0,0,width,height);
+        drawAlignedTo(ctx,index,width,height);
+      };
+
+      const rendered=new Promise((resolve,reject)=>{
+        gif.on('progress',value=>{gifProgress.style.width=(value*100)+'%';});
+        gif.on('finished',blob=>resolve(blob));
+        gif.on('abort',()=>reject(new Error('GIF encoding was cancelled.')));
+      });
+      for(let imageIndex=0;imageIndex<multi.items.length;imageIndex++){
+        draw(imageIndex);
+        gif.addFrame(canvas,{copy:true,delay:frameDuration});
+        gifProgress.style.width=((imageIndex+1)/multi.items.length*25)+'%';
+      }
+      gif.render();
+      const blob=await rendered;
+      if(blob.size<1000)throw new Error('The encoded GIF was unexpectedly small.');
+      downloadBlob(blob,'aligned-sequence.gif');
+      gifProgress.style.width='100%';
+    }
+    exportGif.onclick=async()=>{
+      exportGif.disabled=true;
+      mError();
+      gifProgress.style.width='0';
+      try{
+        await makeGif();
+      }catch(e){
+        console.error(e);
+        mError('GIF export failed: '+e.message);
+      }finally{
+        exportGif.disabled=false;
+      }
+    };
+
+    window.addEventListener('keydown',e=>{
+      if(!document.getElementById('multiTab').classList.contains('active')||!multiReady()||['INPUT','SELECT'].includes(document.activeElement.tagName))return;
+      if(e.key==='ArrowLeft'){e.preventDefault();previewPrev.click();}
+      if(e.key==='ArrowRight'){e.preventDefault();previewNext.click();}
+      if(e.code==='Space'){e.preventDefault();previewPlay.click();}
+    });
+  </script>
+</body>
+</html>

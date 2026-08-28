@@ -761,7 +761,7 @@
 </head>
 <body>
   <h2>Team Pursuit Video Timing</h2>
-  <h3>Keys: S start, Z quarter lap, C change, D drop, R rider finish, T team finish, Space play/pause, arrows frame-step, Ctrl+arrows jump.</h3>
+  <h3>Keys: S start, Z quarter lap, C change, D drop, R rider finish, T team finish, Space play/pause, arrows frame-step, Ctrl+arrows adaptive jump, Ctrl+Shift+arrows fixed jump.</h3>
   <input type="file" accept="video/mp4,video/quicktime" id="videoInput">
   <button id="uploadAllBtn" type="button" title="Upload video (.mp4/.mov), timing data (.csv) and FIT sync (.tpsync) together — snaps to start automatically">Upload all files</button>
   <input type="file" id="uploadAllInput" accept="video/mp4,video/quicktime,.csv,.json,.tpsync,application/octet-stream" multiple style="display:none;"><br><br>
@@ -804,6 +804,10 @@
         <div>
           <label for="jumpFramesInput">Jump Ahead (frames)</label>
           <input id="jumpFramesInput" type="number" min="1" value="160">
+        </div>
+        <div>
+          <label for="fixedJumpFramesInput">Fixed Jump (frames)</label>
+          <input id="fixedJumpFramesInput" type="number" min="1" value="160">
         </div>
         <div>
           <label for="rider1Input">Rider 1</label>
@@ -1062,9 +1066,9 @@
                 </table>
               </div>
             </div>
-            <div class="table-card">
+            <div class="table-card" id="riderCadenceLapCard">
               <h4>Average Cadence by Lap</h4>
-              <div id="riderCadenceLapEmpty" class="table-empty">Assign rider FIT files with cadence data and complete laps to see cadence averages.</div>
+              <div id="riderCadenceLapEmpty" class="table-empty">Assign rider FIT files with power and cadence data and complete laps to see cadence averages.</div>
               <div class="lap-table-wrap">
                 <table id="riderCadenceLapTable" hidden>
                   <thead><tr></tr></thead>
@@ -1090,6 +1094,7 @@
 
     const fpsInput = document.getElementById('fpsInput');
     const jumpFramesInput = document.getElementById('jumpFramesInput');
+    const fixedJumpFramesInput = document.getElementById('fixedJumpFramesInput');
     const changeTimeInput = document.getElementById('changeTimeInput');
     const airDensityInput = document.getElementById('airDensityInput');
 
@@ -1237,6 +1242,12 @@
     function getFps() { return parseInt(fpsInput.value, 10) || 50; }
     function frameDuration() { return 1 / getFps(); }
     function getJumpSeconds() { return (parseInt(jumpFramesInput.value, 10) || 160) / getFps(); }
+    function getFixedJumpSeconds() { return (parseInt(fixedJumpFramesInput.value, 10) || 160) / getFps(); }
+    function setJumpFramesFromDuration(seconds) {
+      if (!Number.isFinite(seconds) || seconds <= 0) return;
+      const inferredFrames = Math.max(1, Math.round(seconds / frameDuration()));
+      jumpFramesInput.value = String(inferredFrames);
+    }
     function getChangeTimeSeconds() {
       const v = parseFloat(changeTimeInput.value);
       return Number.isFinite(v) ? Math.max(0, v) : 0.12;
@@ -2443,11 +2454,24 @@
       riderCadenceLapTableBody.innerHTML = '';
 
       const cadenceContainer = document.getElementById('cadenceRowContainer');
-      if (getLoadedFitStreams().length === 0) {
-        if (cadenceContainer) cadenceContainer.hidden = true;
+      const riderCadenceLapCard = document.getElementById('riderCadenceLapCard');
+      if (cadenceContainer) cadenceContainer.hidden = false;
+
+      const streamsWithPowerAndCadence = getLoadedFitStreams().filter((stream) => {
+        if (!stream || !Array.isArray(stream.rows) || stream.rows.length === 0 || !stream.timeColumnKey) return false;
+        const cadenceKey = getCadenceColumnKeyForStream(stream);
+        const powerKey = getPowerColumnKeyForStream(stream);
+        return Boolean(cadenceKey && powerKey);
+      });
+
+      const hasPowerAndCadenceData = streamsWithPowerAndCadence.length > 0;
+      if (riderCadenceLapCard) riderCadenceLapCard.hidden = !hasPowerAndCadenceData;
+
+      if (!hasPowerAndCadenceData) {
+        riderCadenceLapTable.hidden = true;
+        riderCadenceLapEmpty.hidden = false;
         return;
       }
-      if (cadenceContainer) cadenceContainer.hidden = false;
 
       const completedLapCount = Math.floor(splitRows.length / 4);
       if (completedLapCount === 0) {
@@ -3075,6 +3099,9 @@
       const quarterTime = now - rowPrevTime;
       if (quarterTime < frameDuration() * 0.5) return; // duplicate / too close
 
+      // Keep Ctrl+Arrow jump aligned with the most recent split gap.
+      setJumpFramesFromDuration(quarterTime);
+
       // For appended rows, allow R's pending adjustment to carry through
       const useDeliveryAdjust = deliveryAdjusted || (isAppend && pendingDeliveryAdjustment);
       const resolvedEvent = eventLabel || (isAppend && pendingDeliveryAdjustment ? currentEventLabel : '') || 'None';
@@ -3165,6 +3192,17 @@
     function jumpBackward() {
       video.pause();
       video.currentTime = Math.max(0, video.currentTime - getJumpSeconds());
+    }
+
+    function jumpForwardFixed() {
+      video.pause();
+      const duration = Number.isFinite(video.duration) ? video.duration : Infinity;
+      video.currentTime = Math.min(duration, video.currentTime + getFixedJumpSeconds());
+    }
+
+    function jumpBackwardFixed() {
+      video.pause();
+      video.currentTime = Math.max(0, video.currentTime - getFixedJumpSeconds());
     }
 
     let nextFrameInterval = null;
@@ -3857,6 +3895,16 @@
       if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
         e.preventDefault();
         e.stopPropagation();
+      }
+
+      if (e.ctrlKey && e.shiftKey && e.key === 'ArrowRight') {
+        jumpForwardFixed();
+        return;
+      }
+
+      if (e.ctrlKey && e.shiftKey && e.key === 'ArrowLeft') {
+        jumpBackwardFixed();
+        return;
       }
 
       if (e.ctrlKey && e.key === 'ArrowRight') {

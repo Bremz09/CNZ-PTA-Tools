@@ -679,7 +679,7 @@
 </head>
 <body>
   <h2>Individual Pursuit Video Timing</h2>
-  <h3>Keys: S start, Z quarter, T finish, Space play/pause, arrows frame-step, Ctrl+arrows jump.</h3>
+  <h3>Keys: S start, Z quarter, T finish, Space play/pause, arrows frame-step, Ctrl+arrows adaptive jump, Ctrl+Shift+arrows fixed jump.</h3>
   <input type="file" accept="video/mp4,video/quicktime" id="videoInput">
   <button id="uploadAllBtn" type="button" title="Upload video (.mp4/.mov), timing data (.csv) and FIT sync (.ipsync) together — snaps to start automatically">Upload all files</button>
   <input type="file" id="uploadAllInput" accept="video/mp4,video/quicktime,.csv,.json,.ipsync,application/octet-stream" multiple style="display:none;"><br><br>
@@ -718,6 +718,10 @@
         <div>
           <label for="jumpFramesInput">Jump Ahead (frames)</label>
           <input id="jumpFramesInput" type="number" min="1" value="160">
+        </div>
+        <div>
+          <label for="fixedJumpFramesInput">Fixed Jump (frames)</label>
+          <input id="fixedJumpFramesInput" type="number" min="1" value="160">
         </div>
         <div>
           <label for="raceDistanceInput">Race Distance (m)</label>
@@ -958,6 +962,7 @@
 
     const fpsInput = document.getElementById('fpsInput');
     const jumpFramesInput = document.getElementById('jumpFramesInput');
+    const fixedJumpFramesInput = document.getElementById('fixedJumpFramesInput');
     const airDensityInput = document.getElementById('airDensityInput');
     const raceDistanceInput = document.getElementById('raceDistanceInput');
 
@@ -1067,6 +1072,12 @@
     function getFps() { return parseInt(fpsInput.value, 10) || 50; }
     function frameDuration() { return 1 / getFps(); }
     function getJumpSeconds() { return (parseInt(jumpFramesInput.value, 10) || 160) / getFps(); }
+    function getFixedJumpSeconds() { return (parseInt(fixedJumpFramesInput.value, 10) || 160) / getFps(); }
+    function setJumpFramesFromDuration(seconds) {
+      if (!Number.isFinite(seconds) || seconds <= 0) return;
+      const inferredFrames = Math.max(1, Math.round(seconds / frameDuration()));
+      jumpFramesInput.value = String(inferredFrames);
+    }
     function getRiderName() { return rider1Input.value.trim() || 'Rider'; }
     function getTitleText() { return countryInput.value.trim() || 'Untitled Session'; }
     function getRaceDistance() { return parseInt(raceDistanceInput.value, 10) || 4000; }
@@ -2453,6 +2464,9 @@
       const quarterTime = now - rowPrevTime;
       if (quarterTime < frameDuration() * 0.5) return;
 
+      // Keep Ctrl+Arrow jump aligned with the most recent split duration.
+      setJumpFramesFromDuration(quarterTime);
+
       const speed = speedFromTime(quarterTime);
       const resolvedEvent = eventLabel || 'None';
 
@@ -2507,6 +2521,15 @@
     function jumpBackward() {
       video.pause();
       video.currentTime = Math.max(0, video.currentTime - getJumpSeconds());
+    }
+    function jumpForwardFixed() {
+      video.pause();
+      const duration = Number.isFinite(video.duration) ? video.duration : Infinity;
+      video.currentTime = Math.min(duration, video.currentTime + getFixedJumpSeconds());
+    }
+    function jumpBackwardFixed() {
+      video.pause();
+      video.currentTime = Math.max(0, video.currentTime - getFixedJumpSeconds());
     }
 
     let nextFrameInterval = null, prevFrameInterval = null;
@@ -2966,6 +2989,8 @@
 
       const key = e.key.toLowerCase();
       if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); e.stopPropagation(); }
+      if (e.ctrlKey && e.shiftKey && e.key === 'ArrowRight') { jumpForwardFixed(); return; }
+      if (e.ctrlKey && e.shiftKey && e.key === 'ArrowLeft') { jumpBackwardFixed(); return; }
       if (e.ctrlKey && e.key === 'ArrowRight') { jumpForward(); return; }
       if (e.ctrlKey && e.key === 'ArrowLeft') { jumpBackward(); return; }
 

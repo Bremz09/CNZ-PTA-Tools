@@ -840,6 +840,20 @@
 							<span id="sensitivityValue" class="control-value">0.20x</span>
 						</div>
 					</div>
+					<div class="control-group">
+						<label for="smoothingControl">Metric smoothing</label>
+						<div class="control-row">
+							<input id="smoothingControl" type="range" min="1" max="21" step="2" value="1" />
+							<span id="smoothingValue" class="control-value">Off</span>
+						</div>
+					</div>
+					<div class="control-group">
+						<label for="yAxisMaxControl">Y-axis max</label>
+						<div class="control-row">
+							<input id="yAxisMaxControl" type="range" min="10" max="500" step="5" value="100" />
+							<span id="yAxisMaxValue" class="control-value">100%</span>
+						</div>
+					</div>
 				</div>
 				<div id="syncTargets" class="sync-targets"></div>
 				<div id="autoSyncBar" class="auto-sync-bar" style="display:none">
@@ -984,6 +998,8 @@
 			series: [],
 			times: [],
 			metricValues: [],
+			smoothingWindow: 1,
+			yAxisMaxScale: 1,
 			estimatedVideoFps: null,
 			traceOffsetTime: 0,
 			viewScale: 1,
@@ -1022,6 +1038,10 @@
 			scaleControl: document.getElementById("scaleControl"),
 			scaleValue: document.getElementById("scaleValue"),
 			sensitivityControl: document.getElementById("sensitivityControl"),
+			smoothingControl: document.getElementById("smoothingControl"),
+			smoothingValue: document.getElementById("smoothingValue"),
+			yAxisMaxControl: document.getElementById("yAxisMaxControl"),
+			yAxisMaxValue: document.getElementById("yAxisMaxValue"),
 			sensitivityValue: document.getElementById("sensitivityValue"),
 			btnVideoTimeSync: document.getElementById("btnVideoTimeSync"),
 			video: document.getElementById("video"),
@@ -1534,6 +1554,24 @@
 		function updateControlLabels() {
 			els.scaleValue.textContent = `${Math.round(state.viewScale * 100)}%`;
 			els.sensitivityValue.textContent = `${formatNum(state.dragSensitivity, 2)}x`;
+			els.smoothingValue.textContent = state.smoothingWindow === 1 ? "Off" : `${state.smoothingWindow} samples`;
+			els.yAxisMaxValue.textContent = `${Math.round(state.yAxisMaxScale * 100)}%`;
+		}
+
+		function smoothValues(values, windowSize) {
+			if (windowSize <= 1) return values;
+			const smoothed = [];
+			const radius = Math.floor(windowSize / 2);
+			for (let index = 0; index < values.length; index += 1) {
+				const start = Math.max(0, index - radius);
+				const end = Math.min(values.length, index + radius + 1);
+				let total = 0;
+				for (let sampleIndex = start; sampleIndex < end; sampleIndex += 1) {
+					total += values[sampleIndex];
+				}
+				smoothed.push(total / (end - start));
+			}
+			return smoothed;
 		}
 
 		function resetMetricAndPlot(options = {}) {
@@ -1671,8 +1709,12 @@
 			}
 
 			const commonMetricColumns = intersectMetricColumns(parsedSheets);
+			const metricOptions = [...commonMetricColumns];
+			if (commonMetricColumns.includes("cadence") && commonMetricColumns.includes("power")) {
+				metricOptions.push("Efficiency");
+			}
 			const previousMetric = state.metricColumnKey;
-			populateMetricSelect(commonMetricColumns, previousMetric);
+			populateMetricSelect(metricOptions, previousMetric);
 
 			updateStats();
 
@@ -1682,7 +1724,7 @@
 				return;
 			}
 
-			if (previousMetric && commonMetricColumns.includes(previousMetric)) {
+			if (previousMetric && metricOptions.includes(previousMetric)) {
 				setMetric(previousMetric);
 				setStatus(`${parsedSheets.length} stream(s) loaded. Overlaying ${previousMetric}.`, "ok");
 				return;
@@ -1708,10 +1750,36 @@
 			for (let i = 0; i < state.selectedSheets.length; i += 1) {
 				const sheet = state.selectedSheets[i];
 				const points = [];
+				const sourcePoints = [];
 				for (const row of sheet.rows) {
 					const t = toNumber(row[sheet.timeColumnKey]);
+					if (t === null) continue;
+					if (metricKey === "Efficiency") {
+						const cadence = toNumber(row.cadence);
+						const power = toNumber(row.power);
+						if (cadence !== null && power !== null && power !== 0) sourcePoints.push({ t, cadence, power });
+						continue;
+					}
 					const y = toNumber(row[metricKey]);
-					if (t !== null && y !== null) points.push({ t, y });
+					if (y !== null) points.push({ t, y });
+				}
+
+				if (metricKey === "Efficiency") {
+					const smoothedCadence = smoothValues(sourcePoints.map((point) => point.cadence), state.smoothingWindow);
+					const smoothedPower = smoothValues(sourcePoints.map((point) => point.power), state.smoothingWindow);
+					for (let pointIndex = 0; pointIndex < sourcePoints.length; pointIndex += 1) {
+						if (smoothedPower[pointIndex] !== 0) {
+							points.push({
+								t: sourcePoints[pointIndex].t,
+								y: smoothedCadence[pointIndex] / smoothedPower[pointIndex]
+							});
+						}
+					}
+				} else if (state.smoothingWindow > 1) {
+					const smoothedValues = smoothValues(points.map((point) => point.y), state.smoothingWindow);
+					for (let pointIndex = 0; pointIndex < points.length; pointIndex += 1) {
+						points[pointIndex].y = smoothedValues[pointIndex];
+					}
 				}
 
 				points.sort((a, b) => a.t - b.t);
@@ -1843,7 +1911,8 @@
 			const viewCenterT = Number.isFinite(els.video.currentTime) ? els.video.currentTime : 0;
 			const viewMinT = viewCenterT - visibleSpan / 2;
 			const viewMaxT = viewCenterT + visibleSpan / 2;
-			const [yMin, yMax] = findBounds(allValues);
+			const [yMin, automaticYMax] = findBounds(allValues);
+			const yMax = yMin + (automaticYMax - yMin) * state.yAxisMaxScale;
 
 			const xFromT = (t) => m.l + ((t - viewMinT) / (viewMaxT - viewMinT || 1)) * pw;
 			const yFromV = (v) => m.t + (1 - (v - yMin) / (yMax - yMin || 1)) * ph;
@@ -2030,6 +2099,26 @@
 			if (raw === null) return;
 			state.dragSensitivity = clamp(raw / 100, 0.05, 3);
 			updateControlLabels();
+		});
+
+		els.smoothingControl.addEventListener("input", (event) => {
+			const raw = toNumber(event.target.value);
+			if (raw === null) return;
+			state.smoothingWindow = Math.max(1, Math.round(raw));
+			updateControlLabels();
+			if (state.metricColumnKey) {
+				setMetric(state.metricColumnKey);
+			} else {
+				drawPlot();
+			}
+		});
+
+		els.yAxisMaxControl.addEventListener("input", (event) => {
+			const raw = toNumber(event.target.value);
+			if (raw === null) return;
+			state.yAxisMaxScale = clamp(Math.round(raw) / 100, 0.1, 5);
+			updateControlLabels();
+			drawPlot();
 		});
 
 		els.sheetSelect.addEventListener("change", () => {

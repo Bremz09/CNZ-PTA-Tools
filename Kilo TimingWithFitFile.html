@@ -679,7 +679,7 @@
 </head>
 <body>
   <h2>Kilo Video Timing</h2>
-  <h3>Keys: S start, Z quarter, T finish, Space play/pause, arrows frame-step, Ctrl+arrows jump.</h3>
+  <h3>Keys: S start, Z quarter, T finish, Space play/pause, arrows frame-step, Ctrl+arrows adaptive jump, Ctrl+Shift+arrows fixed jump.</h3>
   <input type="file" accept="video/mp4,video/quicktime" id="videoInput">
   <button id="uploadAllBtn" type="button" title="Upload video (.mp4/.mov), timing data (.csv) and FIT sync (.ipsync) together — snaps to start automatically">Upload all files</button>
   <input type="file" id="uploadAllInput" accept="video/mp4,video/quicktime,.csv,.json,.ipsync,application/octet-stream" multiple style="display:none;"><br><br>
@@ -720,12 +720,12 @@
           <input id="jumpFramesInput" type="number" min="1" value="160">
         </div>
         <div>
-          <label for="raceDistanceInput">Race Distance (m)</label>
-          <input id="raceDistanceInput" type="number" min="500" max="10000" step="500" value="1000">
+          <label for="fixedJumpFramesInput">Fixed Jump (frames)</label>
+          <input id="fixedJumpFramesInput" type="number" min="1" value="160">
         </div>
         <div>
-          <label for="rider1Input">Rider Name</label>
-          <input id="rider1Input" type="text" placeholder="Rider name">
+          <label for="raceDistanceInput">Race Distance (m)</label>
+          <input id="raceDistanceInput" type="number" min="500" max="10000" step="500" value="1000">
         </div>
       </div>
       <div class="report-actions">
@@ -739,7 +739,7 @@
         <input type="file" id="csvUploadInput" accept=".csv" style="display:none;">
       </div>
 
-      <h3 id="reportTitle">Kilo Report</h3>
+      <h3 id="reportTitle"><span id="reportTitleMain">Kilo Report</span><span id="reportTitleSub" style="display:block;"></span></h3>
       <div class="report-table-wrap">
         <table id="reportTable">
           <thead>
@@ -849,7 +849,7 @@
           <button id="appendToFileBtn" type="button">Append to file</button>
           <button id="exportReportBtn" type="button">Export report</button>
         </div>
-        <h3 id="reportDashboardTitle" style="margin:0 0 0 8px;font-size:40px;">Report Dashboard</h3>
+        <h3 id="reportDashboardTitle" style="margin:0 0 0 8px;font-size:40px;"><span id="reportDashboardTitleMain">Report Dashboard</span><span id="reportDashboardTitleSub" style="display:block;font-size:20px;"></span></h3>
         <button id="closeReportBtn" class="modal-close" type="button" aria-label="Close report dashboard">×</button>
       </div>
       <div class="dashboard-top">
@@ -940,11 +940,11 @@
 
     const fpsInput = document.getElementById('fpsInput');
     const jumpFramesInput = document.getElementById('jumpFramesInput');
+    const fixedJumpFramesInput = document.getElementById('fixedJumpFramesInput');
     const airDensityInput = document.getElementById('airDensityInput');
     const raceDistanceInput = document.getElementById('raceDistanceInput');
 
     const countryInput = document.getElementById('countryInput');
-    const rider1Input = document.getElementById('rider1Input');
 
     const startBtn = document.getElementById('startBtn');
     const quarterBtn = document.getElementById('quarterBtn');
@@ -965,7 +965,9 @@
     const prevFrameBtn = document.getElementById('prevFrame');
 
     const reportTitle = document.getElementById('reportTitle');
+    const reportTitleSub = document.getElementById('reportTitleSub');
     const reportDashboardTitle = document.getElementById('reportDashboardTitle');
+    const reportDashboardTitleSub = document.getElementById('reportDashboardTitleSub');
     const reportTable = document.getElementById('reportTable');
     const reportTableBody = reportTable.querySelector('tbody');
     const reportModal = document.getElementById('reportModal');
@@ -1046,7 +1048,8 @@
     function getFps() { return parseInt(fpsInput.value, 10) || 50; }
     function frameDuration() { return 1 / getFps(); }
     function getJumpSeconds() { return (parseInt(jumpFramesInput.value, 10) || 160) / getFps(); }
-    function getRiderName() { return rider1Input.value.trim() || 'Rider'; }
+    function getFixedJumpSeconds() { return (parseInt(fixedJumpFramesInput.value, 10) || 160) / getFps(); }
+    function getRiderName() { return 'Rider'; }
     function getTitleText() { return countryInput.value.trim() || 'Untitled Session'; }
     function getRaceDistance() { return parseInt(raceDistanceInput.value, 10) || 1000; }
     function speedFromTime(s) { return s > 0 ? (SPLIT_DISTANCE_METERS / s) * 3.6 : 0; }
@@ -1270,9 +1273,6 @@
         riderIndex: file.assignedRiderIndex === 0 ? 0 : null
       }));
       fitSyncState.nextParsedFileId = fitSyncState.parsedFiles.reduce((maxId, file) => Math.max(maxId, file.id), 0) + 1;
-      if (typeof payload.riderName === 'string' && payload.riderName.trim()) {
-        rider1Input.value = payload.riderName;
-      }
       renderFitAssignments();
       if (payload.metricKey) {
         const stream = getLoadedFitStream();
@@ -1706,14 +1706,15 @@
     function updateTitle() {
       const rawTotal = getRawTotalTime();
       const stdTotal = getStandardizedTotalTime();
-      const riderName = getRiderName();
       const totalText = Number.isFinite(rawTotal)
         ? (isStandardizationEnabled() && Number.isFinite(stdTotal)
-          ? ` (Raw/Std): ${formatClockTime(rawTotal)} / ${formatClockTime(stdTotal)} (ρ=${getAirDensity().toFixed(3)} kg/m³)`
-          : ` ${formatClockTime(rawTotal)}`)
+          ? `(Raw/Std): ${formatClockTime(rawTotal)} / ${formatClockTime(stdTotal)} (ρ=${getAirDensity().toFixed(3)} kg/m³)`
+          : `${formatClockTime(rawTotal)}`)
         : '';
-      reportTitle.textContent = `${getTitleText()} — ${riderName} Kilo Report${totalText}`;
-      reportDashboardTitle.textContent = `${getTitleText()} — ${riderName}${totalText}`;
+      document.getElementById('reportTitleMain').textContent = `${getTitleText()} Kilo Report`;
+      reportTitleSub.textContent = totalText;
+      document.getElementById('reportDashboardTitleMain').textContent = getTitleText();
+      reportDashboardTitleSub.textContent = totalText;
     }
     function setStatus(msg) { statusDisplay.textContent = `Status: ${msg}`; }
     function renumberRows() {
@@ -2435,6 +2436,15 @@
       video.pause();
       video.currentTime = Math.max(0, video.currentTime - getJumpSeconds());
     }
+    function jumpForwardFixed() {
+      video.pause();
+      const duration = Number.isFinite(video.duration) ? video.duration : Infinity;
+      video.currentTime = Math.min(duration, video.currentTime + getFixedJumpSeconds());
+    }
+    function jumpBackwardFixed() {
+      video.pause();
+      video.currentTime = Math.max(0, video.currentTime - getFixedJumpSeconds());
+    }
 
     let nextFrameInterval = null, prevFrameInterval = null;
 
@@ -2571,7 +2581,6 @@
       }
       lines.push(`# startTime,${startTime != null ? startTime : ''}`);
       lines.push(`# title,"${getTitleText()}"`);
-      lines.push(`# rider,"${rider1Input.value.trim()}"`);
       lines.push(`# raceDistance,${getRaceDistance()}`);
       const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
       const a = document.createElement('a');
@@ -2599,7 +2608,6 @@
         const parts = ml.slice(2).split(',');
         if (parts[0] === 'startTime' && parts[1]) uploadedStartTime = parseFloat(parts[1]);
         if (parts[0] === 'title') countryInput.value = parts[1].replace(/^"|"$/g, '');
-        if (parts[0] === 'rider') rider1Input.value = parts[1].replace(/^"|"$/g, '');
         if (parts[0] === 'raceDistance' && parts[1]) raceDistanceInput.value = parseInt(parts[1], 10) || 1000;
       }
 
@@ -2666,11 +2674,6 @@
 
     countryInput.addEventListener('input', updateTitle);
     airDensityInput.addEventListener('input', renderRows);
-    rider1Input.addEventListener('input', () => {
-      renderFitAssignments({ rebuild: false });
-      if (fitSyncState.metricKey) buildFitSeries(fitSyncState.metricKey);
-      else { renderFitLegend(); renderFitSyncTargets(); drawFitPlot(); }
-    });
 
     fitFilesInput.addEventListener('change', async (event) => {
       const files = Array.from(event.target.files || []);
@@ -2893,6 +2896,8 @@
 
       const key = e.key.toLowerCase();
       if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); e.stopPropagation(); }
+      if (e.ctrlKey && e.shiftKey && e.key === 'ArrowRight') { jumpForwardFixed(); return; }
+      if (e.ctrlKey && e.shiftKey && e.key === 'ArrowLeft') { jumpBackwardFixed(); return; }
       if (e.ctrlKey && e.key === 'ArrowRight') { jumpForward(); return; }
       if (e.ctrlKey && e.key === 'ArrowLeft') { jumpBackward(); return; }
 
