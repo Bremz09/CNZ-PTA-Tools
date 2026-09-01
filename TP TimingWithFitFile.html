@@ -833,6 +833,7 @@
       <div class="report-actions">
         <button id="updateBtn">Update Data</button>
         <button id="downloadBtn">Download Data</button>
+        <button id="downloadBeaconsBtn">Export Beacons CSV</button>
         <button id="createReportBtn">Create Report</button>
         <label>
           <button id="uploadBtn" onclick="document.getElementById('csvUploadInput').click()" style="margin-bottom:0;">Upload Data</button>
@@ -1117,6 +1118,7 @@
     const p1toP3Btn = document.getElementById('p1toP3Btn');
     const updateBtn = document.getElementById('updateBtn');
     const downloadBtn = document.getElementById('downloadBtn');
+    const downloadBeaconsBtn = document.getElementById('downloadBeaconsBtn');
     const createReportBtn = document.getElementById('createReportBtn');
     const snapToStartBtn = document.getElementById('snapToStartBtn');
     const csvUploadInput = document.getElementById('csvUploadInput');
@@ -3036,6 +3038,10 @@
       let p1SpecialMoveUsed = false;
       for (const row of splitRows) {
         row.frontRiderIndex = order.length > 0 ? order[pos] : -1;
+        // Full front-to-back queue order at this row, used for beacon offset export.
+        row.queueOrder = order.length > 0
+          ? Array.from({ length: order.length }, (_, k) => order[(pos + k) % order.length])
+          : [];
         if (row.eventLabel === 'Change') {
           if (order.length >= 2) {
             if (useP1toP3Mode && !p1SpecialMoveUsed && order[pos] === 0 && order.length >= 4) {
@@ -3426,6 +3432,33 @@
       a.click();
       URL.revokeObjectURL(a.href);
       setStatus('CSV downloaded.');
+    });
+
+    // Exports one row per half-lap (125m) with each rider's beacon crossing time,
+    // offset from the front rider's measured time by their queue position * change time.
+    downloadBeaconsBtn.addEventListener('click', () => {
+      if (splitRows.length === 0 || !Number.isFinite(startTime)) { setStatus('No data to export.'); return; }
+      const changeTime = getChangeTimeSeconds();
+      // Include TEAM_FINISH here too - it's still a real split (typically the final quarter).
+      const headers = ['Rider 1', 'Rider 2', 'Rider 3', 'Rider 4', 'TimeSynchAdjust'];
+      const lines = [headers.join(',')];
+      lines.push([startTime, startTime, startTime, startTime, startTime].join(','));
+      for (let i = 0; i + 1 < splitRows.length; i += 2) {
+        const halfLapRow = splitRows[i + 1];
+        const cells = [0, 1, 2, 3].map((riderIdx) => {
+          const queuePos = halfLapRow.queueOrder.indexOf(riderIdx);
+          return queuePos === -1 ? '' : halfLapRow.endTime + queuePos * changeTime;
+        });
+        cells.push('');
+        lines.push(cells.join(','));
+      }
+      const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${getTitleText()} ${videoFileName} Beacons.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      setStatus('Beacons CSV downloaded.');
     });
 
     csvUploadInput.addEventListener('change', (e) => {
