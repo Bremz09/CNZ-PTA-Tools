@@ -1018,6 +1018,7 @@
         <button id="prevFrame">⏪ Previous Frame</button>
         <button id="nextFrame">⏩ Next Frame</button>
         <button id="startBtn">Start (S)</button>
+        <button id="insertStartBtn">Insert Start (Shift+S)</button>
         <button id="quarterBtn">Quarter (Z)</button>
         <button id="changeBtn">Change (C)</button>
         <button id="dropBtn">Drop (D)</button>
@@ -1071,6 +1072,7 @@
       <div class="report-actions">
         <button id="updateBtn">Update Data</button>
         <button id="downloadBtn">Download Data</button>
+        <button id="downloadBeaconsBtn">Export Beacons CSV</button>
         <button id="createReportBtn">Create Report</button>
         <label>
           <button id="uploadBtn" onclick="document.getElementById('csvUploadInput').click()" style="margin-bottom:0;">Upload Data</button>
@@ -1426,6 +1428,8 @@
     const p1toP3Btn = document.getElementById('p1toP3Btn');
     const updateBtn = document.getElementById('updateBtn');
     const downloadBtn = document.getElementById('downloadBtn');
+    const downloadBeaconsBtn = document.getElementById('downloadBeaconsBtn');
+    const insertStartBtn = document.getElementById('insertStartBtn');
     const createReportBtn = document.getElementById('createReportBtn');
     const snapToStartBtn = document.getElementById('snapToStartBtn');
     const csvUploadInput = document.getElementById('csvUploadInput');
@@ -1786,6 +1790,9 @@
       });
       return youtubeApiPromise;
     }
+    function getYouTubePlayerOrigin() {
+      return /^https?:$/.test(window.location.protocol) ? window.location.origin : '';
+    }
     async function loadYouTubeVideo(url) {
       const videoId = extractYouTubeVideoId(url);
       if (!videoId) {
@@ -1809,14 +1816,25 @@
           playerVars: {
             rel: 0,
             modestbranding: 1,
-            playsinline: 1
+            playsinline: 1,
+            ...(getYouTubePlayerOrigin() ? { origin: getYouTubePlayerOrigin() } : {})
           },
           events: {
-            onReady: () => finishLoad(),
+            onReady: () => {
+              const iframe = document.querySelector('#youtubePlayer iframe');
+              if (iframe) iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+              finishLoad();
+            },
             onStateChange: (event) => {
               if (window.YT && event.data === window.YT.PlayerState.PLAYING) startYoutubeTimePolling();
               else stopYoutubeTimePolling();
               refreshMediaTimeDisplays();
+            },
+            onError: (event) => {
+              const message = event.data === 153 && !getYouTubePlayerOrigin()
+                ? 'YouTube Error 153: open this tool through a web server (http://localhost), not directly as a file.'
+                : `YouTube player error (${event.data}).`;
+              setStatus(message);
             }
           }
         });
@@ -4792,12 +4810,27 @@
         if (row.splitType === 'TEAM_FINISH') teamFinished = true;
       }
 
+      // Legacy imports have no explicit Start row - back-calculate it from the first quarter's split time.
+      if (!Number.isFinite(startTime) && splitRows.length > 0) {
+        startTime = splitRows[0].endTime - splitRows[0].quarterTime;
+        uploadedCsvStartTime = startTime;
+        updateSnapToStartAvailability();
+      }
+
       lastMarkerTime = splitRows.length > 0
         ? splitRows[splitRows.length - 1].endTime
         : startTime;
 
       if (session.isLegacyFormat !== false) {
         replayRiderRotations();
+      } else {
+        // Non-legacy rows already have the correct frontRiderIndex from name matching, but still
+        // need a queueOrder snapshot for the beacons export - replaying reproduces it identically
+        // since it's the same rotation algorithm used to generate this data originally.
+        replayRiderRotations();
+        for (let i = 0; i < splitRows.length; i++) {
+          splitRows[i].frontRiderIndex = session.rows[i].frontRiderIndex;
+        }
       }
       renumberRows();
       updateReport();
@@ -5429,6 +5462,10 @@
       let p1SpecialMoveUsed = false;
       for (const row of splitRows) {
         row.frontRiderIndex = order.length > 0 ? order[pos] : -1;
+        // Full front-to-back queue order at this row, used for beacon offset export.
+        row.queueOrder = order.length > 0
+          ? Array.from({ length: order.length }, (_, k) => order[(pos + k) % order.length])
+          : [];
         if (row.eventLabel === 'Change') {
           if (order.length >= 2) {
             if (useP1toP3Mode && !p1SpecialMoveUsed && order[pos] === 0 && order.length >= 4) {
@@ -5461,6 +5498,29 @@
       lastMarkerTime = startTime;
       reportTable.style.display = 'table';
       setStatus(`Started at ${startTime.toFixed(2)}s.`);
+    }
+
+    // Re-anchors existing split rows (e.g. from an imported CSV with no real video reference)
+    // to the currently loaded video, by shifting every endTime by the same delta.
+    function insertStartAtCurrentTime() {
+      const now = getMediaCurrentTime();
+      if (!Number.isFinite(now)) return;
+      const oldBaseline = Number.isFinite(startTime)
+        ? startTime
+        : (splitRows.length > 0 ? splitRows[0].endTime - splitRows[0].quarterTime : now);
+      const delta = now - oldBaseline;
+      if (delta !== 0) {
+        for (const row of splitRows) row.endTime += delta;
+      }
+      startTime = now;
+      uploadedCsvStartTime = now;
+      lastMarkerTime = splitRows.length > 0 ? splitRows[splitRows.length - 1].endTime : now;
+      teamFinished = splitRows.length > 0 && splitRows[splitRows.length - 1].splitType === 'TEAM_FINISH';
+      reportTable.style.display = splitRows.length > 0 ? 'table' : 'none';
+      updateSnapToStartAvailability();
+      renderRows();
+      updateReport();
+      setStatus(`Start point inserted at ${now.toFixed(2)}s. Times shifted by ${delta.toFixed(2)}s.`);
     }
 
     // splitType: 'QUARTER' | 'TEAM_FINISH'
@@ -5610,6 +5670,7 @@
     prevFrameBtn.addEventListener('touchend', () => clearInterval(prevFrameInterval));
 
     startBtn.addEventListener('click', startTiming);
+    insertStartBtn.addEventListener('click', insertStartAtCurrentTime);
     quarterBtn.addEventListener('click', () => addSplit('QUARTER', '', false));
     changeBtn.addEventListener('click', () => addSplit('QUARTER', 'Change', true));
     dropBtn.addEventListener('click', () => addSplit('QUARTER', 'Drop', true));
@@ -5800,6 +5861,36 @@
       a.click();
       URL.revokeObjectURL(a.href);
       setStatus('CSV downloaded.');
+    });
+
+    // Exports one row per half-lap (125m) with each rider's beacon crossing time,
+    // offset from the front rider's measured time by their queue position * change time.
+    downloadBeaconsBtn.addEventListener('click', () => {
+      if (splitRows.length === 0 || !Number.isFinite(startTime)) { setStatus('No data to export.'); return; }
+      if (splitRows.some((row) => !Array.isArray(row.queueOrder))) {
+        setStatus('Beacons export needs rider rotation data - press Update Data first.');
+        return;
+      }
+      const changeTime = getChangeTimeSeconds();
+      const headers = ['Rider 1', 'Rider 2', 'Rider 3', 'Rider 4', 'TimeSynchAdjust'];
+      const lines = [headers.join(',')];
+      lines.push([startTime, startTime, startTime, startTime, startTime].join(','));
+      for (let i = 0; i + 1 < splitRows.length; i += 2) {
+        const halfLapRow = splitRows[i + 1];
+        const cells = [0, 1, 2, 3].map((riderIdx) => {
+          const queuePos = halfLapRow.queueOrder.indexOf(riderIdx);
+          return queuePos === -1 ? '' : halfLapRow.endTime + queuePos * changeTime;
+        });
+        cells.push('');
+        lines.push(cells.join(','));
+      }
+      const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${getTitleText()} ${videoFileName} Beacons.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      setStatus('Beacons CSV downloaded.');
     });
 
     csvUploadInput.addEventListener('change', (e) => {
@@ -6251,6 +6342,8 @@
         stepNextFrame();
       } else if (e.key === 'ArrowLeft') {
         stepPrevFrame();
+      } else if (key === 's' && e.shiftKey) {
+        insertStartAtCurrentTime();
       } else if (key === 's') {
         startTiming();
       } else if (key === 'z') {
