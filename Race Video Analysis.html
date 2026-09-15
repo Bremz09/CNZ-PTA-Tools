@@ -1320,15 +1320,8 @@
           <div class="chart-card">
             <h4 id="speedProfileTitle">Quarter Lap Speed Profiles</h4>
             <div id="speedProfilesContainer" class="compare-profiles"></div>
+            <div id="riderSpeedProfileLegend" class="fit-legend"></div>
             <div id="reportChartEmpty" class="chart-empty" hidden>Add quarter splits to generate the speed dashboard.</div>
-            <div id="deliveryCompareSection" class="delivery-compare-section" hidden>
-              <h4>Delivery Speed Comparison Trace</h4>
-              <div id="deliveryCompareWrapper" class="chart-wrapper">
-                <canvas id="deliveryCompareChart" width="900" height="320"></canvas>
-              </div>
-              <div id="deliveryCompareEmpty" class="chart-empty" hidden>Select at least one race with split data.</div>
-            </div>
-            <div id="chartLegend" class="chart-legend"></div>
           </div>
           <div class="bottom-tables-row">
             <div class="table-card compact-table-card">
@@ -1471,14 +1464,9 @@
     const exportReportBtn = document.getElementById('exportReportBtn');
     const appendToFileBtn = document.getElementById('appendToFileBtn');
     const speedProfilesContainer = document.getElementById('speedProfilesContainer');
+    const riderSpeedProfileLegend = document.getElementById('riderSpeedProfileLegend');
     const speedProfileTitle = document.getElementById('speedProfileTitle');
     const reportChartEmpty = document.getElementById('reportChartEmpty');
-    const deliveryCompareSection = document.getElementById('deliveryCompareSection');
-    const deliveryCompareWrapper = document.getElementById('deliveryCompareWrapper');
-    const deliveryCompareChart = document.getElementById('deliveryCompareChart');
-    const deliveryCompareEmpty = document.getElementById('deliveryCompareEmpty');
-    const deliveryCompareContext = deliveryCompareChart.getContext('2d');
-    const chartLegend = document.getElementById('chartLegend');
     const lapSummaryTable = document.getElementById('lapSummaryTable');
     const lapSummaryTableBody = lapSummaryTable.querySelector('tbody');
     const lapSummaryEmpty = document.getElementById('lapSummaryEmpty');
@@ -2785,95 +2773,10 @@
       });
     }
 
-    function drawDeliveryComparisonChart(seriesList) {
-      const hasSeries = seriesList.some((series) => series.points.length > 0);
-      deliveryCompareWrapper.hidden = !hasSeries;
-      deliveryCompareEmpty.hidden = hasSeries;
-      const { width, height } = resizeCanvasToWrapper(deliveryCompareChart, deliveryCompareWrapper, 320);
-      deliveryCompareContext.clearRect(0, 0, width, height);
-      if (!hasSeries) return;
-
-      const padding = {
-        top: 20,
-        right: 18,
-        bottom: 46,
-        left: 58
-      };
-      const chartWidth = width - padding.left - padding.right;
-      const chartHeight = height - padding.top - padding.bottom;
-      const allPoints = seriesList.flatMap((series) => series.points);
-      const maxX = Math.max(...allPoints.map((point) => point.x), 1);
-      const minY = Math.min(...allPoints.map((point) => point.y));
-      const maxY = Math.max(...allPoints.map((point) => point.y));
-      const userYMin = parseFloat(document.getElementById('chartYMinInput').value);
-      const userYMax = parseFloat(document.getElementById('chartYMaxInput').value);
-      const axisMin = Number.isFinite(userYMin) ? userYMin : Math.floor(minY - 1);
-      const axisMax = Number.isFinite(userYMax) ? Math.max(userYMax, axisMin + 1) : Math.max(Math.ceil(maxY + 1), axisMin + 1);
-      const axisRange = Math.max(0.001, axisMax - axisMin);
-
-      deliveryCompareContext.font = '12px sans-serif';
-      deliveryCompareContext.strokeStyle = '#cbd5e1';
-      deliveryCompareContext.fillStyle = '#475569';
-      deliveryCompareContext.lineWidth = 1;
-
-      const tickCount = 5;
-      for (let tick = 0; tick <= tickCount; tick++) {
-        const value = axisMin + (axisRange / tickCount) * tick;
-        const y = padding.top + chartHeight - ((value - axisMin) / axisRange) * chartHeight;
-        deliveryCompareContext.beginPath();
-        deliveryCompareContext.moveTo(padding.left, y);
-        deliveryCompareContext.lineTo(width - padding.right, y);
-        deliveryCompareContext.stroke();
-        deliveryCompareContext.textAlign = 'right';
-        deliveryCompareContext.textBaseline = 'middle';
-        deliveryCompareContext.fillText(value.toFixed(1), padding.left - 8, y);
-      }
-
-      deliveryCompareContext.strokeStyle = '#0f172a';
-      deliveryCompareContext.lineWidth = 1.2;
-      deliveryCompareContext.beginPath();
-      deliveryCompareContext.moveTo(padding.left, padding.top);
-      deliveryCompareContext.lineTo(padding.left, padding.top + chartHeight);
-      deliveryCompareContext.lineTo(width - padding.right, padding.top + chartHeight);
-      deliveryCompareContext.stroke();
-
-      seriesList.forEach((series) => {
-        if (series.points.length === 0) return;
-        deliveryCompareContext.beginPath();
-        deliveryCompareContext.strokeStyle = series.color;
-        deliveryCompareContext.lineWidth = 2.2;
-        series.points.forEach((point, index) => {
-          const x = padding.left + (point.x / maxX) * chartWidth;
-          const y = padding.top + chartHeight - ((point.y - axisMin) / axisRange) * chartHeight;
-          if (index === 0) deliveryCompareContext.moveTo(x, y);
-          else deliveryCompareContext.lineTo(x, y);
-        });
-        deliveryCompareContext.stroke();
-      });
-
-      deliveryCompareContext.textAlign = 'center';
-      deliveryCompareContext.textBaseline = 'top';
-      deliveryCompareContext.fillStyle = '#334155';
-      deliveryCompareContext.fillText('Distance (m)', padding.left + chartWidth / 2, height - 24);
-    }
-
-    function renderComparisonLegend(seriesList) {
-      chartLegend.innerHTML = '';
-      if (!seriesList || seriesList.length === 0) return;
-      seriesList.forEach((series) => {
-        const item = document.createElement('span');
-        item.className = 'legend-item';
-        item.innerHTML = `<span class="legend-swatch" style="background:${series.color}"></span>${series.label}`;
-        chartLegend.appendChild(item);
-      });
-      const averageItem = document.createElement('span');
-      averageItem.className = 'legend-item';
-      averageItem.innerHTML = '<span class="legend-line"></span>Post-lap-1 average';
-      chartLegend.appendChild(averageItem);
-      const deliveryItem = document.createElement('span');
-      deliveryItem.className = 'legend-item';
-      deliveryItem.innerHTML = '<span class="legend-dot"></span>Delivery speed';
-      chartLegend.appendChild(deliveryItem);
+    function renderRiderSpeedProfileLegend() {
+      riderSpeedProfileLegend.innerHTML = getRiderNames()
+        .map((name, riderIndex) => `<span class="fit-swatch"><i style="background:${getRiderColor(riderIndex)}"></i>${name}</span>`)
+        .join('');
     }
 
     function getSelectedSessionsForComparison() {
@@ -2920,6 +2823,7 @@
     function renderReportChart() {
       const hlMode = hlToggle ? hlToggle.checked : true;
       if (speedProfileTitle) speedProfileTitle.textContent = hlMode ? 'Half Lap Speed Profiles' : 'Quarter Split Speed Profiles';
+      renderRiderSpeedProfileLegend();
 
       const selectedSessions = getSelectedSessionsForComparison();
       const profileSeries = [];
@@ -2958,23 +2862,6 @@
       const hasProfiles = profileSeries.length > 0;
       reportChartEmpty.hidden = hasProfiles;
       speedProfilesContainer.hidden = !hasProfiles;
-      deliveryCompareSection.hidden = !hasProfiles;
-
-      const deliverySeries = profileSeries.map((series) => {
-        const quarterRows = flyingMode ? series.chartRows : series.chartRows.slice(4);
-        const points = quarterRows.map((row, index) => ({
-          x: (index + 1) * SPLIT_DISTANCE_METERS,
-          y: row.deliverySpeed
-        }));
-        return {
-          label: series.label,
-          color: series.color,
-          points
-        };
-      });
-
-      drawDeliveryComparisonChart(deliverySeries);
-      renderComparisonLegend(deliverySeries);
     }
 
     function renderLapSummaryTable() {
