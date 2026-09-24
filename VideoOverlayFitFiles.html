@@ -1695,7 +1695,8 @@
 					rows,
 					timeColumnKey,
 					metricColumns: columns.filter((column) => column !== timeColumnKey),
-					samplingHz: meanDt > 0 ? 1 / meanDt : null
+					samplingHz: meanDt > 0 ? 1 / meanDt : null,
+					baseTime: timeValues[0]
 				});
 			}
 
@@ -1757,7 +1758,7 @@
 					if (metricKey === "Efficiency") {
 						const cadence = toNumber(row.cadence);
 						const power = toNumber(row.power);
-						if (cadence !== null && power !== null && power !== 0) sourcePoints.push({ t, cadence, power });
+						if (cadence !== null && power !== null) sourcePoints.push({ t, cadence, power });
 						continue;
 					}
 					const y = toNumber(row[metricKey]);
@@ -1768,7 +1769,7 @@
 					const smoothedCadence = smoothValues(sourcePoints.map((point) => point.cadence), state.smoothingWindow);
 					const smoothedPower = smoothValues(sourcePoints.map((point) => point.power), state.smoothingWindow);
 					for (let pointIndex = 0; pointIndex < sourcePoints.length; pointIndex += 1) {
-						if (smoothedPower[pointIndex] !== 0) {
+						if (smoothedPower[pointIndex] !== null && smoothedPower[pointIndex] > 0) {
 							points.push({
 								t: sourcePoints[pointIndex].t,
 								y: smoothedCadence[pointIndex] / smoothedPower[pointIndex]
@@ -1787,7 +1788,7 @@
 					continue;
 				}
 
-				const baseTime = points[0].t;
+				const baseTime = Number.isFinite(sheet.baseTime) ? sheet.baseTime : points[0].t;
 
 				series.push({
 					sheetName: sheet.sheetName,

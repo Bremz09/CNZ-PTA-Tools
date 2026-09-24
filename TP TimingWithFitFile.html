@@ -3106,7 +3106,10 @@
       if (quarterTime < frameDuration() * 0.5) return; // duplicate / too close
 
       // Keep Ctrl+Arrow jump aligned with the most recent split gap.
-      setJumpFramesFromDuration(quarterTime);
+      const jumpDuration = eventLabel === 'Change'
+        ? quarterTime - 6 * frameDuration()
+        : quarterTime;
+      setJumpFramesFromDuration(jumpDuration);
 
       // For appended rows, allow R's pending adjustment to carry through
       const useDeliveryAdjust = deliveryAdjusted || (isAppend && pendingDeliveryAdjustment);
@@ -3116,7 +3119,9 @@
       const deliveryQuarterTime = pendingRiderFinishTime != null
         ? Math.max(pendingRiderFinishTime - rowPrevTime, frameDuration() * 0.25)
         : quarterTime;
-      const deliverySpeed = speedFromTime(deliveryQuarterTime);
+      const deliverySpeed = useDeliveryAdjust
+        ? speedFromTime(Math.max(quarterTime - getChangeTimeSeconds(), 0.001))
+        : speedFromTime(deliveryQuarterTime);
 
       const newRow = {
         splitType,
@@ -3142,7 +3147,9 @@
         const remainderTime = existingRow.endTime - now;
         existingRow.quarterTime = remainderTime;
         existingRow.teamSpeed = speedFromTime(remainderTime);
-        existingRow.deliverySpeed = existingRow.teamSpeed;
+        existingRow.deliverySpeed = existingRow.deliveryAdjusted
+          ? speedFromTime(Math.max(remainderTime - getChangeTimeSeconds(), 0.001))
+          : existingRow.teamSpeed;
         splitRows.splice(insertIdx, 0, newRow);
       }
 
