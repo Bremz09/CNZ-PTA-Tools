@@ -1,0 +1,2620 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Track Competition Programme Planner</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box
+    }
+
+    body {
+      margin: 0;
+      background: #eef5f9;
+      color: #10263d;
+      font-family: "Segoe UI", Arial, sans-serif
+    }
+
+    .page {
+      width: calc(100% - 30px);
+      max-width: 1050px;
+      margin: 12px auto 28px;
+      background: #fff;
+      box-shadow: 0 6px 20px rgba(24, 55, 82, .12)
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 20px;
+      color: #fff;
+      background: linear-gradient(100deg, #123e69 0%, #143a5c 55%, #cb642d 100%)
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 22px
+    }
+
+    .header p {
+      margin: 4px 0 0;
+      font-size: 13px
+    }
+
+    .header-actions,
+    .race-controls {
+      display: flex;
+      gap: 8px
+    }
+
+    .tabs {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #d6e0e8
+    }
+
+    .tab-group {
+      display: flex;
+      gap: 8px
+    }
+
+    .header-actions {
+      align-items: center
+    }
+
+    .header button,
+    .race-controls button,
+    .tabs button,
+    .add-rider {
+      border: 0;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer
+    }
+
+    .primary {
+      background: #0d4b86;
+      color: #fff
+    }
+
+    .countdown-button {
+      background: #0d4b86;
+      color: #fff;
+      transition: background 0.15s ease, color 0.15s ease
+    }
+
+    .countdown-button:hover {
+      background: #bae6fd;
+      color: #0369a1
+    }
+
+    .secondary,
+    .print-button,
+    .download-button,
+    .tabs button[data-view] {
+      background: #edf3f7;
+      color: #0d477d
+    }
+
+    .tabs button[data-view].active {
+      background: #0d4b86;
+      color: #fff
+    }
+
+    .pause {
+      background: #df6a2c;
+      color: #fff
+    }
+
+    .pause.paused {
+      background: #a33b28
+    }
+
+    .countdown-wrap {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 8px
+    }
+
+    .mini {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 80px;
+      font-size: 11px
+    }
+
+    .mini span {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap
+    }
+
+    .mini strong {
+      font-size: 13px
+    }
+
+    .content {
+      padding: 14px 18px 22px
+    }
+
+    .top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 12px;
+      margin: 10px 0
+    }
+
+    .day-control label {
+      display: block;
+      margin-bottom: 3px;
+      font-size: 12px;
+      font-weight: 600
+    }
+
+    .day-control select {
+      width: 180px;
+      padding: 6px 10px;
+      border: 1px solid #cad7e2;
+      border-radius: 6px;
+      font: inherit;
+      font-size: 13px
+    }
+
+    .status {
+      align-self: center;
+      font-weight: 700;
+      color: #d6612d;
+      font-size: 13px
+    }
+
+    .pause-timer {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: #fde8e4;
+      color: #a33b28;
+      font-weight: 700;
+      font-size: 13px;
+      font-family: monospace;
+      letter-spacing: 0.5px
+    }
+
+    .programme {
+      overflow: hidden;
+      border: 1px solid #d1dde6;
+      border-radius: 8px
+    }
+
+    .table-wrap {
+      overflow: auto
+    }
+
+    table {
+      width: 100%;
+      min-width: 980px;
+      border-collapse: collapse
+    }
+
+    th {
+      padding: 6px 8px;
+      background: #f6f8fa;
+      text-align: left;
+      font-size: 11px
+    }
+
+    td {
+      padding: 5px 8px;
+      border-top: 1px solid #dde6ed;
+      font-size: 13px
+    }
+
+    .session-row {
+      cursor: pointer;
+      padding: 7px 8px;
+      background: #e8edf1;
+      font-weight: 800;
+      text-transform: uppercase
+    }
+
+    .session-row td {
+      font-size: 12px;
+      font-weight: 400;
+      text-transform: none
+    }
+
+    .session-instruction {
+      font-weight: 400;
+      text-transform: none
+    }
+
+    .event-row.selected,
+    .event-row.selected.sprint-row,
+    .event-row.selected.men-endurance-row,
+    .event-row.selected.women-endurance-row {
+      box-shadow: inset 5px 0 #f3c98d
+    }
+    .extra-rider-row.selected td,
+    .extra-rider-row.selected.sprint-row td,
+    .extra-rider-row.selected.men-endurance-row td,
+    .extra-rider-row.selected.women-endurance-row td {
+      background: transparent !important
+    }
+
+    .event-row.current,
+    .event-row.current.sprint-row,
+    .event-row.current.men-endurance-row,
+    .event-row.current.women-endurance-row,
+    .extra-rider-row.current td,
+    .extra-rider-row.current.sprint-row td,
+    .extra-rider-row.current.men-endurance-row td,
+    .extra-rider-row.current.women-endurance-row td {
+      background: #ffe7c2 !important
+    }
+    .event-row.current {
+      box-shadow: inset 5px 0 #e9a65b
+    }
+
+    .event-row.complete {
+      color: #8392a0;
+      background: #f7f9fa
+    }
+
+    .event-row.sprint-row {
+      background: #fffcf4
+    }
+
+    .event-row.men-endurance-row {
+      background: #f5faff
+    }
+
+    .event-row.women-endurance-row {
+      background: #fff7fa
+    }
+
+    .number-input {
+      width: 64px;
+      padding: 4px 6px;
+      border: 1px solid #c9d7e2;
+      border-radius: 5px;
+      font: inherit;
+      font-size: 13px
+    }
+
+    .name-input {
+      width: 125px;
+      padding: 4px 6px;
+      border: 1px solid #c9d7e2;
+      border-radius: 5px;
+      font: inherit;
+      font-size: 13px
+    }
+
+    .calculated {
+      font-weight: 700;
+      color: #0d477d;
+      white-space: nowrap
+    }
+
+    .add-rider {
+      padding: 4px 8px;
+      background: #e9f2f8;
+      color: #0d477d;
+      white-space: nowrap;
+      font-size: 12px
+    }
+
+    .extra-rider-row td {
+      background: #fbfdfe;
+      border-top: 0
+    }
+    .extra-rider-row.sprint-row td {
+      background: #fffcf4
+    }
+    .extra-rider-row.men-endurance-row td {
+      background: #f5faff
+    }
+    .extra-rider-row.women-endurance-row td {
+      background: #fff7fa
+    }
+
+    .extra-rider-label {
+      text-align: right
+    }
+
+    .remove-rider {
+      border: 0;
+      background: transparent;
+      color: #a94d3b;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 12px
+    }
+
+    .riders-view {
+      display: none;
+      padding-top: 14px
+    }
+
+    .rider-section {
+      margin-bottom: 20px
+    }
+
+    .rider-section-title {
+      margin: 0 0 8px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid #d8e2e9;
+      color: #123e69;
+      font-size: 16px
+    }
+
+    .rider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 12px
+    }
+
+    .rider-card {
+      border: 1px solid #d1dde6;
+      border-radius: 8px;
+      padding: 12px;
+      background: #fff
+    }
+
+    .rider-card h3 {
+      margin: 0 0 3px;
+      font-size: 15px
+    }
+
+    .class-label {
+      font-weight: 700;
+      color: #587086;
+      margin-bottom: 8px;
+      font-size: 12px
+    }
+
+    .bubble-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px
+    }
+
+    .bubble {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 22px 4px 9px;
+      border-radius: 14px;
+      background: #e8f1f7;
+      color: #0d477d;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.4
+    }
+
+    .bubble.assigned {
+      background: #e1eef8;
+      color: #0d4b86;
+      border: 1px solid #bdd6ec;
+      cursor: pointer;
+      transition: all 0.15s ease
+    }
+
+    .bubble.assigned:hover {
+      background: #316da5;
+      color: #fff;
+      border-color: #1e4c77
+    }
+
+    .bubble.assigned button {
+      position: absolute;
+      right: 5px;
+      top: 50%;
+      transform: translateY(-50%);
+      border: 0;
+      background: transparent;
+      color: #b3392a;
+      font-weight: 900;
+      font-size: 14px;
+      cursor: pointer;
+      padding: 0 2px;
+      line-height: 1
+    }
+
+    .bubble.assigned:hover button {
+      color: #fff
+    }
+
+    .bubble.available {
+      background: #f7fafc;
+      border: 1px dashed #b0c4d8;
+      color: #435b6f;
+      padding-left: 20px;
+      padding-right: 9px;
+      cursor: pointer;
+      transition: all 0.15s ease
+    }
+
+    .bubble.available:hover {
+      background: #eaf6ee;
+      border-color: #48bb78;
+      color: #1c6436
+    }
+
+    .bubble.available button {
+      position: absolute;
+      left: 5px;
+      top: 50%;
+      transform: translateY(-50%);
+      border: 0;
+      background: transparent;
+      color: #2e8540;
+      font-weight: 900;
+      font-size: 13px;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1
+    }
+
+    .rider-events-block {
+      margin-top: 8px
+    }
+
+    .available-block {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid #e2eaf0
+    }
+
+    .events-group-label {
+      font-size: 11px;
+      font-weight: 800;
+      color: #556c7d;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px
+    }
+
+    .empty-events-note {
+      font-size: 12px;
+      color: #8fa0b0;
+      font-style: italic
+    }
+
+    .reset-area {
+      margin-top: 24px;
+      padding-top: 12px;
+      border-top: 1px solid #e1e7ec;
+      text-align: right
+    }
+
+    .reset-button {
+      padding: 6px 10px;
+      border: 1px solid #d1d7dc;
+      border-radius: 5px;
+      background: #f5f5f5;
+      color: #666;
+      cursor: pointer;
+      font-size: 12px
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(16, 39, 60, .55)
+    }
+
+    .modal.open {
+      display: flex
+    }
+
+    .modal-panel {
+      position: relative;
+      width: 640px;
+      max-width: 100%;
+      padding: 18px;
+      border-radius: 10px;
+      background: #fff
+    }
+
+    .close {
+      position: absolute;
+      right: 12px;
+      top: 12px;
+      width: 32px;
+      height: 32px;
+      border: 1px solid #cedae3;
+      border-radius: 6px;
+      background: #edf3f7;
+      font-size: 20px
+    }
+
+    .card {
+      margin-top: 10px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: #123653;
+      color: #fff;
+      text-align: center
+    }
+
+    .label {
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-size: 11px
+    }
+
+    .clock {
+      font-size: 44px;
+      font-weight: 750
+    }
+
+    .athlete-name {
+      margin-top: 4px;
+      font-size: 22px;
+      font-weight: 750
+    }
+
+    .event-name {
+      margin-top: 3px;
+      font-size: 15px
+    }
+
+    .countdown {
+      margin-top: 8px;
+      font-size: 38px;
+      font-weight: 750
+    }
+
+    .empty {
+      margin-top: 10px;
+      font-size: 15px;
+      font-weight: 700
+    }
+
+    .print-banner {
+      display: none
+    }
+
+    @media print {
+      @page {
+        size: portrait;
+        margin: 4mm 6mm
+      }
+
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important
+      }
+
+      html, body {
+        background: #fff !important;
+        color: #000 !important;
+        font-family: "Segoe UI", Arial, sans-serif !important;
+        margin: 0 !important;
+        padding: 0 !important
+      }
+
+      .page {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        border: none !important
+      }
+
+      .content {
+        padding: 0 !important
+      }
+
+      .header,
+      .tabs,
+      .top-row,
+      .reset-area,
+      .modal,
+      .add-rider,
+      .remove-rider,
+      .session-instruction,
+      .session-arrow,
+      .riders-view {
+        display: none !important
+      }
+
+      .print-banner {
+        display: flex !important;
+        justify-content: space-between;
+        align-items: baseline !important;
+        border-bottom: 2px solid #0d4b86 !important;
+        padding-bottom: 2px !important;
+        margin-bottom: 4px !important
+      }
+
+      .print-title {
+        font-size: 11pt !important;
+        font-weight: 800 !important;
+        color: #0d4b86 !important;
+        margin: 0 !important
+      }
+
+      .print-subtitle {
+        font-size: 9.5pt !important;
+        font-weight: 700 !important;
+        color: #10263d !important;
+        margin: 0 !important
+      }
+
+      #programmeView {
+        display: block !important
+      }
+
+      .programme {
+        border: 1px solid #b0c2d2 !important;
+        border-radius: 0 !important;
+        overflow: visible !important
+      }
+
+      .table-wrap {
+        overflow: visible !important
+      }
+
+      table {
+        width: 100% !important;
+        min-width: 100% !important;
+        border-collapse: collapse !important;
+        table-layout: fixed !important
+      }
+
+      th:last-child,
+      td:last-child {
+        display: none !important
+      }
+
+      th {
+        padding: 2px 3px !important;
+        font-size: 6.8pt !important;
+        font-weight: 700 !important;
+        background: #eef3f7 !important;
+        color: #10263d !important;
+        border: 1px solid #cad7e2 !important;
+        text-align: left !important;
+        white-space: nowrap !important
+      }
+
+      td {
+        padding: 1px 3px !important;
+        font-size: 7pt !important;
+        line-height: 1.15 !important;
+        border: 1px solid #d5e0ea !important;
+        color: #000 !important
+      }
+
+      .session-row {
+        background: #dbe5ee !important;
+        border: 1px solid #b5c6d6 !important
+      }
+
+      .session-row td {
+        padding: 2px 4px !important;
+        font-size: 7.2pt !important;
+        font-weight: 800 !important;
+        color: #0d477d !important;
+        text-transform: uppercase !important
+      }
+
+      #programmeBody tr {
+        display: table-row !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important
+      }
+
+      .number-input,
+      .name-input {
+        border: none !important;
+        background: transparent !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        font-size: 7pt !important;
+        font-family: inherit !important;
+        color: inherit !important;
+        box-shadow: none !important;
+        text-align: left !important;
+        appearance: none !important;
+        -moz-appearance: textfield !important
+      }
+
+      .number-input::-webkit-outer-spin-button,
+      .number-input::-webkit-inner-spin-button {
+        -webkit-appearance: none !important;
+        margin: 0 !important
+      }
+
+      .calculated {
+        font-weight: 700 !important;
+        color: #0d477d !important
+      }
+
+      .event-row.sprint-row {
+        background: #fffcf4 !important
+      }
+      .event-row.men-endurance-row {
+        background: #f5faff !important
+      }
+      .event-row.women-endurance-row {
+        background: #fff7fa !important
+      }
+
+      .event-row.current,
+      .extra-rider-row.current td,
+      .event-row.selected,
+      .extra-rider-row.selected td {
+        background: inherit !important;
+        box-shadow: none !important
+      }
+    }
+
+    /* Mirrors the @media print rules above so the PDF export matches the printed layout exactly */
+    body.pdf-export-mode {
+      background: #fff !important;
+      color: #000 !important
+    }
+
+    body.pdf-export-mode * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important
+    }
+
+    body.pdf-export-mode .page {
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      box-shadow: none !important;
+      border: none !important;
+      background: #fff !important
+    }
+
+    body.pdf-export-mode .content {
+      padding: 0 !important
+    }
+
+    body.pdf-export-mode .header,
+    body.pdf-export-mode .tabs,
+    body.pdf-export-mode .top-row,
+    body.pdf-export-mode .reset-area,
+    body.pdf-export-mode .modal,
+    body.pdf-export-mode .add-rider,
+    body.pdf-export-mode .remove-rider,
+    body.pdf-export-mode .session-instruction,
+    body.pdf-export-mode .session-arrow,
+    body.pdf-export-mode .riders-view {
+      display: none !important
+    }
+
+    body.pdf-export-mode .print-banner {
+      display: flex !important;
+      justify-content: space-between;
+      align-items: baseline !important;
+      border-bottom: 2px solid #0d4b86 !important;
+      padding-bottom: 2px !important;
+      margin-bottom: 4px !important
+    }
+
+    body.pdf-export-mode .print-title {
+      font-size: 11pt !important;
+      font-weight: 800 !important;
+      color: #0d4b86 !important;
+      margin: 0 !important
+    }
+
+    body.pdf-export-mode .print-subtitle {
+      font-size: 9.5pt !important;
+      font-weight: 700 !important;
+      color: #10263d !important;
+      margin: 0 !important
+    }
+
+    body.pdf-export-mode #programmeView {
+      display: block !important
+    }
+
+    body.pdf-export-mode .programme {
+      border: 1px solid #b0c2d2 !important;
+      border-radius: 0 !important;
+      overflow: visible !important
+    }
+
+    body.pdf-export-mode .table-wrap {
+      overflow: visible !important
+    }
+
+    body.pdf-export-mode table {
+      width: 100% !important;
+      min-width: 100% !important;
+      border-collapse: collapse !important;
+      table-layout: fixed !important
+    }
+
+    body.pdf-export-mode th:last-child,
+    body.pdf-export-mode td:last-child {
+      display: none !important
+    }
+
+    body.pdf-export-mode th {
+      padding: 2px 3px !important;
+      font-size: 6.8pt !important;
+      font-weight: 700 !important;
+      background: #eef3f7 !important;
+      color: #10263d !important;
+      border: 1px solid #cad7e2 !important;
+      text-align: left !important;
+      white-space: nowrap !important
+    }
+
+    body.pdf-export-mode td {
+      padding: 1px 3px !important;
+      font-size: 7pt !important;
+      line-height: 1.15 !important;
+      border: 1px solid #d5e0ea !important;
+      color: #000 !important
+    }
+
+    body.pdf-export-mode .session-row {
+      background: #dbe5ee !important;
+      border: 1px solid #b5c6d6 !important
+    }
+
+    body.pdf-export-mode .session-row td {
+      padding: 2px 4px !important;
+      font-size: 7.2pt !important;
+      font-weight: 800 !important;
+      color: #0d477d !important;
+      text-transform: uppercase !important
+    }
+
+    body.pdf-export-mode #programmeBody tr {
+      display: table-row !important;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important
+    }
+
+    body.pdf-export-mode .number-input,
+    body.pdf-export-mode .name-input {
+      border: none !important;
+      background: transparent !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      width: 100% !important;
+      height: auto !important;
+      font-size: 7pt !important;
+      font-family: inherit !important;
+      color: inherit !important;
+      box-shadow: none !important;
+      text-align: left !important;
+      appearance: none !important;
+      -moz-appearance: textfield !important
+    }
+
+    body.pdf-export-mode .number-input::-webkit-outer-spin-button,
+    body.pdf-export-mode .number-input::-webkit-inner-spin-button {
+      -webkit-appearance: none !important;
+      margin: 0 !important
+    }
+
+    body.pdf-export-mode .calculated {
+      font-weight: 700 !important;
+      color: #0d477d !important
+    }
+
+    body.pdf-export-mode .event-row.sprint-row {
+      background: #fffcf4 !important
+    }
+    body.pdf-export-mode .event-row.men-endurance-row {
+      background: #f5faff !important
+    }
+    body.pdf-export-mode .event-row.women-endurance-row {
+      background: #fff7fa !important
+    }
+
+    body.pdf-export-mode .event-row.current,
+    body.pdf-export-mode .extra-rider-row.current td,
+    body.pdf-export-mode .event-row.selected,
+    body.pdf-export-mode .extra-rider-row.selected td {
+      background: inherit !important;
+      box-shadow: none !important
+    }
+
+    @media(max-width:850px) {
+      .page {
+        width: calc(100% - 20px);
+        margin: 10px auto
+      }
+
+      .header,
+      .top-row {
+        align-items: flex-start;
+        flex-direction: column
+      }
+
+      .header h1 {
+        font-size: 31px
+      }
+
+      .content {
+        padding: 18px
+      }
+
+      .clock,
+      .countdown {
+        font-size: 46px
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+    <header class="header">
+      <div>
+        <h1>Track Competition Programme Planner</h1>
+      </div>
+      <div class="header-actions">
+        <div class="countdown-wrap">
+          <div class="mini"><span>Local <strong id="miniLocal">00:00:00</strong></span><span>Next NZL <strong
+                id="miniNext">--:--:--</strong></span></div>
+        </div><button class="download-button" onclick="downloadPdfProgramme()">Download PDF</button><button class="print-button" onclick="printProgramme()">Print</button>
+      </div>
+    </header>
+    <div class="print-banner" id="printBanner">
+      <div class="print-title" id="printTitle">Track Competition Programme Planner</div>
+      <div class="print-subtitle" id="printSubtitle">Para Track Cycling — Day 1</div>
+    </div>
+    <main class="content">
+      <div class="tabs">
+        <div class="tab-group">
+          <button class="active" data-view="programme">Para Track Cycling</button>
+          <button data-view="track">Track Cycling</button>
+          <button data-view="riders">Riders</button>
+        </div>
+        <button class="countdown-button" id="openCountdown">Live Countdown</button>
+      </div>
+      <div id="programmeView">
+        <div class="top-row">
+          <div class="day-control"><label for="daySelect">Day</label><select id="daySelect">
+              <option>Day 1</option>
+              <option>Day 2</option>
+              <option>Day 3</option>
+              <option>Day 4</option>
+            </select></div>
+          <div class="race-controls">
+              <button class="secondary" id="previousRace">Previous Race</button>
+              <button class="secondary" id="nextRace">Next Race</button>
+              <button class="primary" id="startRace">Start Race</button>
+              <button class="secondary" id="clearStartRace">Clear Start Race</button>
+              <button class="pause" id="pauseDelay">Pause for Delay</button>
+              <span class="pause-timer" id="pauseTimer" style="display:none;"></span>
+              <span class="status" id="raceStatus"></span></div>
+        </div>
+        <section class="programme">
+          <div class="table-wrap">
+            <table>
+              <tbody id="programmeBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+      <div class="riders-view" id="ridersView">
+        <div class="rider-grid" id="riderGrid"></div>
+      </div>
+      <div class="reset-area"><button class="reset-button" id="resetAll">Reset All Data</button></div>
+    </main>
+  </div>
+  <div class="modal" id="modal">
+    <div class="modal-panel"><button class="close" id="closeModal">&times;</button>
+      <div class="card">
+        <div class="label">Current Local Time</div>
+        <div class="clock" id="clock">00:00:00</div>
+      </div>
+      <div class="card">
+        <div class="label">Next NZL Race</div>
+        <div id="nextNzl">
+          <div class="empty">Enter an NZL heat to show the next race.</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="label">Rider Countdown</div>
+        <select id="riderSelect" class="number-input" style="width:50%;max-width:320px;margin:8px auto 0;display:block;text-align:center;">
+          <option value="">Select a rider…</option>
+        </select>
+        <div id="riderCountdownBox">
+          <div class="empty">Select a rider to see their next race.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    // Core data structures and constants
+    const PROGRAMMES = { "Day 1": [["Morning Session", "10:00"], 
+    ["MC1", "1 Km Time Trial", "Qualifying"], 
+    ["MC5", "1 Km Time Trial", "Qualifying"], 
+    ["WC1", "Qualifying 200m", "Qualifying"], 
+    ["WB", "1 Km Time Trial", "Qualifying"], 
+    ["Afternoon Session", "13:00"], 
+    ["WC5", "1 Km Time Trial", "Qualifying"], 
+    ["MC4", "1 Km Time Trial", "Qualifying"], 
+    ["MC3", "Qualifying 200m", "Qualifying"], 
+    ["WC2", "1 Km Time Trial", "Qualifying"], 
+    ["MB", "4 Km Individual Pursuit", "Qualifying"], 
+    ["Evening Session", "18:00"], 
+    ["MC1", "1 Km Time Trial", "Final"], 
+    ["MC5", "1 Km Time Trial", "Final"], 
+    ["MC2", "10 Km Scratch Race", "Final"], 
+    ["MC3", "Sprint", "1/2 Finals (1st)"], 
+    ["WB", "1 Km Time Trial", "Final"], 
+    ["WC1", "Sprint", "Final"], 
+    ["WC5", "1 Km Time Trial", "Final"], 
+    ["", "Award Ceremonies", ""], 
+    ["WC4", "10 Km Scratch Race", "Final"], 
+    ["MC4", "1 Km Time Trial", "Final"], 
+    ["MC3", "Sprint", "Final"], 
+    ["WC3", "10 Km Scratch Race", "Final"], 
+    ["WC2", "1 Km Time Trial", "Final"], 
+    ["MB", "4 Km Individual Pursuit", "Final"], 
+    ["", "Award Ceremonies", ""]], 
+    "Day 2": [["Morning Session", "11:00"], 
+    ["WC3", "1 Km Time Trial", "Qualifying"], 
+    ["MC2", "Qualifying 200m", "Qualifying"], 
+    ["MB", "1 Km Time Trial", "Qualifying"], 
+    ["MC3", "1 Km Time Trial", "Qualifying"], 
+    ["Afternoon Session", "14:00"], 
+    ["WC4", "1 Km Time Trial", "Qualifying"], 
+    ["MC4", "Qualifying 200m", "Qualifying"], 
+    ["WB", "4 Km Individual Pursuit", "Qualifying"], 
+    ["Evening Session", "18:00"], 
+    ["WC3", "1 Km Time Trial", "Final"], 
+    ["MC2", "Sprint - Semi Finals", "1/2 Finals"], 
+    ["MC1", "10 Km Scratch Race", "Final"], 
+    ["MC4", "Sprint - Semi Finals", "1/2 Finals"], 
+    ["WC5", "Elimination", "Final"], 
+    ["MB", "1 Km Time Trial", "Final"], 
+    ["WC1/2", "10 Km Scratch Race", "Final"], 
+    ["", "Award Ceremonies", ""], 
+    ["MC2", "Sprint", "Final"], 
+    ["MC3", "1 Km Time Trial", "Final"], 
+    ["MC4", "Sprint", "Final"], 
+    ["WC4", "1 Km Time Trial", "Final"], 
+    ["MC5", "Elimination", "Final"], 
+    ["WB", "4 Km Individual Pursuit", "Final"], 
+    ["", "Award Ceremonies", ""]], 
+    "Day 3": [["Morning Session", "10:00"], 
+    ["WB", "Qualifying 200m", "Qualifying"], 
+    ["MB", "Qualifying 200m", "Qualifying"], 
+    ["WC2", "Qualifying 200m", "Qualifying"], 
+    ["MC5", "Qualifying 200m", "Qualifying"], 
+    ["WC4", "Qualifying 200m", "Qualifying"], 
+    ["WB", "Sprint", "1/4 Finals (1st)"], 
+    ["MB", "Sprint", "1/4 Finals (1st)"], 
+    ["Afternoon Session", "13:30"], 
+    ["WB", "Sprint", "1/4 Finals (2nd)"], 
+    ["MB", "Sprint", "1/4 Finals (2nd)"], 
+    ["WC5", "Sprint", "Qualifying"], 
+    ["MC2", "1 Km Time Trial", "Qualifying"], 
+    ["WB", "Sprint", "1/4 Finals (3rd)"], 
+    ["MB", "Sprint", "1/4 Finals (3rd)"], 
+    ["WC1", "1 Km Time Trial", "Qualifying"], 
+    ["Evening Session", "17:00"], 
+    ["WC2", "Sprint", "1/2 Finals"], 
+    ["WB", "Sprint", "1/2 Finals (1st)"], 
+    ["MB", "Sprint", "1/2 Finals (1st)"], 
+    ["MC5", "Sprint", "1/2 Finals"], 
+    ["MC1", "Elimination", "Final"], 
+    ["WC4", "Sprint", "1/2 Finals"], 
+    ["WB", "Sprint", "1/2 Finals (2nd)"], 
+    ["MB", "Sprint", "1/2 Finals (2nd)"], 
+    ["WC3", "Elimination", "Final"], 
+    ["WC5", "Sprint", "1/2 Finals"], 
+    ["MC2", "1 Km Time Trial", "Final"], 
+    ["WB", "Sprint", "1/2 Finals (3rd)"], 
+    ["MB", "Sprint", "1/2 Finals (3rd)"], 
+    [" ", "Award Ceremonies", " "],  
+    ["WC2", "Sprint", "Final"], 
+    ["WB", "Sprint", "Final (1st)"], 
+    ["MB", "Sprint", "Final (1st)"], 
+    ["WB", "Sprint", "7th - 8th Place"], 
+    ["WB", "Sprint", "5th - 6th Place"], 
+    ["MC5", "Sprint", "Final"], 
+    ["WC1", "1Km Time Trial", "Final"], 
+    ["WB", "Sprint", "Final (2nd)"], 
+    ["MB", "Sprint", "Final (2nd)"], 
+    ["MB", "Sprint", "7th - 8th Place"], 
+    ["MB", "Sprint", "5th - 6th Place"], 
+    ["MC4", "10 Km Scratch Race", "Final"], 
+    ["WC4", "Sprint", "Finals"], 
+    ["WC5", "Sprint", "Finals"], 
+    ["MC3", "Elimination", "Final"], 
+    ["WB", "Sprint", "Final (3rd)"], 
+    ["MB", "Sprint", "Final (3rd)"]], 
+    "Day 4": [["Morning Session", "09:00"], 
+    ["M/WC1-5", "Team Sprint", "Qualifying"], 
+    ["M/WB", "Team Sprint", "Qualifying 200m"], 
+    ["MC1", "Qualifying 200m", "Qualifying"], 
+    ["WC3", "Qualifying 200m", "Qualifying"], 
+    ["Afternoon Session", "13:00"], 
+    ["MC5", "10 Km Scratch Race", "Final"], 
+    ["MC2", "Elimination", "Final"], 
+    ["MC1", "Sprint", "1/2 Finals"], 
+    ["WC4", "Elimination", "Final"], 
+    ["WC3", "Sprint", "1/2 Finals"], 
+    ["", "Award Ceremonies", ""], 
+    ["MC3", "10 Km Scratch Race", "Final"], 
+    ["MC4", "Elimination", "Final"], 
+    ["WC5", "10 Km Scratch Race", "Final"], 
+    ["MC1", "Sprint", "Final"], 
+    ["", "Award Ceremonies", ""], 
+    ["WC1-2", "Elimination", "Final"], 
+    ["WC3", "Sprint", "Final"], 
+    ["", "Award Ceremonies", ""], 
+    ["M/WB", "Team Sprint", "Final"], 
+    ["M/WC1-5", "Team Sprint", "Final"], 
+    ["", "Award Ceremonies", ""]] }; 
+    const TRACK_PROGRAMMES = { "Day 1": [["Morning Session", "11:00"], 
+    ["W", "Team Pursuit", "Qualifying"], 
+    ["M", "Team Pursuit", "Qualifying"], 
+    ["W", "Team Sprint", "Qualifying"], 
+    ["M", "Team Sprint", "Qualifying"], 
+    ["Afternoon Session", "17:45"], 
+    ["", "Opening Ceremony", ""], 
+    ["Evening Session", "18:30"], 
+    ["W", "Team Sprint", "1st round"], 
+    ["M", "Team Sprint", "1st round"], 
+    ["", "Sport Presentation", ""], 
+    ["W", "Scratch 10 km", "Final"], 
+    ["M", "Team Pursuit", "1st round"], 
+    ["", "Sport Presentation", ""], 
+    ["W", "Award Ceremony", ""], 
+    ["W", "Team Sprint", "Final places 3-4 & 1-2"], 
+    ["", "Sport Presentation", ""], 
+    ["M", "Team Sprint", "Final places 3-4 & 1-2"], 
+    ["W", "Award Ceremony", ""], 
+    ["M", "Award Ceremony", ""]], 
+    "Day 2": [["Morning Session", "12:00"], 
+    ["M", "Keirin", "1st round"], 
+    ["W", "Sprint", "Qualifying 200m"], 
+    ["M", "Keirin", "Repechages"], 
+    ["W", "Sprint", "1/16 Finals"], 
+    ["M", "Keirin", "2nd round"], 
+    ["W", "Sprint", "1/8 Final"], 
+    ["Evening Session", "17:00"], 
+    ["", "Sport Presentation", ""], 
+    ["W", "Team Pursuit", "1st round"], 
+    ["W", "Sprint", "1/4 Final (1st)"], 
+    ["M", "Keirin", "3rd round"], 
+    ["", "Sport Presentation", ""], 
+    ["M", "Team Pursuit", "Finals"], 
+    ["W", "Sprint", "1/4 Final (2nd)"], 
+    ["W", "Elimination", "Final"], 
+    ["", "Sport Presentation", ""], 
+    ["W", "Sprint", "1/4 Final (3rd i.r.)"], 
+    ["M", "Award Ceremony", ""], 
+    ["W", "Award Ceremony", ""], 
+    ["M", "Keirin", "Final places 7 to 12"], 
+    ["", "Sport Presentation", ""], 
+    ["M", "Keirin", "Final 1-6"], 
+    ["M", "Scratch 10 km", "Final"], 
+    ["W", "Team Pursuit", "Finals"], 
+    ["M", "Award Ceremony", ""], 
+    ["M", "Award Ceremony", ""], 
+    ["W", "Award Ceremony", ""]], 
+    "Day 3": [["Morning Session", "12:00"], 
+    ["M", "1km Time Trial", "Qualifying"], 
+    ["W", "Omnium I", "Scratch 10 km"], 
+    ["M", "Individual Pursuit", "Qualifying"], 
+    ["W", "Omnium II", "Tempo Race 10 km"], 
+    ["Evening Session", "17:00"], 
+    ["", "Sport Presentation", ""], 
+    ["M", "Points Race 40 km", "Final"], 
+    ["W", "Sprint", "1/2 Final (1st)"], 
+    ["", "Sport Presentation", ""], 
+    ["W", "Omnium III", "Elimination"], 
+    ["W", "Sprint", "1/2 Final (2nd)"], 
+    ["", "Sport Presentation", ""], 
+    ["M", "1km Time Trial", "Final"], 
+    ["W", "Sprint", "1/2 Final (3rd i.r.)"], 
+    ["M", "Award Ceremony", ""], 
+    ["M", "Individual Pursuit", "Finals 3-4 & 1-2"], 
+    ["W", "Sprint", "Final places 3-4 & 1-2 (1st)"], 
+    ["", "Sport Presentation", ""], 
+    ["W", "Omnium IV", "Final Points Race 20 km"], 
+    ["W", "Sprint", "Final places 3-4 & 1-2 (2nd)"], 
+    ["M", "Award Ceremony", ""], 
+    ["M", "Award Ceremony", ""], 
+    ["W", "Sprint", "Final places 3-4 & 1-2 (3rd i.r.)"], 
+    ["W", "Award Ceremony", ""], 
+    ["W", "Award Ceremony", ""]], 
+    "Day 4": [["Morning Session", "11:00"], 
+    ["W", "1km Time Trial", "Qualifying"], 
+    ["M", "Sprint", "Qualifying 200m"], 
+    ["M", "Omnium I", "Scratch 10 km"], 
+    ["M", "Sprint", "1/16 Final"], 
+    ["W", "Individual Pursuit", "Qualifying"], 
+    ["M", "Sprint", "1/8 Final"], 
+    ["M", "Omnium II", "Tempo Race 10 km"], 
+    ["Evening Session", "17:30"], 
+    ["", "Sport Presentation", ""], 
+    ["W", "1km Time Trial", "Final"], 
+    ["M", "Sprint", "1/4 Final (1st)"], 
+    ["W", "Madison 30 km", "Final"], 
+    ["", "Sport Presentation", ""], 
+    ["M", "Omnium III", "Elimination"], 
+    ["", "Sport Presentation", ""], 
+    ["M", "Sprint", "1/4 Final (2nd)"], 
+    ["W", "Award Ceremony", ""], 
+    ["W", "Award Ceremony", ""], 
+    ["W", "Individual Pursuit", "Finals 3-4 & 1-2"], 
+    ["M", "Sprint", "1/4 Final (3rd i.r.)"], 
+    ["", "Sport Presentation", ""], 
+    ["M", "Omnium IV", "Final Points Race 25 km"], 
+    ["W", "Award Ceremony", ""], 
+    ["M", "Award Ceremony", ""]], 
+    "Day 5": [["Morning Session", "11:00"], 
+    ["M", "Sprint", "1/2 Final (1st)"], 
+    ["W", "Keirin", "1st round"], 
+    ["M", "Sprint", "1/2 Final (2nd)"], 
+    ["", "Break", ""], 
+    ["W", "Keirin", "Repechages"], 
+    ["M", "Sprint", "1/2 Final (3rd i.r.)"], 
+    ["Afternoon Session", "13:30"], 
+    ["", "Sport Presentation", ""], 
+    ["W", "Keirin", "2nd round"], 
+    ["M", "Sprint", "Final places 3-4 & 1-2 (1st)"], 
+    ["", "Sport Presentation", ""], 
+    ["W", "Points Race 25 km", "Final"], 
+    ["W", "Keirin", "3rd round"], 
+    ["M", "Elimination", "Final"], 
+    ["", "Sport Presentation", ""], 
+    ["M", "Sprint", "Final places 3-4 & 1-2 (2nd)"], 
+    ["W", "Award Ceremony", ""], 
+    ["M", "Award Ceremony", ""], 
+    ["W", "Keirin", "Final places 7 to 12"], 
+    ["", "Sport Presentation", ""], 
+    ["W", "Keirin", "Final 1-6"], 
+    ["M", "Sprint", "Final places 3-4 & 1-2 (3rd i.r.)"], 
+    ["W", "Award Ceremony", ""], 
+    ["M", "Madison 50 km", "Final"], 
+    ["M", "Award Ceremony", ""], 
+    ["M", "Award Ceremony", ""]] 
+  }; const RIDERS = [
+      ['Nicole Murray', 'WC5', 'Para'],
+      ['Anna Taylor', 'WC4', 'Para'],
+      ['Siobhan Terry', 'WC4', 'Para'],
+      ['Emma Foy and Jessie Hodges', 'WB', 'Para'],
+      ['Devon Briggs', 'MC3', 'Para'],
+      ['Ieuan Edwards', 'MC5', 'Para'],
+      ['Ellesse Andrews', 'Women Sprint', 'Women Sprint'],
+      ['Olivia King', 'Women Sprint', 'Women Sprint'],
+      ['Rebecca Petch', 'Women Sprint', 'Women Sprint'],
+      ['Riley Faulkner', 'Women Sprint', 'Women Sprint'],
+      ['Bryony Botha', 'Women Endurance', 'Women Endurance'],
+      ['Prue Fowler', 'Women Endurance', 'Women Endurance'],
+      ['Emily Shearman', 'Women Endurance', 'Women Endurance'],
+      ['Sami Donnelly', 'Women Endurance', 'Women Endurance'],
+      ['Ally Wollaston', 'Women Endurance', 'Women Endurance'],
+      ['Tom Sexton', 'Men Endurance', 'Men Endurance'],
+      ['Dan Morton', 'Men Endurance', 'Men Endurance'],
+      ['Marshall Erwood', 'Men Endurance', 'Men Endurance'],
+      ['Keegan Hornblow', 'Men Endurance', 'Men Endurance'],
+      ['George Jackson', 'Men Endurance', 'Men Endurance'],
+      ['Nick Kergy', 'Men Endurance', 'Men Endurance']
+    ];
+
+    // LocalStorage management
+    const STORE = 'trackCompetitionProgrammeDataV3';
+    let saved = {};
+    try {
+      saved = JSON.parse(localStorage.getItem(STORE)) || {};
+    } catch (e) {
+      // Handle localStorage errors silently
+    }
+
+    // DOM element references
+    const daySelect = document.getElementById('daySelect');
+    const body = document.getElementById('programmeBody');
+
+    // Application state variables
+    let selectedIndex = 0;
+    let currentIndex = -1;
+    let liveAnchor = null;
+    let pausedAt = null;
+    let totalDelayMs = 0;
+    let currentProgramme = 'para';
+    // Event-row index at which each session starts, with its scheduled Date
+    let sessionBoundaries = [];
+    // Storage key utilities
+    function key(day, i, f) {
+      return `${currentProgramme}|${day}|${i}|${f}`;
+    }
+
+    function get(day, i, f, d = '') {
+      return saved[key(day, i, f)] ?? d;
+    }
+
+    function put(day, i, f, v) {
+      saved[key(day, i, f)] = v;
+      persist();
+    }
+
+    function persist() {
+      localStorage.setItem(STORE, JSON.stringify(saved));
+    }
+
+    function activeProgrammes() {
+      return currentProgramme === 'track' ? TRACK_PROGRAMMES : PROGRAMMES;
+    }
+
+    function stateKey() {
+      return `state|${currentProgramme}|${daySelect.value}`;
+    }
+
+    function saveState() {
+      saved[stateKey()] = {
+        selectedIndex,
+        currentIndex,
+        liveAnchor: liveAnchor?.toISOString() || null,
+        totalDelayMs
+      };
+      persist();
+    }
+
+    function loadState() {
+      const x = saved[stateKey()] || {};
+      selectedIndex = Number.isInteger(x.selectedIndex) ? x.selectedIndex : 0;
+      currentIndex = Number.isInteger(x.currentIndex) ? x.currentIndex : -1;
+      liveAnchor = x.liveAnchor ? new Date(x.liveAnchor) : null;
+      totalDelayMs = Number(x.totalDelayMs) || 0;
+      pausedAt = null;
+
+      // Discard a live race anchor left over from a previous calendar day
+      if (liveAnchor && liveAnchor.toDateString() !== new Date().toDateString()) {
+        currentIndex = -1;
+        liveAnchor = null;
+        totalDelayMs = 0;
+      }
+    }
+    function guess(e) {
+      e = e.toLowerCase();
+      if (e.includes('ceremon')) return 10;
+      if (e.includes('break')) return 15;
+      if (e.includes('scratch') || e.includes('elimination')) return 15;
+      if (e.includes('pursuit')) return 5;
+      if (e.includes('team sprint')) return 5;
+      if (e.includes('200m flying') || e.includes('time trial')) return 3;
+      if (e.includes('sprint')) return 5;
+      return 5;
+    }
+
+    function eventKey(c, e) {
+      return `${c}|${e}`;
+    }
+
+    function classMatch(rc, c) {
+      if (rc === c) return true;
+      if (c === 'WC1/2' || c === 'WC1-2') return rc === 'WC1' || rc === 'WC2';
+      if (c === 'WC4/5' || c === 'WC4-5') return rc === 'WC4' || rc === 'WC5';
+      if (c === 'MC1/2' || c === 'MC1-2') return rc === 'MC1' || rc === 'MC2';
+      if (c === 'MC1-3' || c === 'MC1/2/3') return rc === 'MC1' || rc === 'MC2' || rc === 'MC3';
+      if (c === 'MC4-5' || c === 'MC4/5') return rc === 'MC4' || rc === 'MC5';
+      if (c === 'M/WC1-5') return /^MC[1-5]$/.test(rc) || /^WC[1-5]$/.test(rc);
+      if (c === 'M/WB') return rc === 'WB' || rc === 'MB';
+      return false;
+    } const DISCIPLINE_EVENTS = {
+      'Women Sprint': ['Sprint', 'Keirin', '1 km Time Trial', 'Team Sprint'],
+      'Women Endurance': ['1 km Time Trial', 'Scratch Race', 'Elimination', 'Points Race', 'Individual Pursuit', 'Madison', 'Omnium', 'Team Pursuit'],
+      'Men Endurance': ['1 km Time Trial', 'Scratch Race', 'Elimination', 'Points Race', 'Individual Pursuit', 'Madison','Omnium', 'Team Pursuit']
+    };
+    function normaliseEventBubble(event) {
+      const name = event.toLowerCase();
+      if (name.includes('team sprint') || name.includes('team pursuit')) return event;
+      if (name.includes('keirin')) return 'Keirin';
+      if (name.includes('kilometre') || name.includes('1 km') || name.includes('1km')) return '1 km Time Trial';
+      if (name.includes('200m') || name.includes('sprint')) return 'Sprint';
+      if (name.includes('scratch')) return 'Scratch Race';
+      if (name.includes('elimination')) return 'Elimination';
+      if (name.includes('points race') || name.includes('points')) return 'Points Race';
+      if (name.includes('individual pursuit') || name.includes('pursuit')) return 'Individual Pursuit';
+      if (name.includes('omnium')) return 'Omnium';
+      if (name.includes('madison')) return 'Madison';
+      return event;
+    }
+
+    function allEventsFor(r) {
+      if (DISCIPLINE_EVENTS[r[2]]) return DISCIPLINE_EVENTS[r[2]];
+      const set = new Set;
+      Object.values(PROGRAMMES).flat().forEach(x => {
+        if (x.length === 3 && classMatch(r[1], x[0])) {
+          set.add(normaliseEventBubble(x[1]));
+        }
+      });
+      return [...set];
+    }
+
+    function isAssigned(name, event) {
+      const norm = normaliseEventBubble(event);
+      return saved[`assigned|${name}|${norm}`] === true;
+    }
+
+    function assignEvent(name, event, assign) {
+      const norm = normaliseEventBubble(event);
+      if (assign) {
+        saved[`assigned|${name}|${norm}`] = true;
+      } else {
+        delete saved[`assigned|${name}|${norm}`];
+      }
+      persist();
+      renderRiders();
+      render(false);
+    }
+
+    function eligible(c, e) {
+      const bubble = normaliseEventBubble(e);
+      return RIDERS.filter(r => {
+        if (currentProgramme === 'track') {
+          const group = r[2];
+          const event = e.toLowerCase();
+          if (event.includes('team sprint') || event.includes('team pursuit')) return false;
+          const genderOk = (c === 'W' && group.startsWith('Women')) || (c === 'M' && group.startsWith('Men'));
+          if (!genderOk) return false;
+          const isTimeTrial = bubble === '1 km Time Trial';
+          const sprintEvent = bubble === 'Sprint' || bubble === 'Keirin';
+          const enduranceEvent = ['Scratch Race', 'Elimination', 'Points Race', 'Individual Pursuit', 'Omnium', 'Madison'].includes(bubble);
+          const disciplineOk = isTimeTrial || (group.includes('Sprint') && sprintEvent) || (group.includes('Endurance') && enduranceEvent);
+          return disciplineOk && isAssigned(r[0], bubble);
+        }
+        return classMatch(r[1], c) && isAssigned(r[0], bubble);
+      });
+    }
+    function manualCount(i) {
+      return Number(saved[`manual|${currentProgramme}|${daySelect.value}|${i}`] || 0);
+    }
+
+    function addRider(i) {
+      saved[`manual|${currentProgramme}|${daySelect.value}|${i}`] = manualCount(i) + 1;
+      persist();
+      render(false);
+      setTimeout(() => {
+        const field = `manualName${manualCount(i)}`;
+        document.querySelector(`[data-field="${field}"][data-index="${i}"]`)?.focus();
+      }, 0);
+    }
+
+    function removeManual(i, n) {
+      const count = manualCount(i);
+      for (let j = n; j < count; j++) {
+        saved[key(daySelect.value, i, 'manualName' + j)] = get(daySelect.value, i, 'manualName' + (j + 1));
+        saved[key(daySelect.value, i, 'manualHeat' + j)] = get(daySelect.value, i, 'manualHeat' + (j + 1));
+      }
+      delete saved[key(daySelect.value, i, 'manualName' + count)];
+      delete saved[key(daySelect.value, i, 'manualHeat' + count)];
+      saved[`manual|${currentProgramme}|${daySelect.value}|${i}`] = count - 1;
+      persist();
+      render(false);
+    }
+    function trackDefaults(classification, event, round) {
+      if (currentProgramme !== 'track') return null;
+      const gender = classification === 'W' ? 'women' : classification === 'M' ? 'men' : '';
+      const e = event.toLowerCase();
+      const r = round.toLowerCase();
+      const qualifying = {
+        women: { sprint:[34,1.5], timeTrial:[14,3], teamSprint:[14,3], teamPursuit:[17,6.5], individualPursuit:[15,7] },
+        men: { sprint:[32,1.5], timeTrial:[15,3], teamSprint:[18,3], teamPursuit:[16,6.5], individualPursuit:[13,7] }
+      };
+      const make = pair => pair ? { heats:pair[0], heatTime:pair[1] } : null;
+      if (e.includes('team sprint')) return make(r.includes('qualif') ? qualifying[gender]?.teamSprint : [2,3]);
+      if (e.includes('team pursuit')) return make(r.includes('qualif') ? qualifying[gender]?.teamPursuit : [2,7]);
+      if (e.includes('individual pursuit')) return make(r.includes('qualif') ? qualifying[gender]?.individualPursuit : [2,7.5]);
+      if (e.includes('1km time trial')) return make(r.includes('qualif') ? qualifying[gender]?.timeTrial : [8,3]);
+      if (e === 'sprint') {
+        if (r.includes('qualif')) return make(qualifying[gender]?.sprint);
+        if (r.includes('1/16')) return make([12,3]);
+        if (r.includes('1/8')) return make([8,2]);
+        if (r.includes('1/4')) return make([4,2]);
+        if (r.includes('1/2') || r.includes('final places')) return make([2,2]);
+      }
+      if (e.includes('keirin')) {
+        if (r.includes('repech')) return make([3,4.5]);
+        if (r.includes('1st round')) return make([6,4.5]);
+        if (r.includes('2nd round')) return make([3,4.5]);
+        if (r.includes('3rd round')) return make([2,4.5]);
+        if (r.includes('final')) return make([1,5]);
+      }
+      if (e.includes('omnium i')) return make([1,22]);
+      if (e.includes('omnium ii')) return make([1,15]);
+      if (e.includes('omnium iii')) return make([1,20]);
+      if (e.includes('omnium iv')) return make([1,32]);
+      if (e.includes('madison')) return make([1,42]);
+      if (e.includes('scratch')) return make([1,18]);
+      if (e.includes('elimination')) return make([1,20]);
+      if (e.includes('points race')) return make([1,37]);
+      return null;
+    }
+
+    // Number of entries per classification, used for individual qualifying heats
+    const ENTRIES_BY_CLASS = {
+      'MC1': 7, 'MC2': 19, 'MC3': 6, 'MC4': 23, 'MC5': 26,
+      'WC1': 2, 'WC2': 4, 'WC3': 6, 'WC4': 7, 'WC5': 12,
+      'WB': 14, 'MB': 17
+    };
+
+    function getEntries(classification) {
+      if (!classification) return null;
+      const c = classification.trim();
+      if (ENTRIES_BY_CLASS[c] !== undefined) return ENTRIES_BY_CLASS[c];
+
+      // Match range like WC1-2, MC1-3, WC1/2
+      const rangeMatch = c.match(/^([WM]C)(\d)[-/](\d)$/);
+      if (rangeMatch) {
+        const prefix = rangeMatch[1];
+        const start = parseInt(rangeMatch[2], 10);
+        const end = parseInt(rangeMatch[3], 10);
+        let total = 0;
+        for (let i = Math.min(start, end); i <= Math.max(start, end); i++) {
+          total += ENTRIES_BY_CLASS[`${prefix}${i}`] || 0;
+        }
+        return total > 0 ? total : null;
+      }
+
+      // Match split composite classes like WC4/5, WC1/WC2, M/WB
+      if (c.includes('/') || c.includes(',') || c.includes('-')) {
+        const parts = c.split(/[/,\-]+/);
+        let total = 0;
+        let found = false;
+        for (const p of parts) {
+          if (ENTRIES_BY_CLASS[p] !== undefined) {
+            total += ENTRIES_BY_CLASS[p];
+            found = true;
+          }
+        }
+        if (found) return total;
+      }
+
+      return null;
+    }
+
+    // Para cycling event defaults based on Excel data
+    function paraDefaults(classification, event, round) {
+      if (currentProgramme !== 'para') return null;
+      const e = event.toLowerCase();
+      const r = round.toLowerCase();
+      const make = pair => pair ? { heats:pair[0], heatTime:pair[1] } : null;
+      const entries = getEntries(classification);
+
+      // Sprint qualifying is sometimes listed as its own "Qualifying 200m" event
+      if (e.includes('qualifying 200m') || (e.includes('sprint') && r.includes('qualif'))) {
+        return make([entries ?? 7, 2]);
+      }
+
+      // Sprint events
+      if (e.includes('sprint')) {
+        if (r.includes('qualif')) return make([entries ?? 7, 2]);
+        if (r.includes('1/4')) return make([4, 3]);
+        if (r.includes('1/2')) return make([2, 3]);
+        if (r.includes('final')) return make([1, 3]);
+        if (r.includes('place')) return make([1, 3]);
+      }
+
+      // Time trials
+      if (e.includes('1 km') || e.includes('1km')) {
+        if (r.includes('qualif')) return make([entries ? Math.ceil(entries * 0.5) : 4, 4]);  // One heat per entry
+        if (r.includes('final')) return make([6, 4]);
+      }
+
+      // Team events
+      if (e.includes('team sprint')) {
+        if (r.includes('qualif')) return make([10, 4]);
+        if (r.includes('final')) return make([2, 4]);
+      }
+
+      // Individual Pursuit
+      if (e.includes('pursuit')) {
+        if (r.includes('qualif')) return make([entries ? Math.ceil(entries * 0.5) : 4, 8]); // One heat per entry
+        if (r.includes('final')) return make([2, 8]);
+      }
+
+      // Scratch and Elimination - bunch racing, always a single heat
+      if (e.includes('scratch')) return make([1, 20]);
+      if (e.includes('elimination')) {
+        // Heat time = number of entries in this classification * 0.75
+        const estimatedTime = Math.ceil((entries ?? 1) * 0.75);
+        return make([1, estimatedTime]);
+      }
+
+      return null;
+    }
+    function headings() {
+      return '<th>Est Start</th><th>Classification</th><th>Event</th><th>Round</th><th>Number of heats</th><th>Heat duration</th><th>Est Finish</th><th>NZL heat</th><th>NZL est start</th><th></th>';
+    }
+
+    // Generate number input HTML
+    function num(i, f, d = '', ph = '') {
+      const step = f === 'heatTime' ? '0.5' : '1';
+      const value = get(daySelect.value, i, f, d);
+      return `<input class="number-input" type="number" min="0" step="${step}" data-index="${i}" data-field="${f}" value="${value}" placeholder="${ph}">`;
+    }
+
+    // Generate rider name input HTML
+    function nameBox(i, n) {
+      const value = get(daySelect.value, i, 'manualName' + n);
+      return `<input class="name-input" data-index="${i}" data-field="manualName${n}" value="${value}" placeholder="Rider name">`;
+    }
+
+    // Parse time string (HH:MM format) to Date object
+    function parseTime(t) {
+      const [h, m] = t.split(':').map(Number);
+      const d = new Date();
+      d.setHours(h, m, 0, 0);
+      return d;
+    }
+
+    // Format Date object to time string
+    function fmt(d) {
+      if (!d) return '';
+      return d.toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit', hour12: false });
+    }
+
+    // Get all event row DOM elements
+    function rows() {
+      return [...document.querySelectorAll('.event-row')];
+    }
+
+    function isTrackTeam(c, e) {
+      if (currentProgramme !== 'track') return false;
+      const ev = (e || '').toLowerCase();
+      if (ev.includes('team sprint')) return c === 'W';
+      if (ev.includes('team pursuit')) return c === 'W' || c === 'M';
+      return false;
+    }
+
+    // Build and render the main programme table
+    function render(reset = true) {
+      body.innerHTML = '';
+      if (reset) loadState();
+      let idx = 0;
+      sessionBoundaries = [];
+      let currentSessionCollapsed = false;
+      for (const item of activeProgrammes()[daySelect.value]) {
+        // Handle session headers (day parts like "Morning Session")
+        if (item.length === 2) {
+          sessionBoundaries.push({ fromIndex: idx, time: parseTime(item[1]) });
+          currentSessionCollapsed = saved[`collapsed|${currentProgramme}|${daySelect.value}|${item[0]}`] === true;
+          const r = document.createElement('tr');
+          r.className = 'session-row';
+          r.dataset.start = item[1];
+          r.dataset.title = item[0];
+          r.dataset.collapsed = currentSessionCollapsed ? 'true' : 'false';
+          const icon = currentSessionCollapsed ? '▶' : '▼';
+          const action = currentSessionCollapsed ? 'expand' : 'collapse';
+          r.innerHTML = `<td colspan="10"><span class="session-arrow">${icon}</span> <strong>${item[0].toUpperCase()}</strong> <span class="session-instruction">(click to ${action})</span></td>`;
+          body.appendChild(r);
+          const h = document.createElement('tr');
+          h.innerHTML = headings();
+          if (currentSessionCollapsed) {
+            h.style.display = 'none';
+          }
+          body.appendChild(h);
+          continue;
+        }
+
+        // Handle event rows
+        const [c, e, round] = item;
+        const suggested = currentProgramme === 'track' ? trackDefaults(c, e, round) : paraDefaults(c, e, round);
+        const isAwardCeremony = e.toLowerCase().includes('award ceremony');
+        const isTeamEvent = isTrackTeam(c, e);
+        const special = !c || isAwardCeremony;
+        const row = document.createElement('tr');
+        if (currentSessionCollapsed) {
+          row.style.display = 'none';
+        }
+        const assigned = special ? [] : (isTeamEvent ? [['NZL Team']] : eligible(c, e));
+        const manual = isTeamEvent ? 0 : manualCount(idx);
+        const subrows = assigned.length + manual;
+        const rowBlank = (assigned.length + manual > 1) || (assigned.length === 0 && manual > 0);
+
+        row.className = 'event-row';
+        const ev = e.toLowerCase();
+
+        // Apply row color classes for track cycling
+        if (currentProgramme === 'track') {
+          if (c === 'W' && (ev.includes('sprint') || ev.includes('keirin') || ev.includes('1km time trial') || ev.includes('1 km time trial'))) {
+            row.classList.add('sprint-row');
+          } else if (c === 'M' && (ev.includes('scratch') || ev.includes('elim') || ev.includes('points') || ev.includes('omnium') || ev.includes('pursuit') || ev.includes('madison'))) {
+            row.classList.add('men-endurance-row');
+          } else if (c === 'W' && (ev.includes('scratch') || ev.includes('elim') || ev.includes('points') || ev.includes('omnium') || ev.includes('pursuit') || ev.includes('madison'))) {
+            row.classList.add('women-endurance-row');
+          }
+        } else {
+          // Apply row color classes for para cycling
+          const nzlWomenClasses = ['WC4', 'WC5', 'WC4/5', 'WB', 'M/WB'];
+          const nzlMenClasses = ['MC3', 'MC5'];
+          if (nzlWomenClasses.includes(c)) {
+            row.classList.add('women-endurance-row');
+          } else if (nzlMenClasses.includes(c)) {
+            row.classList.add('men-endurance-row');
+          }
+        }
+
+        row.dataset.index = idx;
+        row.dataset.originalOrder = idx;
+        row.dataset.classification = c;
+        row.dataset.event = e;
+
+        const heatsValue = get(daySelect.value, idx, 'heats', suggested?.heats ?? '');
+        const maxHeats = Number(heatsValue) || 0;
+
+        // Build row HTML with input fields
+        // Blank NZL heat when no NZL rider is entered in this event
+        let defaultNzlHeat = assigned.length === 0 ? '' : 1;
+        if (assigned.length === 0 && manual === 0 && !isTeamEvent) {
+          if (saved[key(daySelect.value, idx, 'assignedHeat0')] === 1 || saved[key(daySelect.value, idx, 'assignedHeat0')] === '1') {
+            delete saved[key(daySelect.value, idx, 'assignedHeat0')];
+          }
+        } else if (maxHeats === 1 && assigned.length > 0) {
+          defaultNzlHeat = 1;
+          const currentVal = get(daySelect.value, idx, 'assignedHeat0');
+          if (currentVal !== '' && currentVal != null && Number(currentVal) !== 1) {
+            put(daySelect.value, idx, 'assignedHeat0', 1);
+          }
+        } else if (maxHeats > 1 && assigned.length > 0) {
+          const currentVal = get(daySelect.value, idx, 'assignedHeat0');
+          if (currentVal !== '' && currentVal != null && Number(currentVal) > maxHeats) {
+            put(daySelect.value, idx, 'assignedHeat0', maxHeats);
+          }
+        }
+
+        row.innerHTML = `
+          <td class="calculated estStart"></td>
+          <td>${c}</td>
+          <td>${e}</td>
+          <td>${round}</td>
+          <td>${special ? '' : num(idx, 'heats', suggested?.heats ?? '')}</td>
+          <td>${num(idx, 'heatTime', suggested?.heatTime ?? guess(e), 'min')}</td>
+          <td class="calculated estFinish"></td>
+          <td>${special || rowBlank ? '' : num(idx, 'assignedHeat0', defaultNzlHeat)}</td>
+          <td class="calculated nzlStart" data-rider="a0"></td>
+          <td>${special || isTeamEvent ? '' : `<button class="add-rider" onclick="addRider(${idx})">+ New rider</button>`}</td>
+        `;
+        body.appendChild(row);
+
+        // Add sub-rows for additional riders
+        if (rowBlank) {
+          assigned.forEach((r, n) => {
+            let riderHeat = maxHeats === 1 ? 1 : (maxHeats > 0 ? Math.min(n + 1, maxHeats) : n + 1);
+            if (maxHeats === 1) {
+              const currentVal = get(daySelect.value, idx, `assignedHeat${n}`);
+              if (currentVal !== '' && currentVal != null && Number(currentVal) !== 1) {
+                put(daySelect.value, idx, `assignedHeat${n}`, 1);
+              }
+            } else if (maxHeats > 1) {
+              const currentVal = get(daySelect.value, idx, `assignedHeat${n}`);
+              if (currentVal !== '' && currentVal != null && Number(currentVal) > maxHeats) {
+                put(daySelect.value, idx, `assignedHeat${n}`, maxHeats);
+              }
+            }
+            addSub(row, idx, r[0], `assignedHeat${n}`, `a${n}`, false, null, riderHeat);
+          });
+          for (let n = 1; n <= manual; n++) {
+            let manualHeat = maxHeats === 1 ? 1 : (maxHeats > 0 ? Math.min(assigned.length + n, maxHeats) : assigned.length + n);
+            if (maxHeats === 1) {
+              const currentVal = get(daySelect.value, idx, `manualHeat${n}`);
+              if (currentVal !== '' && currentVal != null && Number(currentVal) !== 1) {
+                put(daySelect.value, idx, `manualHeat${n}`, 1);
+              }
+            } else if (maxHeats > 1) {
+              const currentVal = get(daySelect.value, idx, `manualHeat${n}`);
+              if (currentVal !== '' && currentVal != null && Number(currentVal) > maxHeats) {
+                put(daySelect.value, idx, `manualHeat${n}`, maxHeats);
+              }
+            }
+            addSub(row, idx, nameBox(idx, n), `manualHeat${n}`, `m${n}`, true, n, manualHeat);
+          }
+        }
+        idx++;
+      }
+
+      bindInputs();
+      calculate();
+      setupAccordions();
+    }
+    // Add sub-row for additional riders
+    function addSub(parent, idx, label, field, riderId, removable, n, defaultHeat = 1) {
+      const r = document.createElement('tr');
+      const colourClass = ['sprint-row', 'men-endurance-row', 'women-endurance-row'].find(cls => parent.classList.contains(cls));
+      r.className = `extra-rider-row${colourClass ? ' ' + colourClass : ''}`;
+      r.dataset.parent = idx;
+      if (parent.style.display === 'none') {
+        r.style.display = 'none';
+      }
+
+      const removeBtn = removable ? `<button class="remove-rider" onclick="removeManual(${idx},${n})">Remove</button>` : '';
+      r.innerHTML = `
+        <td colspan="7" class="extra-rider-label">${label}</td>
+        <td>${num(idx, field, defaultHeat)}</td>
+        <td class="calculated nzlStart" data-rider="${riderId}"></td>
+        <td>${removeBtn}</td>
+      `;
+      parent.after(r);
+
+      // Move any existing sub-rows after this new one
+      while (r.nextSibling?.classList?.contains('extra-rider-row')) {
+        r.parentNode.insertBefore(r, r.nextSibling.nextSibling);
+      }
+    }
+
+    // Bind event listeners to all input fields
+    function bindInputs() {
+      body.querySelectorAll('input').forEach(input => {
+        const field = input.dataset.field || '';
+        const isRiderHeat = field.startsWith('assignedHeat') || field.startsWith('manualHeat');
+        const isHeatsField = field === 'heats';
+
+        input.addEventListener('input', e => {
+          const eventIndex = Number(e.target.dataset.index);
+          if (isRiderHeat) {
+            const row = document.querySelector(`.event-row[data-index="${eventIndex}"]`);
+            const heatsInput = row?.querySelector('[data-field="heats"]');
+            const maxHeats = Number(heatsInput?.value) || 0;
+            if (maxHeats === 1) {
+              if (e.target.value !== '' && Number(e.target.value) !== 1) {
+                e.target.value = 1;
+              }
+            } else if (maxHeats > 1) {
+              if (Number(e.target.value) > maxHeats) {
+                e.target.value = maxHeats;
+              }
+            }
+          }
+          put(daySelect.value, e.target.dataset.index, e.target.dataset.field, e.target.value);
+          if (isHeatsField) {
+            capNzlHeats(eventIndex);
+          }
+          calculate();
+        });
+        
+        if (isRiderHeat) {
+          input.addEventListener('blur', e => {
+            const eventIndex = Number(e.target.dataset.index);
+            sortRiderRows(eventIndex);
+            capNzlHeats(eventIndex);
+          });
+        }
+        
+        if (isHeatsField) {
+          input.addEventListener('change', e => {
+            const eventIndex = Number(e.target.dataset.index);
+            capNzlHeats(eventIndex);
+          });
+        }
+      });
+    }
+    
+    // Cap all NZL heat values to not exceed the number of heats
+    function capNzlHeats(eventIndex) {
+      const row = document.querySelector(`.event-row[data-index="${eventIndex}"]`);
+      if (!row) return;
+      
+      const heatsInput = row.querySelector('[data-field="heats"]');
+      const maxHeats = Number(heatsInput?.value) || 0;
+      
+      if (maxHeats <= 0) return;
+      
+      const heatInputs = body.querySelectorAll(
+        `input[data-index="${eventIndex}"][data-field^="assignedHeat"], input[data-index="${eventIndex}"][data-field^="manualHeat"]`
+      );
+
+      heatInputs.forEach(input => {
+        if (input.value === '') return;
+        const field = input.dataset.field;
+        const val = Number(input.value);
+        if (maxHeats === 1) {
+          if (val !== 1) {
+            input.value = 1;
+            put(daySelect.value, eventIndex, field, 1);
+          }
+        } else if (maxHeats > 1 && val > maxHeats) {
+          input.value = maxHeats;
+          put(daySelect.value, eventIndex, field, maxHeats);
+        }
+      });
+      
+      calculate();
+    }
+    // Setup collapsible session sections
+    function setupAccordions() {
+      document.querySelectorAll('.session-row').forEach(session => {
+        session.onclick = () => {
+          const collapsed = session.dataset.collapsed === 'true';
+          const nextCollapsed = !collapsed;
+          session.dataset.collapsed = nextCollapsed ? 'true' : 'false';
+
+          const icon = nextCollapsed ? '▶' : '▼';
+          const action = nextCollapsed ? 'expand' : 'collapse';
+          session.querySelector('td').innerHTML = `<span class="session-arrow">${icon}</span> <strong>${session.dataset.title.toUpperCase()}</strong> <span class="session-instruction">(click to ${action})</span>`;
+
+          if (nextCollapsed) {
+            saved[`collapsed|${currentProgramme}|${daySelect.value}|${session.dataset.title}`] = true;
+          } else {
+            delete saved[`collapsed|${currentProgramme}|${daySelect.value}|${session.dataset.title}`];
+          }
+          persist();
+
+          let row = session.nextElementSibling;
+          while (row && !row.classList.contains('session-row')) {
+            row.style.display = nextCollapsed ? 'none' : '';
+            row = row.nextElementSibling;
+          }
+        };
+      });
+    }
+
+    // Calculate event start/finish times and NZL race information
+    function calculate() {
+      // Discard a live race anchor left over from a previous calendar day
+      if (liveAnchor && liveAnchor.toDateString() !== new Date().toDateString()) {
+        currentIndex = -1;
+        liveAnchor = null;
+        totalDelayMs = 0;
+        pausedAt = null;
+        updatePauseTimer();
+        saveState();
+      }
+
+      let cursor = null;
+
+      document.querySelectorAll('#programmeBody tr').forEach(row => {
+        // Update session time cursor
+        if (row.classList.contains('session-row')) {
+          cursor = parseTime(row.dataset.start);
+          return;
+        }
+
+        if (!row.classList.contains('event-row')) return;
+
+        const i = +row.dataset.index;
+
+        // Adjust cursor for live timing
+        if (liveAnchor && i === currentIndex) {
+          cursor = new Date(liveAnchor);
+        } else if (liveAnchor && i === currentIndex + 1 && totalDelayMs && cursor) {
+          cursor = new Date(cursor.getTime() + totalDelayMs);
+        }
+
+        // Get heat information
+        const heats = Number(row.querySelector('[data-field="heats"]')?.value) || 0;
+        const heat = Number(row.querySelector('[data-field="heatTime"]')?.value) || 0;
+        const units = row.querySelector('[data-field="heats"]') ? heats : 1;
+
+        row._start = cursor ? new Date(cursor) : null;
+        const finish = cursor && units && heat ? new Date(cursor.getTime() + units * heat * 60000) : null;
+        row._nzl = [];
+
+        // Get assigned riders for this event
+        const eventLower = row.dataset.event.toLowerCase();
+        const isTeamEvent = isTrackTeam(row.dataset.classification, row.dataset.event);
+        const isAwardCeremony = eventLower.includes('award ceremony');
+        const special = !row.dataset.classification || isAwardCeremony;
+        const assigned = special ? [] : (isTeamEvent ? [['NZL Team']] : eligible(row.dataset.classification, row.dataset.event));
+        const manual = isTeamEvent ? 0 : manualCount(i);
+        const subrows = assigned.length + manual;
+        const rowBlank = (assigned.length + manual > 1) || (assigned.length === 0 && manual > 0);
+
+        // Calculate NZL race times for each rider
+        assigned.forEach((r, n) => setRider(row, i, r[0], `assignedHeat${n}`, `a${n}`, heat, cursor, rowBlank));
+        for (let n = 1; n <= manual; n++) {
+          const riderName = get(daySelect.value, i, 'manualName' + n) || `NZL rider ${n}`;
+          setRider(row, i, riderName, `manualHeat${n}`, `m${n}`, heat, cursor, true);
+        }
+        if (assigned.length === 0 && manual === 0 && !special) {
+          const heatInput = row.querySelector('[data-field="assignedHeat0"]');
+          if (heatInput && heatInput.value && Number(heatInput.value) > 0) {
+            setRider(row, i, 'NZL', 'assignedHeat0', 'a0', heat, cursor, false);
+          } else {
+            const output = row.querySelector('[data-rider="a0"]');
+            if (output) output.textContent = '';
+          }
+        }
+
+        // Update display times
+        row.querySelector('.estStart').textContent = fmt(row._start);
+        row.querySelector('.estFinish').textContent = fmt(finish);
+
+        if (finish) cursor = finish;
+      });
+
+      mark();
+      updateCountdown();
+      updateRiderCountdown();
+    }
+    function sortRiderRows(index) {
+      const riderRows = [...document.querySelectorAll(
+        `.extra-rider-row[data-parent="${index}"]`
+      )];
+      if (riderRows.length < 2) return;
+      const anchor = riderRows[riderRows.length - 1].nextSibling;
+      riderRows
+        .map((row, originalPosition) => {
+          const input = row.querySelector('input[type="number"]');
+          const rawHeat = input?.value.trim() ?? '';
+          return {
+            row,
+            originalPosition,
+            heat: rawHeat === '' ? Infinity : Number(rawHeat)
+          };
+        })
+        .sort((a, b) =>
+          (a.heat - b.heat) || (a.originalPosition - b.originalPosition)
+        )
+        .forEach(({ row }) => body.insertBefore(row, anchor));
+    }
+    function setRider(row, index, name, field, riderId, heatTime, eventStart, usesSubRow) {
+      const programmeBody = document.getElementById('programmeBody');
+      const heatInput = programmeBody.querySelector(
+        `input[data-index="${index}"][data-field="${field}"]`
+      );
+      const heatNumber = Number(heatInput?.value) || 0;
+
+      let nzlStart = null;
+
+      if (eventStart && heatNumber > 0 && heatTime > 0) {
+        nzlStart = new Date(
+          eventStart.getTime() + ((heatNumber - 1) * heatTime * 60000)
+        );
+      }
+
+      row._nzl.push({ name, time: nzlStart });
+
+      let output = null;
+
+      if (usesSubRow) {
+        output = programmeBody.querySelector(
+          `.extra-rider-row[data-parent="${index}"] [data-rider="${riderId}"]`
+        );
+      } else {
+        output = row.querySelector(`[data-rider="${riderId}"]`);
+      }
+
+      if (output) {
+        output.textContent = nzlStart ? fmt(nzlStart) : '';
+      }
+    }
+
+    function applyRowColours() {
+      document.querySelectorAll('.event-row').forEach(row => {
+        const cls = ['sprint-row', 'men-endurance-row', 'women-endurance-row'].find(c => row.classList.contains(c));
+        if (!cls) return;
+        document.querySelectorAll(`.extra-rider-row[data-parent="${row.dataset.index}"]`).forEach(r => r.classList.add(cls));
+      });
+    }
+    // Mark the currently active race (orange highlighting) based on local computer time
+    function mark() {
+      const now = pausedAt || new Date();
+      const eventRows = rows();
+
+      if (liveAnchor) {
+        // Advance forward only as races finish; never auto-jump backward
+        let newCurrentIndex = currentIndex;
+        for (let index = currentIndex; index < eventRows.length; index++) {
+          const row = eventRows[index];
+          if (!row._start || row._start > now) break;
+          newCurrentIndex = index;
+        }
+        if (newCurrentIndex !== currentIndex) {
+          currentIndex = newCurrentIndex;
+          saveState();
+        }
+      } else {
+        // No manual override - track whichever race is on per the fixed schedule
+        let newCurrentIndex = -1;
+        for (let index = 0; index < eventRows.length; index++) {
+          const row = eventRows[index];
+          if (!row._start || row._start > now) break;
+          newCurrentIndex = index;
+        }
+        if (newCurrentIndex !== currentIndex) {
+          currentIndex = newCurrentIndex;
+          saveState();
+        }
+      }
+
+      // Apply styling classes to all rows
+      eventRows.forEach((row, index) => {
+        // Orange highlight - the race that is currently on, per local time
+        const isCurrent = (currentIndex >= 0 && index === currentIndex);
+        
+        // Selected (blue highlight) - selected but not current
+        const isSelected = (index === selectedIndex && !isCurrent);
+        
+        // Apply selected styling
+        row.classList.toggle('selected', isSelected);
+        document.querySelectorAll(`.extra-rider-row[data-parent="${row.dataset.index}"]`).forEach(riderRow => {
+          riderRow.classList.toggle('selected', isSelected);
+        });
+        
+        // Apply current styling (orange highlight)
+        row.classList.toggle('current', isCurrent);
+        document.querySelectorAll(`.extra-rider-row[data-parent="${row.dataset.index}"]`).forEach(riderRow => {
+          riderRow.classList.toggle('current', isCurrent);
+        });
+        
+        // Mark as complete - rows before the current active race
+        const isComplete = (currentIndex >= 0 && index < currentIndex);
+        row.classList.toggle('complete', isComplete);
+      });
+      
+    }
+
+    function selectRace(i) {
+      selectedIndex = Math.max(0, Math.min(rows().length - 1, i));
+      saveState();
+      mark();
+    }
+    function startRace() {
+      currentIndex = selectedIndex;
+      liveAnchor = new Date();
+      totalDelayMs = 0;
+      pausedAt = null;
+      const pauseButton = document.getElementById('pauseDelay');
+      pauseButton.textContent = 'Pause for Delay';
+      pauseButton.classList.remove('paused');
+      updatePauseTimer();
+      saveState();
+      calculate();
+    }
+    function clearStartRace() {
+      currentIndex = -1;
+      liveAnchor = null;
+      totalDelayMs = 0;
+      pausedAt = null;
+      const pauseButton = document.getElementById('pauseDelay');
+      pauseButton.textContent = 'Pause for Delay';
+      pauseButton.classList.remove('paused');
+      updatePauseTimer();
+      saveState();
+      calculate();  // Recalculate to update times
+      mark();  // Remove orange highlighting and restore selected row
+    }
+    // Update the countdown display with next upcoming race
+    function updateCountdown() {
+      const now = pausedAt || new Date();
+      const all = [];
+      const eventRows = rows();
+      const startIndex = currentIndex >= 0 ? currentIndex : 0;
+
+      // Collect upcoming races from the active race onwards
+      for (let i = startIndex; i < eventRows.length; i++) {
+        const r = eventRows[i];
+        r._nzl?.forEach(x => {
+          if (x.time && x.time >= now) {
+            all.push({ ...x, row: r });
+          }
+        });
+      }
+
+      // Sort by time
+      all.sort((a, b) => a.time - b.time);
+
+      const nextRace = all[0];
+      const box = document.getElementById('nextNzl');
+
+      if (!nextRace) {
+        box.innerHTML = '<div class="empty">No upcoming NZL race is currently calculated.</div>';
+        document.getElementById('miniNext').textContent = '--:--:--';
+        return;
+      }
+
+      // Calculate time remaining
+      const timeDiff = Math.max(0, nextRace.time - now);
+      const hours = Math.floor(timeDiff / 3600000);
+      const minutes = Math.floor(timeDiff / 60000) % 60;
+      const seconds = Math.floor(timeDiff / 1000) % 60;
+      const countdown = [hours, minutes, seconds].map(v => String(v).padStart(2, '0')).join(':');
+
+      // Update countdown display
+      box.innerHTML = `
+        <div class="athlete-name">${nextRace.name}</div>
+        <div class="event-name">${nextRace.row.dataset.classification} · ${nextRace.row.dataset.event}</div>
+        <div class="event-name">Heat start: ${fmt(nextRace.time)}</div>
+        <div class="countdown">${countdown}</div>
+      `;
+      document.getElementById('miniNext').textContent = countdown;
+    }
+
+    // Track which rider is selected for the standalone rider countdown
+    let selectedRiderName = '';
+
+    // Check if a given rider participates in an NZL race entry (including team events)
+    function isRiderInNzlRace(riderName, nzlEntry, row) {
+      if (nzlEntry.name === riderName) return true;
+      if (nzlEntry.name === 'NZL Team') {
+        const rider = RIDERS.find(r => r[0] === riderName);
+        if (!rider) return false;
+        const [, rClass, rGroup] = rider;
+        const eventName = (row.dataset.event || '').toLowerCase();
+        const classification = row.dataset.classification || '';
+
+        if (currentProgramme === 'track') {
+          const isWomen = classification === 'W' && rGroup.startsWith('Women');
+          const isMen = classification === 'M' && rGroup.startsWith('Men');
+          if (eventName.includes('team sprint')) {
+            const isSprintGroup = rGroup.includes('Sprint');
+            if (isWomen && isSprintGroup && isAssigned(riderName, 'Team Sprint')) {
+              return true;
+            }
+          }
+          if (eventName.includes('team pursuit')) {
+            const isEnduranceGroup = rGroup.includes('Endurance');
+            if ((isWomen || isMen) && isEnduranceGroup && isAssigned(riderName, 'Team Pursuit')) {
+              return true;
+            }
+          }
+        } else if (currentProgramme === 'para') {
+          if (eventName.includes('team sprint')) {
+            if (classMatch(rClass, classification) && isAssigned(riderName, normaliseEventBubble(row.dataset.event))) {
+              return true;
+            }
+          }
+        }
+      }
+      return false;
+    }
+
+    // Update the countdown for whichever rider is selected in the dropdown
+    function updateRiderCountdown() {
+      const box = document.getElementById('riderCountdownBox');
+      if (!selectedRiderName) {
+        box.innerHTML = '<div class="empty">Select a rider to see their next race.</div>';
+        return;
+      }
+
+      const now = pausedAt || new Date();
+      const upcoming = [];
+      const eventRows = rows();
+      const startIndex = currentIndex >= 0 ? currentIndex : 0;
+
+      for (let i = startIndex; i < eventRows.length; i++) {
+        const r = eventRows[i];
+        r._nzl?.forEach(x => {
+          if (x.time && x.time >= now && isRiderInNzlRace(selectedRiderName, x, r)) {
+            upcoming.push({ ...x, row: r });
+          }
+        });
+      }
+      upcoming.sort((a, b) => a.time - b.time);
+
+      const nextRace = upcoming[0];
+      if (!nextRace) {
+        box.innerHTML = '<div class="empty">No upcoming race is currently calculated for this rider.</div>';
+        return;
+      }
+
+      const timeDiff = Math.max(0, nextRace.time - now);
+      const hours = Math.floor(timeDiff / 3600000);
+      const minutes = Math.floor(timeDiff / 60000) % 60;
+      const seconds = Math.floor(timeDiff / 1000) % 60;
+      const countdown = [hours, minutes, seconds].map(v => String(v).padStart(2, '0')).join(':');
+
+      const isTeam = nextRace.name === 'NZL Team';
+      const eventLabel = `${nextRace.row.dataset.classification} · ${nextRace.row.dataset.event}${isTeam ? ' (NZL Team)' : ''}`;
+
+      box.innerHTML = `
+        <div class="event-name">${eventLabel}</div>
+        <div class="event-name">Heat start: ${fmt(nextRace.time)}</div>
+        <div class="countdown">${countdown}</div>
+      `;
+    }
+    // Render the riders view with all athlete information
+    function renderRiders() {
+      const container = document.getElementById('riderGrid');
+      container.className = '';
+      container.innerHTML = '';
+
+      const groups = [
+        ['Para', 'Para Cycling'],
+        ['Women Sprint', 'Women Sprint'],
+        ['Women Endurance', 'Women Endurance'],
+        ['Men Endurance', 'Men Endurance']
+      ];
+
+      groups.forEach(([group, title]) => {
+        const members = RIDERS.filter(r => r[2] === group);
+        if (!members.length) return;
+
+        const section = document.createElement('section');
+        section.className = 'rider-section';
+        section.innerHTML = `<h2 class="rider-section-title">${title}</h2><div class="rider-grid"></div>`;
+
+        const grid = section.querySelector('.rider-grid');
+
+        members.forEach(r => {
+          const all = allEventsFor(r);
+          const assigned = all.filter(e => isAssigned(r[0], e));
+          const available = all.filter(e => !isAssigned(r[0], e));
+
+          const card = document.createElement('article');
+          card.className = 'rider-card';
+
+          const assignedEvents = assigned.length
+            ? assigned.map(e =>
+                `<span class="bubble assigned" title="Click to remove ${e}" onclick="assignEvent('${esc(r[0])}','${esc(e)}',false)">${e}<button>×</button></span>`
+              ).join('')
+            : '<span class="empty-events-note">None assigned yet</span>';
+
+          const availableEvents = available.length
+            ? available.map(e =>
+                `<span class="bubble available" title="Click to assign ${e}" onclick="assignEvent('${esc(r[0])}','${esc(e)}',true)"><button>+</button>${e}</span>`
+              ).join('')
+            : '<span class="empty-events-note">All events assigned</span>';
+
+          card.innerHTML = `
+            <h3>${r[0]}</h3>
+            <div class="class-label">${r[1]}</div>
+            <div class="rider-events-block">
+              <div class="events-group-label">Assigned Events</div>
+              <div class="bubble-list">${assignedEvents}</div>
+            </div>
+            <div class="rider-events-block available-block">
+              <div class="events-group-label">Available Events</div>
+              <div class="bubble-list">${availableEvents}</div>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+
+        container.appendChild(section);
+      });
+    }
+    // Utility function for escaping quotes in strings
+    function esc(s) {
+      return s.replaceAll("'", "\\'");
+    }
+
+    function updatePrintHeader() {
+      const titleEl = document.getElementById('printTitle');
+      const subEl = document.getElementById('printSubtitle');
+      const progName = currentProgramme === 'track' ? 'Track Cycling' : 'Para Track Cycling';
+      if (titleEl) titleEl.textContent = 'Track Competition Programme Planner';
+      if (subEl) subEl.textContent = `${progName} — ${daySelect.value}`;
+    }
+
+    function printProgramme() {
+      updatePrintHeader();
+      window.print();
+    }
+
+    function downloadPdfProgramme() {
+      updatePrintHeader();
+      const progName = currentProgramme === 'track' ? 'Track Cycling' : 'Para Track Cycling';
+      const day = daySelect.value;
+      const fileName = `${progName.replace(/\s+/g, '_')}_${day.replace(/\s+/g, '_')}_Programme.pdf`;
+
+      const pageEl = document.querySelector('.page');
+      if (!pageEl || !window.html2pdf) {
+        window.print();
+        return;
+      }
+
+      // Reuse the exact print stylesheet (scoped to body.pdf-export-mode) so the PDF matches the printed layout
+      document.body.classList.add('pdf-export-mode');
+
+      const opt = {
+        margin: [4, 6, 4, 6],
+        filename: fileName,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['css', 'legacy'] }
+      };
+
+      html2pdf().set(opt).from(pageEl).save().catch(() => {
+        window.print();
+      }).finally(() => {
+        document.body.classList.remove('pdf-export-mode');
+      });
+    }
+
+    // Update pause countup display
+    function updatePauseTimer() {
+      const timerEl = document.getElementById('pauseTimer');
+      if (!timerEl) return;
+      if (pausedAt) {
+        const elapsedSec = Math.floor((new Date() - pausedAt) / 1000);
+        const mm = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
+        const ss = String(elapsedSec % 60).padStart(2, '0');
+        timerEl.textContent = `+${mm}:${ss}`;
+        timerEl.style.display = 'inline-flex';
+      } else {
+        timerEl.textContent = '';
+        timerEl.style.display = 'none';
+      }
+    }
+
+    // ==================== EVENT LISTENERS ====================
+
+    // Race navigation controls
+    document.getElementById('previousRace').onclick = () => selectRace(selectedIndex - 1);
+    document.getElementById('nextRace').onclick = () => selectRace(selectedIndex + 1);
+    document.getElementById('startRace').onclick = startRace;
+    document.getElementById('clearStartRace').onclick = clearStartRace;
+
+    // Pause/Resume control
+    document.getElementById('pauseDelay').onclick = (e) => {
+      if (currentIndex < 0) return;
+      if (!pausedAt) {
+        pausedAt = new Date();
+        e.target.textContent = 'Resume Schedule';
+        e.target.classList.add('paused');
+        updatePauseTimer();
+      } else {
+        totalDelayMs += new Date() - pausedAt;
+        pausedAt = null;
+        e.target.textContent = 'Pause for Delay';
+        e.target.classList.remove('paused');
+        updatePauseTimer();
+        saveState();
+        calculate();
+      }
+    };
+
+    // Tab switching (Programme, Track, Riders)
+    function switchView(view) {
+      saved['activeView'] = view;
+      if (view === 'track' || view === 'programme') {
+        currentProgramme = view === 'track' ? 'track' : 'para';
+        saved['currentProgramme'] = currentProgramme;
+      }
+      persist();
+
+      document.querySelectorAll('.tabs button[data-view]').forEach(x => {
+        x.classList.toggle('active', x.dataset.view === view);
+      });
+
+      const isRidersView = view === 'riders';
+      document.getElementById('programmeView').style.display = isRidersView ? 'none' : 'block';
+      document.getElementById('ridersView').style.display = isRidersView ? 'block' : 'none';
+
+      if (isRidersView) {
+        renderRiders();
+        return;
+      }
+
+      const dayCount = currentProgramme === 'track' ? 5 : 4;
+      daySelect.innerHTML = Array.from({ length: dayCount }, (_, i) => `<option>Day ${i + 1}</option>`).join('');
+
+      const savedDay = saved[`selectedDay|${currentProgramme}`];
+      if (savedDay && Array.from(daySelect.options).some(o => o.value === savedDay)) {
+        daySelect.value = savedDay;
+      } else {
+        saved[`selectedDay|${currentProgramme}`] = daySelect.value;
+        persist();
+      }
+
+      updatePrintHeader();
+      populateRiderSelect();
+      render(true);
+    }
+
+    document.querySelectorAll('.tabs button[data-view]').forEach(b => {
+      b.onclick = () => switchView(b.dataset.view);
+    });
+
+    // Reset all data
+    document.getElementById('resetAll').onclick = () => {
+      if (prompt('Type RESET to clear all saved data.') === 'RESET') {
+        localStorage.removeItem(STORE);
+        location.reload();
+      }
+    };
+
+    // Live clock updates
+    setInterval(() => {
+      const t = new Date().toLocaleTimeString('en-NZ', { hour12: false });
+      document.getElementById('clock').textContent = t;
+      document.getElementById('miniLocal').textContent = t;
+      updatePauseTimer();
+      calculate();
+    }, 1000);
+
+    // Day selection
+    daySelect.onchange = () => {
+      saved[`selectedDay|${currentProgramme}`] = daySelect.value;
+      persist();
+      updatePrintHeader();
+      render(true);
+    };
+
+    // Countdown modal
+    document.getElementById('openCountdown').onclick = () => document.getElementById('modal').classList.add('open');
+    document.getElementById('closeModal').onclick = () => document.getElementById('modal').classList.remove('open');
+
+    // Rider countdown dropdown
+    const riderSelect = document.getElementById('riderSelect');
+    function populateRiderSelect() {
+      const options = RIDERS.filter(r => currentProgramme === 'track' ? r[2] !== 'Para' : r[2] === 'Para');
+      riderSelect.innerHTML = '<option value="">Select a rider…</option>' +
+        options.map(r => `<option value="${esc(r[0])}">${r[0]}</option>`).join('');
+      if (!options.some(r => r[0] === selectedRiderName)) {
+        selectedRiderName = '';
+        updateRiderCountdown();
+      }
+    }
+    riderSelect.onchange = () => {
+      selectedRiderName = riderSelect.value;
+      updateRiderCountdown();
+    };
+
+    // Document click handling for modal overlay
+    document.getElementById('modal').onclick = (e) => {
+      if (e.target.id === 'modal') {
+        e.currentTarget.classList.remove('open');
+      }
+    };
+
+    // Initialize the application with persisted tab, programme, day and collapsed states
+    function initApp() {
+      const activeView = saved['activeView'] || 'programme';
+      currentProgramme = saved['currentProgramme'] || (activeView === 'track' ? 'track' : 'para');
+
+      const dayCount = currentProgramme === 'track' ? 5 : 4;
+      daySelect.innerHTML = Array.from({ length: dayCount }, (_, i) => `<option>Day ${i + 1}</option>`).join('');
+
+      const savedDay = saved[`selectedDay|${currentProgramme}`];
+      if (savedDay && Array.from(daySelect.options).some(o => o.value === savedDay)) {
+        daySelect.value = savedDay;
+      } else {
+        saved[`selectedDay|${currentProgramme}`] = daySelect.value;
+        persist();
+      }
+
+      document.querySelectorAll('.tabs button[data-view]').forEach(x => {
+        x.classList.toggle('active', x.dataset.view === activeView);
+      });
+
+      const isRidersView = activeView === 'riders';
+      document.getElementById('programmeView').style.display = isRidersView ? 'none' : 'block';
+      document.getElementById('ridersView').style.display = isRidersView ? 'block' : 'none';
+
+      updatePrintHeader();
+      populateRiderSelect();
+
+      if (isRidersView) {
+        renderRiders();
+      } else {
+        render(true);
+      }
+    }
+
+    initApp();
+  </script>
+</body>
+
+</html>
