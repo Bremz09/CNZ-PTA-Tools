@@ -1,0 +1,1191 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <script src="auth-gate.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TP Pace Analysis | CNZ PTA Tools</title>
+  <link rel="stylesheet" href="theme.css" />
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
+  <style>
+    .dashboard-intro {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: end;
+      flex-wrap: wrap;
+    }
+
+    .dashboard-intro-copy {
+      max-width: 720px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--color-brand-orange);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .dashboard-title {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.05;
+    }
+
+    .dashboard-copy {
+      margin: 10px 0 0;
+      color: var(--color-text-secondary);
+      line-height: 1.55;
+    }
+
+    .dashboard-controls {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(200px, 1fr));
+      gap: 14px;
+      align-items: end;
+    }
+
+    .status-line {
+      margin: 0;
+      color: var(--color-text-muted);
+      font-size: 13px;
+    }
+
+    .status-line[data-state="error"] {
+      color: #a43b2c;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .metric-card {
+      border-top: 4px solid var(--color-brand-aqua);
+      padding: 16px 18px;
+      background: var(--color-surface);
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(14, 65, 116, 0.07);
+    }
+
+    .metric-card.primary {
+      border-top-color: var(--color-brand-orange);
+      background: linear-gradient(145deg, #fff8f3, #fff);
+    }
+
+    .metric-label {
+      color: var(--color-text-muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .metric-value {
+      display: block;
+      margin-top: 8px;
+      color: var(--color-brand-blue);
+      font-size: clamp(25px, 3vw, 34px);
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .metric-unit {
+      margin-top: 6px;
+      color: var(--color-text-muted);
+      font-size: 12px;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+     .analysis-tabs {
+       display: flex;
+       gap: 6px;
+      margin: 0;
+       border-bottom: 1px solid var(--color-border);
+     }
+
+    .analysis-workspace {
+      display: grid;
+      gap: 14px;
+      padding: 14px;
+      border: 1px solid var(--color-border);
+      border-radius: 12px;
+      background: var(--color-surface-alt);
+    }
+
+     .analysis-tab {
+       padding: 8px 12px;
+       border: 0;
+       border-bottom: 3px solid transparent;
+       background: transparent;
+       color: var(--color-text-muted);
+       font: inherit;
+       font-weight: 800;
+       cursor: pointer;
+     }
+
+     .analysis-tab[aria-selected="true"] {
+       border-bottom-color: var(--color-brand-orange);
+       color: var(--color-brand-blue);
+     }
+
+    .results-panel {
+      overflow: hidden;
+    }
+    
+    .plot-panel {
+      overflow: hidden;
+    }
+
+    .plot-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: baseline;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+
+    .plot-header h2 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .plot-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .plot-actions select {
+      min-height: 34px;
+      padding: 6px 9px;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      background: var(--color-surface);
+      color: var(--color-text-primary);
+    }
+
+    .plot-actions input[type="number"] {
+      width: 76px;
+      min-height: 34px;
+      padding: 6px 9px;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      background: var(--color-surface);
+      color: var(--color-text-primary);
+    }
+
+    .plot-actions .btn {
+      min-height: 34px;
+      padding: 6px 10px;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .plot-copy {
+      margin: 0 0 14px;
+      color: var(--color-text-muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .plot-wrap {
+      position: relative;
+      height: 360px;
+    }
+
+    .plot-empty {
+      display: grid;
+      height: 100%;
+      place-items: center;
+      margin: 0;
+      color: var(--color-text-muted);
+      text-align: center;
+    }
+
+     .criteria-excluded,
+     .criteria-excluded:hover {
+       background: #fff0f0;
+     }
+
+    .scatter-panel {
+      overflow: hidden;
+    }
+
+    .results-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: baseline;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .results-header h2 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--color-border);
+      border-radius: 10px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 620px;
+    }
+
+    th,
+    td {
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--color-border);
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th {
+      background: var(--color-surface-alt);
+      color: var(--color-text-secondary);
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .sort-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      font-weight: 800;
+      letter-spacing: inherit;
+      text-transform: inherit;
+      cursor: pointer;
+    }
+
+    .sort-button:hover,
+    .sort-button:focus-visible {
+      color: var(--color-brand-blue);
+    }
+
+    .sort-indicator {
+      min-width: 10px;
+      color: var(--color-brand-orange);
+      font-size: 11px;
+      text-align: center;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    tbody tr:hover {
+      background: rgba(0, 174, 199, 0.06);
+    }
+
+    .empty-state {
+      padding: 28px 12px;
+      color: var(--color-text-muted);
+      text-align: center;
+    }
+
+    @media (max-width: 760px) {
+      .dashboard-controls,
+      .metric-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 500px) {
+      .dashboard-controls,
+      .metric-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <section class="page-frame">
+      <header class="page-header">
+        <div class="page-title-row">
+          <div>
+            <p class="page-kicker">Performance data</p>
+            <h1 class="page-title">Video Analysis Dashboard</h1>
+            <p class="page-subtitle">Review average interval splits from the selected TP master workbook.</p>
+          </div>
+          <div class="page-actions">
+            <a class="btn btn-surface" href="video-analysis.html">Back to video analysis</a>
+          </div>
+        </div>
+      </header>
+
+      <div class="page-body grid-stack">
+        <section class="dashboard-intro">
+          <div class="dashboard-intro-copy">
+            <p class="eyebrow">First view</p>
+            <h2 class="dashboard-title">Compare split rhythm by athlete.</h2>
+            <p class="dashboard-copy">Select an athlete to see the average of their recorded <strong>Split</strong> values, along with the individual intervals used in that average.</p>
+          </div>
+          <p class="status-line" id="status" role="status">Loading TP master workbook...</p>
+        </section>
+
+        <section class="panel dashboard-controls" aria-label="Dashboard controls">
+          <div class="field">
+            <label for="genderSelect">Squad</label>
+            <select id="genderSelect">
+              <option value="women" selected>Women</option>
+              <option value="men">Men</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="athleteSelect">Athlete</label>
+            <select id="athleteSelect" disabled>
+              <option>Waiting for workbook...</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="workbookInput">Use another workbook</label>
+            <input id="workbookInput" type="file" accept=".xlsx,.xls" />
+          </div>
+        </section>
+
+        <div class="analysis-workspace">
+          <div class="analysis-tabs" role="tablist" aria-label="Analysis type">
+            <button class="analysis-tab" id="flyingTab" role="tab" aria-selected="true" aria-controls="flyingPanel" data-tab="flying" type="button">Flying</button>
+            <button class="analysis-tab" id="startsTab" role="tab" aria-selected="false" aria-controls="startsPanel" data-tab="starts" type="button">Starts</button>
+          </div>
+
+        <section class="metric-grid" id="flyingPanel" data-dashboard-panel="flying" aria-label="Selected athlete summary">
+          <article class="metric-card primary">
+            <span class="metric-label">Average lap split pace</span>
+            <strong class="metric-value" id="averageLap">--</strong>
+            <span class="metric-unit">seconds per lap</span>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">Recorded splits</span>
+            <strong class="metric-value" id="lapCount">--</strong>
+            <span class="metric-unit">valid Split values</span>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">Fastest lap split pace</span>
+            <strong class="metric-value" id="fastestLap">--</strong>
+            <span class="metric-unit">seconds per lap</span>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">Slowest lap split pace</span>
+            <strong class="metric-value" id="slowestLap">--</strong>
+            <span class="metric-unit">seconds per lap</span>
+          </article>
+        </section>
+        
+        <section class="panel plot-panel" data-dashboard-panel="flying">
+          <div class="plot-header">
+            <h2 id="plotTitle">Delivery speed by day</h2>
+            <div class="plot-actions">
+              <label class="sr-only" for="groupBySelect">Group plot by</label>
+              <select id="groupBySelect">
+                <option value="day">Day</option>
+                <option value="week">Week</option>
+                <option value="month">Month</option>
+              </select>
+              <button class="btn btn-surface" id="resetZoom" type="button">Reset zoom</button>
+              <span class="status-line" id="plotInfo"></span>
+            </div>
+          </div>
+          <p class="plot-copy">Distance 437.5 m or greater; actions: Change, No Change, or Drop. Error bars show standard deviation when multiple speeds are recorded on a date.</p>
+          <div class="plot-wrap">
+            <canvas id="deliverySpeedChart" aria-label="Delivery speed by date chart"></canvas>
+            <p class="plot-empty" id="plotEmpty" hidden>No matching delivery speed records for this athlete.</p>
+          </div>
+        </section>
+
+        <section class="panel scatter-panel" data-dashboard-panel="flying">
+          <div class="plot-header">
+            <h2>Delivery speed scatter</h2>
+            <span class="status-line" id="scatterInfo"></span>
+          </div>
+          <p class="plot-copy">All individual records matching the same distance and action filters.</p>
+          <div class="plot-wrap">
+            <canvas id="deliverySpeedScatter" aria-label="Delivery speed scatter plot"></canvas>
+            <p class="plot-empty" id="scatterEmpty" hidden>No matching delivery speed records for this athlete.</p>
+          </div>
+        </section>
+
+        <section class="panel plot-panel" data-dashboard-panel="flying">
+          <div class="plot-header">
+            <h2>Lap split pace distribution</h2>
+            <div class="plot-actions">
+              <label for="histogramBinSize">Bin size (seconds)</label>
+              <input id="histogramBinSize" type="number" min="0.1" step="0.1" value="0.1" inputmode="decimal" />
+              <span class="status-line" id="histogramInfo"></span>
+            </div>
+          </div>
+          <p class="plot-copy">Lap split paces for records matching the same distance and action filters.</p>
+          <div class="plot-wrap">
+            <canvas id="lapSplitHistogram" aria-label="Lap split pace frequency histogram"></canvas>
+            <p class="plot-empty" id="histogramEmpty" hidden>No matching lap split records for this athlete.</p>
+          </div>
+        </section>
+
+        <section class="panel results-panel" data-dashboard-panel="flying">
+          <div class="results-header">
+            <h2 id="resultsTitle">Split records</h2>
+            <span class="status-line" id="sheetInfo"></span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th data-sort-column="Title"><button class="sort-button" type="button" data-sort-key="Title">Session <span class="sort-indicator">-</span></button></th>
+                  <th data-sort-column="Save_Date"><button class="sort-button" type="button" data-sort-key="Save_Date">Date <span class="sort-indicator">-</span></button></th>
+                  <th data-sort-column="Distance"><button class="sort-button" type="button" data-sort-key="Distance">Distance <span class="sort-indicator">-</span></button></th>
+                  <th data-sort-column="Time"><button class="sort-button" type="button" data-sort-key="Time">Time <span class="sort-indicator">-</span></button></th>
+                  <th data-sort-column="Split"><button class="sort-button" type="button" data-sort-key="Split">Split <span class="sort-indicator">-</span></button></th>
+                  <th data-sort-column="Del_Speed"><button class="sort-button" type="button" data-sort-key="Del_Speed">Delivery speed <span class="sort-indicator">-</span></button></th>
+                  <th data-sort-column="Action"><button class="sort-button" type="button" data-sort-key="Action">Action <span class="sort-indicator">-</span></button></th>
+                </tr>
+              </thead>
+              <tbody id="resultsBody">
+                <tr><td class="empty-state" colspan="7">Load a workbook to view split records.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel plot-panel" id="startsPanel" data-dashboard-panel="starts" hidden>
+          <section class="metric-grid" aria-label="Starts summary">
+            <article class="metric-card primary">
+              <span class="metric-label">Average start lap</span>
+              <strong class="metric-value" id="averageStart">--</strong>
+              <span class="metric-unit">seconds</span>
+            </article>
+            <article class="metric-card">
+              <span class="metric-label">Fastest start lap</span>
+              <strong class="metric-value" id="fastestStart">--</strong>
+              <span class="metric-unit">seconds</span>
+            </article>
+            <article class="metric-card">
+              <span class="metric-label">Slowest start lap</span>
+              <strong class="metric-value" id="slowestStart">--</strong>
+              <span class="metric-unit">seconds</span>
+            </article>
+          </section>
+          <div class="plot-header">
+            <h2>Starts time by date</h2>
+            <span class="status-line" id="startsInfo"></span>
+          </div>
+          <p class="plot-copy">250 m starts with a time greater than 19 seconds.</p>
+          <div class="plot-wrap">
+            <canvas id="startsChart" aria-label="250 metre starts time by date chart"></canvas>
+            <p class="plot-empty" id="startsEmpty" hidden>No matching starts records for this athlete.</p>
+          </div>
+         </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const workbookFiles = {
+      women: "TP_Master_Women.xlsx",
+      men: "TP_Master_Men.xlsx"
+    };
+    let selectedGender = "women";
+    let athleteRows = [];
+    let sortKey = "Distance";
+    let sortDirection = 1;
+
+    const elements = {
+      genderSelect: document.getElementById("genderSelect"),
+      athleteSelect: document.getElementById("athleteSelect"),
+      workbookInput: document.getElementById("workbookInput"),
+      status: document.getElementById("status"),
+      sheetInfo: document.getElementById("sheetInfo"),
+      resultsTitle: document.getElementById("resultsTitle"),
+      resultsBody: document.getElementById("resultsBody"),
+      averageLap: document.getElementById("averageLap"),
+      lapCount: document.getElementById("lapCount"),
+      fastestLap: document.getElementById("fastestLap"),
+      slowestLap: document.getElementById("slowestLap"),
+      deliverySpeedChart: document.getElementById("deliverySpeedChart"),
+      plotEmpty: document.getElementById("plotEmpty"),
+      plotInfo: document.getElementById("plotInfo"),
+      plotTitle: document.getElementById("plotTitle"),
+      groupBySelect: document.getElementById("groupBySelect"),
+      resetZoom: document.getElementById("resetZoom"),
+      deliverySpeedScatter: document.getElementById("deliverySpeedScatter"),
+      scatterEmpty: document.getElementById("scatterEmpty"),
+      scatterInfo: document.getElementById("scatterInfo"),
+      histogramBinSize: document.getElementById("histogramBinSize"),
+      lapSplitHistogram: document.getElementById("lapSplitHistogram"),
+      histogramEmpty: document.getElementById("histogramEmpty"),
+      histogramInfo: document.getElementById("histogramInfo"),
+      analysisTabs: document.querySelectorAll(".analysis-tab"),
+      dashboardPanels: document.querySelectorAll("[data-dashboard-panel]"),
+      startsChart: document.getElementById("startsChart"),
+      startsEmpty: document.getElementById("startsEmpty"),
+      startsInfo: document.getElementById("startsInfo"),
+      averageStart: document.getElementById("averageStart"),
+      fastestStart: document.getElementById("fastestStart"),
+      slowestStart: document.getElementById("slowestStart")
+    };
+
+    let deliverySpeedChart = null;
+    let deliverySpeedScatter = null;
+    let lapSplitHistogram = null;
+    let startsChart = null;
+    let plotGrouping = "day";
+    let histogramBinSize = 0.1;
+    let activeAnalysisTab = "flying";
+
+    function setStatus(message, state = "") {
+      elements.status.textContent = message;
+      elements.status.dataset.state = state;
+    }
+
+    function formatSeconds(value) {
+      return Number.isFinite(value) ? value.toFixed(2) : "--";
+    }
+
+    function dateKeyFromValue(value) {
+      if (value instanceof Date && !Number.isNaN(value.valueOf())) {
+        return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
+      }
+      if (typeof value === "number") {
+        const parsed = XLSX.SSF.parse_date_code(value);
+        if (parsed) return `${parsed.y}-${String(parsed.m).padStart(2, "0")}-${String(parsed.d).padStart(2, "0")}`;
+      }
+      const text = String(value ?? "").trim();
+      const isoDate = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+      if (isoDate) return `${isoDate[1]}-${isoDate[2].padStart(2, "0")}-${isoDate[3].padStart(2, "0")}`;
+      const parsed = new Date(text);
+      if (!Number.isNaN(parsed.valueOf())) {
+        return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${String(parsed.getDate()).padStart(2, "0")}`;
+      }
+      return text;
+    }
+
+    function formatDate(value) {
+      const dateKey = dateKeyFromValue(value);
+      return dateKey || "--";
+    }
+
+    function validNumber(value) {
+      return typeof value === "number" && Number.isFinite(value);
+    }
+
+    function compareRows(left, right) {
+      const leftValue = left[sortKey];
+      const rightValue = right[sortKey];
+      const leftMissing = leftValue == null || leftValue === "";
+      const rightMissing = rightValue == null || rightValue === "";
+      if (leftMissing || rightMissing) {
+        if (leftMissing && rightMissing) return 0;
+        return leftMissing ? 1 : -1;
+      }
+      if (typeof leftValue === "number" && typeof rightValue === "number") {
+        return (leftValue - rightValue) * sortDirection;
+      }
+      return String(leftValue).localeCompare(String(rightValue), undefined, { numeric: true }) * sortDirection;
+    }
+
+    function updateSortIndicators() {
+      document.querySelectorAll("[data-sort-column]").forEach(header => {
+        const isActive = header.dataset.sortColumn === sortKey;
+        header.setAttribute("aria-sort", isActive ? (sortDirection === 1 ? "ascending" : "descending") : "none");
+        const indicator = header.querySelector(".sort-indicator");
+        if (indicator) indicator.textContent = isActive ? (sortDirection === 1 ? "^" : "v") : "-";
+      });
+    }
+
+    const errorBarPlugin = {
+      id: "deliverySpeedErrorBars",
+      afterDatasetsDraw(chart) {
+        const dataset = chart.data.datasets[0];
+        const errorBars = dataset?.errorBars || [];
+        const meta = chart.getDatasetMeta(0);
+        const yScale = chart.scales.y;
+        const context = chart.ctx;
+        context.save();
+        context.strokeStyle = "#DB6B30";
+        context.lineWidth = 2;
+        errorBars.forEach((errorBar, index) => {
+          const point = meta.data[index];
+          if (!point) return;
+          const upper = yScale.getPixelForValue(errorBar.mean + errorBar.standardDeviation);
+          const lower = yScale.getPixelForValue(Math.max(0, errorBar.mean - errorBar.standardDeviation));
+          const capWidth = 7;
+          context.beginPath();
+          context.moveTo(point.x, upper);
+          context.lineTo(point.x, lower);
+          context.moveTo(point.x - capWidth, upper);
+          context.lineTo(point.x + capWidth, upper);
+          context.moveTo(point.x - capWidth, lower);
+          context.lineTo(point.x + capWidth, lower);
+          context.stroke();
+        });
+        context.restore();
+      }
+    };
+
+    Chart.register(errorBarPlugin);
+
+    const allowedActions = new Set(["Change", "No Change", "Drop"]);
+
+     function matchesAnalysisCriteria(row) {
+       return validNumber(row.Distance)
+         && row.Distance >= 437.5
+         && allowedActions.has(String(row.Action ?? "").trim());
+     }
+
+    function filteredAnalysisRows(rows) {
+       return rows.filter(matchesAnalysisCriteria);
+    }
+
+    function filteredPlotRows(rows) {
+      return filteredAnalysisRows(rows).filter(row => validNumber(row.Del_Speed));
+    }
+
+    function eventNames(records) {
+      return [...new Set(records.map(record => record.competition).filter(Boolean))];
+    }
+
+    function formatLapPace(value) {
+      return formatSeconds(validNumber(value) ? value * 4 : NaN);
+    }
+
+    function filteredSplitValues(rows) {
+      return filteredAnalysisRows(rows).map(row => row.Split).filter(validNumber);
+    }
+
+    function chartDateKey(value) {
+      return dateKeyFromValue(value);
+    }
+
+    function chartDateTimestamp(dateKey) {
+      return Date.parse(`${dateKey}T00:00:00Z`);
+    }
+
+    function chartGroupKey(dateKey) {
+      const date = new Date(`${dateKey}T00:00:00Z`);
+      if (plotGrouping === "month") {
+        return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-01`;
+      }
+      if (plotGrouping === "week") {
+        const daysSinceMonday = (date.getUTCDay() + 6) % 7;
+        date.setUTCDate(date.getUTCDate() - daysSinceMonday);
+        return date.toISOString().slice(0, 10);
+      }
+      return dateKey;
+    }
+
+    function renderDeliverySpeedChart(rows) {
+      const grouped = new Map();
+      filteredPlotRows(rows)
+        .forEach(row => {
+          const dateKey = chartDateKey(row.Save_Date);
+          const groupKey = chartGroupKey(dateKey);
+          if (!groupKey) return;
+          if (!grouped.has(groupKey)) grouped.set(groupKey, []);
+          grouped.get(groupKey).push({ speed: row.Del_Speed, competition: row.Title });
+        });
+
+      const dates = [...grouped.keys()].sort();
+      const chartStats = dates.map(date => {
+        const records = grouped.get(date);
+        const values = records.map(record => record.speed);
+        const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+        const variance = values.length > 1
+          ? values.reduce((sum, value) => sum + ((value - mean) ** 2), 0) / (values.length - 1)
+          : 0;
+        return { date, mean, standardDeviation: Math.sqrt(variance), count: values.length, competition: eventNames(records) };
+      });
+      const errorBarMinimum = Math.min(...chartStats.map(stat => Math.max(0, stat.mean - stat.standardDeviation)));
+      const errorBarMaximum = Math.max(...chartStats.map(stat => stat.mean + stat.standardDeviation));
+      const chartMargin = Math.max((errorBarMaximum - errorBarMinimum) * 0.08, 0.5);
+
+      if (deliverySpeedChart) deliverySpeedChart.destroy();
+      elements.plotEmpty.hidden = chartStats.length > 0;
+      elements.deliverySpeedChart.hidden = chartStats.length === 0;
+      const groupLabel = plotGrouping === "day" ? "days" : `${plotGrouping}s`;
+      elements.plotInfo.textContent = chartStats.length ? `${chartStats.reduce((sum, stat) => sum + stat.count, 0)} records across ${chartStats.length} ${groupLabel}` : "";
+      elements.plotTitle.textContent = `Delivery speed by ${plotGrouping}`;
+      if (!chartStats.length) return;
+
+      deliverySpeedChart = new Chart(elements.deliverySpeedChart, {
+        type: "line",
+        data: {
+          datasets: [{
+            label: "Average delivery speed",
+            data: chartStats.map(stat => ({ x: chartDateTimestamp(stat.date), y: stat.mean })),
+            errorBars: chartStats,
+            borderColor: "#0E4174",
+            backgroundColor: "rgba(0, 174, 199, 0.18)",
+            pointBackgroundColor: "#DB6B30",
+            pointBorderColor: "#FFFFFF",
+            pointBorderWidth: 2,
+            pointRadius: 5,
+            borderWidth: 2,
+            tension: 0.2,
+            fill: true,
+            parsing: false
+          }]
+        },
+        options: {
+          maintainAspectRatio: false,
+          interaction: { mode: "index", intersect: false },
+          plugins: {
+            legend: { display: false },
+            zoom: {
+              pan: { enabled: true, mode: "x" },
+              zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: "x" }
+            },
+            tooltip: {
+              callbacks: {
+                title(items) {
+                  const stat = chartStats[items[0].dataIndex];
+                  return stat.competition.length ? stat.competition : "Competition not recorded";
+                },
+                label(context) {
+                  const stat = chartStats[context.dataIndex];
+                  return `Average delivery speed: ${stat.mean.toFixed(2)}`;
+                },
+                afterLabel(context) {
+                  const stat = chartStats[context.dataIndex];
+                  return [`Date: ${stat.date}`, `Standard deviation: ${stat.standardDeviation.toFixed(2)}`, `Records: ${stat.count}`];
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              type: "linear",
+              title: { display: true, text: "Date" },
+              ticks: {
+                maxTicksLimit: 12,
+                callback(value) {
+                  return new Date(Number(value)).toISOString().slice(0, 10);
+                }
+              }
+            },
+            y: {
+              min: errorBarMinimum - chartMargin,
+              max: errorBarMaximum + chartMargin,
+              title: { display: true, text: "Delivery speed" }
+            }
+          }
+        }
+      });
+    }
+
+    function renderDeliverySpeedScatter(rows) {
+      const plotRows = filteredPlotRows(rows).filter(row => chartDateKey(row.Save_Date));
+      if (deliverySpeedScatter) deliverySpeedScatter.destroy();
+      elements.scatterEmpty.hidden = plotRows.length > 0;
+      elements.deliverySpeedScatter.hidden = plotRows.length === 0;
+      elements.scatterInfo.textContent = plotRows.length ? `${plotRows.length} individual records` : "";
+      if (!plotRows.length) return;
+
+      const points = plotRows.map(row => ({
+        x: chartDateTimestamp(chartDateKey(row.Save_Date)),
+        y: row.Del_Speed,
+        competition: row.Title,
+        date: chartDateKey(row.Save_Date),
+        distance: row.Distance,
+        action: row.Action
+      }));
+      const speedMinimum = Math.min(...points.map(point => point.y));
+      const speedMaximum = Math.max(...points.map(point => point.y));
+      const speedMargin = Math.max((speedMaximum - speedMinimum) * 0.08, 0.5);
+
+      deliverySpeedScatter = new Chart(elements.deliverySpeedScatter, {
+        type: "scatter",
+        data: {
+          datasets: [{
+            label: "Delivery speed",
+            data: points,
+            backgroundColor: "rgba(219, 107, 48, 0.62)",
+            borderColor: "#DB6B30",
+            pointRadius: 3,
+            pointHoverRadius: 6,
+            parsing: false
+          }]
+        },
+        options: {
+          maintainAspectRatio: false,
+          interaction: { mode: "nearest", intersect: true },
+          plugins: {
+            legend: { display: false },
+            zoom: {
+              pan: { enabled: true, mode: "x" },
+              zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: "x" }
+            },
+            tooltip: {
+              callbacks: {
+                title(items) {
+                  return points[items[0].dataIndex].competition || "Competition not recorded";
+                },
+                label(context) {
+                  return `Delivery speed: ${context.raw.y.toFixed(2)}`;
+                },
+                afterLabel(context) {
+                  const point = points[context.dataIndex];
+                  return [`Date: ${point.date}`, `Distance: ${point.distance} m`, `Action: ${point.action}`];
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              type: "linear",
+              title: { display: true, text: "Date" },
+              ticks: {
+                maxTicksLimit: 12,
+                callback(value) {
+                  return new Date(Number(value)).toISOString().slice(0, 10);
+                }
+              }
+            },
+            y: {
+              min: speedMinimum - speedMargin,
+              max: speedMaximum + speedMargin,
+              title: { display: true, text: "Delivery speed" }
+            }
+          }
+        }
+      });
+    }
+
+    function renderLapSplitHistogram(rows) {
+      const lapPaces = filteredSplitValues(rows).map(value => value * 4);
+      if (lapSplitHistogram) lapSplitHistogram.destroy();
+      elements.histogramEmpty.hidden = lapPaces.length > 0;
+      elements.lapSplitHistogram.hidden = lapPaces.length === 0;
+      elements.histogramInfo.textContent = lapPaces.length ? `${lapPaces.length} records` : "";
+      if (!lapPaces.length) return;
+
+      const minimum = Math.floor(Math.min(...lapPaces) / histogramBinSize) * histogramBinSize;
+      const maximum = Math.ceil(Math.max(...lapPaces) / histogramBinSize) * histogramBinSize;
+      const binCount = Math.max(1, Math.ceil((maximum - minimum) / histogramBinSize));
+      const counts = Array(binCount).fill(0);
+      lapPaces.forEach(value => {
+        const index = Math.min(binCount - 1, Math.floor((value - minimum) / histogramBinSize));
+        counts[index] += 1;
+      });
+      const labels = counts.map((_, index) => {
+        const start = minimum + index * histogramBinSize;
+        return `${start.toFixed(2)}-${(start + histogramBinSize).toFixed(2)}`;
+      });
+
+      lapSplitHistogram = new Chart(elements.lapSplitHistogram, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [{
+            label: "Frequency",
+            data: counts,
+            backgroundColor: "rgba(0, 174, 199, 0.62)",
+            borderColor: "#0E4174",
+            borderWidth: 1
+          }]
+        },
+        options: {
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            zoom: {
+              pan: { enabled: true, mode: "x" },
+              zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: "x" }
+            },
+            tooltip: {
+              callbacks: {
+                title(items) {
+                  return `Lap split pace: ${items[0].label} s`;
+                },
+                label(context) {
+                  return `Frequency: ${context.raw}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              title: { display: true, text: "Lap split pace (seconds)" },
+              ticks: { maxRotation: 45, minRotation: 45 }
+            },
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: "Frequency" },
+              ticks: { precision: 0 }
+            }
+          }
+        }
+      });
+    }
+
+    function renderStartsChart(rows) {
+      const startsRows = filteredStartsRows(rows).filter(row => chartDateKey(row.Save_Date));
+      if (startsChart) startsChart.destroy();
+      elements.startsEmpty.hidden = startsRows.length > 0;
+      elements.startsChart.hidden = startsRows.length === 0;
+      elements.startsInfo.textContent = startsRows.length ? `${startsRows.length} records` : "";
+      if (!startsRows.length) return;
+
+      const points = startsRows
+        .map(row => ({
+          x: chartDateTimestamp(chartDateKey(row.Save_Date)),
+          y: row.Time,
+          competition: row.Title,
+          date: chartDateKey(row.Save_Date)
+        }))
+        .sort((left, right) => left.x - right.x);
+      const timeMinimum = Math.min(...points.map(point => point.y));
+      const timeMaximum = Math.max(...points.map(point => point.y));
+      const timeMargin = Math.max((timeMaximum - timeMinimum) * 0.08, 0.5);
+
+      startsChart = new Chart(elements.startsChart, {
+        type: "line",
+        data: {
+          datasets: [{
+            label: "Start time",
+            data: points,
+            borderColor: "#0E4174",
+            backgroundColor: "rgba(219, 107, 48, 0.18)",
+            pointBackgroundColor: "#DB6B30",
+            pointBorderColor: "#FFFFFF",
+            pointBorderWidth: 2,
+            pointRadius: 5,
+            borderWidth: 2,
+            tension: 0.15,
+            parsing: false
+          }]
+        },
+        options: {
+          maintainAspectRatio: false,
+          interaction: { mode: "nearest", intersect: true },
+          plugins: {
+            legend: { display: false },
+            zoom: {
+              pan: { enabled: true, mode: "x" },
+              zoom: {
+                wheel: { enabled: true },
+                pinch: { enabled: true },
+                drag: { enabled: true, backgroundColor: "rgba(14, 65, 116, 0.12)" },
+                mode: "x"
+              }
+            },
+            tooltip: {
+              callbacks: {
+                title(items) {
+                  return points[items[0].dataIndex].competition || "Competition not recorded";
+                },
+                label(context) {
+                  return `Time: ${context.raw.y.toFixed(2)} seconds`;
+                },
+                afterLabel(context) {
+                  return `Date: ${points[context.dataIndex].date}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              type: "linear",
+              title: { display: true, text: "Date" },
+              ticks: {
+                maxTicksLimit: 12,
+                callback(value) {
+                  return new Date(Number(value)).toISOString().slice(0, 10);
+                }
+              }
+            },
+            y: {
+              min: Math.max(19, timeMinimum - timeMargin),
+              max: timeMaximum + timeMargin,
+              title: { display: true, text: "Time (seconds)" }
+            }
+          }
+        }
+      });
+    }
+
+    function filteredStartsRows(rows) {
+      return rows.filter(row => Number(row.Distance) === 250
+        && validNumber(row.Time)
+        && row.Time > 19);
+    }
+
+    function loadRows(workbook, sourceName) {
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      if (!sheet) throw new Error("The workbook does not contain a readable worksheet.");
+
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: null });
+      athleteRows = rows.filter(row => row.Front != null && row.Front !== "");
+      if (!athleteRows.length) throw new Error(`No athlete rows were found in the ${sheetName} sheet.`);
+
+      const athletes = [...new Set(athleteRows.map(row => String(row.Front)))].sort((a, b) => a.localeCompare(b));
+        elements.athleteSelect.innerHTML = athletes.map(name => {
+          const escapedName = name.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;");
+          return `<option value="${escapedName}">${escapedName}</option>`;
+        }).join("");
+      elements.athleteSelect.disabled = false;
+      elements.sheetInfo.textContent = `${athleteRows.length} records from ${sourceName} | ${sheetName}`;
+      renderAthlete();
+      setStatus(`Loaded ${sourceName}`, "ok");
+    }
+
+    function renderAthlete() {
+      const athlete = elements.athleteSelect.value;
+      const rows = athleteRows.filter(row => String(row.Front) === athlete);
+      const splitValues = filteredSplitValues(rows);
+      const average = splitValues.length ? splitValues.reduce((sum, value) => sum + value, 0) / splitValues.length : NaN;
+
+      renderDeliverySpeedChart(rows);
+      renderDeliverySpeedScatter(rows);
+      renderLapSplitHistogram(rows);
+      renderStartsChart(rows);
+      const startTimes = filteredStartsRows(rows).map(row => row.Time);
+      const averageStart = startTimes.length ? startTimes.reduce((sum, value) => sum + value, 0) / startTimes.length : NaN;
+      elements.averageStart.textContent = formatSeconds(averageStart);
+      elements.fastestStart.textContent = formatSeconds(startTimes.length ? Math.min(...startTimes) : NaN);
+      elements.slowestStart.textContent = formatSeconds(startTimes.length ? Math.max(...startTimes) : NaN);
+      elements.averageLap.textContent = formatLapPace(average);
+      elements.lapCount.textContent = String(splitValues.length);
+      elements.fastestLap.textContent = formatLapPace(splitValues.length ? Math.min(...splitValues) : NaN);
+      elements.slowestLap.textContent = formatLapPace(splitValues.length ? Math.max(...splitValues) : NaN);
+      elements.resultsTitle.textContent = `${athlete} split records`;
+
+       const tableRows = rows.filter(row => validNumber(row.Split));
+       if (!tableRows.length) {
+        elements.resultsBody.innerHTML = '<tr><td class="empty-state" colspan="7">No valid Split values are recorded for this athlete.</td></tr>';
+        return;
+      }
+
+       const sortedRows = tableRows.sort(compareRows);
+      elements.resultsBody.innerHTML = sortedRows.map(row => `
+         <tr class="${matchesAnalysisCriteria(row) ? "" : "criteria-excluded"}">
+          <td>${row.Title ?? "--"}</td>
+          <td>${formatDate(row.Save_Date)}</td>
+          <td>${row.Distance ?? "--"} m</td>
+          <td>${formatSeconds(row.Time)} s</td>
+          <td><strong>${formatSeconds(row.Split)} s</strong></td>
+          <td>${formatSeconds(row.Del_Speed)}</td>
+          <td>${row.Action ?? "--"}</td>
+        </tr>`).join("");
+    }
+
+   function setAnalysisTab(tab) {
+     activeAnalysisTab = tab;
+     elements.analysisTabs.forEach(button => {
+       const isActive = button.dataset.tab === tab;
+       button.setAttribute("aria-selected", String(isActive));
+       button.tabIndex = isActive ? 0 : -1;
+     });
+     elements.dashboardPanels.forEach(panel => {
+       panel.hidden = panel.dataset.dashboardPanel !== tab;
+     });
+     if (tab === "starts") {
+       const athlete = elements.athleteSelect.value;
+       renderStartsChart(athleteRows.filter(row => String(row.Front) === athlete));
+     }
+   }
+
+    async function loadDefaultWorkbook() {
+      const workbookName = workbookFiles[selectedGender];
+      try {
+        const response = await fetch(workbookName);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        loadRows(XLSX.read(await response.arrayBuffer(), { type: "array", cellDates: true }), workbookName);
+      } catch (error) {
+        setStatus(`Unable to load ${workbookName}. Choose a workbook below.`, "error");
+        elements.sheetInfo.textContent = "Automatic loading is unavailable in this browser context.";
+        console.warn(error);
+      }
+    }
+
+    elements.genderSelect.addEventListener("change", event => {
+      selectedGender = event.target.value;
+      elements.athleteSelect.disabled = true;
+      elements.athleteSelect.innerHTML = "<option>Loading workbook...</option>";
+      setStatus(`Loading ${workbookFiles[selectedGender]}...`);
+      loadDefaultWorkbook();
+    });
+    elements.athleteSelect.addEventListener("change", renderAthlete);
+     elements.analysisTabs.forEach(button => {
+       button.addEventListener("click", () => setAnalysisTab(button.dataset.tab));
+     });
+    elements.groupBySelect.addEventListener("change", event => {
+      plotGrouping = event.target.value;
+      renderAthlete();
+    });
+    elements.histogramBinSize.addEventListener("input", event => {
+      const nextBinSize = Number(event.target.value);
+      if (!Number.isFinite(nextBinSize) || nextBinSize <= 0) return;
+      histogramBinSize = nextBinSize;
+      renderAthlete();
+    });
+    elements.resetZoom.addEventListener("click", () => {
+      if (deliverySpeedChart) deliverySpeedChart.resetZoom();
+      if (deliverySpeedScatter) deliverySpeedScatter.resetZoom();
+      if (startsChart) startsChart.resetZoom();
+    });
+    document.querySelectorAll(".sort-button").forEach(button => {
+      button.addEventListener("click", () => {
+        const nextKey = button.dataset.sortKey;
+        if (sortKey === nextKey) {
+          sortDirection *= -1;
+        } else {
+          sortKey = nextKey;
+          sortDirection = 1;
+        }
+        updateSortIndicators();
+        renderAthlete();
+      });
+    });
+    elements.workbookInput.addEventListener("change", async event => {
+      const file = event.target.files[0];
+      if (!file) return;
+      try {
+        loadRows(XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true }), file.name);
+      } catch (error) {
+        setStatus(error.message, "error");
+      }
+    });
+
+    setAnalysisTab("flying");
+    updateSortIndicators();
+    if (window.ChartZoom) Chart.register(window.ChartZoom);
+    loadDefaultWorkbook();
+  </script>
+</body>
+</html>

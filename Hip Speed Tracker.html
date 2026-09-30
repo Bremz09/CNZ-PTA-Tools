@@ -1,0 +1,1148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <script src="auth-gate.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hip Speed Tracker | CNZ PTA Tools</title>
+  <link rel="stylesheet" href="theme.css" />
+  <style>
+    :root {
+      --tracker-cyan: #00aec7;
+      --tracker-orange: #db6b30;
+      --tracker-ink: #102331;
+    }
+
+    .tracker-layout { display: grid; gap: 16px; }
+
+    .upload-state {
+      display: grid;
+      min-height: 55vh;
+      place-items: center;
+      padding: 32px;
+      text-align: center;
+    }
+
+    .upload-state .field { width: min(420px, 100%); }
+
+    .tracker-app { display: none; }
+    .tracker-app.ready { display: block; }
+
+    .workspace {
+      min-width: 0;
+      display: grid;
+      gap: 16px;
+    }
+
+    .stage-shell {
+      overflow: hidden;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      background: #071018;
+    }
+
+    .stage-shell:fullscreen {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      border: 0;
+      border-radius: 0;
+      background: #071018;
+    }
+
+    .stage-shell:fullscreen .video-stage {
+      min-height: 0;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .stage-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      padding: 10px;
+      background: #102331;
+      color: #fff;
+    }
+
+    .stage-toolbar .line-length {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #dbe7ed;
+      font-size: 13px;
+    }
+
+    .stage-toolbar .line-length input { width: 76px; }
+
+    .stage-toolbar .btn {
+      min-height: 36px;
+      padding: 0 12px;
+    }
+
+    .stage-toolbar input[type="range"] {
+      min-width: 180px;
+      flex: 1 1 240px;
+      accent-color: var(--tracker-orange);
+    }
+
+    .time-readout {
+      min-width: 112px;
+      font-variant-numeric: tabular-nums;
+      font-size: 13px;
+    }
+
+    .video-stage {
+      position: relative;
+      display: grid;
+      min-height: 320px;
+      place-items: center;
+      touch-action: none;
+      user-select: none;
+    }
+
+    #displayCanvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      max-width: 100%;
+      object-fit: contain;
+      cursor: crosshair;
+    }
+
+    #zoomCanvas {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: min(420px, 42vw);
+      aspect-ratio: 1.6;
+      border: 2px solid var(--tracker-orange);
+      background: #071018;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    #zoomCanvas.hidden { display: none; }
+
+    .stage-shell:fullscreen #displayCanvas {
+      width: auto;
+      height: 100%;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .stage-shell:fullscreen .stage-toolbar {
+      flex-wrap: nowrap;
+      padding: 8px 10px;
+    }
+
+    .empty-state {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      color: #b9c8d2;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    .status {
+      min-height: 42px;
+      padding: 10px 12px;
+      border-left: 4px solid var(--tracker-cyan);
+      background: rgba(0, 174, 199, 0.08);
+      color: var(--color-text-secondary);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .movement-summary {
+      padding: 10px 12px;
+      border: 1px solid var(--color-border);
+      background: var(--color-surface-alt);
+      color: var(--color-text-secondary);
+      font-size: 15px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .metric {
+      min-width: 0;
+      padding: 12px;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      background: var(--color-surface-alt);
+    }
+
+    .metric-label {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--color-text-muted);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .metric-value {
+      overflow-wrap: anywhere;
+      color: var(--color-brand-blue);
+      font-size: 22px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .plot-panel {
+      padding: 14px;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .plot-panel h2 {
+      margin: 0 0 10px;
+      font-size: 17px;
+    }
+
+    #speedPlot {
+      display: block;
+      width: 100%;
+      height: 260px;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      color: var(--color-text-muted);
+      font-size: 12px;
+    }
+
+    .legend span::before {
+      content: "";
+      display: inline-block;
+      width: 18px;
+      height: 3px;
+      margin-right: 6px;
+      vertical-align: middle;
+      background: var(--tracker-orange);
+    }
+
+    .legend .raw::before {
+      background: #9aa7b0;
+    }
+
+    video,
+    #processingCanvas {
+      display: none;
+    }
+
+    @media (max-width: 900px) {
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .video-stage { min-height: 220px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <section class="page-frame">
+      <header class="page-header" id="pageHeader">
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">Hip Speed Tracker</h1>
+            <p class="page-subtitle">Draw a scale line, define a tracking period, and review hip speed frame by frame.</p>
+          </div>
+        </div>
+      </header>
+
+      <div class="page-body tracker-layout">
+        <section id="uploadState" class="panel upload-state">
+          <div class="field">
+            <h2 class="panel-title">Upload a video</h2>
+            <label for="videoInput">Choose video</label>
+            <input id="videoInput" type="file" accept="video/*" />
+          </div>
+        </section>
+
+        <section id="trackerApp" class="tracker-app workspace">
+          <div class="stage-shell">
+            <div class="stage-toolbar">
+              <button id="lineMode" class="btn btn-primary" type="button">Draw line</button>
+              <label class="line-length" for="distanceInput">Length (m)<input id="distanceInput" type="number" min="0.01" step="0.01" value="1" /></label>
+              <button id="startTrackingButton" class="btn btn-primary" type="button" disabled>Start tracking</button>
+              <button id="confirmTrackingButton" class="btn btn-surface" type="button" disabled>Confirm tracking</button>
+              <button id="recalculateButton" class="btn btn-surface" type="button" disabled>Recalculate</button>
+              <button id="fullscreenButton" class="btn btn-surface" type="button">Large screen</button>
+              <button id="resetButton" class="btn btn-surface" type="button">Reset</button>
+              <button id="exportButton" class="btn btn-surface" type="button" disabled>Export CSV</button>
+              <input id="timeline" type="range" min="0" max="0" step="0.001" value="0" disabled aria-label="Video position" />
+              <span id="timeReadout" class="time-readout">0.000 / 0.000 s</span>
+            </div>
+            <div id="videoStage" class="video-stage">
+              <canvas id="displayCanvas" width="960" height="540"></canvas>
+              <canvas id="zoomCanvas" class="hidden" width="280" height="200" aria-label="Zoomed tracking area"></canvas>
+            </div>
+          </div>
+          <div id="movementSummary" class="movement-summary">Moved -- metres in -- seconds</div>
+          <div id="status" class="status" role="status">Draw a line, then right-click the start and end points of the tracking period.</div>
+
+          <div class="metrics" aria-live="polite">
+            <div class="metric"><span class="metric-label">Latest Horizontal speed</span><span id="speedValue" class="metric-value">-- m/s</span></div>
+            <div class="metric"><span class="metric-label">Average Horizontal speed</span><span id="speedKmhValue" class="metric-value">-- m/s</span></div>
+            <div class="metric"><span class="metric-label">Peak speed</span><span id="peakSpeedValue" class="metric-value">-- m/s</span></div>
+            <div class="metric"><span class="metric-label">Confidence</span><span id="confidenceValue" class="metric-value">--</span></div>
+            <div class="metric"><span class="metric-label">Samples</span><span id="sampleValue" class="metric-value">0</span></div>
+          </div>
+
+          <section class="plot-panel">
+            <h2>Horizontal speed over time</h2>
+            <canvas id="speedPlot"></canvas>
+            <div class="legend"><span class="raw">Horizontal speed</span></div>
+          </section>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <video id="video" playsinline muted></video>
+  <canvas id="processingCanvas"></canvas>
+
+  <script>
+    const video = document.getElementById('video');
+    const displayCanvas = document.getElementById('displayCanvas');
+    const displayContext = displayCanvas.getContext('2d');
+    const zoomCanvas = document.getElementById('zoomCanvas');
+    const zoomContext = zoomCanvas.getContext('2d');
+    const processingCanvas = document.getElementById('processingCanvas');
+    const processingContext = processingCanvas.getContext('2d', { willReadFrequently: true });
+    const plotCanvas = document.getElementById('speedPlot');
+    const plotContext = plotCanvas.getContext('2d');
+    const TRACKER_SIZE = 6;
+    const TRACKING_PADDING = 10;
+    const VIDEO_FPS = 50;
+
+    const elements = {
+      videoInput: document.getElementById('videoInput'),
+      distanceInput: document.getElementById('distanceInput'),
+      lineMode: document.getElementById('lineMode'),
+      startTrackingButton: document.getElementById('startTrackingButton'),
+      confirmTrackingButton: document.getElementById('confirmTrackingButton'),
+      recalculateButton: document.getElementById('recalculateButton'),
+      resetButton: document.getElementById('resetButton'),
+      exportButton: document.getElementById('exportButton'),
+      fullscreenButton: document.getElementById('fullscreenButton'),
+      timeline: document.getElementById('timeline'),
+      timeReadout: document.getElementById('timeReadout'),
+      status: document.getElementById('status'),
+      uploadState: document.getElementById('uploadState'),
+      trackerApp: document.getElementById('trackerApp'),
+      pageHeader: document.getElementById('pageHeader'),
+      movementSummary: document.getElementById('movementSummary'),
+      speedValue: document.getElementById('speedValue'),
+      speedKmhValue: document.getElementById('speedKmhValue'),
+      peakSpeedValue: document.getElementById('peakSpeedValue'),
+      confidenceValue: document.getElementById('confidenceValue'),
+      sampleValue: document.getElementById('sampleValue')
+    };
+
+    const state = {
+      objectUrl: null,
+      mode: 'line',
+      reference: null,
+      tracker: null,
+      trackingArea: null,
+      periodPoints: [],
+      manualMarkers: new Map(),
+      template: null,
+      pointerStart: null,
+      draft: null,
+      draggingTracker: false,
+      draggingZoomMarker: false,
+      tracking: false,
+      trackingFramePending: false,
+      grayFrame: null,
+      samples: [],
+      lastPosition: null,
+      lastTrackedTime: null,
+      confidence: null
+    };
+
+    const stageShell = document.querySelector('.stage-shell');
+
+    function setStatus(message) {
+      elements.status.textContent = message;
+    }
+
+    function clamp(value, minimum, maximum) {
+      return Math.max(minimum, Math.min(maximum, value));
+    }
+
+    function formatTime(value) {
+      return Number.isFinite(value) ? value.toFixed(3) : '0.000';
+    }
+
+    function updateTimeUi() {
+      elements.timeline.value = video.currentTime || 0;
+      elements.timeReadout.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)} s`;
+    }
+
+    function setMode(mode) {
+      state.mode = mode;
+      elements.lineMode.classList.toggle('btn-primary', mode === 'line');
+      elements.lineMode.classList.toggle('btn-secondary', mode !== 'line');
+      elements.lineMode.textContent = mode === 'line' ? 'Draw line (on)' : 'Draw line';
+      displayCanvas.style.cursor = mode === 'line' ? 'crosshair' : 'default';
+    }
+
+    function canvasPoint(event) {
+      const bounds = displayCanvas.getBoundingClientRect();
+      return {
+        x: clamp((event.clientX - bounds.left) * displayCanvas.width / bounds.width, 0, displayCanvas.width),
+        y: clamp((event.clientY - bounds.top) * displayCanvas.height / bounds.height, 0, displayCanvas.height)
+      };
+    }
+
+    function frameIndex(time = video.currentTime) {
+      return Math.max(0, Math.round(time * VIDEO_FPS));
+    }
+
+    function trackerForFrame() {
+      return state.manualMarkers.get(frameIndex()) || state.tracker;
+    }
+
+    function constrainTracker(tracker) {
+      if (!state.trackingArea) return tracker;
+      tracker.x = clamp(tracker.x, state.trackingArea.x, state.trackingArea.x + state.trackingArea.width - tracker.width);
+      tracker.y = clamp(tracker.y, state.trackingArea.y, state.trackingArea.y + state.trackingArea.height - tracker.height);
+      return tracker;
+    }
+
+    function drawVideoFrame() {
+      if (video.readyState < 2) return;
+      processingContext.drawImage(video, 0, 0, processingCanvas.width, processingCanvas.height);
+      displayContext.clearRect(0, 0, displayCanvas.width, displayCanvas.height);
+      displayContext.drawImage(processingCanvas, 0, 0);
+
+      if (state.reference) drawReference(state.reference);
+      if (state.trackingArea) drawTrackingArea(state.trackingArea);
+      const visibleTracker = trackerForFrame();
+      if (visibleTracker) drawTracker(visibleTracker);
+      if (state.draft) {
+        state.mode === 'line' ? drawReference(state.draft) : drawTracker(state.draft, true);
+      }
+      drawZoomPreview();
+      zoomCanvas.classList.toggle('hidden', !state.trackingArea);
+    }
+
+    function drawZoomPreview() {
+      zoomContext.clearRect(0, 0, zoomCanvas.width, zoomCanvas.height);
+      const area = state.trackingArea;
+      const tracker = trackerForFrame();
+      if (!area || !tracker || video.readyState < 2) return;
+      const sourceWidth = Math.max(area.width, 1);
+      const sourceHeight = Math.max(area.height, 1);
+      const sourceX = area.x;
+      const sourceY = area.y;
+      zoomContext.imageSmoothingEnabled = false;
+      zoomContext.drawImage(processingCanvas, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, zoomCanvas.width, zoomCanvas.height);
+      zoomContext.strokeStyle = '#ff8a3d';
+      zoomContext.lineWidth = 2;
+      zoomContext.strokeRect(
+        (tracker.x - sourceX) / sourceWidth * zoomCanvas.width,
+        (tracker.y - sourceY) / sourceHeight * zoomCanvas.height,
+        tracker.width / sourceWidth * zoomCanvas.width,
+        tracker.height / sourceHeight * zoomCanvas.height
+      );
+    }
+
+    function drawTrackingArea(area) {
+      displayContext.save();
+      displayContext.strokeStyle = '#ffcf5a';
+      displayContext.fillStyle = 'rgba(255, 207, 90, 0.08)';
+      displayContext.lineWidth = 2;
+      displayContext.setLineDash([6, 5]);
+      displayContext.fillRect(area.x, area.y, area.width, area.height);
+      displayContext.strokeRect(area.x, area.y, area.width, area.height);
+      displayContext.setLineDash([]);
+      displayContext.font = '700 12px Arial';
+      displayContext.fillStyle = '#ffcf5a';
+      displayContext.fillText('tracking area', area.x + 5, Math.max(14, area.y - 6));
+      displayContext.restore();
+    }
+
+    function drawReference(reference) {
+      displayContext.save();
+      displayContext.strokeStyle = '#00e5ff';
+      displayContext.fillStyle = '#00e5ff';
+      displayContext.lineWidth = 3;
+      displayContext.setLineDash([9, 6]);
+      displayContext.beginPath();
+      displayContext.moveTo(reference.x1, reference.y);
+      displayContext.lineTo(reference.x2, reference.y);
+      displayContext.stroke();
+      displayContext.setLineDash([]);
+      displayContext.beginPath();
+      displayContext.arc(reference.x1, reference.y, 5, 0, Math.PI * 2);
+      displayContext.arc(reference.x2, reference.y, 5, 0, Math.PI * 2);
+      displayContext.fill();
+      displayContext.font = '700 13px Arial';
+      displayContext.fillText(`${Number(elements.distanceInput.value).toFixed(2)} m`, Math.min(reference.x1, reference.x2) + 8, reference.y - 9);
+      displayContext.restore();
+    }
+
+    function drawTracker(tracker, draft = false) {
+      const confidence = state.confidence === null ? 1 : state.confidence;
+      displayContext.save();
+      displayContext.strokeStyle = confidence < 0.35 ? '#ee5340' : '#ff8a3d';
+      displayContext.fillStyle = draft ? 'rgba(219, 107, 48, 0.12)' : 'rgba(219, 107, 48, 0.2)';
+      displayContext.lineWidth = 3;
+      displayContext.setLineDash(draft ? [7, 5] : []);
+      displayContext.fillRect(tracker.x, tracker.y, tracker.width, tracker.height);
+      displayContext.strokeRect(tracker.x, tracker.y, tracker.width, tracker.height);
+      displayContext.beginPath();
+      displayContext.moveTo(tracker.x + tracker.width / 2 - 8, tracker.y + tracker.height / 2);
+      displayContext.lineTo(tracker.x + tracker.width / 2 + 8, tracker.y + tracker.height / 2);
+      displayContext.moveTo(tracker.x + tracker.width / 2, tracker.y + tracker.height / 2 - 8);
+      displayContext.lineTo(tracker.x + tracker.width / 2, tracker.y + tracker.height / 2 + 8);
+      displayContext.stroke();
+      displayContext.restore();
+    }
+
+    function pixelsPerMetre() {
+      if (!state.reference) return null;
+      const metres = Number(elements.distanceInput.value);
+      const pixels = Math.abs(state.reference.x2 - state.reference.x1);
+      return metres > 0 && pixels > 0 ? pixels / metres : null;
+    }
+
+    function captureTemplate() {
+      if (!state.tracker || video.readyState < 2) return false;
+      processingContext.drawImage(video, 0, 0, processingCanvas.width, processingCanvas.height);
+      const tracker = state.tracker;
+      const sampleStep = Math.max(1, Math.ceil(Math.max(tracker.width, tracker.height) / 18));
+      const values = [];
+      let total = 0;
+
+      for (let y = 0; y < tracker.height; y += sampleStep) {
+        for (let x = 0; x < tracker.width; x += sampleStep) {
+          const pixel = processingContext.getImageData(
+            Math.floor(tracker.x + x), Math.floor(tracker.y + y), 1, 1
+          ).data;
+          const luminance = pixel[0] * 0.299 + pixel[1] * 0.587 + pixel[2] * 0.114;
+          values.push({ x, y, value: luminance });
+          total += luminance;
+        }
+      }
+
+      state.template = { values, mean: total / values.length };
+      state.confidence = 1;
+      drawVideoFrame();
+      updateReadouts();
+      return true;
+    }
+
+    function scoreCandidate(grayFrame, candidateX, candidateY) {
+      const template = state.template;
+      let candidateTotal = 0;
+
+      for (const sample of template.values) {
+        const pixelIndex = (Math.floor(candidateY + sample.y) * processingCanvas.width) + Math.floor(candidateX + sample.x);
+        candidateTotal += grayFrame[pixelIndex];
+      }
+
+      const candidateMean = candidateTotal / template.values.length;
+      let difference = 0;
+      for (const sample of template.values) {
+        const pixelIndex = (Math.floor(candidateY + sample.y) * processingCanvas.width) + Math.floor(candidateX + sample.x);
+        const value = grayFrame[pixelIndex];
+        difference += Math.abs(
+          (value - candidateMean) - (sample.value - template.mean)
+        );
+      }
+      return difference / template.values.length;
+    }
+
+    function findBestMatch() {
+      const tracker = state.tracker;
+      const radius = 6;
+      const area = state.trackingArea;
+      const minX = Math.max(area ? area.x : 0, Math.floor(tracker.x - radius));
+      const maxX = Math.min(area ? area.x + area.width - tracker.width : processingCanvas.width - tracker.width, Math.ceil(tracker.x + radius));
+      const minY = Math.max(area ? area.y : 0, Math.floor(tracker.y - radius));
+      const maxY = Math.min(area ? area.y + area.height - tracker.height : processingCanvas.height - tracker.height, Math.ceil(tracker.y + radius));
+      const frame = processingContext.getImageData(0, 0, processingCanvas.width, processingCanvas.height).data;
+      const pixelCount = processingCanvas.width * processingCanvas.height;
+      if (!state.grayFrame || state.grayFrame.length !== pixelCount) state.grayFrame = new Uint8Array(pixelCount);
+      for (let pixel = 0, rgba = 0; pixel < pixelCount; pixel++, rgba += 4) {
+        state.grayFrame[pixel] = frame[rgba] * 0.299 + frame[rgba + 1] * 0.587 + frame[rgba + 2] * 0.114;
+      }
+      let best = { x: tracker.x, y: tracker.y, score: Infinity };
+
+      for (let y = minY; y <= maxY; y += 4) {
+        for (let x = minX; x <= maxX; x += 4) {
+          const score = scoreCandidate(state.grayFrame, x, y);
+          if (score < best.score) best = { x, y, score };
+        }
+      }
+
+      const refineMinX = Math.max(minX, best.x - 2);
+      const refineMaxX = Math.min(maxX, best.x + 2);
+      const refineMinY = Math.max(minY, best.y - 2);
+      const refineMaxY = Math.min(maxY, best.y + 2);
+      for (let y = refineMinY; y <= refineMaxY; y++) {
+        for (let x = refineMinX; x <= refineMaxX; x++) {
+          const score = scoreCandidate(state.grayFrame, x, y);
+          if (score < best.score) best = { x, y, score };
+        }
+      }
+      return best;
+    }
+
+    function trackCurrentFrame() {
+      if (!state.tracking || !state.template || !state.tracker || video.readyState < 2) return;
+      const time = video.currentTime;
+      if (state.trackingArea && (time < state.trackingArea.startTime || time > state.trackingArea.endTime)) return;
+      if (state.lastTrackedTime !== null && Math.abs(time - state.lastTrackedTime) <= 0.0001) return;
+
+      const manualMarker = state.manualMarkers.get(frameIndex(time));
+      if (manualMarker) {
+        state.tracker = { ...manualMarker };
+        state.confidence = 1;
+      } else {
+        processingContext.drawImage(video, 0, 0, processingCanvas.width, processingCanvas.height);
+        const match = findBestMatch();
+        state.tracker.x = match.x;
+        state.tracker.y = match.y;
+        state.confidence = clamp(1 - match.score / 45, 0, 1);
+      }
+      const centerX = state.tracker.x + state.tracker.width / 2;
+
+      if (state.lastPosition && state.lastTrackedTime !== null) {
+        const deltaTime = time - state.lastTrackedTime;
+        const scale = pixelsPerMetre();
+        if (deltaTime > 0 && scale) {
+          const pixelSpeed = (state.lastPosition.x - centerX) / deltaTime;
+          const sample = { frame: frameIndex(time), time, x: centerX, pixelSpeed, rawSpeed: pixelSpeed / scale, speed: pixelSpeed / scale, confidence: state.confidence };
+          const existingIndex = state.samples.findIndex(existingSample => existingSample.frame === sample.frame);
+          if (existingIndex >= 0) state.samples[existingIndex] = sample;
+          else state.samples.push(sample);
+        }
+      }
+
+      state.lastPosition = { x: centerX, y: state.tracker.y + state.tracker.height / 2 };
+      state.lastTrackedTime = time;
+      recalculateSamples(false);
+      updateReadouts();
+    }
+
+    function updateReadouts() {
+      const sample = state.samples[state.samples.length - 1];
+      const averageSpeed = state.samples.length
+        ? state.samples.reduce((sum, samplePoint) => sum + samplePoint.rawSpeed, 0) / state.samples.length
+        : null;
+      const peakSpeed = state.samples.length
+        ? Math.max(...state.samples.map(samplePoint => Math.abs(samplePoint.rawSpeed)))
+        : null;
+      elements.speedValue.textContent = sample ? `${sample.rawSpeed.toFixed(2)} m/s` : '-- m/s';
+      elements.speedKmhValue.textContent = averageSpeed === null ? '-- m/s' : `${averageSpeed.toFixed(2)} m/s`;
+      elements.peakSpeedValue.textContent = peakSpeed === null ? '-- m/s' : `${peakSpeed.toFixed(2)} m/s`;
+      elements.confidenceValue.textContent = state.confidence === null ? '--' : `${Math.round(state.confidence * 100)}%`;
+      elements.sampleValue.textContent = state.samples.length;
+      elements.exportButton.disabled = state.samples.length === 0;
+      elements.recalculateButton.disabled = state.samples.length === 0;
+      updateMovementSummary();
+    }
+
+    function updateMovementSummary() {
+      const scale = pixelsPerMetre();
+      const area = state.trackingArea;
+      if (!scale || !area) {
+        elements.movementSummary.textContent = 'Moved -- metres in -- seconds';
+        return;
+      }
+      const orderedSamples = [...state.samples].sort((first, second) => first.time - second.time);
+      const firstPosition = orderedSamples[0]?.x ?? state.periodPoints[0]?.x;
+      const lastPosition = orderedSamples.at(-1)?.x ?? state.periodPoints.at(-1)?.x;
+      const movedMetres = Number.isFinite(firstPosition) && Number.isFinite(lastPosition)
+        ? Math.abs(lastPosition - firstPosition) / scale
+        : 0;
+      const duration = Math.max(0, area.endTime - area.startTime);
+      elements.movementSummary.textContent = `Moved ${movedMetres.toFixed(2)} metres in ${duration.toFixed(3)} seconds`;
+    }
+
+    function resizePlot() {
+      const ratio = window.devicePixelRatio || 1;
+      const bounds = plotCanvas.getBoundingClientRect();
+      const width = Math.max(300, Math.round(bounds.width));
+      const height = Math.max(180, Math.round(bounds.height));
+      if (plotCanvas.width !== width * ratio || plotCanvas.height !== height * ratio) {
+        plotCanvas.width = width * ratio;
+        plotCanvas.height = height * ratio;
+      }
+      plotContext.setTransform(ratio, 0, 0, ratio, 0, 0);
+      return { width, height };
+    }
+
+    function drawPlot() {
+      const { width, height } = resizePlot();
+      const margin = { left: 54, right: 18, top: 16, bottom: 36 };
+      const plotWidth = width - margin.left - margin.right;
+      const plotHeight = height - margin.top - margin.bottom;
+      plotContext.clearRect(0, 0, width, height);
+      plotContext.fillStyle = '#fff';
+      plotContext.fillRect(0, 0, width, height);
+      plotContext.font = '12px Arial';
+
+      if (!state.samples.length) {
+        plotContext.fillStyle = '#667783';
+        plotContext.textAlign = 'center';
+        plotContext.fillText('Speed data will appear when tracking is disabled.', width / 2, height / 2);
+        return;
+      }
+
+      const times = state.samples.map(sample => sample.time);
+      const speeds = state.samples.map(sample => sample.rawSpeed);
+      const minTime = times[0];
+      const maxTime = Math.max(times[times.length - 1], minTime + 0.1);
+      const speedLimit = Math.max(1, ...speeds.map(value => Math.abs(value))) * 1.1;
+      const xFor = time => margin.left + (time - minTime) / (maxTime - minTime) * plotWidth;
+      const yFor = speed => margin.top + (speedLimit - speed) / (speedLimit * 2) * plotHeight;
+
+      plotContext.strokeStyle = '#dce3e8';
+      plotContext.fillStyle = '#667783';
+      plotContext.lineWidth = 1;
+      plotContext.textAlign = 'right';
+      for (let index = 0; index <= 4; index++) {
+        const speed = speedLimit - index * speedLimit / 2;
+        const y = yFor(speed);
+        plotContext.beginPath();
+        plotContext.moveTo(margin.left, y);
+        plotContext.lineTo(width - margin.right, y);
+        plotContext.stroke();
+        plotContext.fillText(speed.toFixed(1), margin.left - 8, y + 4);
+      }
+
+      plotContext.textAlign = 'center';
+      for (let index = 0; index <= 4; index++) {
+        const time = minTime + index * (maxTime - minTime) / 4;
+        plotContext.fillText(time.toFixed(1), xFor(time), height - 14);
+      }
+      plotContext.save();
+      plotContext.translate(14, height / 2);
+      plotContext.rotate(-Math.PI / 2);
+      plotContext.fillText('m/s', 0, 0);
+      plotContext.restore();
+      plotContext.fillText('Video time (s)', margin.left + plotWidth / 2, height - 1);
+
+      drawSeries('rawSpeed', '#db6b30', 2.5);
+
+      function drawSeries(key, color, lineWidth) {
+        plotContext.beginPath();
+        state.samples.forEach((sample, index) => {
+          const x = xFor(sample.time);
+          const y = yFor(sample[key]);
+          index ? plotContext.lineTo(x, y) : plotContext.moveTo(x, y);
+        });
+        plotContext.strokeStyle = color;
+        plotContext.lineWidth = lineWidth;
+        plotContext.stroke();
+      }
+    }
+
+    function resetTrackingData() {
+      state.samples = [];
+      state.lastPosition = null;
+      state.lastTrackedTime = null;
+      state.confidence = state.template ? 1 : null;
+      updateReadouts();
+      drawPlot();
+    }
+
+    function recalculateSamples(redraw = true) {
+      const scale = pixelsPerMetre();
+      if (!scale || !state.samples.length) {
+        if (redraw) {
+          updateReadouts();
+          drawPlot();
+        }
+        return;
+      }
+      state.samples.sort((first, second) => first.time - second.time);
+      state.samples.forEach((sample, index) => {
+        if (index > 0) {
+          const previous = state.samples[index - 1];
+          const deltaTime = sample.time - previous.time;
+          if (deltaTime > 0) sample.pixelSpeed = (previous.x - sample.x) / deltaTime;
+        }
+        if (Number.isFinite(sample.pixelSpeed)) sample.rawSpeed = sample.pixelSpeed / scale;
+        sample.speed = sample.rawSpeed;
+      });
+      if (redraw) {
+        updateReadouts();
+        drawPlot();
+      }
+    }
+
+    function updateReadyState() {
+      elements.lineMode.disabled = !video.src;
+      const ready = Boolean(state.reference && state.trackingArea && state.template && pixelsPerMetre());
+      elements.startTrackingButton.disabled = !ready || state.tracking;
+      elements.confirmTrackingButton.disabled = !state.tracking;
+      elements.recalculateButton.disabled = state.samples.length === 0;
+    }
+
+    function stopTracking(message) {
+      state.tracking = false;
+      updateReadyState();
+      drawPlot();
+      if (message) setStatus(message);
+    }
+
+    function startTracking() {
+      if (!state.reference || !state.trackingArea || !state.template || !pixelsPerMetre()) {
+        setStatus('Draw a valid line and define the tracking period first.');
+        return;
+      }
+      resetTrackingData();
+      state.tracking = true;
+      video.currentTime = state.trackingArea.startTime;
+      const startingTracker = trackerForFrame();
+      state.lastPosition = { x: startingTracker.x + startingTracker.width / 2, y: startingTracker.y + startingTracker.height / 2 };
+      state.lastTrackedTime = video.currentTime;
+      updateReadyState();
+      setStatus('Tracking is on. Step through the selected period with the arrow keys or spacebar, adjusting the zoom marker as needed.');
+    }
+
+    function handleVideoFrame() {
+      if (state.tracking && state.trackingArea && video.currentTime >= state.trackingArea.endTime) {
+        trackCurrentFrame();
+        video.pause();
+        drawVideoFrame();
+        updateTimeUi();
+        setStatus('Tracking period reached. Review the points, then confirm tracking to finish the plot.');
+        return;
+      }
+      if (!video.paused && !video.ended) {
+        drawVideoFrame();
+        updateTimeUi();
+        scheduleVideoFrame();
+      }
+    }
+
+    function scheduleVideoFrame() {
+      if (state.trackingFramePending) return;
+      state.trackingFramePending = true;
+      const callback = () => {
+        state.trackingFramePending = false;
+        handleVideoFrame();
+      };
+      if ('requestVideoFrameCallback' in video) video.requestVideoFrameCallback(callback);
+      else requestAnimationFrame(callback);
+    }
+
+    elements.videoInput.addEventListener('change', event => {
+      const file = event.target.files[0];
+      if (!file) return;
+      if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
+      state.objectUrl = URL.createObjectURL(file);
+      stopTracking();
+      state.reference = null;
+      state.tracker = null;
+      state.trackingArea = null;
+      state.periodPoints = [];
+      state.manualMarkers.clear();
+      state.template = null;
+      state.tracking = false;
+      resetTrackingData();
+      video.src = state.objectUrl;
+      video.load();
+      elements.uploadState.style.display = 'none';
+      elements.trackerApp.classList.add('ready');
+      elements.pageHeader.style.display = 'none';
+      setStatus('Loading video metadata...');
+    });
+
+    video.addEventListener('loadedmetadata', () => {
+      const scale = Math.min(1, 960 / video.videoWidth);
+      const width = Math.max(1, Math.round(video.videoWidth * scale));
+      const height = Math.max(1, Math.round(video.videoHeight * scale));
+      displayCanvas.width = processingCanvas.width = width;
+      displayCanvas.height = processingCanvas.height = height;
+      elements.timeline.max = video.duration;
+      elements.timeline.disabled = false;
+      updateTimeUi();
+      video.currentTime = 0;
+      if (video.readyState >= 2) drawVideoFrame();
+      setMode('line');
+      setStatus('Draw a line over a known distance, then turn Draw line off to set the tracking period.');
+    });
+
+    video.addEventListener('loadeddata', drawVideoFrame);
+    video.addEventListener('canplay', drawVideoFrame);
+    video.addEventListener('seeked', () => {
+      if (state.tracking) trackCurrentFrame();
+      drawVideoFrame();
+      updateTimeUi();
+    });
+    video.addEventListener('ended', () => stopTracking('Tracking complete. Review the plot or export the samples.'));
+    video.addEventListener('play', () => {
+      if (state.trackingArea && (video.currentTime < state.trackingArea.startTime || video.currentTime >= state.trackingArea.endTime)) {
+        video.currentTime = state.trackingArea.startTime;
+      }
+      scheduleVideoFrame();
+    });
+
+    elements.timeline.addEventListener('input', () => {
+      video.pause();
+      video.currentTime = Number(elements.timeline.value);
+    });
+
+    function stepFrame(direction) {
+      video.pause();
+      const minimum = state.trackingArea ? state.trackingArea.startTime : 0;
+      const maximum = state.trackingArea ? state.trackingArea.endTime : video.duration;
+      const currentTime = Number.isFinite(video.currentTime) ? video.currentTime : minimum;
+      video.currentTime = clamp(currentTime + direction / VIDEO_FPS, minimum, maximum);
+    }
+    window.addEventListener('keydown', event => {
+      if (event.code === 'Space') {
+        event.preventDefault();
+        if (video.readyState >= 2) {
+          video.paused ? video.play() : video.pause();
+        }
+        return;
+      }
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        event.preventDefault();
+        stepFrame(event.key === 'ArrowRight' ? 1 : -1);
+      }
+    }, true);
+
+    elements.fullscreenButton.addEventListener('click', () => {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else {
+        stageShell.requestFullscreen();
+      }
+    });
+    document.addEventListener('fullscreenchange', () => {
+      elements.fullscreenButton.textContent = document.fullscreenElement ? 'Exit large screen' : 'Large screen';
+      drawVideoFrame();
+    });
+
+    elements.lineMode.addEventListener('click', () => {
+      video.pause();
+      setMode(state.mode === 'line' ? 'zone' : 'line');
+      setStatus(state.mode === 'line'
+        ? 'Drag the line with the left mouse button. Its scale updates live.'
+        : 'Right-click the tracking start and end points.');
+    });
+    elements.distanceInput.addEventListener('input', () => {
+      updateReadyState();
+      updateMovementSummary();
+      drawVideoFrame();
+    });
+
+    displayCanvas.addEventListener('pointerdown', event => {
+      if (video.readyState < 2) return;
+      const point = canvasPoint(event);
+      if (event.button === 2) {
+        video.pause();
+        if (state.periodPoints.length >= 2) state.periodPoints = [];
+        const endpoint = { time: video.currentTime, x: point.x, y: point.y };
+        state.periodPoints.push(endpoint);
+        state.tracker = {
+          x: clamp(point.x - TRACKER_SIZE / 2, 0, displayCanvas.width - TRACKER_SIZE),
+          y: clamp(point.y - TRACKER_SIZE / 2, 0, displayCanvas.height - TRACKER_SIZE),
+          width: TRACKER_SIZE,
+          height: TRACKER_SIZE
+        };
+        if (state.periodPoints.length === 1) {
+          state.trackingArea = null;
+          state.manualMarkers.clear();
+          captureTemplate();
+          setStatus('Start point saved. Move to the end time and right-click the matching hip point.');
+        } else {
+          const first = state.periodPoints[0];
+          const second = state.periodPoints[1];
+          const left = Math.max(0, Math.min(first.x, second.x) - TRACKING_PADDING);
+          const top = Math.max(0, Math.min(first.y, second.y) - TRACKING_PADDING);
+          const right = Math.min(displayCanvas.width, Math.max(first.x, second.x) + TRACKING_PADDING);
+          const bottom = Math.min(displayCanvas.height, Math.max(first.y, second.y) + TRACKING_PADDING);
+          state.trackingArea = {
+            x: left,
+            y: top,
+            width: Math.max(TRACKER_SIZE, right - left),
+            height: Math.max(TRACKER_SIZE, bottom - top),
+            startTime: Math.min(first.time, second.time),
+            endTime: Math.max(first.time, second.time)
+          };
+          state.tracker.x = clamp(first.x - TRACKER_SIZE / 2, left, right - TRACKER_SIZE);
+          state.tracker.y = clamp(first.y - TRACKER_SIZE / 2, top, bottom - TRACKER_SIZE);
+          state.tracking = false;
+          state.lastPosition = null;
+          state.lastTrackedTime = null;
+          zoomCanvas.classList.remove('hidden');
+          setMode('zone');
+          video.currentTime = state.trackingArea.startTime;
+          setStatus(`Tracking period set: ${formatTime(state.trackingArea.startTime)} to ${formatTime(state.trackingArea.endTime)} s. Drag the marker in the zoom view to correct each frame.`);
+        }
+        updateReadyState();
+        updateMovementSummary();
+        drawVideoFrame();
+        return;
+      }
+      if (event.button !== 0) return;
+      if (state.mode === 'zone' && state.trackingArea && state.tracker) {
+        const tracker = state.tracker;
+        const inside = point.x >= tracker.x && point.x <= tracker.x + tracker.width && point.y >= tracker.y && point.y <= tracker.y + tracker.height;
+        if (!inside) return;
+        video.pause();
+        state.draggingTracker = true;
+        state.pointerStart = { x: point.x - tracker.x, y: point.y - tracker.y };
+        displayCanvas.style.cursor = 'grabbing';
+      } else if (state.mode === 'line') {
+        state.pointerStart = point;
+        state.draft = { x1: point.x, x2: point.x, y: point.y };
+      }
+      displayCanvas.setPointerCapture(event.pointerId);
+    });
+
+    displayCanvas.addEventListener('contextmenu', event => event.preventDefault());
+
+    displayCanvas.addEventListener('pointermove', event => {
+      if (!state.pointerStart) return;
+      const point = canvasPoint(event);
+      if (state.draggingTracker) {
+        state.tracker.x = clamp(point.x - state.pointerStart.x, 0, displayCanvas.width - state.tracker.width);
+        state.tracker.y = clamp(point.y - state.pointerStart.y, 0, displayCanvas.height - state.tracker.height);
+      } else if (state.mode === 'line') {
+        state.draft.x2 = point.x;
+      }
+      drawVideoFrame();
+    });
+
+    zoomCanvas.addEventListener('pointerdown', event => {
+      if (!state.trackingArea || !trackerForFrame() || video.readyState < 2) return;
+      video.pause();
+      state.draggingZoomMarker = true;
+      zoomCanvas.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    });
+
+    zoomCanvas.addEventListener('pointermove', event => {
+      if (!state.draggingZoomMarker || !state.trackingArea) return;
+      const bounds = zoomCanvas.getBoundingClientRect();
+      const area = state.trackingArea;
+      const tracker = { ...trackerForFrame() };
+      const x = (event.clientX - bounds.left) / bounds.width * zoomCanvas.width;
+      const y = (event.clientY - bounds.top) / bounds.height * zoomCanvas.height;
+      tracker.x = area.x + x / zoomCanvas.width * area.width - tracker.width / 2;
+      tracker.y = area.y + y / zoomCanvas.height * area.height - tracker.height / 2;
+      constrainTracker(tracker);
+      state.tracker = tracker;
+      drawVideoFrame();
+    });
+
+    zoomCanvas.addEventListener('pointerup', event => {
+      if (!state.draggingZoomMarker) return;
+      state.draggingZoomMarker = false;
+      zoomCanvas.releasePointerCapture(event.pointerId);
+      const correctedFrame = frameIndex();
+      state.manualMarkers.set(correctedFrame, { ...state.tracker });
+      const correctedSample = state.samples.find(sample => sample.frame === correctedFrame);
+      if (correctedSample) correctedSample.x = state.tracker.x + state.tracker.width / 2;
+      state.confidence = 1;
+      captureTemplate();
+      state.lastPosition = { x: state.tracker.x + state.tracker.width / 2, y: state.tracker.y + state.tracker.height / 2 };
+      state.lastTrackedTime = video.currentTime;
+      recalculateSamples();
+      updateReadouts();
+      setStatus(`Marker corrected at frame ${correctedFrame}. Step or play to continue through the selected period.`);
+      drawVideoFrame();
+    });
+
+    displayCanvas.addEventListener('pointerup', event => {
+      if (!state.pointerStart) return;
+      displayCanvas.releasePointerCapture(event.pointerId);
+      if (state.draggingTracker) {
+        state.draggingTracker = false;
+        displayCanvas.style.cursor = 'grab';
+        const correctedFrame = frameIndex();
+        state.manualMarkers.set(correctedFrame, { ...state.tracker });
+        const correctedSample = state.samples.find(sample => sample.frame === correctedFrame);
+        if (correctedSample) correctedSample.x = state.tracker.x + state.tracker.width / 2;
+        captureTemplate();
+        state.lastPosition = { x: state.tracker.x + state.tracker.width / 2, y: state.tracker.y + state.tracker.height / 2 };
+        state.lastTrackedTime = video.currentTime;
+        recalculateSamples();
+        setStatus('Tracker corrected and target pixels updated. Resume playback to continue.');
+      } else if (state.mode === 'line') {
+        if (Math.abs(state.draft.x2 - state.draft.x1) >= 10) {
+          state.reference = state.draft;
+          setMode('zone');
+          setStatus('Line saved. Right-click the tracking start and end points.');
+        }
+      }
+      state.pointerStart = null;
+      state.draft = null;
+      updateReadyState();
+      drawVideoFrame();
+    });
+
+    elements.resetButton.addEventListener('click', () => {
+      stopTracking();
+      state.reference = null;
+      state.tracker = null;
+      state.trackingArea = null;
+      state.periodPoints = [];
+      state.manualMarkers.clear();
+      state.template = null;
+      setMode('line');
+      resetTrackingData();
+      setStatus('Draw a line, then right-click the start and end points of the tracking period.');
+      drawVideoFrame();
+    });
+
+    elements.startTrackingButton.addEventListener('click', () => startTracking());
+    elements.confirmTrackingButton.addEventListener('click', () => {
+      if (!state.tracking) return;
+      stopTracking('Tracking confirmed. Review the plot or adjust the markers and start tracking again.');
+    });
+    elements.recalculateButton.addEventListener('click', () => {
+      if (!state.samples.length || !pixelsPerMetre()) return;
+      recalculateSamples();
+      setStatus('Plot and speed values recalculated using the current line length and marker adjustments.');
+      updateReadyState();
+    });
+
+    elements.exportButton.addEventListener('click', () => {
+      const rows = ['time_s,tracker_x_px,horizontal_speed_m_s,confidence'];
+      state.samples.forEach(sample => rows.push([
+        sample.time.toFixed(6), sample.x.toFixed(2), sample.rawSpeed.toFixed(6), sample.confidence.toFixed(4)
+      ].join(',')));
+      const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'hip-speed.csv';
+      link.click();
+      URL.revokeObjectURL(url);
+    });
+
+    window.addEventListener('resize', drawPlot);
+    window.addEventListener('beforeunload', () => {
+      if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
+    });
+    drawPlot();
+  </script>
+</body>
+</html>
