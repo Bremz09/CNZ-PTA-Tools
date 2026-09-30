@@ -51,6 +51,10 @@
       align-items: end;
     }
 
+    .dashboard-controls .status-line {
+      grid-column: 1 / -1;
+    }
+
     .status-line {
       margin: 0;
       color: var(--color-text-muted);
@@ -335,29 +339,7 @@
 <body>
   <main class="page-shell">
     <section class="page-frame">
-      <header class="page-header">
-        <div class="page-title-row">
-          <div>
-            <p class="page-kicker">Performance data</p>
-            <h1 class="page-title">Video Analysis Dashboard</h1>
-            <p class="page-subtitle">Review average interval splits from the selected TP master workbook.</p>
-          </div>
-          <div class="page-actions">
-            <a class="btn btn-surface" href="video-analysis.html">Back to video analysis</a>
-          </div>
-        </div>
-      </header>
-
       <div class="page-body grid-stack">
-        <section class="dashboard-intro">
-          <div class="dashboard-intro-copy">
-            <p class="eyebrow">First view</p>
-            <h2 class="dashboard-title">Compare split rhythm by athlete.</h2>
-            <p class="dashboard-copy">Select an athlete to see the average of their recorded <strong>Split</strong> values, along with the individual intervals used in that average.</p>
-          </div>
-          <p class="status-line" id="status" role="status">Loading TP master workbook...</p>
-        </section>
-
         <section class="panel dashboard-controls" aria-label="Dashboard controls">
           <div class="field">
             <label for="genderSelect">Squad</label>
@@ -376,6 +358,7 @@
             <label for="workbookInput">Use another workbook</label>
             <input id="workbookInput" type="file" accept=".xlsx,.xls" />
           </div>
+          <p class="status-line" id="status" role="status">Loading TP master workbook...</p>
         </section>
 
         <div class="analysis-workspace">
@@ -409,7 +392,7 @@
         
         <section class="panel plot-panel" data-dashboard-panel="flying">
           <div class="plot-header">
-            <h2 id="plotTitle">Delivery speed by day</h2>
+            <h2 id="plotTitle">250 m lap split pace by day</h2>
             <div class="plot-actions">
               <label class="sr-only" for="groupBySelect">Group plot by</label>
               <select id="groupBySelect">
@@ -421,7 +404,7 @@
               <span class="status-line" id="plotInfo"></span>
             </div>
           </div>
-          <p class="plot-copy">Distance 437.5 m or greater; actions: Change, No Change, or Drop. Error bars show standard deviation when multiple speeds are recorded on a date.</p>
+          <p class="plot-copy">Equivalent 250 m lap split pace for records at least 437.5 m; actions: Change, No Change, or Drop. Error bars show standard deviation when multiple records are grouped.</p>
           <div class="plot-wrap">
             <canvas id="deliverySpeedChart" aria-label="Delivery speed by date chart"></canvas>
             <p class="plot-empty" id="plotEmpty" hidden>No matching delivery speed records for this athlete.</p>
@@ -430,10 +413,10 @@
 
         <section class="panel scatter-panel" data-dashboard-panel="flying">
           <div class="plot-header">
-            <h2>Delivery speed scatter</h2>
+            <h2>250 m lap split pace scatter</h2>
             <span class="status-line" id="scatterInfo"></span>
           </div>
-          <p class="plot-copy">All individual records matching the same distance and action filters.</p>
+          <p class="plot-copy">All individual equivalent 250 m lap split paces matching the same distance and action filters.</p>
           <div class="plot-wrap">
             <canvas id="deliverySpeedScatter" aria-label="Delivery speed scatter plot"></canvas>
             <p class="plot-empty" id="scatterEmpty" hidden>No matching delivery speed records for this athlete.</p>
@@ -672,7 +655,11 @@
     }
 
     function filteredPlotRows(rows) {
-      return filteredAnalysisRows(rows).filter(row => validNumber(row.Del_Speed));
+      return filteredAnalysisRows(rows).filter(row => validNumber(row.Del_Speed) && row.Del_Speed > 0);
+    }
+
+    function lapSplitSecondsFromDeliverySpeed(deliverySpeed) {
+      return 900 / deliverySpeed;
     }
 
     function eventNames(records) {
@@ -716,13 +703,13 @@
           const groupKey = chartGroupKey(dateKey);
           if (!groupKey) return;
           if (!grouped.has(groupKey)) grouped.set(groupKey, []);
-          grouped.get(groupKey).push({ speed: row.Del_Speed, competition: row.Title });
+          grouped.get(groupKey).push({ pace: lapSplitSecondsFromDeliverySpeed(row.Del_Speed), competition: row.Title });
         });
 
       const dates = [...grouped.keys()].sort();
       const chartStats = dates.map(date => {
         const records = grouped.get(date);
-        const values = records.map(record => record.speed);
+        const values = records.map(record => record.pace);
         const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
         const variance = values.length > 1
           ? values.reduce((sum, value) => sum + ((value - mean) ** 2), 0) / (values.length - 1)
@@ -738,14 +725,14 @@
       elements.deliverySpeedChart.hidden = chartStats.length === 0;
       const groupLabel = plotGrouping === "day" ? "days" : `${plotGrouping}s`;
       elements.plotInfo.textContent = chartStats.length ? `${chartStats.reduce((sum, stat) => sum + stat.count, 0)} records across ${chartStats.length} ${groupLabel}` : "";
-      elements.plotTitle.textContent = `Delivery speed by ${plotGrouping}`;
+      elements.plotTitle.textContent = `250 m lap split pace by ${plotGrouping}`;
       if (!chartStats.length) return;
 
       deliverySpeedChart = new Chart(elements.deliverySpeedChart, {
         type: "line",
         data: {
           datasets: [{
-            label: "Average delivery speed",
+            label: "Average 250 m lap split pace",
             data: chartStats.map(stat => ({ x: chartDateTimestamp(stat.date), y: stat.mean })),
             errorBars: chartStats,
             borderColor: "#0E4174",
@@ -777,7 +764,7 @@
                 },
                 label(context) {
                   const stat = chartStats[context.dataIndex];
-                  return `Average delivery speed: ${stat.mean.toFixed(2)}`;
+                  return `Average 250 m lap split pace: ${stat.mean.toFixed(2)} seconds`;
                 },
                 afterLabel(context) {
                   const stat = chartStats[context.dataIndex];
@@ -800,7 +787,7 @@
             y: {
               min: errorBarMinimum - chartMargin,
               max: errorBarMaximum + chartMargin,
-              title: { display: true, text: "Delivery speed" }
+              title: { display: true, text: "250 m lap split pace (seconds)" }
             }
           }
         }
@@ -817,21 +804,21 @@
 
       const points = plotRows.map(row => ({
         x: chartDateTimestamp(chartDateKey(row.Save_Date)),
-        y: row.Del_Speed,
+        y: lapSplitSecondsFromDeliverySpeed(row.Del_Speed),
         competition: row.Title,
         date: chartDateKey(row.Save_Date),
         distance: row.Distance,
         action: row.Action
       }));
-      const speedMinimum = Math.min(...points.map(point => point.y));
-      const speedMaximum = Math.max(...points.map(point => point.y));
-      const speedMargin = Math.max((speedMaximum - speedMinimum) * 0.08, 0.5);
+      const paceMinimum = Math.min(...points.map(point => point.y));
+      const paceMaximum = Math.max(...points.map(point => point.y));
+      const paceMargin = Math.max((paceMaximum - paceMinimum) * 0.08, 0.5);
 
       deliverySpeedScatter = new Chart(elements.deliverySpeedScatter, {
         type: "scatter",
         data: {
           datasets: [{
-            label: "Delivery speed",
+            label: "250 m lap split pace",
             data: points,
             backgroundColor: "rgba(219, 107, 48, 0.62)",
             borderColor: "#DB6B30",
@@ -855,7 +842,7 @@
                   return points[items[0].dataIndex].competition || "Competition not recorded";
                 },
                 label(context) {
-                  return `Delivery speed: ${context.raw.y.toFixed(2)}`;
+                  return `250 m lap split pace: ${context.raw.y.toFixed(2)} seconds`;
                 },
                 afterLabel(context) {
                   const point = points[context.dataIndex];
@@ -876,9 +863,9 @@
               }
             },
             y: {
-              min: speedMinimum - speedMargin,
-              max: speedMaximum + speedMargin,
-              title: { display: true, text: "Delivery speed" }
+              min: paceMinimum - paceMargin,
+              max: paceMaximum + paceMargin,
+              title: { display: true, text: "250 m lap split pace (seconds)" }
             }
           }
         }
