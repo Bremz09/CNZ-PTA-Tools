@@ -763,8 +763,8 @@
   <h2>Team Pursuit Video Timing</h2>
   <h3>Keys: S start, Z quarter lap, C change, D drop, R rider finish, T team finish, Space play/pause, arrows frame-step, Ctrl+arrows adaptive jump, Ctrl+Shift+arrows fixed jump.</h3>
   <input type="file" accept="video/mp4,video/quicktime" id="videoInput">
-  <button id="uploadAllBtn" type="button" title="Upload video (.mp4/.mov), timing data (.csv) and FIT sync (.tpsync) together — snaps to start automatically">Upload all files</button>
-  <input type="file" id="uploadAllInput" accept="video/mp4,video/quicktime,.csv,.json,.tpsync,application/octet-stream" multiple style="display:none;"><br><br>
+  <button id="uploadAllBtn" type="button" title="Upload video (.mp4/.mov), timing data (.csv) and FIT sync (.sync/.tpsync) together — snaps to start automatically">Upload all files</button>
+  <input type="file" id="uploadAllInput" accept="video/mp4,video/quicktime,.csv,.json,.sync,.tpsync,application/octet-stream" multiple style="display:none;"><br><br>
 
   <div class="container">
     <div class="video-section">
@@ -814,20 +814,40 @@
           <input id="rider1Input" type="text" placeholder="Rider 1">
         </div>
         <div>
-          <label for="changeTimeInput">Change Time (s)</label>
-          <input id="changeTimeInput" type="number" min="0" step="0.01" value="0.12">
+          <label for="rider1GearInput">Rider 1 Gear (in)</label>
+          <input id="rider1GearInput" type="number" min="1" step="0.1" placeholder="Gear inches">
         </div>
         <div>
           <label for="rider2Input">Rider 2</label>
           <input id="rider2Input" type="text" placeholder="Rider 2">
         </div>
         <div>
+          <label for="rider2GearInput">Rider 2 Gear (in)</label>
+          <input id="rider2GearInput" type="number" min="1" step="0.1" placeholder="Gear inches">
+        </div>
+        <div>
           <label for="rider3Input">Rider 3</label>
           <input id="rider3Input" type="text" placeholder="Rider 3">
         </div>
         <div>
+          <label for="rider3GearInput">Rider 3 Gear (in)</label>
+          <input id="rider3GearInput" type="number" min="1" step="0.1" placeholder="Gear inches">
+        </div>
+        <div>
           <label for="rider4Input">Rider 4</label>
           <input id="rider4Input" type="text" placeholder="Rider 4">
+        </div>
+        <div>
+          <label for="rider4GearInput">Rider 4 Gear (in)</label>
+          <input id="rider4GearInput" type="number" min="1" step="0.1" placeholder="Gear inches">
+        </div>
+        <div>
+          <label for="brokenQuarterInput">Broken?</label>
+          <input id="brokenQuarterInput" type="number" min="1" step="1" placeholder="Quarter">
+        </div>
+        <div>
+          <label for="changeTimeInput">Change Time (s)</label>
+          <input id="changeTimeInput" type="number" min="0" step="0.01" value="0.12">
         </div>
       </div>
       <div class="report-actions">
@@ -892,7 +912,11 @@
       <div class="fit-control-group fit-actions">
         <label>&nbsp;</label>
         <div class="fit-control-row">
+          <label class="flying-toggle" style="padding:5px 10px;border-width:1px;font-size:12px;">
+            <input type="checkbox" id="fitQuarterOverlayToggle" checked> Quarters
+          </label>
           <button id="fitSnapBtn" type="button">Snap to playhead</button>
+          <span id="blockShiftStatus" class="fit-control-value" title="Ctrl+Left-click drag the trace to shift quarters after the Broken? index">Block 2 shift: 0.00s</span>
         </div>
       </div>
     </div>
@@ -902,8 +926,8 @@
     <p>Select FIT files in one go, then drag each file onto the correct rider slot. Choose a shared metric, then left-drag to scrub video or right-drag to sync selected riders.</p>
     <div class="fit-sync-grid">
       <div class="fit-field">
-        <label for="fitFilesInput">FIT files (.fit)</label>
-        <input id="fitFilesInput" type="file" accept=".fit,application/octet-stream" multiple>
+        <label for="fitFilesInput">FIT files (.fit or .fit.gz)</label>
+        <input id="fitFilesInput" type="file" accept=".fit,.fit.gz,application/gzip,application/octet-stream" multiple>
         <div class="fit-file-note">Load multiple FIT files, then drag chips to rider slots below.</div>
         <div class="fit-control-row" style="margin-top:8px;">
           <button id="fitSaveSyncBtn" type="button">Save sync</button>
@@ -964,6 +988,12 @@
           </label>
           <label class="flying-toggle">
             <input type="checkbox" id="hlToggle" checked> HL
+          </label>
+          <label class="flying-toggle">
+            <input type="checkbox" id="deliveryBarsToggle"> Delivery bars
+          </label>
+          <label class="flying-toggle">
+            <input type="checkbox" id="gearDeliveryToggle"> Gear delivery
           </label>
           <div style="display:inline-flex;align-items:center;gap:6px;font-size:13px;">
             <label for="chartYMinInput" style="white-space:nowrap;">Y min</label>
@@ -1097,6 +1127,7 @@
     const jumpFramesInput = document.getElementById('jumpFramesInput');
     const fixedJumpFramesInput = document.getElementById('fixedJumpFramesInput');
     const changeTimeInput = document.getElementById('changeTimeInput');
+    const brokenQuarterInput = document.getElementById('brokenQuarterInput');
     const airDensityInput = document.getElementById('airDensityInput');
 
     const countryInput = document.getElementById('countryInput');
@@ -1105,6 +1136,12 @@
       document.getElementById('rider2Input'),
       document.getElementById('rider3Input'),
       document.getElementById('rider4Input')
+    ];
+    const riderGearInputs = [
+      document.getElementById('rider1GearInput'),
+      document.getElementById('rider2GearInput'),
+      document.getElementById('rider3GearInput'),
+      document.getElementById('rider4GearInput')
     ];
 
     const startBtn = document.getElementById('startBtn');
@@ -1165,6 +1202,8 @@
     const includeL1PowerToggle = document.getElementById('includeL1PowerToggle');
     const recovOnlyToggle = document.getElementById('recovOnlyToggle');
     const hlToggle = document.getElementById('hlToggle');
+    const deliveryBarsToggle = document.getElementById('deliveryBarsToggle');
+    const gearDeliveryToggle = document.getElementById('gearDeliveryToggle');
     const fitFilesInput = document.getElementById('fitFilesInput');
     const fitUnassignedList = document.getElementById('fitUnassignedList');
     const fitRiderSlots = [
@@ -1195,7 +1234,9 @@
     const fitScaleValue = document.getElementById('fitScaleValue');
     const fitSensitivityControl = document.getElementById('fitSensitivityControl');
     const fitSensitivityValue = document.getElementById('fitSensitivityValue');
+    const fitQuarterOverlayToggle = document.getElementById('fitQuarterOverlayToggle');
     const fitSnapBtn = document.getElementById('fitSnapBtn');
+    const blockShiftStatus = document.getElementById('blockShiftStatus');
     const fitSyncTargets = document.getElementById('fitSyncTargets');
     const fitStatusDisplay = document.getElementById('fitStatus');
 
@@ -1203,6 +1244,8 @@
     const deliverySpeedColor = '#e03c31';
     const averageLineColor = '#f7ea48';
     const inactiveRiderColor = '#94a3b8';
+    const WHEEL_CIRCUMFERENCE_M = 2.096;
+    const SPEED_KMH_PER_GEAR_INCH_RPM = (WHEEL_CIRCUMFERENCE_M / 27) * 60 / 1000;
     let flyingMode = false;
     let FitParserClass = null;
 
@@ -1216,6 +1259,8 @@
     let uploadedCsvStartTime = null;
     let hasUploadedTimingData = false;
     let hasVideoLoaded = false;
+    let brokenQuarterAutoDetected = false;
+    let secondBlockShift = 0;
 
     // Rider rotation: stores indices 0-3 into riderInputs
     let riderOrder = [0, 1, 2, 3];
@@ -1256,6 +1301,35 @@
     }
     function getRiderNames() {
       return riderInputs.map((inp, i) => inp.value.trim() || `Rider ${i + 1}`);
+    }
+    function detectBrokenQuarter() {
+      if (brokenQuarterAutoDetected || brokenQuarterInput.value.trim()) return;
+      const detectedIndex = splitRows.findIndex((row, index) => index >= 10 && row.quarterTime > 6);
+      if (detectedIndex === -1) return;
+      brokenQuarterInput.value = String(detectedIndex);
+      brokenQuarterAutoDetected = true;
+    }
+    function getBrokenQuarterInfo() {
+      const brokenQuarter = parseInt(brokenQuarterInput.value, 10);
+      const hasBrokenQuarter = Number.isInteger(brokenQuarter) && brokenQuarter >= 1 && brokenQuarter < splitRows.length;
+      return { brokenQuarter, hasBrokenQuarter };
+    }
+    function updateBlockShiftStatus() {
+      blockShiftStatus.textContent = `Block 2 shift: ${secondBlockShift.toFixed(2)}s`;
+    }
+    function getReportRows() {
+      const { brokenQuarter, hasBrokenQuarter } = getBrokenQuarterInfo();
+      const reportRows = hasBrokenQuarter
+        ? splitRows.filter((_, index) => index !== brokenQuarter)
+        : splitRows;
+
+      if (!hasBrokenQuarter) {
+        return reportRows;
+      }
+      return reportRows.map((row, index) => ({
+        ...row,
+        splitLabel: row.splitType === 'TEAM_FINISH' ? `Q${index + 1} (Finish)` : `Q${index + 1}`
+      }));
     }
     function getTitleText() { return countryInput.value.trim() || 'Untitled Session'; }
     function speedFromTime(s) { return s > 0 ? (SPLIT_DISTANCE_METERS / s) * 3.6 : 0; }
@@ -1350,6 +1424,14 @@
           resolve(fitData || {});
         });
       });
+    }
+    async function readFitFileBuffer(file) {
+      if (!/\.fit\.gz$/i.test(file.name)) return file.arrayBuffer();
+      if (typeof DecompressionStream === 'undefined') {
+        throw new Error('Gzip-compressed FIT files require a browser with DecompressionStream support.');
+      }
+      const decompressedStream = file.stream().pipeThrough(new DecompressionStream('gzip'));
+      return new Response(decompressedStream).arrayBuffer();
     }
     function extractFitRecords(fitData) {
       if (!fitData || typeof fitData !== 'object') return [];
@@ -1669,7 +1751,7 @@
 
       for (const file of files) {
         try {
-          const buffer = await file.arrayBuffer();
+          const buffer = await readFitFileBuffer(file);
           const fitData = await parseFitArrayBuffer(buffer);
           const records = extractFitRecords(fitData);
           const rows = normalizeFitRecordsToRows(records);
@@ -1756,6 +1838,29 @@
         return series.metricValues[lo - 1];
       }
       return series.metricValues[lo];
+    }
+
+    function getFitMetricValueAtVideoTime(stream, metricKey, videoTime) {
+      if (!stream || !metricKey || !Array.isArray(stream.rows) || stream.rows.length === 0 || !stream.timeColumnKey) return null;
+      const baseTime = Math.min(...stream.rows
+        .map((row) => toNumeric(row[stream.timeColumnKey]))
+        .filter((time) => time !== null));
+      if (!Number.isFinite(baseTime)) return null;
+
+      const targetTime = videoTime - (Number.isFinite(stream.offset) ? stream.offset : 0);
+      let closestValue = null;
+      let closestDistance = Infinity;
+      for (const row of stream.rows) {
+        const rawTime = toNumeric(row[stream.timeColumnKey]);
+        const metricValue = toNumeric(row[metricKey]);
+        if (rawTime === null || metricValue === null) continue;
+        const distance = Math.abs((rawTime - baseTime) - targetTime);
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestValue = metricValue;
+        }
+      }
+      return closestValue;
     }
     function snapFitSeriesToPlayhead() {
       if (fitSyncState.series.length === 0) {
@@ -1858,7 +1963,43 @@
       const [yMin, yMax] = findFitBounds(allValues);
       const xFromT = (t) => margin.l + ((t - viewMinT) / (viewMaxT - viewMinT || 1)) * plotWidth;
       const yFromV = (v) => margin.t + (1 - (v - yMin) / (yMax - yMin || 1)) * plotHeight;
-      fitSyncState.drawingData = { xFromT, viewMinT, viewMaxT, visibleSpan, plotWidth };
+      fitSyncState.drawingData = { xFromT, viewMinT, viewMaxT, visibleSpan, plotWidth, marginLeft: margin.l };
+
+      if (fitQuarterOverlayToggle.checked && splitRows.length > 0 && Number.isFinite(startTime)) {
+        const { brokenQuarter, hasBrokenQuarter } = getBrokenQuarterInfo();
+
+        let quarterStart = startTime;
+        let labelIndex = 0;
+        for (let index = 0; index < splitRows.length; index++) {
+          const row = splitRows[index];
+          const rawStart = quarterStart;
+          const rawEnd = row.endTime;
+          if (!Number.isFinite(rawEnd) || rawEnd <= rawStart) continue;
+          quarterStart = rawEnd;
+
+          // The logged "broken" quarter isn't a real quarter; skip drawing it.
+          if (hasBrokenQuarter && index === brokenQuarter) continue;
+          labelIndex++;
+
+          // Quarters after the broken-quarter index are the manually shiftable second block.
+          const shift = (hasBrokenQuarter && index > brokenQuarter) ? secondBlockShift : 0;
+          const segStart = rawStart + shift;
+          const segEnd = rawEnd + shift;
+
+          const left = Math.max(margin.l, xFromT(segStart));
+          const right = Math.min(width - margin.r, xFromT(segEnd));
+          if (right > left) {
+            fitPlotContext.fillStyle = getRiderColor(row.frontRiderIndex);
+            fitPlotContext.globalAlpha = 0.11;
+            fitPlotContext.fillRect(left, margin.t, right - left, plotHeight);
+            fitPlotContext.globalAlpha = 1;
+            fitPlotContext.fillStyle = 'rgba(15, 23, 42, 0.72)';
+            fitPlotContext.font = '11px sans-serif';
+            fitPlotContext.fillText(`Q${labelIndex}`, Math.max(left + 3, margin.l + 3), margin.t + 14);
+          }
+        }
+      }
+
       fitPlotContext.strokeStyle = 'rgba(31, 41, 55, 0.15)';
       fitPlotContext.lineWidth = 1;
       fitPlotContext.beginPath();
@@ -1923,7 +2064,7 @@
     }
 
     function getStandardizedQuarterTimeAt(index) {
-      const row = splitRows[index];
+      const row = getReportRows()[index];
       if (!row) return null;
       if (!isStandardizationEnabled()) return row.quarterTime;
       const factor = getStandardizationFactor();
@@ -1952,13 +2093,15 @@
     }
 
     function getStandardizedTotalTime() {
-      if (splitRows.length === 0) return null;
-      return getStandardizedRunningTimeForIndex(splitRows.length - 1);
+      const reportRows = getReportRows();
+      if (reportRows.length === 0) return null;
+      return getStandardizedRunningTimeForIndex(reportRows.length - 1);
     }
 
     function getRawTotalTime() {
-      if (splitRows.length === 0) return null;
-      return splitRows.reduce((acc, row) => acc + row.quarterTime, 0);
+      const reportRows = getReportRows();
+      if (reportRows.length === 0) return null;
+      return reportRows.reduce((acc, row) => acc + row.quarterTime, 0);
     }
 
     function getCurrentFrontRiderIndex() {
@@ -1988,9 +2131,10 @@
     }
 
     function getLapTotals() {
+      const reportRows = getReportRows();
       const lapTotals = [];
-      for (let lapStart = 0; lapStart < splitRows.length; lapStart += 4) {
-        const lapRows = splitRows.slice(lapStart, lapStart + 4);
+      for (let lapStart = 0; lapStart < reportRows.length; lapStart += 4) {
+        const lapRows = reportRows.slice(lapStart, lapStart + 4);
         let lapTotal = 0;
         for (const row of lapRows) lapTotal += row.quarterTime;
         lapTotals.push(lapTotal);
@@ -2012,19 +2156,18 @@
     }
 
     function getRunningTimeForRow(row, index) {
-      if (Number.isFinite(startTime) && Number.isFinite(row.endTime)) {
-        return Math.max(0, row.endTime - startTime);
-      }
+      const reportRows = getReportRows();
       let running = 0;
-      for (let i = 0; i <= index; i++) running += splitRows[i].quarterTime;
+      for (let i = 0; i <= index; i++) running += reportRows[i].quarterTime;
       return running;
     }
 
     function renderRows() {
       const names = getRiderNames();
+      const reportRows = getReportRows();
       reportTableBody.innerHTML = '';
-      for (let i = splitRows.length - 1; i >= 0; i--) {
-        const row = splitRows[i];
+      for (let i = reportRows.length - 1; i >= 0; i--) {
+        const row = reportRows[i];
         const riderName = row.frontRiderIndex >= 0
           ? (names[row.frontRiderIndex] || `Rider ${row.frontRiderIndex + 1}`)
           : 'No Active Rider';
@@ -2040,25 +2183,52 @@
         `;
         reportTableBody.appendChild(tr);
       }
-      reportTable.style.display = splitRows.length > 0 ? 'table' : 'none';
+      reportTable.style.display = reportRows.length > 0 ? 'table' : 'none';
       updateTitle();
       renderReportChart();
       renderLapSummaryTable();
       renderFirstLapTable();
       renderKiloSplitsTable();
       renderLeadLapsTable();
+      drawFitPlot();
     }
 
     function getChartRows() {
-      return splitRows.map((row) => ({
+      return getReportRows().map((row) => ({
         label: row.splitLabel,
         riderIndex: row.frontRiderIndex,
         riderName: getRiderNames()[row.frontRiderIndex] || 'No Active Rider',
         teamSpeed: row.teamSpeed,
-        deliverySpeed: row.deliverySpeed,
+        deliverySpeed: getChartDeliverySpeed(row),
         quarterTime: row.quarterTime,
         deliveryAdjusted: row.deliveryAdjusted
       }));
+    }
+
+    function getGearDeliverySpeed(row) {
+      if (row.frontRiderIndex < 0 || !Number.isFinite(row.endTime)) return null;
+      const gearInches = parseFloat(riderGearInputs[row.frontRiderIndex].value);
+      if (!(gearInches > 0)) return null;
+
+      const cadenceStream = getAssignedFitFile(row.frontRiderIndex);
+      const cadenceKey = getCadenceColumnKeyForStream(cadenceStream);
+      const cadence = getFitMetricValueAtVideoTime(cadenceStream, cadenceKey, getDisplayedRowEndTime(row) - 2);
+      if (!(cadence > 0)) return null;
+      return cadence * gearInches * SPEED_KMH_PER_GEAR_INCH_RPM;
+    }
+
+    function getDisplayedRowEndTime(row) {
+      const { brokenQuarter, hasBrokenQuarter } = getBrokenQuarterInfo();
+      if (!hasBrokenQuarter || !Number.isFinite(secondBlockShift)) return row.endTime;
+      const sourceIndex = splitRows.findIndex((sourceRow) => sourceRow === row || (
+        sourceRow.endTime === row.endTime && sourceRow.splitType === row.splitType
+      ));
+      return row.endTime + (sourceIndex > brokenQuarter ? secondBlockShift : 0);
+    }
+
+    function getChartDeliverySpeed(row) {
+      if (!gearDeliveryToggle.checked) return row.deliverySpeed;
+      return getGearDeliverySpeed(row) ?? row.deliverySpeed;
     }
 
     function getRiderColor(riderIndex) {
@@ -2084,10 +2254,12 @@
         chartLegend.appendChild(item);
       }
 
-      const deliveryItem = document.createElement('span');
-      deliveryItem.className = 'legend-item';
-      deliveryItem.innerHTML = '<span class="legend-dot"></span>Delivery speed';
-      chartLegend.appendChild(deliveryItem);
+      if (!deliveryBarsToggle.checked) {
+        const deliveryItem = document.createElement('span');
+        deliveryItem.className = 'legend-item';
+        deliveryItem.innerHTML = '<span class="legend-dot"></span>Delivery speed';
+        chartLegend.appendChild(deliveryItem);
+      }
 
       if (showPostFirstLapAverageLine) {
         const averageItem = document.createElement('span');
@@ -2127,7 +2299,13 @@
           const hlTeamSpeed = combinedTime > 0 ? (125 / combinedTime) * 3.6 : 0;
           const hasChangeOrDrop = a.deliveryAdjusted || b.deliveryAdjusted;
           const hlDeliverySpeed = hasChangeOrDrop
-            ? (125 / Math.max(combinedTime - getChangeTimeSeconds(), 0.001)) * 3.6
+            || gearDeliveryToggle.checked
+            ? speedFromDistanceTime(
+              125,
+              [a, b].reduce((time, split) => time + (split.deliverySpeed > 0
+                ? (SPLIT_DISTANCE_METERS * 3.6) / split.deliverySpeed
+                : split.quarterTime), 0)
+            )
             : hlTeamSpeed;
           rows.push({
             label: b.label,
@@ -2164,16 +2342,18 @@
       const chartWidth = width - padding.left - padding.right;
       const chartHeight = height - padding.top - padding.bottom;
       const maxDeliverySpeed = Math.max(...rows.map((row) => row.deliverySpeed), 1);
-      const minTeamSpeed = Math.min(...rows.map((row) => row.teamSpeed));
+      const deliveryBarsMode = deliveryBarsToggle.checked;
+      const chartBarValues = rows.map((row) => deliveryBarsMode ? row.deliverySpeed : row.teamSpeed);
+      const minChartSpeed = Math.min(...chartBarValues);
       const userYMin = parseFloat(document.getElementById('chartYMinInput').value);
       const userYMax = parseFloat(document.getElementById('chartYMaxInput').value);
-      const axisMin = Number.isFinite(userYMin) ? userYMin : minTeamSpeed - 1;
+      const axisMin = Number.isFinite(userYMin) ? userYMin : minChartSpeed - 1;
       const axisMax = Number.isFinite(userYMax) ? Math.max(userYMax, axisMin + 1) : Math.max(maxDeliverySpeed + 1, axisMin + 1);
       const axisRange = Math.max(0.001, axisMax - axisMin);
       const tickCount = 5;
       const baseY = padding.top + chartHeight;
       const barSlot = chartWidth / rows.length;
-      const barWidth = Math.min(30, Math.max(8, barSlot * 0.35));
+      const barWidth = Math.min(40, Math.max(8, barSlot * 0.82));
 
       reportChartContext.font = '12px sans-serif';
       reportChartContext.textAlign = 'right';
@@ -2226,7 +2406,8 @@
 
       rows.forEach((row, index) => {
         const centerX = padding.left + barSlot * index + barSlot / 2;
-        const barHeight = ((row.teamSpeed - axisMin) / axisRange) * chartHeight;
+        const barValue = deliveryBarsMode ? row.deliverySpeed : row.teamSpeed;
+        const barHeight = ((barValue - axisMin) / axisRange) * chartHeight;
         const barX = centerX - barWidth / 2;
         const barY = baseY - barHeight;
         const dotY = baseY - ((row.deliverySpeed - axisMin) / axisRange) * chartHeight;
@@ -2234,10 +2415,12 @@
         reportChartContext.fillStyle = getRiderColor(row.riderIndex);
         reportChartContext.fillRect(barX, barY, barWidth, barHeight);
 
-        reportChartContext.fillStyle = deliverySpeedColor;
-        reportChartContext.beginPath();
-        reportChartContext.arc(centerX, dotY, 5, 0, Math.PI * 2);
-        reportChartContext.fill();
+        if (!deliveryBarsMode) {
+          reportChartContext.fillStyle = deliverySpeedColor;
+          reportChartContext.beginPath();
+          reportChartContext.arc(centerX, dotY, 5, 0, Math.PI * 2);
+          reportChartContext.fill();
+        }
 
         reportChartContext.save();
         reportChartContext.translate(centerX, baseY + 8);
@@ -2254,10 +2437,11 @@
     }
 
     function renderLapSummaryTable() {
+      const reportRows = getReportRows();
       lapSummaryTableBody.innerHTML = '';
       const completedLaps = []; // { total, riderIndices }
-      for (let lapStart = 0; lapStart < splitRows.length; lapStart += 4) {
-        const lapRows = splitRows.slice(lapStart, lapStart + 4);
+      for (let lapStart = 0; lapStart < reportRows.length; lapStart += 4) {
+        const lapRows = reportRows.slice(lapStart, lapStart + 4);
         if (lapRows.length < 4) continue;
         let lapTotal = 0;
         for (const row of lapRows) lapTotal += row.quarterTime;
@@ -2341,6 +2525,7 @@
     }
 
     function renderFirstLapTable() {
+      const reportRows = getReportRows();
       firstLapTableBody.innerHTML = '';
       lapAveragesTableBody.innerHTML = '';
       const showStandardized = isStandardizationEnabled();
@@ -2351,8 +2536,8 @@
 
       const lapTotalsRaw = [];
       const lapTotalsStd = [];
-      for (let lapStart = 0; lapStart < splitRows.length; lapStart += 4) {
-        const lapRows = splitRows.slice(lapStart, lapStart + 4);
+      for (let lapStart = 0; lapStart < reportRows.length; lapStart += 4) {
+        const lapRows = reportRows.slice(lapStart, lapStart + 4);
         if (lapRows.length < 4) continue;
         let raw = 0;
         for (const row of lapRows) raw += row.quarterTime;
@@ -2364,7 +2549,7 @@
       const averageOverallStd = getAverageLapSplitOverall(lapTotalsStd);
       const averageAfterFirstStd = getAverageLapSplitAfterFirstLap(lapTotalsStd);
 
-      const firstLap = splitRows.slice(0, 4);
+      const firstLap = reportRows.slice(0, 4);
       if (firstLap.length === 0) {
         firstLapTable.hidden = true;
         firstLapEmpty.hidden = false;
@@ -2423,6 +2608,18 @@
       );
     }
 
+    function buildRealQuarterBounds(rows) {
+      const bounds = [];
+      let cursor = Number.isFinite(startTime) ? startTime : 0;
+      for (const row of rows) {
+        const start = cursor;
+        const end = Number.isFinite(row.endTime) ? row.endTime : start;
+        bounds.push({ start, end });
+        cursor = end;
+      }
+      return bounds;
+    }
+
     function getAverageMetricForVideoInterval(stream, metricKey, startVideoTime, endVideoTime) {
       if (!stream || !metricKey || !Array.isArray(stream.rows) || stream.rows.length === 0 || !stream.timeColumnKey) return null;
       const offset = Number.isFinite(stream.offset) ? stream.offset : 0;
@@ -2451,7 +2648,30 @@
       return count > 0 ? sum / count : null;
     }
 
+    // Quarters at or after the Broken? index are the manually shiftable second block.
+    function getAverageMetricOverQuarterRange(stream, metricKey, bounds, fromIndex, toIndexExclusive, clipStart) {
+      const { brokenQuarter, hasBrokenQuarter } = getBrokenQuarterInfo();
+      let weightedSum = 0;
+      let weightedDuration = 0;
+      for (let i = fromIndex; i < toIndexExclusive; i++) {
+        const bound = bounds[i];
+        if (!bound) continue;
+        const shift = (hasBrokenQuarter && i >= brokenQuarter) ? secondBlockShift : 0;
+        let start = bound.start + shift;
+        const end = bound.end + shift;
+        if (Number.isFinite(clipStart)) start = Math.max(start, clipStart);
+        if (!(end > start)) continue;
+        const avg = getAverageMetricForVideoInterval(stream, metricKey, start, end);
+        if (avg == null) continue;
+        const duration = end - start;
+        weightedSum += avg * duration;
+        weightedDuration += duration;
+      }
+      return weightedDuration > 0 ? weightedSum / weightedDuration : null;
+    }
+
     function renderRiderCadenceLapTable() {
+      const reportRows = getReportRows();
       riderCadenceLapTableHeadRow.innerHTML = '';
       riderCadenceLapTableBody.innerHTML = '';
 
@@ -2475,34 +2695,24 @@
         return;
       }
 
-      const completedLapCount = Math.floor(splitRows.length / 4);
+      const completedLapCount = Math.floor(reportRows.length / 4);
       if (completedLapCount === 0) {
         riderCadenceLapTable.hidden = true;
         riderCadenceLapEmpty.hidden = false;
         return;
       }
 
+      const quarterBounds = buildRealQuarterBounds(reportRows);
       const lapBounds = [];
-      let elapsed = 0;
       for (let lap = 0; lap < completedLapCount; lap++) {
-        const lapStartElapsed = elapsed;
-        let lapDuration = 0;
-        for (let q = 0; q < 4; q++) {
-          lapDuration += splitRows[lap * 4 + q].quarterTime;
-        }
-        const lapEndElapsed = lapStartElapsed + lapDuration;
-        lapBounds.push({
-          start: (Number.isFinite(startTime) ? startTime : 0) + lapStartElapsed,
-          end: (Number.isFinite(startTime) ? startTime : 0) + lapEndElapsed
-        });
-        elapsed = lapEndElapsed;
+        lapBounds.push({ from: lap * 4, to: lap * 4 + 4 });
       }
 
       // Determine the first lap (0-indexed) at which each rider drops out.
       const riderDropLap = {};
-      for (let i = 0; i < splitRows.length; i++) {
-        if (splitRows[i].eventLabel === 'Drop') {
-          const droppedRider = splitRows[i].frontRiderIndex;
+      for (let i = 0; i < reportRows.length; i++) {
+        if (reportRows[i].eventLabel === 'Drop') {
+          const droppedRider = reportRows[i].frontRiderIndex;
           if (droppedRider >= 0 && !(droppedRider in riderDropLap)) {
             riderDropLap[droppedRider] = Math.floor(i / 4);
           }
@@ -2525,7 +2735,7 @@
         if (!stream || !cadenceKey) continue;
         for (let lapIndex = 1; lapIndex < lapBounds.length; lapIndex++) {
           if (riderDropLap[riderIndex] != null && lapIndex >= riderDropLap[riderIndex]) continue;
-          const avgCadence = getAverageMetricForVideoInterval(stream, cadenceKey, lapBounds[lapIndex].start, lapBounds[lapIndex].end);
+          const avgCadence = getAverageMetricOverQuarterRange(stream, cadenceKey, quarterBounds, lapBounds[lapIndex].from, lapBounds[lapIndex].to);
           if (avgCadence != null) cadenceHeatValues.push(avgCadence);
         }
       }
@@ -2571,7 +2781,7 @@
             tr.appendChild(td);
             return;
           }
-          const avgCadence = getAverageMetricForVideoInterval(stream, cadenceKey, bound.start, bound.end);
+          const avgCadence = getAverageMetricOverQuarterRange(stream, cadenceKey, quarterBounds, bound.from, bound.to);
           if (avgCadence != null) {
             hasAnyCadence = true;
             td.textContent = avgCadence.toFixed(1);
@@ -2592,10 +2802,11 @@
     }
 
     function renderKiloSplitsTable() {
+      const reportRows = getReportRows();
       kiloSplitsTableBody.innerHTML = '';
       const kilos = []; // { total, riderIndices }
-      for (let start = 0; start < splitRows.length; start += QUARTERS_PER_KILO) {
-        const kiloRows = splitRows.slice(start, start + QUARTERS_PER_KILO);
+      for (let start = 0; start < reportRows.length; start += QUARTERS_PER_KILO) {
+        const kiloRows = reportRows.slice(start, start + QUARTERS_PER_KILO);
         if (kiloRows.length < QUARTERS_PER_KILO) break;
         let total = 0;
         for (const row of kiloRows) total += row.quarterTime;
@@ -2633,48 +2844,46 @@
     }
 
     function renderLeadLapsTable() {
+      const reportRows = getReportRows();
       const names = getRiderNames();
       const includeL1Power = includeL1PowerToggle ? includeL1PowerToggle.checked : true;
       const recovOnly = recovOnlyToggle ? recovOnlyToggle.checked : true;
 
-      // Compute video time at end of lap 1 (first 4 quarters)
-      const lap1EndVideoTime = (() => {
-        const base = Number.isFinite(startTime) ? startTime : 0;
-        let t = base;
-        for (let i = 0; i < Math.min(4, splitRows.length); i++) t += splitRows[i].quarterTime;
-        return t;
-      })();
+      const quarterBounds = buildRealQuarterBounds(reportRows);
+
+      // Video time at the end of lap 1 (first 4 quarters), from the real recorded positions.
+      const lap1EndIndex = Math.min(4, reportRows.length) - 1;
+      const lap1EndVideoTime = lap1EndIndex >= 0
+        ? quarterBounds[lap1EndIndex].end
+        : (Number.isFinite(startTime) ? startTime : 0);
 
       // Build stints: consecutive quarters with the same frontRiderIndex
-      const stints = []; // { riderIndex, quarters, startTime, endTime }
-      let elapsed = Number.isFinite(startTime) ? startTime : 0;
-      for (const row of splitRows) {
-        const rowStart = elapsed;
-        const rowEnd = elapsed + row.quarterTime;
+      const stints = []; // { riderIndex, quarters, startIndex, endIndex }
+      for (let i = 0; i < reportRows.length; i++) {
+        const row = reportRows[i];
         const last = stints[stints.length - 1];
         if (last && last.riderIndex === row.frontRiderIndex) {
           last.quarters++;
-          last.endTime = rowEnd;
+          last.endIndex = i + 1;
         } else {
-          stints.push({ riderIndex: row.frontRiderIndex, quarters: 1, startTime: rowStart, endTime: rowEnd });
+          stints.push({ riderIndex: row.frontRiderIndex, quarters: 1, startIndex: i, endIndex: i + 1 });
         }
-        elapsed = rowEnd;
       }
 
       // Collect turns per rider (skip non-riders with index < 0)
       const riderTurns = {}; // riderIndex -> [quarterCounts per turn]
       const riderTurnPowers = {}; // riderIndex -> [avg power per turn]
-      for (const { riderIndex, quarters, startTime: turnStart, endTime: turnEnd } of stints) {
+      for (const { riderIndex, quarters, startIndex, endIndex } of stints) {
         if (riderIndex < 0) continue;
         if (!riderTurns[riderIndex]) riderTurns[riderIndex] = [];
         if (!riderTurnPowers[riderIndex]) riderTurnPowers[riderIndex] = [];
         riderTurns[riderIndex].push(quarters);
         const stream = fitSyncState.streams[riderIndex];
         const powerKey = getPowerColumnKeyForStream(stream);
-        const effectiveTurnStart = includeL1Power ? turnStart : Math.max(turnStart, lap1EndVideoTime);
+        const clipStart = includeL1Power ? undefined : lap1EndVideoTime;
         riderTurnPowers[riderIndex].push(
-          stream && powerKey && effectiveTurnStart < turnEnd
-            ? getAverageMetricForVideoInterval(stream, powerKey, effectiveTurnStart, turnEnd)
+          stream && powerKey
+            ? getAverageMetricOverQuarterRange(stream, powerKey, quarterBounds, startIndex, endIndex, clipStart)
             : null
         );
       }
@@ -2696,29 +2905,26 @@
       let order = [0, 1, 2, 3];
       let pos = 0;
       let p1SpecialMoveUsed = false;
-      let powerElapsed = Number.isFinite(startTime) ? startTime : 0;
-      for (const row of splitRows) {
-        const rowStart = powerElapsed;
-        const rowEnd = powerElapsed + row.quarterTime;
-        const effectiveRowStart = includeL1Power ? rowStart : Math.max(rowStart, lap1EndVideoTime);
+      for (let i = 0; i < reportRows.length; i++) {
+        const row = reportRows[i];
+        const clipStart = includeL1Power ? undefined : lap1EndVideoTime;
 
-        for (let offset = 0; offset < order.length; offset++) {
-          const riderIndex = order[(pos + offset) % order.length];
+        for (let posOffset = 0; posOffset < order.length; posOffset++) {
+          const riderIndex = order[(pos + posOffset) % order.length];
           const streamInfo = riderPowerStreams[riderIndex];
           if (!streamInfo || !streamInfo.stream || !streamInfo.powerKey) continue;
-          if (effectiveRowStart >= rowEnd) continue;
-          const avgPower = getAverageMetricForVideoInterval(streamInfo.stream, streamInfo.powerKey, effectiveRowStart, rowEnd);
+          const avgPower = getAverageMetricOverQuarterRange(streamInfo.stream, streamInfo.powerKey, quarterBounds, i, i + 1, clipStart);
           if (!Number.isFinite(avgPower)) continue;
 
           const buckets = riderPositionPowers[riderIndex];
           buckets.all.push(avgPower);
-          if (offset === 0) {
+          if (posOffset === 0) {
             buckets.p1.push(avgPower);
           } else {
             buckets.recovery.push(avgPower);
-            if (offset === 1) buckets.p2.push(avgPower);
-            if (offset === 2) buckets.p3.push(avgPower);
-            if (offset === 3) buckets.p4.push(avgPower);
+            if (posOffset === 1) buckets.p2.push(avgPower);
+            if (posOffset === 2) buckets.p3.push(avgPower);
+            if (posOffset === 3) buckets.p4.push(avgPower);
           }
         }
 
@@ -2740,13 +2946,11 @@
             if (pos >= order.length) pos = 0;
           }
         }
-
-        powerElapsed = rowEnd;
       }
 
       // Collect delivery speeds per rider for avg delivery split calc
       const riderDeliverySpeeds = {};
-      for (const row of splitRows) {
+      for (const row of reportRows) {
         if (row.frontRiderIndex < 0) continue;
         if (!riderDeliverySpeeds[row.frontRiderIndex]) riderDeliverySpeeds[row.frontRiderIndex] = [];
         riderDeliverySpeeds[row.frontRiderIndex].push(row.deliverySpeed);
@@ -2754,8 +2958,8 @@
 
       // For SD: exclude first lap (first 4 quarters) and exclude the final quarter
       const riderDeliverySpeedsForSd = {};
-      for (let i = 4; i < splitRows.length - 1; i++) {
-        const row = splitRows[i];
+      for (let i = 4; i < reportRows.length - 1; i++) {
+        const row = reportRows[i];
         if (row.frontRiderIndex < 0) continue;
         if (!riderDeliverySpeedsForSd[row.frontRiderIndex]) riderDeliverySpeedsForSd[row.frontRiderIndex] = [];
         riderDeliverySpeedsForSd[row.frontRiderIndex].push(row.deliverySpeed);
@@ -2934,12 +3138,13 @@
       const sessionLabel = getTitleText();
       const now = new Date();
       const sessionDateTime = now.toISOString().slice(0, 19).replace('T', ' ');
+      const reportRows = getReportRows();
 
       const rows = [];
       let cumulativeTime = 0;
 
-      for (let i = 0; i < splitRows.length; i++) {
-        const row = splitRows[i];
+      for (let i = 0; i < reportRows.length; i++) {
+        const row = reportRows[i];
         cumulativeTime += row.quarterTime;
         const appendEvent = row.eventLabel === 'None' ? 'No Change' : row.eventLabel;
 
@@ -3019,9 +3224,13 @@
       pendingDeliveryAdjustment = false;
       pendingRiderFinishTime = null;
       currentEventLabel = '';
+      brokenQuarterAutoDetected = false;
+      secondBlockShift = 0;
+      brokenQuarterInput.value = '';
       riderOrder = [0, 1, 2, 3];
       frontPosition = 0;
       splitRows.length = 0;
+      updateBlockShiftStatus();
       renderRows();
       updateTitle();
       setStatus('Waiting for start.');
@@ -3156,6 +3365,7 @@
       // Replay all rotations so every row has the correct frontRiderIndex
       replayRiderRotations();
       renumberRows();
+      detectBrokenQuarter();
 
       const names = getRiderNames();
       const newFront = getCurrentFrontRiderIndex();
@@ -3401,6 +3611,8 @@
     hlToggle.addEventListener('change', () => {
       renderReportChart();
     });
+    deliveryBarsToggle.addEventListener('change', renderReportChart);
+    gearDeliveryToggle.addEventListener('change', renderReportChart);
     document.getElementById('chartYMinInput').addEventListener('input', renderReportChart);
     document.getElementById('chartYMaxInput').addEventListener('input', renderReportChart);
 
@@ -3432,6 +3644,7 @@
       lines.push(`# startTime,${startTime != null ? startTime : ''}`);
       lines.push(`# title,"${getTitleText()}"`);
       riderInputs.forEach((inp, i) => lines.push(`# rider${i + 1},"${inp.value.trim()}"`));
+      riderGearInputs.forEach((inp, i) => lines.push(`# rider${i + 1}Gear,${inp.value}`));
       const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -3504,6 +3717,12 @@
             riderInputs.forEach((inp, i) => {
               if (parts[0] === `rider${i + 1}`) inp.value = parts[1].replace(/^"|"$/g, '');
             });
+              riderGearInputs.forEach((inp, i) => {
+                if (parts[0] === `rider${i + 1}Gear`) inp.value = parts[1] || '';
+              });
+            riderGearInputs.forEach((inp, i) => {
+              if (parts[0] === `rider${i + 1}Gear`) inp.value = parts[1] || '';
+            });
           }
 
           // Restore splitRows
@@ -3548,6 +3767,7 @@
 
           replayRiderRotations();
           renumberRows();
+          detectBrokenQuarter();
           updateTitle();
           renderRows();
           csvUploadInput.value = '';
@@ -3579,7 +3799,9 @@
 
     countryInput.addEventListener('input', updateTitle);
     airDensityInput.addEventListener('input', renderRows);
+    brokenQuarterInput.addEventListener('input', renderRows);
     riderInputs.forEach((input) => input.addEventListener('input', renderRows));
+    riderGearInputs.forEach((input) => input.addEventListener('input', renderReportChart));
 
     fitFilesInput.addEventListener('change', async (event) => {
       const files = Array.from(event.target.files || []);
@@ -3635,7 +3857,7 @@
 
       const videoFile = files.find(f => f.type.startsWith('video/') || /\.(mp4|mov|qt)$/i.test(f.name));
       const csvFile   = files.find(f => /\.csv$/i.test(f.name));
-      const syncFile  = files.find(f => /\.(tpsync|json)$/i.test(f.name));
+      const syncFile  = files.find(f => /\.(sync|tpsync|json)$/i.test(f.name));
 
       const tasks = [];
 
@@ -3715,6 +3937,7 @@
                 if (splitType === 'TEAM_FINISH') teamFinished = true;
               }
               lastMarkerTime = splitRows.length > 0 ? splitRows[splitRows.length - 1].endTime : startTime;
+              detectBrokenQuarter();
               replayRiderRotations();
               renumberRows();
               updateTitle();
@@ -3818,6 +4041,10 @@
       drawFitPlot();
     });
 
+    fitQuarterOverlayToggle.addEventListener('change', () => {
+      drawFitPlot();
+    });
+
     fitSensitivityControl.addEventListener('input', (event) => {
       const raw = toNumeric(event.target.value);
       if (raw === null) return;
@@ -3828,7 +4055,6 @@
     fitSnapBtn.addEventListener('click', () => {
       snapFitSeriesToPlayhead();
     });
-
     fitPlot.addEventListener('contextmenu', (event) => {
       event.preventDefault();
     });
@@ -3842,7 +4068,17 @@
         return;
       }
       if (event.button === 0) {
-        fitSyncState.pointerMode = 'left';
+        if (event.ctrlKey) {
+          const { hasBrokenQuarter } = getBrokenQuarterInfo();
+          if (!hasBrokenQuarter) {
+            setFitStatus('Set the "Broken?" quarter index before shifting the second block.', 'warn');
+            fitSyncState.pointerMode = 'none';
+            return;
+          }
+          fitSyncState.pointerMode = 'shiftBlockTwo';
+        } else {
+          fitSyncState.pointerMode = 'left';
+        }
       }
     });
 
@@ -3863,6 +4099,11 @@
         updateFitStats();
         drawFitPlot();
         renderRiderCadenceLapTable();
+      } else if (fitSyncState.pointerMode === 'shiftBlockTwo') {
+        secondBlockShift += deltaT;
+        updateBlockShiftStatus();
+        drawFitPlot();
+        renderRiderCadenceLapTable();
       } else if (fitSyncState.pointerMode === 'left') {
         const currentVideoT = Number.isFinite(video.currentTime) ? video.currentTime : 0;
         const nextVideoT = currentVideoT - deltaT;
@@ -3879,6 +4120,9 @@
     function releaseFitPointer(event) {
       if (fitPlot.hasPointerCapture(event.pointerId)) {
         fitPlot.releasePointerCapture(event.pointerId);
+      }
+      if (fitSyncState.pointerMode === 'shiftBlockTwo') {
+        renderRows();
       }
       fitSyncState.pointerMode = 'none';
     }

@@ -46,7 +46,7 @@
 
     .dashboard-controls {
       display: grid;
-      grid-template-columns: repeat(3, minmax(200px, 1fr));
+      grid-template-columns: repeat(5, minmax(150px, 1fr));
       gap: 14px;
       align-items: end;
     }
@@ -189,6 +189,46 @@
       border-radius: 8px;
       background: var(--color-surface);
       color: var(--color-text-primary);
+    }
+
+    .dashboard-controls input[type="date"],
+    .dashboard-controls select {
+      width: 100%;
+      min-height: 36px;
+      padding: 7px 9px;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      background: var(--color-surface);
+      color: var(--color-text-primary);
+    }
+
+    .dashboard-controls select[multiple] {
+      min-height: 92px;
+      padding: 4px;
+    }
+
+    .race-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .race-actions button {
+      flex: 1;
+      min-height: 30px;
+      padding: 5px 7px;
+      border: 1px solid var(--color-border);
+      border-radius: 7px;
+      background: var(--color-surface);
+      color: var(--color-text-primary);
+      cursor: pointer;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .race-actions button:hover,
+    .race-actions button:focus-visible {
+      border-color: var(--color-brand-orange);
     }
 
     .plot-actions .btn {
@@ -355,6 +395,24 @@
             </select>
           </div>
           <div class="field">
+            <label for="dateFrom">Date from</label>
+            <input id="dateFrom" type="date" />
+          </div>
+          <div class="field">
+            <label for="dateTo">Date to</label>
+            <input id="dateTo" type="date" />
+          </div>
+          <div class="field">
+            <label for="raceSelect">Race</label>
+            <select id="raceSelect" multiple size="4" disabled>
+              <option>Waiting for workbook...</option>
+            </select>
+            <div class="race-actions" role="group" aria-label="Race selection actions">
+              <button id="selectAllRaces" type="button" disabled>Select all</button>
+              <button id="deselectAllRaces" type="button" disabled>Deselect all</button>
+            </div>
+          </div>
+          <div class="field">
             <label for="workbookInput">Use another workbook</label>
             <input id="workbookInput" type="file" accept=".xlsx,.xls" />
           </div>
@@ -510,6 +568,11 @@
     const elements = {
       genderSelect: document.getElementById("genderSelect"),
       athleteSelect: document.getElementById("athleteSelect"),
+      raceSelect: document.getElementById("raceSelect"),
+      selectAllRaces: document.getElementById("selectAllRaces"),
+      deselectAllRaces: document.getElementById("deselectAllRaces"),
+      dateFrom: document.getElementById("dateFrom"),
+      dateTo: document.getElementById("dateTo"),
       workbookInput: document.getElementById("workbookInput"),
       status: document.getElementById("status"),
       sheetInfo: document.getElementById("sheetInfo"),
@@ -656,6 +719,42 @@
 
     function filteredPlotRows(rows) {
       return filteredAnalysisRows(rows).filter(row => validNumber(row.Del_Speed) && row.Del_Speed > 0);
+    }
+
+    function selectedRaceTitles() {
+      return new Set([...elements.raceSelect.selectedOptions].map(option => option.value));
+    }
+
+    function matchesDateFilter(row) {
+      const dateKey = chartDateKey(row.Save_Date);
+      const dateFrom = elements.dateFrom.value;
+      const dateTo = elements.dateTo.value;
+      return (!dateFrom || dateKey >= dateFrom) && (!dateTo || dateKey <= dateTo);
+    }
+
+    function matchesDashboardFilters(row) {
+      const selectedRaces = selectedRaceTitles();
+      return matchesDateFilter(row) && selectedRaces.has(String(row.Title ?? ""));
+    }
+
+    function filteredAthleteRows(athlete) {
+      return athleteRows.filter(row => String(row.Front) === athlete && matchesDashboardFilters(row));
+    }
+
+    function updateRaceOptions() {
+      const athlete = elements.athleteSelect.value;
+      const races = [...new Set(athleteRows
+        .filter(row => String(row.Front) === athlete)
+        .filter(matchesDateFilter)
+        .map(row => String(row.Title ?? ""))
+        .filter(Boolean))].sort((left, right) => left.localeCompare(right));
+      elements.raceSelect.innerHTML = races.map(race => {
+        const escapedRace = race.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;");
+        return `<option value="${escapedRace}" selected>${escapedRace}</option>`;
+      }).join("");
+      elements.raceSelect.disabled = races.length === 0;
+      elements.selectAllRaces.disabled = races.length === 0;
+      elements.deselectAllRaces.disabled = races.length === 0;
     }
 
     function lapSplitSecondsFromDeliverySpeed(deliverySpeed) {
@@ -1046,6 +1145,7 @@
           return `<option value="${escapedName}">${escapedName}</option>`;
         }).join("");
       elements.athleteSelect.disabled = false;
+      updateRaceOptions();
       elements.sheetInfo.textContent = `${athleteRows.length} records from ${sourceName} | ${sheetName}`;
       renderAthlete();
       setStatus(`Loaded ${sourceName}`, "ok");
@@ -1053,7 +1153,7 @@
 
     function renderAthlete() {
       const athlete = elements.athleteSelect.value;
-      const rows = athleteRows.filter(row => String(row.Front) === athlete);
+      const rows = filteredAthleteRows(athlete);
       const splitValues = filteredSplitValues(rows);
       const average = splitValues.length ? splitValues.reduce((sum, value) => sum + value, 0) / splitValues.length : NaN;
 
@@ -1103,7 +1203,7 @@
      });
      if (tab === "starts") {
        const athlete = elements.athleteSelect.value;
-       renderStartsChart(athleteRows.filter(row => String(row.Front) === athlete));
+       renderStartsChart(filteredAthleteRows(athlete));
      }
    }
 
@@ -1127,7 +1227,27 @@
       setStatus(`Loading ${workbookFiles[selectedGender]}...`);
       loadDefaultWorkbook();
     });
-    elements.athleteSelect.addEventListener("change", renderAthlete);
+    elements.athleteSelect.addEventListener("change", () => {
+      updateRaceOptions();
+      renderAthlete();
+    });
+    elements.raceSelect.addEventListener("change", renderAthlete);
+    elements.dateFrom.addEventListener("change", () => {
+      updateRaceOptions();
+      renderAthlete();
+    });
+    elements.dateTo.addEventListener("change", () => {
+      updateRaceOptions();
+      renderAthlete();
+    });
+    elements.selectAllRaces.addEventListener("click", () => {
+      [...elements.raceSelect.options].forEach(option => option.selected = true);
+      renderAthlete();
+    });
+    elements.deselectAllRaces.addEventListener("click", () => {
+      [...elements.raceSelect.options].forEach(option => option.selected = false);
+      renderAthlete();
+    });
      elements.analysisTabs.forEach(button => {
        button.addEventListener("click", () => setAnalysisTab(button.dataset.tab));
      });

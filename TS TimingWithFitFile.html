@@ -798,8 +798,8 @@
   <h2>Team Sprint Video Timing</h2>
   <h3>Keys: S start, Z marker, 1 rider 1 forward, 2 rider 2 forward, 3 rider 3 forward, Space play/pause, arrows frame-step, Ctrl+arrows jump.</h3>
   <input type="file" accept="video/mp4,video/quicktime" id="videoInput">
-  <button id="uploadAllBtn" type="button" title="Upload video (.mp4/.mov), timing data (.csv) and FIT sync (.tpsync) together — snaps to start automatically">Upload all files</button>
-  <input type="file" id="uploadAllInput" accept="video/mp4,video/quicktime,.csv,.json,.tpsync,application/octet-stream" multiple style="display:none;"><br><br>
+  <button id="uploadAllBtn" type="button" title="Upload video (.mp4/.mov), timing data (.csv) and FIT sync (.sync/.tpsync) together — snaps to start automatically">Upload all files</button>
+  <input type="file" id="uploadAllInput" accept="video/mp4,video/quicktime,.csv,.json,.sync,.tpsync,application/octet-stream" multiple style="display:none;"><br><br>
 
   <div class="container">
     <div class="video-section">
@@ -1040,6 +1040,44 @@
             <div class="gap-chart-legend" id="cadencePlotLegend"></div>
             <div class="gap-chart-wrap">
               <canvas id="cadencePlot"></canvas>
+            </div>
+            <div id="halfLapCadenceSection" hidden>
+              <h4 style="margin-top:10px;">Cadence at Half-Lap (rpm)</h4>
+              <div class="lap-table-wrap">
+                <table id="halfLapCadenceTable" style="border-collapse:collapse;font-size:13px;width:100%;" hidden>
+                  <thead>
+                    <tr>
+                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">Rider</th>
+                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H1</th>
+                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H2</th>
+                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H3</th>
+                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H4</th>
+                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H5</th>
+                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H6</th>
+                    </tr>
+                  </thead>
+                  <tbody id="halfLapCadenceTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+            <div id="halfLapSpeedSection" hidden>
+              <h4 style="margin-top:10px;">Speed at Half-Lap (km/h)</h4>
+              <div class="lap-table-wrap">
+                <table id="halfLapSpeedTable" style="border-collapse:collapse;font-size:13px;width:100%;" hidden>
+                  <thead>
+                    <tr>
+                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">Rider</th>
+                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H1</th>
+                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H2</th>
+                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H3</th>
+                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H4</th>
+                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H5</th>
+                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H6</th>
+                    </tr>
+                  </thead>
+                  <tbody id="halfLapSpeedTableBody"></tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
@@ -1369,6 +1407,21 @@
     }
     function getRiderGears() {
       return riderGearInputs.map((inp) => inp.value.trim());
+    }
+    function getGearRolloutMeters(gearText) {
+      const text = String(gearText || '').trim();
+      const numericGearInches = Number(text);
+      const match = text.match(/^(\d+(?:\.\d+)?)\s*[xX/]\s*(\d+(?:\.\d+)?)$/);
+      let gearInches = numericGearInches;
+      if (match) {
+        const chainring = Number(match[1]);
+        const sprocket = Number(match[2]);
+        if (!(chainring > 0) || !(sprocket > 0)) return null;
+        gearInches = (chainring / sprocket) * 27;
+      }
+      if (!(gearInches > 0)) return null;
+      const gearRatio = gearInches / 27;
+      return gearRatio * 2.096;
     }
     function getTitleText() { return countryInput.value.trim() || 'Untitled Session'; }
     function speedFromTime(s) { return s > 0 ? (SPLIT_DISTANCE_METERS / s) * 3.6 : 0; }
@@ -1929,6 +1982,8 @@
       updateFitStats();
       drawFitPlot();
       renderRiderCadenceLapTable();
+      renderHalfLapCadenceTable();
+      renderHalfLapSpeedTable();
       if (snappedCount === 0) {
         setFitStatus('No non-zero values were found to the right of the playhead in loaded streams.');
       } else if (skippedCount > 0) {
@@ -2432,8 +2487,10 @@
       document.getElementById('fitQuadGrid').style.display = 'flex';
       renderGapChart();
       renderCadenceDistancePlot();
+      renderHalfLapSpeedTable();
       renderPowerTimePlot();
       renderHalfLapTimesTable();
+      renderHalfLapCadenceTable();
       renderFitStatsTable();
       updateFitQuadGrid();
     }
@@ -2850,6 +2907,165 @@
       }
     }
 
+    function renderSpeedTimePlot() {
+      const section = document.getElementById('speedPlotSection');
+      const canvas = document.getElementById('speedPlot');
+      const legendEl = document.getElementById('speedPlotLegend');
+      section.hidden = true;
+      legendEl.innerHTML = '';
+
+      if (!Number.isFinite(startTime) || splitRows.length === 0) return;
+
+      const totalElapsed = splitRows.reduce((sum, row) => sum + row.quarterTime, 0);
+      if (totalElapsed <= 0) return;
+
+      const tsRows = getTeamSprintSummaryRows();
+      const tissot1 = tsRows[0]?.tissot1 ?? null;
+      const tissot2 = tsRows[1]?.tissot2 ?? null;
+      const riderCutoffs = [
+        Number.isFinite(tissot1) ? tissot1 : totalElapsed,
+        Number.isFinite(tissot1) && Number.isFinite(tissot2) ? tissot1 + tissot2 : totalElapsed,
+        totalElapsed
+      ];
+      const riderNames = getRiderNames();
+      const riderGears = getRiderGears();
+      const seriesData = [];
+
+      for (let riderIndex = 0; riderIndex < riderInputs.length; riderIndex++) {
+        const rollout = getGearRolloutMeters(riderGears[riderIndex]);
+        const stream = fitSyncState.streams[riderIndex];
+        const cadenceKey = getCadenceColumnKeyForStream(stream);
+        if (rollout === null || !stream || !cadenceKey) continue;
+
+        const timeValues = stream.rows
+          .map((row) => toNumeric(row[stream.timeColumnKey]))
+          .filter((value) => value !== null);
+        if (timeValues.length === 0) continue;
+        const baseTime = Math.min(...timeValues);
+        const offset = Number.isFinite(stream.offset) ? stream.offset : 0;
+        const points = [];
+        for (const row of stream.rows) {
+          const rawTime = toNumeric(row[stream.timeColumnKey]);
+          const cadence = toNumeric(row[cadenceKey]);
+          if (rawTime === null || cadence === null) continue;
+          const elapsed = ((rawTime - baseTime) + offset) - startTime;
+          if (elapsed < 0 || elapsed > riderCutoffs[riderIndex]) continue;
+          points.push({ elapsed, speed: cadence * rollout * 0.06 });
+        }
+        points.sort((a, b) => a.elapsed - b.elapsed);
+        if (points.length < 2) continue;
+        seriesData.push({
+          riderIndex,
+          label: riderNames[riderIndex],
+          color: riderPalette[riderIndex % riderPalette.length],
+          points
+        });
+      }
+
+      if (seriesData.length === 0) return;
+      section.hidden = false;
+      legendEl.innerHTML = seriesData
+        .map((series) => `<span class="legend-item"><span class="legend-swatch" style="background:${series.color}"></span>${series.label}</span>`)
+        .join('');
+
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      const width = Math.max(300, Math.floor(rect.width || canvas.parentElement.clientWidth || 600));
+      const height = 220;
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+
+      const margin = { l: 50, r: 16, t: 20, b: 36 };
+      const plotWidth = width - margin.l - margin.r;
+      const plotHeight = height - margin.t - margin.b;
+      const allSpeeds = seriesData.flatMap((series) => series.points.map((point) => point.speed));
+      const minSpeed = Math.min(...allSpeeds);
+      const maxSpeed = Math.max(...allSpeeds);
+      const speedPad = Math.max(1, (maxSpeed - minSpeed) * 0.1);
+      const yLow = Math.max(0, minSpeed - speedPad);
+      const yHigh = maxSpeed + speedPad;
+      const yRange = yHigh - yLow || 1;
+      const xFromTime = (time) => margin.l + (time / totalElapsed) * plotWidth;
+      const yFromSpeed = (speed) => margin.t + (1 - (speed - yLow) / yRange) * plotHeight;
+
+      ctx.font = '11px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#475569';
+      for (let tick = 0; tick <= 5; tick++) {
+        const speed = yLow + (yRange * tick / 5);
+        const y = yFromSpeed(speed);
+        ctx.strokeStyle = 'rgba(31,41,55,0.12)';
+        ctx.beginPath();
+        ctx.moveTo(margin.l, y);
+        ctx.lineTo(width - margin.r, y);
+        ctx.stroke();
+        ctx.fillText(Math.round(speed), margin.l - 4, y);
+      }
+
+      const lapBoundaryTimes = [];
+      let elapsed = 0;
+      for (let index = 0; index < splitRows.length; index++) {
+        elapsed += splitRows[index].quarterTime;
+        if ((index + 1) % 4 === 0 && elapsed < totalElapsed) lapBoundaryTimes.push(elapsed);
+      }
+      ctx.save();
+      ctx.strokeStyle = 'rgba(31,41,55,0.15)';
+      ctx.setLineDash([4, 4]);
+      for (const lapTime of lapBoundaryTimes) {
+        const x = xFromTime(lapTime);
+        ctx.beginPath();
+        ctx.moveTo(x, margin.t);
+        ctx.lineTo(x, margin.t + plotHeight);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      ctx.strokeStyle = '#111827';
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(margin.l, margin.t);
+      ctx.lineTo(margin.l, margin.t + plotHeight);
+      ctx.lineTo(width - margin.r, margin.t + plotHeight);
+      ctx.stroke();
+
+      ctx.save();
+      ctx.translate(12, margin.t + plotHeight / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#0f172a';
+      ctx.fillText('Speed (km/h)', 0, 0);
+      ctx.restore();
+
+      for (const series of seriesData) {
+        ctx.strokeStyle = series.color;
+        ctx.lineWidth = 2.2;
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        series.points.forEach((point, index) => {
+          const x = xFromTime(point.elapsed);
+          const y = yFromSpeed(point.speed);
+          if (index === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      }
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = '#475569';
+      const xTickCount = Math.min(8, Math.ceil(totalElapsed / 5));
+      for (let tick = 0; tick <= xTickCount; tick++) {
+        const time = (totalElapsed * tick) / xTickCount;
+        ctx.fillText(`${time.toFixed(1)}s`, xFromTime(time), margin.t + plotHeight + 5);
+      }
+    }
+
     function renderHalfLapTimesTable() {
       const card = document.getElementById('halfLapTimesCard');
       const tbody = document.getElementById('halfLapTimesTableBody');
@@ -2914,6 +3130,195 @@
       }
 
       card.hidden = !hasAnyData;
+    }
+
+    function getMetricValueAtVideoTime(stream, metricKey, videoTime) {
+      if (!stream || !metricKey || !Array.isArray(stream.rows) || stream.rows.length === 0 || !stream.timeColumnKey) return null;
+      const points = [];
+      for (const row of stream.rows) {
+        const rawTime = toNumeric(row[stream.timeColumnKey]);
+        const value = toNumeric(row[metricKey]);
+        if (rawTime !== null && value !== null) points.push({ rawTime, value });
+      }
+      if (points.length === 0) return null;
+      points.sort((a, b) => a.rawTime - b.rawTime);
+
+      const baseTime = points[0].rawTime;
+      const offset = Number.isFinite(stream.offset) ? stream.offset : 0;
+      let nearest = null;
+      let nearestDistance = Infinity;
+      for (const point of points) {
+        const alignedVideoTime = (point.rawTime - baseTime) + offset;
+        const distance = Math.abs(alignedVideoTime - videoTime);
+        if (distance < nearestDistance) {
+          nearest = point.value;
+          nearestDistance = distance;
+        }
+      }
+      return nearest;
+    }
+
+    function renderHalfLapCadenceTable() {
+      const section = document.getElementById('halfLapCadenceSection');
+      const table = document.getElementById('halfLapCadenceTable');
+      const tbody = document.getElementById('halfLapCadenceTableBody');
+      tbody.innerHTML = '';
+
+      if (getLoadedFitStreams().length === 0 || splitRows.length === 0 || !Number.isFinite(startTime)) {
+        section.hidden = true;
+        table.hidden = true;
+        return;
+      }
+
+      const halfLapIndexes = [1, 3, 5, 7, 9, 11];
+      const halfLapTimes = [];
+      let elapsed = 0;
+      for (let index = 0; index < splitRows.length; index++) {
+        elapsed += splitRows[index].quarterTime;
+        if (halfLapIndexes.includes(index)) halfLapTimes.push({ videoTime: startTime + elapsed });
+      }
+      if (halfLapTimes.length === 0) {
+        section.hidden = true;
+        table.hidden = true;
+        return;
+      }
+
+      const sumHalfLapQuarters = (quarters, from, to) => {
+        if (!Array.isArray(quarters)) return null;
+        const values = quarters.slice(from, to);
+        if (values.length < to - from || values.some((value) => !Number.isFinite(value))) return null;
+        return values.reduce((sum, value) => sum + value, 0);
+      };
+      const summaryRows = getTeamSprintSummaryRows();
+      const riderHalfLapTimes = summaryRows.map((row) => [
+        sumHalfLapQuarters(row.lap1QuarterTimes, 0, 2),
+        sumHalfLapQuarters(row.lap1QuarterTimes, 0, 4),
+        sumHalfLapQuarters([...row.lap1QuarterTimes, ...row.lap2QuarterTimes], 0, 6),
+        sumHalfLapQuarters([...row.lap1QuarterTimes, ...row.lap2QuarterTimes], 0, 8),
+        sumHalfLapQuarters([...row.lap1QuarterTimes, ...row.lap2QuarterTimes, ...row.lap3QuarterTimes], 0, 10),
+        sumHalfLapQuarters([...row.lap1QuarterTimes, ...row.lap2QuarterTimes, ...row.lap3QuarterTimes], 0, 12)
+      ]);
+
+      const riderNames = getRiderNames();
+      let hasAnyCadence = false;
+      for (let riderIndex = 0; riderIndex < riderInputs.length; riderIndex++) {
+        const stream = fitSyncState.streams[riderIndex];
+        const cadenceKey = getCadenceColumnKeyForStream(stream);
+        const tr = document.createElement('tr');
+        const nameTd = document.createElement('td');
+        nameTd.style.cssText = 'padding:3px 6px;border:1px solid #dbe2ea;font-weight:600;white-space:nowrap;';
+        nameTd.textContent = riderNames[riderIndex];
+        tr.appendChild(nameTd);
+
+        const availableHalfLaps = riderIndex === 0 ? 2 : riderIndex === 1 ? 4 : 6;
+        for (let halfLapIndex = 0; halfLapIndex < halfLapTimes.length; halfLapIndex++) {
+          const td = document.createElement('td');
+          td.style.cssText = 'padding:3px 6px;border:1px solid #dbe2ea;text-align:right;';
+          const raceTime = riderHalfLapTimes[riderIndex]?.[halfLapIndex] ?? null;
+          const cadence = halfLapIndex < availableHalfLaps && cadenceKey
+            && Number.isFinite(raceTime)
+            ? getMetricValueAtVideoTime(stream, cadenceKey, startTime + raceTime)
+            : null;
+          td.textContent = halfLapIndex < availableHalfLaps && cadence !== null && Number.isFinite(raceTime)
+            ? cadence.toFixed(1)
+            : '';
+          if (cadence !== null) hasAnyCadence = true;
+          tr.appendChild(td);
+        }
+        for (let missing = halfLapTimes.length; missing < 6; missing++) {
+          const td = document.createElement('td');
+          td.style.cssText = 'padding:3px 6px;border:1px solid #dbe2ea;text-align:right;';
+          td.textContent = '';
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      }
+
+      section.hidden = !hasAnyCadence;
+      table.hidden = !hasAnyCadence;
+    }
+
+    function renderHalfLapSpeedTable() {
+      const section = document.getElementById('halfLapSpeedSection');
+      const table = document.getElementById('halfLapSpeedTable');
+      const tbody = document.getElementById('halfLapSpeedTableBody');
+      tbody.innerHTML = '';
+
+      if (getLoadedFitStreams().length === 0 || splitRows.length === 0 || !Number.isFinite(startTime)) {
+        section.hidden = true;
+        table.hidden = true;
+        return;
+      }
+
+      const halfLapIndexes = [1, 3, 5, 7, 9, 11];
+      const halfLapTimes = [];
+      let elapsed = 0;
+      for (let index = 0; index < splitRows.length; index++) {
+        elapsed += splitRows[index].quarterTime;
+        if (halfLapIndexes.includes(index)) halfLapTimes.push({ videoTime: startTime + elapsed });
+      }
+      if (halfLapTimes.length === 0) {
+        section.hidden = true;
+        table.hidden = true;
+        return;
+      }
+
+      const sumHalfLapQuarters = (quarters, from, to) => {
+        if (!Array.isArray(quarters)) return null;
+        const values = quarters.slice(from, to);
+        if (values.length < to - from || values.some((value) => !Number.isFinite(value))) return null;
+        return values.reduce((sum, value) => sum + value, 0);
+      };
+      const summaryRows = getTeamSprintSummaryRows();
+      const riderHalfLapTimes = summaryRows.map((row) => [
+        sumHalfLapQuarters(row.lap1QuarterTimes, 0, 2),
+        sumHalfLapQuarters(row.lap1QuarterTimes, 0, 4),
+        sumHalfLapQuarters([...row.lap1QuarterTimes, ...row.lap2QuarterTimes], 0, 6),
+        sumHalfLapQuarters([...row.lap1QuarterTimes, ...row.lap2QuarterTimes], 0, 8),
+        sumHalfLapQuarters([...row.lap1QuarterTimes, ...row.lap2QuarterTimes, ...row.lap3QuarterTimes], 0, 10),
+        sumHalfLapQuarters([...row.lap1QuarterTimes, ...row.lap2QuarterTimes, ...row.lap3QuarterTimes], 0, 12)
+      ]);
+
+      const riderNames = getRiderNames();
+      const riderGears = getRiderGears();
+      let hasAnySpeed = false;
+      for (let riderIndex = 0; riderIndex < riderInputs.length; riderIndex++) {
+        const stream = fitSyncState.streams[riderIndex];
+        const cadenceKey = getCadenceColumnKeyForStream(stream);
+        const rollout = getGearRolloutMeters(riderGears[riderIndex]);
+        const tr = document.createElement('tr');
+        const nameTd = document.createElement('td');
+        nameTd.style.cssText = 'padding:3px 6px;border:1px solid #dbe2ea;font-weight:600;white-space:nowrap;';
+        nameTd.textContent = riderNames[riderIndex];
+        tr.appendChild(nameTd);
+
+        const availableHalfLaps = riderIndex === 0 ? 2 : riderIndex === 1 ? 4 : 6;
+        for (let halfLapIndex = 0; halfLapIndex < halfLapTimes.length; halfLapIndex++) {
+          const td = document.createElement('td');
+          td.style.cssText = 'padding:3px 6px;border:1px solid #dbe2ea;text-align:right;';
+          const raceTime = riderHalfLapTimes[riderIndex]?.[halfLapIndex] ?? null;
+          const cadence = halfLapIndex < availableHalfLaps && cadenceKey && rollout !== null
+            && Number.isFinite(raceTime)
+            ? getMetricValueAtVideoTime(stream, cadenceKey, startTime + raceTime)
+            : null;
+          const speed = cadence !== null ? cadence * rollout * 0.06 : null;
+          td.textContent = halfLapIndex < availableHalfLaps && speed !== null && Number.isFinite(raceTime)
+            ? speed.toFixed(1)
+            : '';
+          if (speed !== null) hasAnySpeed = true;
+          tr.appendChild(td);
+        }
+        for (let missing = halfLapTimes.length; missing < 6; missing++) {
+          const td = document.createElement('td');
+          td.style.cssText = 'padding:3px 6px;border:1px solid #dbe2ea;text-align:right;';
+          td.textContent = '';
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      }
+
+      section.hidden = !hasAnySpeed;
+      table.hidden = !hasAnySpeed;
     }
 
     function renderFitStatsTable() {
@@ -4700,7 +5105,7 @@
 
       const videoFile = files.find(f => f.type.startsWith('video/') || /\.(mp4|mov|qt)$/i.test(f.name));
       const csvFile   = files.find(f => /\.csv$/i.test(f.name));
-      const syncFile  = files.find(f => /\.(tpsync|json)$/i.test(f.name));
+      const syncFile  = files.find(f => /\.(sync|tpsync|json)$/i.test(f.name));
 
       const tasks = [];
 
@@ -4869,6 +5274,8 @@
         updateFitStats();
         drawFitPlot();
         renderRiderCadenceLapTable();
+        renderHalfLapCadenceTable();
+        renderHalfLapSpeedTable();
       } else if (fitSyncState.pointerMode === 'left') {
         const currentVideoT = Number.isFinite(video.currentTime) ? video.currentTime : 0;
         const nextVideoT = currentVideoT - deltaT;
@@ -5001,6 +5408,12 @@
     });
 
     video.addEventListener('loadedmetadata', () => {
+      updateFitStats();
+      drawFitPlot();
+    });
+
+    video.addEventListener('timeupdate', () => {
+      currentTimeDisplay.textContent = video.currentTime.toFixed(2);
       updateFitStats();
       drawFitPlot();
     });

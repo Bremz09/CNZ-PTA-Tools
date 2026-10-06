@@ -4,7 +4,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#123e69">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
   <title>Track Competition Programme Planner</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <style>
     * {
@@ -80,12 +84,17 @@
       font: inherit;
       font-size: 13px;
       font-weight: 700;
-      cursor: pointer
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease
     }
 
     .primary {
       background: #0d4b86;
       color: #fff
+    }
+
+    .primary:hover {
+      background: #093054
     }
 
     .countdown-button {
@@ -102,13 +111,28 @@
     .secondary,
     .print-button,
     .download-button,
+    .upload-button,
     .tabs button[data-view] {
       background: #edf3f7;
       color: #0d477d
     }
 
+    .secondary:hover,
+    .print-button:hover,
+    .download-button:hover,
+    .upload-button:hover,
+    .tabs button[data-view]:hover {
+      background: #d8e6f0;
+      color: #092c4c
+    }
+
     .tabs button[data-view].active {
       background: #0d4b86;
+      color: #fff
+    }
+
+    .tabs button[data-view].active:hover {
+      background: #0a3a68;
       color: #fff
     }
 
@@ -117,8 +141,16 @@
       color: #fff
     }
 
+    .pause:hover {
+      background: #b14e1c
+    }
+
     .pause.paused {
-      background: #a33b28
+      background: #b14430
+    }
+
+    .pause.paused:hover {
+      background: #7d2c1e
     }
 
     .countdown-wrap {
@@ -248,13 +280,14 @@
     .event-row.selected.sprint-row,
     .event-row.selected.men-endurance-row,
     .event-row.selected.women-endurance-row {
-      box-shadow: inset 5px 0 #f3c98d
+      background: #fff8ef !important;
+      box-shadow: inset 5px 0 #fcd9a9
     }
     .extra-rider-row.selected td,
     .extra-rider-row.selected.sprint-row td,
     .extra-rider-row.selected.men-endurance-row td,
     .extra-rider-row.selected.women-endurance-row td {
-      background: transparent !important
+      background: #fff8ef !important
     }
 
     .event-row.current,
@@ -320,6 +353,11 @@
       font-size: 12px
     }
 
+    .add-rider:hover {
+      background: #d8e6f0;
+      color: #0a3a68
+    }
+
     .extra-rider-row td {
       background: #fbfdfe;
       border-top: 0
@@ -344,7 +382,12 @@
       color: #a94d3b;
       cursor: pointer;
       font-weight: 700;
-      font-size: 12px
+      font-size: 12px;
+      transition: color 0.15s ease
+    }
+
+    .remove-rider:hover {
+      color: #7a3327
     }
 
     .riders-view {
@@ -511,6 +554,299 @@
       background: #f5f5f5;
       color: #666;
       cursor: pointer;
+      font-size: 12px;
+      transition: background 0.15s ease, color 0.15s ease
+    }
+
+    .reset-button:hover {
+      background: #e6e6e6;
+      color: #333
+    }
+
+    .reset-button:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+      background: #f5f5f5;
+      color: #666
+    }
+
+    .modal .primary,
+    .modal .secondary,
+    .riders-toolbar .upload-button {
+      border: 0;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease
+    }
+
+    .riders-toolbar {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 12px
+    }
+
+    .modal-title {
+      margin: 0 0 12px;
+      padding-right: 40px;
+      font-size: 18px;
+      color: #123e69
+    }
+
+    .modal-note {
+      margin-bottom: 12px;
+      padding: 8px 12px;
+      border-left: 4px solid #df6a2c;
+      border-radius: 6px;
+      background: #fdf1e8;
+      color: #7a3a17;
+      font-size: 13px
+    }
+
+    .modal-note span,
+    .modal-muted {
+      display: block;
+      font-size: 12px;
+      color: #587086
+    }
+
+    .modal-note span {
+      margin-top: 2px
+    }
+
+    .modal-error {
+      margin-top: 8px;
+      color: #a33b28;
+      font-size: 13px;
+      font-weight: 700
+    }
+
+    .modal-error-box {
+      padding: 12px 14px;
+      border-radius: 6px;
+      background: #fde8e4;
+      color: #a33b28;
+      font-size: 13px
+    }
+
+    .modal-loading {
+      padding: 30px;
+      text-align: center;
+      font-size: 14px;
+      color: #587086
+    }
+
+    .modal-fields {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 12px;
+      margin-bottom: 12px
+    }
+
+    .modal-field label {
+      display: block;
+      margin-bottom: 3px;
+      font-size: 12px;
+      font-weight: 600
+    }
+
+    .modal-field input,
+    .modal-field select {
+      padding: 6px 10px;
+      border: 1px solid #cad7e2;
+      border-radius: 6px;
+      background: #fff;
+      font: inherit;
+      font-size: 13px
+    }
+
+    .modal-field.grow {
+      flex: 1;
+      min-width: 180px
+    }
+
+    .modal-field.grow input {
+      width: 100%
+    }
+
+    .modal-summary {
+      margin-left: auto;
+      align-self: center;
+      font-size: 13px;
+      color: #587086
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 14px
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding-top: 12px;
+      border-top: 1px solid #e1e7ec
+    }
+
+    .modal-footer > div {
+      display: flex;
+      gap: 8px
+    }
+
+    .modal-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px
+    }
+
+    .modal-tabs button {
+      flex: 1;
+      border: 0;
+      border-radius: 6px;
+      padding: 7px 12px;
+      background: #edf3f7;
+      color: #0d477d;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease
+    }
+
+    .modal-tabs button:hover {
+      background: #d8e6f0;
+      color: #092c4c
+    }
+
+    .modal-tabs button.active {
+      background: #0d4b86;
+      color: #fff
+    }
+
+    .pdf-add-form {
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      border: 1px solid #d1dde6;
+      border-radius: 8px;
+      background: #f6f8fa
+    }
+
+    .pdf-add-form .modal-fields {
+      margin-bottom: 0
+    }
+
+    .pdf-add-toggle {
+      margin-bottom: 12px
+    }
+
+    .pdf-preview {
+      min-height: 200px;
+      max-height: calc(88vh - 280px);
+      overflow-y: auto;
+      margin-bottom: 12px;
+      padding-right: 4px
+    }
+
+    .pdf-day-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 16px 0 8px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid #d8e2e9;
+      color: #123e69;
+      font-size: 16px;
+      font-weight: 700
+    }
+
+    .pdf-day-title:first-child {
+      margin-top: 0
+    }
+
+    .pdf-day-title > div {
+      display: flex;
+      gap: 6px
+    }
+
+    .pdf-day-table {
+      overflow: hidden;
+      border: 1px solid #d1dde6;
+      border-radius: 8px
+    }
+
+    .pdf-day-table table {
+      min-width: 0
+    }
+
+    .pdf-day-table .pdf-session-row td {
+      background: #e8edf1;
+      font-weight: 700
+    }
+
+    .pdf-day-table input {
+      width: 100%;
+      padding: 4px 6px;
+      border: 1px solid #c9d7e2;
+      border-radius: 5px;
+      background: #fff;
+      font: inherit;
+      font-size: 13px
+    }
+
+    .pdf-session-row input {
+      font-weight: 700
+    }
+
+    .drag-handle {
+      width: 28px;
+      color: #8fa0b0;
+      text-align: center;
+      cursor: grab;
+      user-select: none
+    }
+
+    .pdf-row-actions {
+      white-space: nowrap;
+      text-align: right
+    }
+
+    .pdf-row-actions .add-rider:disabled {
+      opacity: .4;
+      cursor: default
+    }
+
+    .pdf-row-flash td {
+      background: #ffe7c2 !important;
+      transition: background 0.4s ease
+    }
+
+    .modal-skipped {
+      margin-bottom: 12px
+    }
+
+    .modal-skipped summary {
+      font-size: 12px;
+      font-weight: 700;
+      color: #a33b28;
+      cursor: pointer
+    }
+
+    .modal-skipped div {
+      max-height: 90px;
+      overflow-y: auto;
+      margin-top: 4px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      background: #fde8e4;
+      color: #7a2e2e;
       font-size: 12px
     }
 
@@ -547,7 +883,14 @@
       border: 1px solid #cedae3;
       border-radius: 6px;
       background: #edf3f7;
-      font-size: 20px
+      font-size: 20px;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease
+    }
+
+    .close:hover {
+      background: #d8e6f0;
+      color: #0a3a68
     }
 
     .card {
@@ -972,6 +1315,73 @@
         font-size: 46px
       }
     }
+
+    .header-actions,
+    .race-controls,
+    .tabs {
+      flex-wrap: wrap
+    }
+
+    @media (max-width: 1100px) {
+      table {
+        min-width: 0
+      }
+
+      th {
+        padding: 5px;
+        white-space: normal
+      }
+
+      td {
+        padding: 4px 5px;
+        font-size: 12px
+      }
+
+      .number-input {
+        width: 50px
+      }
+
+      .name-input {
+        width: 100px
+      }
+    }
+
+    @media (max-width: 700px) {
+      .header h1 {
+        font-size: 18px
+      }
+
+      .content {
+        padding: 10px
+      }
+
+      th {
+        padding: 4px 3px;
+        font-size: 10px
+      }
+
+      td {
+        padding: 3px;
+        font-size: 11px
+      }
+
+      .number-input {
+        width: 40px;
+        padding: 3px;
+        font-size: 11px
+      }
+
+      .name-input {
+        width: 80px;
+        padding: 3px;
+        font-size: 11px
+      }
+
+      .add-rider {
+        padding: 3px 6px;
+        font-size: 11px
+      }
+    }
   </style>
 </head>
 
@@ -985,7 +1395,7 @@
         <div class="countdown-wrap">
           <div class="mini"><span>Local <strong id="miniLocal">00:00:00</strong></span><span>Next NZL <strong
                 id="miniNext">--:--:--</strong></span></div>
-        </div><button class="download-button" onclick="downloadPdfProgramme()">Download PDF</button><button class="print-button" onclick="printProgramme()">Print</button>
+        </div><input type="file" id="pdfScheduleInput" accept=".pdf,application/pdf" style="display:none" onchange="handleSchedulePdfUpload(event)"><button class="upload-button" id="uploadPdfBtn" onclick="triggerPdfUpload()">Upload Schedule PDF</button><button class="download-button" onclick="downloadPdfProgramme()">Download PDF</button><button class="print-button" onclick="printProgramme()">Print</button>
       </div>
     </header>
     <div class="print-banner" id="printBanner">
@@ -1027,9 +1437,15 @@
         </section>
       </div>
       <div class="riders-view" id="ridersView">
+        <div class="riders-toolbar">
+          <button class="upload-button" onclick="openAddRiderModal()">+ Add Rider</button>
+        </div>
         <div class="rider-grid" id="riderGrid"></div>
       </div>
-      <div class="reset-area"><button class="reset-button" id="resetAll">Reset All Data</button></div>
+      <div class="reset-area">
+        <button class="reset-button" id="restoreSchedule" style="margin-right: 8px;">Restore Default Schedule</button>
+        <button class="reset-button" id="resetAll">Reset All Data</button>
+      </div>
     </main>
   </div>
   <div class="modal" id="modal">
@@ -1055,8 +1471,47 @@
       </div>
     </div>
   </div>
+  <div class="modal" id="uploadModal">
+    <div class="modal-panel" style="width: 1000px; max-width: 96vw; max-height: 94vh; display: flex; flex-direction: column; overflow: hidden;">
+      <button class="close" id="closeUploadModal">&times;</button>
+      <h2 class="modal-title">Import Race Schedule from PDF</h2>
+      <div id="uploadModalContent" style="display: flex; flex-direction: column; overflow: hidden; flex: 1;"></div>
+    </div>
+  </div>
+  <div class="modal" id="addRiderModal" onclick="if (event.target === this) closeAddRiderModal()">
+    <div class="modal-panel" style="width: 520px;">
+      <button class="close" onclick="closeAddRiderModal()">&times;</button>
+      <h2 class="modal-title">Add Rider</h2>
+      <div id="addRiderContent"></div>
+    </div>
+  </div>
   <script>
     // Core data structures and constants
+    // Editable defaults for Track Cycling heat count / heat duration (minutes) used when data is reset.
+    // Each value is [heats, heatTimeMinutes]. Edit these to change what "Reset All Data" restores.
+    const TRACK_EVENT_DEFAULTS = {
+      teamSprint: { qualifying: { women: [17, 3.5], men: [18, 3.5] }, firstRound: [4, 3], other: [2, 4] },
+      teamPursuit: { qualifying: { women: [17, 7], men: [19, 6.5] }, firstRound: [4, 7], other: [2, 7.5] },
+      individualPursuit: { qualifying: { women: [12, 7], men: [13, 7] }, other: [2, 9] },
+      timeTrial: { qualifying: { women: [13, 3], men: [15, 3] }, other: [8, 3] },
+      sprint: {
+        qualifying: { women: [34, 1.5], men: [32, 1.5] },
+        oneSixteenth: [12, 3],
+        oneEighth: [8, 2],
+        quarterFinal: [4, 4],
+        semiOrPlaces: [2, 4],
+        decider3rd: [1, 4]
+      },
+      keirin: { repechage: [5, 4.5], round1: [6, 4.5], round2: [3, 4.5], round3: [2, 4.5], final: [1, 5] },
+      omniumIScratch: { women: [1, 22], men: [1, 18] },
+      omniumII: [1, 15],
+      omniumIIIElimination: [1, 20],
+      omniumIVPoints: { women: [1, 33], men: [1, 32] },
+      madison: { women: [1, 42], men: [1, 60] },
+      scratch: [1, 18],
+      elimination: { women: [1, 20], men: [1, 18] },
+      pointsRace: { women: [1, 39], men: [1, 52] }
+    };
     const PROGRAMMES = { "Day 1": [["Morning Session", "10:00"], 
     ["MC1", "1 Km Time Trial", "Qualifying"], 
     ["MC5", "1 Km Time Trial", "Qualifying"], 
@@ -1180,7 +1635,7 @@
     ["M/WB", "Team Sprint", "Final"], 
     ["M/WC1-5", "Team Sprint", "Final"], 
     ["", "Award Ceremonies", ""]] }; 
-    const TRACK_PROGRAMMES = { "Day 1": [["Morning Session", "11:00"], 
+    const TRACK_PROGRAMMES = { "Day 1": [["Morning Session", "10:30"], 
     ["W", "Team Pursuit", "Qualifying"], 
     ["M", "Team Pursuit", "Qualifying"], 
     ["W", "Team Sprint", "Qualifying"], 
@@ -1338,6 +1793,7 @@
     } catch (e) {
       // Handle localStorage errors silently
     }
+    (saved.customRiders || []).forEach(r => RIDERS.push(r));
 
     // DOM element references
     const daySelect = document.getElementById('daySelect');
@@ -1370,8 +1826,16 @@
       localStorage.setItem(STORE, JSON.stringify(saved));
     }
 
+    function getProgrammes(progType = currentProgramme) {
+      const custom = saved[`customProgrammes_${progType}`];
+      if (custom && typeof custom === 'object' && Object.keys(custom).length > 0) {
+        return custom;
+      }
+      return progType === 'track' ? TRACK_PROGRAMMES : PROGRAMMES;
+    }
+
     function activeProgrammes() {
-      return currentProgramme === 'track' ? TRACK_PROGRAMMES : PROGRAMMES;
+      return getProgrammes(currentProgramme);
     }
 
     function stateKey() {
@@ -1383,7 +1847,8 @@
         selectedIndex,
         currentIndex,
         liveAnchor: liveAnchor?.toISOString() || null,
-        totalDelayMs
+        totalDelayMs,
+        pausedAt: pausedAt?.toISOString() || null
       };
       persist();
     }
@@ -1394,14 +1859,17 @@
       currentIndex = Number.isInteger(x.currentIndex) ? x.currentIndex : -1;
       liveAnchor = x.liveAnchor ? new Date(x.liveAnchor) : null;
       totalDelayMs = Number(x.totalDelayMs) || 0;
-      pausedAt = null;
+      // Restore an in-progress pause so it survives tab switches and page reloads
+      pausedAt = x.pausedAt ? new Date(x.pausedAt) : null;
 
       // Discard a live race anchor left over from a previous calendar day
       if (liveAnchor && liveAnchor.toDateString() !== new Date().toDateString()) {
         currentIndex = -1;
         liveAnchor = null;
         totalDelayMs = 0;
+        pausedAt = null;
       }
+      updatePauseTimer();
     }
     function guess(e) {
       e = e.toLowerCase();
@@ -1431,6 +1899,7 @@
       return false;
     } const DISCIPLINE_EVENTS = {
       'Women Sprint': ['Sprint', 'Keirin', '1 km Time Trial', 'Team Sprint'],
+      'Men Sprint': ['Sprint', 'Keirin', '1 km Time Trial', 'Team Sprint'],
       'Women Endurance': ['1 km Time Trial', 'Scratch Race', 'Elimination', 'Points Race', 'Individual Pursuit', 'Madison', 'Omnium', 'Team Pursuit'],
       'Men Endurance': ['1 km Time Trial', 'Scratch Race', 'Elimination', 'Points Race', 'Individual Pursuit', 'Madison','Omnium', 'Team Pursuit']
     };
@@ -1450,9 +1919,11 @@
     }
 
     function allEventsFor(r) {
+      if (r[3] === 'custom' && r[2] !== 'Para') return ABLE_BODIED_EVENTS;
       if (DISCIPLINE_EVENTS[r[2]]) return DISCIPLINE_EVENTS[r[2]];
       const set = new Set;
-      Object.values(PROGRAMMES).flat().forEach(x => {
+      const currentProgs = getProgrammes('para');
+      Object.values(currentProgs).flat().forEach(x => {
         if (x.length === 3 && classMatch(r[1], x[0])) {
           set.add(normaliseEventBubble(x[1]));
         }
@@ -1489,7 +1960,7 @@
           const isTimeTrial = bubble === '1 km Time Trial';
           const sprintEvent = bubble === 'Sprint' || bubble === 'Keirin';
           const enduranceEvent = ['Scratch Race', 'Elimination', 'Points Race', 'Individual Pursuit', 'Omnium', 'Madison'].includes(bubble);
-          const disciplineOk = isTimeTrial || (group.includes('Sprint') && sprintEvent) || (group.includes('Endurance') && enduranceEvent);
+          const disciplineOk = r[3] === 'custom' || isTimeTrial || (group.includes('Sprint') && sprintEvent) || (group.includes('Endurance') && enduranceEvent);
           return disciplineOk && isAssigned(r[0], bubble);
         }
         return classMatch(r[1], c) && isAssigned(r[0], bubble);
@@ -1526,37 +1997,44 @@
       const gender = classification === 'W' ? 'women' : classification === 'M' ? 'men' : '';
       const e = event.toLowerCase();
       const r = round.toLowerCase();
-      const qualifying = {
-        women: { sprint:[34,1.5], timeTrial:[14,3], teamSprint:[14,3], teamPursuit:[17,6.5], individualPursuit:[15,7] },
-        men: { sprint:[32,1.5], timeTrial:[15,3], teamSprint:[18,3], teamPursuit:[16,6.5], individualPursuit:[13,7] }
-      };
+      const D = TRACK_EVENT_DEFAULTS;
       const make = pair => pair ? { heats:pair[0], heatTime:pair[1] } : null;
-      if (e.includes('team sprint')) return make(r.includes('qualif') ? qualifying[gender]?.teamSprint : [2,3]);
-      if (e.includes('team pursuit')) return make(r.includes('qualif') ? qualifying[gender]?.teamPursuit : [2,7]);
-      if (e.includes('individual pursuit')) return make(r.includes('qualif') ? qualifying[gender]?.individualPursuit : [2,7.5]);
-      if (e.includes('1km time trial')) return make(r.includes('qualif') ? qualifying[gender]?.timeTrial : [8,3]);
+      if (e.includes('team sprint')) {
+        if (r.includes('qualif')) return make(D.teamSprint.qualifying[gender]);
+        if (r.includes('1st round')) return make(D.teamSprint.firstRound);
+        return make(D.teamSprint.other);
+      }
+      if (e.includes('team pursuit')) {
+        if (r.includes('qualif')) return make(D.teamPursuit.qualifying[gender]);
+        if (r.includes('1st round')) return make(D.teamPursuit.firstRound);
+        return make(D.teamPursuit.other);
+      }
+      if (e.includes('individual pursuit')) return make(r.includes('qualif') ? D.individualPursuit.qualifying[gender] : D.individualPursuit.other);
+      if (e.includes('1km time trial')) return make(r.includes('qualif') ? D.timeTrial.qualifying[gender] : D.timeTrial.other);
       if (e === 'sprint') {
-        if (r.includes('qualif')) return make(qualifying[gender]?.sprint);
-        if (r.includes('1/16')) return make([12,3]);
-        if (r.includes('1/8')) return make([8,2]);
-        if (r.includes('1/4')) return make([4,2]);
-        if (r.includes('1/2') || r.includes('final places')) return make([2,2]);
+        // Decider ("3rd i.r.") heats always take priority over their round-tier (1/4, 1/2, etc.)
+        if (r.includes('3rd i.r.')) return make(D.sprint.decider3rd);
+        if (r.includes('qualif')) return make(D.sprint.qualifying[gender]);
+        if (r.includes('1/16')) return make(D.sprint.oneSixteenth);
+        if (r.includes('1/8')) return make(D.sprint.oneEighth);
+        if (r.includes('1/4')) return make(D.sprint.quarterFinal);
+        if (r.includes('1/2') || r.includes('final places')) return make(D.sprint.semiOrPlaces);
       }
       if (e.includes('keirin')) {
-        if (r.includes('repech')) return make([3,4.5]);
-        if (r.includes('1st round')) return make([6,4.5]);
-        if (r.includes('2nd round')) return make([3,4.5]);
-        if (r.includes('3rd round')) return make([2,4.5]);
-        if (r.includes('final')) return make([1,5]);
+        if (r.includes('repech')) return make(D.keirin.repechage);
+        if (r.includes('1st round')) return make(D.keirin.round1);
+        if (r.includes('2nd round')) return make(D.keirin.round2);
+        if (r.includes('3rd round')) return make(D.keirin.round3);
+        if (r.includes('final')) return make(D.keirin.final);
       }
-      if (e.includes('omnium i')) return make([1,22]);
-      if (e.includes('omnium ii')) return make([1,15]);
-      if (e.includes('omnium iii')) return make([1,20]);
-      if (e.includes('omnium iv')) return make([1,32]);
-      if (e.includes('madison')) return make([1,42]);
-      if (e.includes('scratch')) return make([1,18]);
-      if (e.includes('elimination')) return make([1,20]);
-      if (e.includes('points race')) return make([1,37]);
+      if (e === 'omnium i') return make(D.omniumIScratch[gender]);
+      if (e === 'omnium ii') return make(D.omniumII);
+      if (e === 'omnium iii') return make(D.omniumIIIElimination);
+      if (e === 'omnium iv') return make(D.omniumIVPoints[gender]);
+      if (e.includes('madison')) return make(D.madison[gender]);
+      if (e.includes('scratch')) return make(D.scratch);
+      if (e.includes('elimination')) return make(D.elimination[gender]);
+      if (e.includes('points race')) return make(D.pointsRace[gender]);
       return null;
     }
 
@@ -1700,6 +2178,7 @@
     function render(reset = true) {
       body.innerHTML = '';
       if (reset) loadState();
+      document.getElementById('restoreSchedule').disabled = !saved[`customProgrammes_${currentProgramme}`];
       let idx = 0;
       sessionBoundaries = [];
       let currentSessionCollapsed = false;
@@ -2183,9 +2662,6 @@
       liveAnchor = new Date();
       totalDelayMs = 0;
       pausedAt = null;
-      const pauseButton = document.getElementById('pauseDelay');
-      pauseButton.textContent = 'Pause for Delay';
-      pauseButton.classList.remove('paused');
       updatePauseTimer();
       saveState();
       calculate();
@@ -2195,9 +2671,6 @@
       liveAnchor = null;
       totalDelayMs = 0;
       pausedAt = null;
-      const pauseButton = document.getElementById('pauseDelay');
-      pauseButton.textContent = 'Pause for Delay';
-      pauseButton.classList.remove('paused');
       updatePauseTimer();
       saveState();
       calculate();  // Recalculate to update times
@@ -2342,6 +2815,7 @@
         ['Para', 'Para Cycling'],
         ['Women Sprint', 'Women Sprint'],
         ['Women Endurance', 'Women Endurance'],
+        ['Men Sprint', 'Men Sprint'],
         ['Men Endurance', 'Men Endurance']
       ];
 
@@ -2376,8 +2850,8 @@
             : '<span class="empty-events-note">All events assigned</span>';
 
           card.innerHTML = `
-            <h3>${r[0]}</h3>
-            <div class="class-label">${r[1]}</div>
+            <h3>${escHtml(r[0])}</h3>
+            <div class="class-label">${escHtml(r[1])}</div>
             <div class="rider-events-block">
               <div class="events-group-label">Assigned Events</div>
               <div class="bubble-list">${assignedEvents}</div>
@@ -2386,6 +2860,7 @@
               <div class="events-group-label">Available Events</div>
               <div class="bubble-list">${availableEvents}</div>
             </div>
+            ${r[3] === 'custom' ? `<div style="margin-top: 10px; text-align: right;"><button class="remove-rider" onclick="removeCustomRider('${esc(r[0])}')">Remove rider</button></div>` : ''}
           `;
           grid.appendChild(card);
         });
@@ -2396,6 +2871,88 @@
     // Utility function for escaping quotes in strings
     function esc(s) {
       return s.replaceAll("'", "\\'");
+    }
+
+    const ABLE_BODIED_EVENTS = ['Sprint', 'Keirin', '1 km Time Trial', 'Team Sprint', 'Scratch Race', 'Elimination', 'Points Race', 'Individual Pursuit', 'Madison', 'Omnium', 'Team Pursuit'];
+    const PARA_CLASSES = ['WC1', 'WC2', 'WC3', 'WC4', 'WC5', 'WB', 'MC1', 'MC2', 'MC3', 'MC4', 'MC5', 'MB'];
+    let addRiderState = null;
+
+    function openAddRiderModal() {
+      addRiderState = { type: currentProgramme === 'track' ? 'able' : 'para', name: '', cls: 'WC4', gender: 'Women', discipline: 'Sprint', error: '' };
+      document.getElementById('addRiderModal').classList.add('open');
+      renderAddRiderModal();
+      document.getElementById('addRiderName')?.focus();
+    }
+
+    function closeAddRiderModal() {
+      document.getElementById('addRiderModal').classList.remove('open');
+      addRiderState = null;
+    }
+
+    function setAddRiderField(field, value, rerender = false) {
+      addRiderState[field] = value;
+      if (rerender) renderAddRiderModal();
+    }
+
+    function renderAddRiderModal() {
+      const s = addRiderState;
+      const isPara = s.type === 'para';
+      const tab = (val, text) => `<button type="button" class="${s.type === val ? 'active' : ''}" onclick="setAddRiderField('type', '${val}', true)">${text}</button>`;
+      const opts = (list, cur) => list.map(v => `<option value="${v}" ${v === cur ? 'selected' : ''}>${v}</option>`).join('');
+
+      document.getElementById('addRiderContent').innerHTML = `
+        <div class="modal-tabs">${tab('para', 'Para')}${tab('able', 'Able-bodied')}</div>
+        <div class="modal-fields">
+          <div class="modal-field grow"><label for="addRiderName">Rider Name</label>
+            <input id="addRiderName" type="text" value="${escHtml(s.name)}" oninput="setAddRiderField('name', this.value)" placeholder="e.g. Jane Smith">
+          </div>
+          ${isPara ? `
+          <div class="modal-field"><label>Class</label>
+            <select onchange="setAddRiderField('cls', this.value)">${opts(PARA_CLASSES, s.cls)}</select>
+          </div>` : `
+          <div class="modal-field"><label>Gender</label>
+            <select onchange="setAddRiderField('gender', this.value)">${opts(['Women', 'Men'], s.gender)}</select>
+          </div>
+          <div class="modal-field"><label>Group</label>
+            <select onchange="setAddRiderField('discipline', this.value)">${opts(['Sprint', 'Endurance'], s.discipline)}</select>
+          </div>`}
+        </div>
+        <div class="modal-muted">Assign events from the rider's card once they've been added.</div>
+        ${s.error ? `<div class="modal-error">${escHtml(s.error)}</div>` : ''}
+        <div class="modal-actions">
+          <button type="button" class="secondary" onclick="closeAddRiderModal()">Cancel</button>
+          <button type="button" class="primary" onclick="confirmAddRider()">Add Rider</button>
+        </div>
+      `;
+    }
+
+    function confirmAddRider() {
+      const s = addRiderState;
+      const name = s.name.replace(/[<>"\\`]/g, '').trim();
+      if (!name) { s.error = 'Enter a rider name.'; renderAddRiderModal(); return; }
+      if (RIDERS.some(r => r[0].toLowerCase() === name.toLowerCase())) { s.error = 'A rider with that name already exists.'; renderAddRiderModal(); return; }
+
+      const group = s.type === 'para' ? 'Para' : `${s.gender} ${s.discipline}`;
+      const rider = [name, s.type === 'para' ? s.cls : group, group, 'custom'];
+      RIDERS.push(rider);
+      saved.customRiders = [...(saved.customRiders || []), rider];
+      persist();
+      closeAddRiderModal();
+      renderRiders();
+      populateRiderSelect();
+      render(false);
+    }
+
+    function removeCustomRider(name) {
+      if (!confirm(`Remove ${name} and their event entries?`)) return;
+      const i = RIDERS.findIndex(r => r[0] === name && r[3] === 'custom');
+      if (i !== -1) RIDERS.splice(i, 1);
+      saved.customRiders = (saved.customRiders || []).filter(r => r[0] !== name);
+      Object.keys(saved).forEach(k => { if (k.startsWith(`assigned|${name}|`)) delete saved[k]; });
+      persist();
+      renderRiders();
+      populateRiderSelect();
+      render(false);
     }
 
     function updatePrintHeader() {
@@ -2442,8 +2999,14 @@
       });
     }
 
-    // Update pause countup display
+    // Update pause countup display and keep the pause button in sync with pausedAt
+    // (also called after loadState so switching tabs never strands the button on "Resume Schedule")
     function updatePauseTimer() {
+      const pauseButton = document.getElementById('pauseDelay');
+      if (pauseButton) {
+        pauseButton.textContent = pausedAt ? 'Resume Schedule' : 'Pause for Delay';
+        pauseButton.classList.toggle('paused', !!pausedAt);
+      }
       const timerEl = document.getElementById('pauseTimer');
       if (!timerEl) return;
       if (pausedAt) {
@@ -2458,6 +3021,882 @@
       }
     }
 
+    // ==================== PDF SCHEDULE UPLOAD & PARSING ====================
+
+    function triggerPdfUpload() {
+      const input = document.getElementById('pdfScheduleInput');
+      if (input) {
+        input.value = '';
+        input.click();
+      }
+    }
+
+    let parsedPdfScheduleData = null;
+
+    async function extractPdfLines(file) {
+      const pdfLib = window.pdfjsLib;
+      if (!pdfLib) {
+        throw new Error("PDF parser is not available. Please check your internet connection and reload the page.");
+      }
+      if (!pdfLib.GlobalWorkerOptions.workerSrc) {
+        pdfLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      }
+
+      const buffer = await file.arrayBuffer();
+      const loadingTask = pdfLib.getDocument({ data: new Uint8Array(buffer) });
+      const pdf = await loadingTask.promise;
+      const allLines = [];
+
+      for (let pageIndex = 1; pageIndex <= pdf.numPages; pageIndex += 1) {
+        const page = await pdf.getPage(pageIndex);
+        const content = await page.getTextContent();
+        const items = content.items || [];
+        if (!items.length) continue;
+
+        const lineGroups = [];
+        for (const item of items) {
+          const text = String(item.str || '').trim();
+          if (!text) continue;
+          const x = Number(item.transform?.[4] || 0);
+          const y = Number(item.transform?.[5] || 0);
+          const tolerance = Math.max(2, (Number(item.height) || 8) * 0.5);
+
+          let group = lineGroups.find(g => Math.abs(g.y - y) <= tolerance);
+          if (!group) {
+            group = { y, items: [] };
+            lineGroups.push(group);
+          }
+          group.items.push({ x, text });
+        }
+
+        // Sort lines top to bottom
+        lineGroups.sort((a, b) => b.y - a.y);
+
+        for (const group of lineGroups) {
+          // Sort items on the same line left to right
+          group.items.sort((a, b) => a.x - b.x);
+          const lineStr = group.items.map(it => it.text).join(' ').replace(/\s+/g, ' ').trim();
+          if (lineStr) {
+            allLines.push(lineStr);
+          }
+        }
+      }
+
+      return allLines;
+    }
+
+    const PDF_TIME_RE = /^(\d{1,2})[:h.](\d{2})(?:\s*[-–—]?\s*(\d{1,2})[:h.](\d{2}))?(?=\s|$)\s*/;
+    const PDF_WEEKDAY_RE = /^(monday|tuesday|wednesday|thursday|friday|saturday|sunday|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b/i;
+    const PDF_PARA_CLASSES = [
+      [/\b(?:M\/WC1-5|W\/MC1-5)\b/, 'M/WC1-5'],
+      [/\b(?:M\/WB|W\/MB)\b/, 'M/WB'],
+      [/\bWC1\s*[-\/]\s*(?:WC)?2\b/, 'WC1-2'],
+      [/\bMC1\s*[-\/]\s*(?:MC)?2\b/, 'MC1-2'],
+      [/\bMC1\s*[-\/]\s*(?:MC)?3\b/, 'MC1-3'],
+      [/\bWC4\s*[-\/]\s*(?:WC)?5\b/, 'WC4/5'],
+      [/\bMC4\s*[-\/]\s*(?:MC)?5\b/, 'MC4-5'],
+      [/\b([MW]C[1-5])\b/, m => m[1]],
+      [/\b([MW]B)\b/, m => m[1]]
+    ];
+
+    function escHtml(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function toMinutes(h, m) {
+      return Number(h) * 60 + Number(m);
+    }
+
+    function minutesToTime(min) {
+      return `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+    }
+
+    function detectPdfClass(text) {
+      for (const [re, val] of PDF_PARA_CLASSES) {
+        const m = text.match(re);
+        if (m) return typeof val === 'function' ? val(m) : val;
+      }
+      const t = text.match(/^([WM])(?:\s*[-–—:]|\s|$)/);
+      if (t) return t[1];
+      if (/^women\b/i.test(text)) return 'W';
+      if (/^men\b/i.test(text)) return 'M';
+      return '';
+    }
+
+    function detectPdfCeremony(lower) {
+      if (/opening\s+ceremon/.test(lower)) return 'Opening Ceremony';
+      if (/closing\s+ceremon/.test(lower)) return 'Closing Ceremony';
+      if (/(?:award|victory|medal)\s+ceremon/.test(lower)) return 'Award Ceremony';
+      if (/sport\s+presentation/.test(lower)) return 'Sport Presentation';
+      if (/^(?:[wm]\s*[-–—]\s*)?(?:break|lunch\s+break|pause)\b/.test(lower)) return 'Break';
+      return null;
+    }
+
+    // Keyword order matters: combined names (team sprint, omnium scratch) must win over their parts
+    function detectPdfEvent(lower) {
+      const km = (lower.match(/(\d+)\s*km\b/) || [])[1];
+      if (/team\s+sprint/.test(lower)) return { kind: 'teamSprint' };
+      if (/team\s+pursuit/.test(lower)) return { kind: 'teamPursuit' };
+      if (/keirin/.test(lower)) return { kind: 'keirin' };
+      if (/madison/.test(lower)) return { kind: 'madison', km };
+      const om = lower.match(/omnium\s*(iv|iii|ii|i)\b/);
+      if (om) return { kind: 'omnium', num: om[1].toUpperCase() };
+      if (/pursuit/.test(lower)) return { kind: 'pursuit', km };
+      if (/kilomet|\b1\s*km\b|\b1000\s*m\b|\b500\s*m\b|time\s*trial|\bt\.\s*t\.?|\btt\b/.test(lower)) return { kind: 'timeTrial' };
+      if (/points/.test(lower)) return { kind: 'points', km };
+      if (/scratch/.test(lower)) return { kind: 'scratch', km };
+      if (/elimination/.test(lower)) return { kind: 'elimination' };
+      if (/sprint|\b200\s*m\b/.test(lower)) return { kind: 'sprint' };
+      return null;
+    }
+
+    function detectPdfHeat(lower) {
+      if (/\bi\.?\s*r\.?\b/.test(lower)) return '3rd';
+      const heatM = lower.match(/\((1st|2nd|3rd)(\s*i\.?\s*r\.?)?\)/);
+      if (heatM) return heatM[1];
+      const explicitHeat = lower.match(/\b(1st|2nd|3rd)\s*(?:heat|manche)?\b/) || lower.match(/\bheat\s*([123])\b/) || lower.match(/\b([123])(?:st|nd|rd)?\s*heat\b/) || lower.match(/\b(1er|1re|2e|3e)\b/);
+      if (explicitHeat) {
+        const val = explicitHeat[1];
+        if (val === '1' || val === '1er' || val === '1re') return '1st';
+        if (val === '2' || val === '2e') return '2nd';
+        if (val === '3' || val === '3e') return '3rd';
+        return val;
+      }
+      return '';
+    }
+
+    function detectPdfRound(lower) {
+      const heat = detectPdfHeat(lower);
+      const place = lower.match(/(\d+(?:st|nd|rd|th))\s*-\s*(\d+(?:st|nd|rd|th))\s*place/);
+      const frac = lower.match(/\b1\/(16|8|4|2)\b/);
+      let round = '';
+      if (/repechage/.test(lower)) round = 'Repechages';
+      else if (/\b(?:1st|first)\s+round|\bround\s*1\b/.test(lower)) round = '1st round';
+      else if (/\b(?:2nd|second)\s+round|\bround\s*2\b/.test(lower)) round = '2nd round';
+      else if (/\b(?:3rd|third)\s+round|\bround\s*3\b/.test(lower)) round = '3rd round';
+      else if (/\b7\s*(?:to|-)\s*12\b/.test(lower)) round = 'Final places 7 to 12';
+      else if (/final\s*1\s*-\s*6\b/.test(lower)) round = 'Final 1-6';
+      else if (/3\s*-\s*4\s*&\s*1\s*-\s*2/.test(lower)) round = /finals\s*3/.test(lower) ? 'Finals 3-4 & 1-2' : 'Final places 3-4 & 1-2';
+      else if (place) round = `${place[1]} - ${place[2]} Place`;
+      else if (frac) round = `1/${frac[1]} Final`;
+      else if (/semi\s*finals?|\b1\/2\b/.test(lower)) round = '1/2 Final';
+      else if (/quarter\s*finals?|\b1\/4\b/.test(lower)) round = '1/4 Final';
+      else if (/\b200\s*m\b/.test(lower)) round = 'Qualifying 200m';
+      else if (/qualif/.test(lower)) round = 'Qualifying';
+      else if (/final/.test(lower)) round = 'Final';
+      if (heat && round) round += ` (${heat})`;
+      return round;
+    }
+
+    function parsePdfRow(rawLine) {
+      let text = rawLine.replace(/\s+/g, ' ').trim();
+      let start = null;
+      let end = null;
+      let sessionRange = null;
+      const tm = text.match(PDF_TIME_RE);
+      if (tm) {
+        start = toMinutes(tm[1], tm[2]);
+        end = tm[3] !== undefined ? toMinutes(tm[3], tm[4]) : null;
+        text = text.slice(tm[0].length).trim();
+        // Two times without a dash = left-column session start (para style) followed by the event's own time
+        if (end !== null && !/[-–—]/.test(tm[0])) {
+          sessionRange = start;
+          start = end;
+          end = null;
+        }
+      }
+      if (!text) return start !== null ? { type: 'time', start, end, sessionRange } : null;
+
+      // Left-column range (e.g. "11:00-12:39") marks a session block; the event's own time may follow it
+      if (end !== null) {
+        const tm2 = text.match(PDF_TIME_RE);
+        if (tm2 || end - start >= 45) {
+          sessionRange = start;
+          if (tm2) {
+            start = toMinutes(tm2[1], tm2[2]);
+            end = tm2[3] !== undefined ? toMinutes(tm2[3], tm2[4]) : null;
+            text = text.slice(tm2[0].length).trim();
+            if (!text) return { type: 'time', start, end, sessionRange };
+          } else {
+            end = null;
+          }
+        }
+      }
+
+      const lower = text.toLowerCase();
+      if (start === null && (/^(?:day|jour)\s*\d+\b/.test(lower) || PDF_WEEKDAY_RE.test(text))) {
+        return { type: 'day' };
+      }
+
+      const ceremony = detectPdfCeremony(lower);
+      const event = ceremony ? null : detectPdfEvent(lower);
+      const cls = detectPdfClass(text);
+      if (!ceremony && event && !cls) return null;
+      if (!ceremony && !event) {
+        const heat = detectPdfHeat(lower);
+        if (heat) return { type: 'heat', heat };
+        if (/\bsession\b/.test(lower)) {
+          const st = text.match(/(\d{1,2})[:h.](\d{2})/);
+          return { type: 'session', start: start ?? (st ? toMinutes(st[1], st[2]) : null), sessionRange };
+        }
+        if (sessionRange !== null) return { type: 'time', start: sessionRange, end: null, sessionRange };
+        return start !== null ? { type: 'skipped', text: rawLine.trim() } : null;
+      }
+
+      const durM = text.match(/\s(\d+(?:[.,]\d+)?)\s*(?:min|mins|minutes|['’])?$/i);
+      return {
+        type: 'event',
+        start,
+        end,
+        duration: durM ? parseFloat(durM[1].replace(',', '.')) : null,
+        sessionRange,
+        cls,
+        ceremony,
+        event,
+        heat: event ? detectPdfHeat(lower) : '',
+        round: event ? detectPdfRound(lower) : ''
+      };
+    }
+
+    function normPdfLabel(s) {
+      return String(s).toLowerCase().replace(/finals/g, 'final').replace(/[^a-z0-9]/g, '');
+    }
+
+    // Reuse the exact round wording from the hard-coded programme so defaults and styling match
+    function canonicalPdfRound(prog, cls, eventName, round) {
+      const items = Object.values(prog === 'track' ? TRACK_PROGRAMMES : PROGRAMMES).flat()
+        .filter(x => x.length === 3 && normPdfLabel(x[1]) === normPdfLabel(eventName));
+      if (!round) {
+        const same = items.find(x => x[0] === cls) || items[0];
+        return same ? same[2] : '';
+      }
+      const hit = items.find(x => normPdfLabel(x[2]) === normPdfLabel(round));
+      return hit ? hit[2] : round;
+    }
+
+    function pdfEventName(ev, prog, round) {
+      const track = prog === 'track';
+      switch (ev.kind) {
+        case 'teamSprint': return 'Team Sprint';
+        case 'teamPursuit': return 'Team Pursuit';
+        case 'keirin': return 'Keirin';
+        case 'madison': return ev.km ? `Madison ${ev.km} km` : 'Madison';
+        case 'omnium': return `Omnium ${ev.num}`;
+        case 'pursuit': return track || !ev.km ? 'Individual Pursuit' : `${ev.km} Km Individual Pursuit`;
+        case 'timeTrial': return track ? '1km Time Trial' : '1 Km Time Trial';
+        case 'points': return ev.km ? `Points Race ${ev.km} km` : 'Points Race';
+        case 'scratch': return track ? `Scratch ${ev.km || 10} km` : `${ev.km || 10} Km Scratch Race`;
+        case 'elimination': return 'Elimination';
+        case 'sprint': return !track && round === 'Qualifying' ? 'Qualifying 200m' : 'Sprint';
+      }
+      return '';
+    }
+
+    function buildPdfItem(row, prog) {
+      const track = prog === 'track';
+      if (row.ceremony) {
+        if (row.ceremony === 'Award Ceremony') {
+          return track ? [/^[WM]$/.test(row.cls) ? row.cls : '', 'Award Ceremony', ''] : ['', 'Award Ceremonies', ''];
+        }
+        return ['', row.ceremony, ''];
+      }
+      let round = row.round;
+      const heatMatch = round.match(/\s+\(((?:1st|2nd|3rd)(?: i\.r\.)?)\)$/);
+      const heat = row.heat || (heatMatch ? heatMatch[1] : '');
+      if (heatMatch) round = round.slice(0, -heatMatch[0].length);
+      if (row.event.kind === 'sprint') {
+        if (track && round === 'Qualifying') round = 'Qualifying 200m';
+        if (!track && round === 'Qualifying 200m') round = 'Qualifying';
+      }
+      const name = pdfEventName(row.event, prog, round);
+      round = canonicalPdfRound(prog, row.cls, name, row.event.kind === 'omnium' ? '' : round);
+      round = round.replace(/\s*\((?:1st|2nd|3rd)(?: i\.r\.)?\)$/, '');
+      if (heat && round) round += ` (${heat})`;
+      return [row.cls, name, round];
+    }
+
+    function pdfSessionTitle(session) {
+      if (session.rows.every(r => r.ceremony === 'Opening Ceremony')) return 'Afternoon Session';
+      const s = session.start ?? 600;
+      if (s < 13 * 60) return 'Morning Session';
+      if (s < 17 * 60) return 'Afternoon Session';
+      return 'Evening Session';
+    }
+
+    // Days/sessions come from row times, so headings in odd positions can't reorder or drop races
+    function parseSchedulePdf(lines) {
+      const days = [];
+      const skipped = [];
+      let day = null;
+      let session = null;
+      let prev = null;
+      let lastTimed = null;
+      let pendingSession = null;
+      let pendingTime = null;
+      let pendingHeat = null;
+      let pendingRanges = [];
+      let paraCount = 0;
+      let trackCount = 0;
+
+      const newDay = () => {
+        if (!day || day.sessions.length) {
+          day = { sessions: [], ranges: [] };
+          days.push(day);
+        }
+        session = null;
+        prev = null;
+        lastTimed = null;
+      };
+
+      for (const line of lines) {
+        const row = parsePdfRow(line);
+        if (!row) continue;
+        if (row.type === 'heat') {
+          if (prev?.event?.kind === 'sprint') {
+            prev.heat = row.heat;
+          } else {
+            pendingHeat = row.heat;
+          }
+          continue;
+        }
+        if (row.type === 'time' && row.end !== null) {
+          // Standalone range in the left column = session block
+          row.sessionRange = row.start;
+          row.end = null;
+        }
+        if (row.sessionRange != null) pendingRanges.push(row.sessionRange);
+        if (row.type === 'time') { pendingTime = row; continue; }
+        if (row.type === 'day') { newDay(); continue; }
+        if (row.type === 'session') { pendingSession = { start: row.start }; continue; }
+        if (row.type === 'skipped') { skipped.push(row.text); continue; }
+
+        if (row.event?.kind === 'sprint' && !row.heat && pendingHeat) {
+          row.heat = pendingHeat;
+        }
+        pendingHeat = null;
+
+        if (row.start === null && pendingTime) {
+          row.start = pendingTime.start;
+          row.end = pendingTime.end;
+        } else if (pendingTime && pendingTime.sessionRange == null) {
+          // Lone time not used by an event that has its own time = left-column session start
+          pendingRanges.push(pendingTime.start);
+        }
+        pendingTime = null;
+
+        if (!day || (row.start !== null && lastTimed && row.start < lastTimed.start)) newDay();
+        day.ranges.push(...pendingRanges);
+        pendingRanges = [];
+
+        let prevEnd = null;
+        if (lastTimed) {
+          prevEnd = lastTimed.end ?? (lastTimed.duration ? lastTimed.start + lastTimed.duration : lastTimed.start);
+        }
+        const gap = row.start !== null && prevEnd !== null ? row.start - prevEnd : 0;
+
+        if (!session || pendingSession || gap >= 15 || prev?.ceremony === 'Opening Ceremony') {
+          session = { start: pendingSession?.start ?? row.start, rows: [] };
+          day.sessions.push(session);
+          pendingSession = null;
+        }
+        if (session.start === null && row.start !== null) session.start = row.start;
+        session.rows.push(row);
+
+        if (/^[MW]C|^[MW]B$|^M\/W/.test(row.cls)) paraCount++;
+        else if (row.cls === 'W' || row.cls === 'M') trackCount++;
+        prev = row;
+        if (row.start !== null) lastTimed = row;
+      }
+
+      // When most races have no time, the few times present are left-column session starts
+      days.forEach(d => {
+        const races = d.sessions.flatMap(s => s.rows).filter(r => r.event);
+        const timed = races.filter(r => r.start !== null);
+        if (timed.length && races.length - timed.length > timed.length) {
+          d.ranges.push(...timed.map(r => r.start));
+        }
+      });
+
+      // Split where rows cross a range start; the range text may sit mid-block since PDF merged cells are vertically centred
+      days.forEach(d => {
+        if (!d.ranges.length) return;
+        const out = [];
+        let lastStart = null;
+        d.sessions.forEach(s => {
+          let cur = null;
+          s.rows.forEach((r, i) => {
+            let hit = null;
+            if (r.start !== null) {
+              const crossed = d.ranges.filter(x => x <= r.start && (lastStart === null || x > lastStart));
+              if (crossed.length) hit = Math.max(...crossed);
+            }
+            if (i === 0 || hit !== null) {
+              cur = { start: hit ?? (i === 0 ? s.start : r.start), rows: [] };
+              out.push(cur);
+            }
+            cur.rows.push(r);
+            if (r.start !== null) lastStart = r.start;
+          });
+        });
+        d.sessions = out;
+      });
+
+      const detectedProg = paraCount > trackCount ? 'para' : trackCount > paraCount ? 'track' : currentProgramme;
+      if (detectedProg === 'para') {
+        days.forEach(d => {
+          d.sessions.forEach(s => {
+            s.rows = s.rows.filter(r => !r.event || (r.cls !== 'M' && r.cls !== 'W'));
+          });
+          d.sessions = d.sessions.filter(s => s.rows.length);
+        });
+      }
+      return { days, skipped, detectedProg };
+    }
+
+    function buildScheduleFromPdf(parsed, prog) {
+      const scheduleByDay = {};
+      parsed.days.forEach(day => {
+        const items = [];
+        const used = {};
+        const byOrder = prog === 'para' && day.sessions.length === 3;
+
+        // Auto-assign 1st, 2nd, 3rd heat to repeat sprint rounds for the same class if not already tagged
+        const sprintCounts = {};
+        day.sessions.forEach(s => {
+          s.rows.forEach(r => {
+            if (r.event?.kind === 'sprint' && !r.heat && r.round && !/\((?:1st|2nd|3rd)(?: i\.r\.)?\)/.test(r.round)) {
+              const baseRound = r.round.replace(/\s*\([^)]*\)$/, '');
+              const k = `${r.cls}|${baseRound}`;
+              sprintCounts[k] = (sprintCounts[k] || 0) + 1;
+            }
+          });
+        });
+        const sprintSeen = {};
+
+        day.sessions.forEach((s, i) => {
+          let title = byOrder ? ['Morning Session', 'Afternoon Session', 'Evening Session'][i] : pdfSessionTitle(s);
+          used[title] = (used[title] || 0) + 1;
+          if (used[title] > 1) title += ` ${used[title]}`;
+          items.push([title, minutesToTime(s.start ?? 600)]);
+          s.rows.forEach(r => {
+            if (r.event?.kind === 'sprint' && !r.heat && r.round && !/\((?:1st|2nd|3rd)(?: i\.r\.)?\)/.test(r.round)) {
+              const baseRound = r.round.replace(/\s*\([^)]*\)$/, '');
+              const k = `${r.cls}|${baseRound}`;
+              if (sprintCounts[k] > 1) {
+                sprintSeen[k] = (sprintSeen[k] || 0) + 1;
+                r.heat = sprintSeen[k] === 1 ? '1st' : sprintSeen[k] === 2 ? '2nd' : '3rd';
+              }
+            }
+            items.push(buildPdfItem(r, prog));
+          });
+        });
+        if (items.some(x => x.length === 3)) {
+          scheduleByDay[`Day ${Object.keys(scheduleByDay).length + 1}`] = items;
+        }
+      });
+      return scheduleByDay;
+    }
+
+    async function handleSchedulePdfUpload(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      const modal = document.getElementById('uploadModal');
+      const content = document.getElementById('uploadModalContent');
+      modal.classList.add('open');
+      content.innerHTML = `<div class="modal-loading">Reading and parsing schedule from <strong>${escHtml(file.name)}</strong>...</div>`;
+
+      try {
+        const lines = await extractPdfLines(file);
+        const parsed = parseSchedulePdf(lines);
+        const days = Object.keys(buildScheduleFromPdf(parsed, parsed.detectedProg));
+        if (days.length === 0) {
+          content.innerHTML = `
+            <div class="modal-error-box">
+              <strong>No race events could be identified in this PDF.</strong><br>
+              Please make sure the PDF contains searchable text with track cycling events and session times.
+            </div>
+            <div class="modal-actions">
+              <button class="secondary" onclick="closeUploadModal()">Close</button>
+            </div>
+          `;
+          return;
+        }
+
+        parsedPdfScheduleData = { parsed, fileName: file.name, targetProg: parsed.detectedProg };
+        renderUploadModalPreview();
+      } catch (err) {
+        console.error(err);
+        content.innerHTML = `
+          <div class="modal-error-box">
+            <strong>Error reading PDF:</strong> ${escHtml(err.message || String(err))}
+          </div>
+          <div class="modal-actions">
+            <button class="secondary" onclick="closeUploadModal()">Close</button>
+          </div>
+        `;
+      }
+    }
+
+    function renderUploadModalPreview() {
+      const { fileName, targetProg } = parsedPdfScheduleData;
+      if (!parsedPdfScheduleData.editableSchedule) {
+        parsedPdfScheduleData.editableSchedule = buildScheduleFromPdf(parsedPdfScheduleData.parsed, targetProg);
+      }
+      const scheduleByDay = parsedPdfScheduleData.editableSchedule;
+      const content = document.getElementById('uploadModalContent');
+      const days = Object.keys(scheduleByDay);
+      const totalRaces = days.reduce((sum, d) => sum + (scheduleByDay[d] || []).filter(x => x.length === 3).length, 0);
+
+      let html = `
+        <div class="modal-note">
+          <strong>PDF may not have recorded correctly, double check before confirming.</strong>
+          <span>Edit any cell directly, drag rows (or use ⬆ / ⬇) to reorder, delete rows, or add new sessions and events.</span>
+        </div>
+
+        <div class="modal-fields">
+          <div class="modal-field"><label for="importProgSelect">Target Discipline</label>
+            <select id="importProgSelect" onchange="parsedPdfScheduleData.targetProg = this.value; parsedPdfScheduleData.editableSchedule = buildScheduleFromPdf(parsedPdfScheduleData.parsed, this.value); renderUploadModalPreview()">
+              <option value="para" ${targetProg === 'para' ? 'selected' : ''}>Para Track Cycling</option>
+              <option value="track" ${targetProg === 'track' ? 'selected' : ''}>Track Cycling</option>
+            </select>
+          </div>
+          <div class="modal-field"><label for="importDaySelect">Apply To</label>
+            <select id="importDaySelect">
+              <option value="all">All Days in PDF (${days.join(', ')})</option>
+              ${days.map(d => `<option value="${d}">${d} only</option>`).join('')}
+            </select>
+          </div>
+          <div class="modal-summary">
+            <strong>${totalRaces} race(s)</strong> across <strong>${days.length} day(s)</strong> from <em>${escHtml(fileName)}</em>
+          </div>
+        </div>
+
+        ${pdfAddFormHtml(days)}
+
+        <div id="pdfPreviewScroll" class="pdf-preview">
+      `;
+
+      days.forEach((d, dIdx) => {
+        const rows = scheduleByDay[d] || [];
+        html += `
+          <div class="pdf-day-title">
+            <span>${d} (${rows.filter(x => x.length === 3).length} races)</span>
+            <div>
+              <button type="button" class="add-rider" onclick="openPdfAddForm('${d}', 'session')">+ Session</button>
+              <button type="button" class="add-rider" onclick="openPdfAddForm('${d}', 'event')">+ Event</button>
+            </div>
+          </div>
+          <div class="pdf-day-table">
+          <table>
+            <thead>
+              <tr>
+                <th class="drag-handle"></th>
+                <th style="width: 120px;">Class / Time</th>
+                <th>Event / Session Name</th>
+                <th style="width: 230px;">Round</th>
+                <th style="width: 110px;"></th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+
+        rows.forEach((item, rIdx) => {
+          const isSession = item.length === 2;
+          html += `
+            <tr id="pdfRow-${dIdx}-${rIdx}" class="${isSession ? 'pdf-session-row' : ''}" draggable="true"
+                ondragstart="onPdfRowDragStart(event, '${d}', ${rIdx})"
+                ondragover="onPdfRowDragOver(event)"
+                ondrop="onPdfRowDrop(event, '${d}', ${rIdx})">
+              <td class="drag-handle" title="Drag to reorder">⠿</td>
+              ${isSession ? `
+                <td><input type="text" value="${escHtml(item[1])}" onchange="updatePdfPreviewCell('${d}', ${rIdx}, 1, this.value)" placeholder="HH:MM" title="Session start time"></td>
+                <td colspan="2"><input type="text" value="${escHtml(item[0])}" onchange="updatePdfPreviewCell('${d}', ${rIdx}, 0, this.value)" placeholder="Session name"></td>
+              ` : `
+                <td><input type="text" value="${escHtml(item[0])}" onchange="updatePdfPreviewCell('${d}', ${rIdx}, 0, this.value)" placeholder="Class"></td>
+                <td><input type="text" value="${escHtml(item[1])}" onchange="updatePdfPreviewCell('${d}', ${rIdx}, 1, this.value)" placeholder="Event"></td>
+                <td><input type="text" value="${escHtml(item[2])}" onchange="updatePdfPreviewCell('${d}', ${rIdx}, 2, this.value)" placeholder="Round"></td>
+              `}
+              <td class="pdf-row-actions">
+                <button type="button" class="add-rider" onclick="movePdfPreviewRow('${d}', ${rIdx}, -1)" ${rIdx === 0 ? 'disabled' : ''} title="Move up">⬆</button>
+                <button type="button" class="add-rider" onclick="movePdfPreviewRow('${d}', ${rIdx}, 1)" ${rIdx === rows.length - 1 ? 'disabled' : ''} title="Move down">⬇</button>
+                <button type="button" class="remove-rider" onclick="deletePdfPreviewRow('${d}', ${rIdx})" title="Delete row">✕</button>
+              </td>
+            </tr>
+          `;
+        });
+
+        html += `
+            </tbody>
+          </table>
+          </div>
+        `;
+      });
+
+      html += `</div>`;
+
+      if (parsedPdfScheduleData.parsed?.skipped?.length) {
+        html += `
+          <details class="modal-skipped">
+            <summary>Lines not recognised (${parsedPdfScheduleData.parsed.skipped.length}) — click to review</summary>
+            <div>${parsedPdfScheduleData.parsed.skipped.map(t => `<p style="margin: 0;">${escHtml(t)}</p>`).join('')}</div>
+          </details>
+        `;
+      }
+
+      html += `
+        <div class="modal-footer">
+          <button class="reset-button" onclick="resetPdfPreviewEdits()">Reset Edits to PDF Raw</button>
+          <div>
+            <button class="secondary" onclick="closeUploadModal()">Cancel</button>
+            <button class="primary" id="confirmApplyScheduleBtn" onclick="applyUploadedSchedule()">Apply New Race Order</button>
+          </div>
+        </div>
+      `;
+
+      const prevScroll = document.getElementById('pdfPreviewScroll')?.scrollTop ?? 0;
+      content.innerHTML = html;
+      const scroller = document.getElementById('pdfPreviewScroll');
+      if (scroller) scroller.scrollTop = prevScroll;
+
+      const target = parsedPdfScheduleData.scrollTarget;
+      parsedPdfScheduleData.scrollTarget = null;
+      if (target) {
+        const rowEl = document.getElementById(`pdfRow-${days.indexOf(target.day)}-${target.index}`);
+        if (rowEl) {
+          rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          rowEl.classList.add('pdf-row-flash');
+          setTimeout(() => rowEl.classList.remove('pdf-row-flash'), 2500);
+        }
+      }
+      if (parsedPdfScheduleData.addForm?.focus) {
+        parsedPdfScheduleData.addForm.focus = false;
+        document.getElementById('pdfAddFieldA')?.focus();
+      }
+    }
+
+    function pdfAddFormHtml(days) {
+      const f = parsedPdfScheduleData.addForm;
+      if (!f) {
+        return `
+          <div class="pdf-add-toggle">
+            <button type="button" class="secondary" onclick="openPdfAddForm()">+ Add Session / Event</button>
+          </div>`;
+      }
+      const isSession = f.type === 'session';
+      return `
+        <div class="pdf-add-form">
+          <div class="modal-fields">
+            <div class="modal-field"><label>Day</label>
+              <select onchange="updatePdfAddForm('day', this.value, true)">
+                ${days.map(d => `<option value="${escHtml(d)}" ${d === f.day ? 'selected' : ''}>${escHtml(d)}</option>`).join('')}
+              </select>
+            </div>
+            <div class="modal-field"><label>Type</label>
+              <select onchange="updatePdfAddForm('type', this.value, true)">
+                <option value="event" ${!isSession ? 'selected' : ''}>Event</option>
+                <option value="session" ${isSession ? 'selected' : ''}>Session</option>
+              </select>
+            </div>
+            <div class="modal-field"><label for="pdfAddFieldA">${isSession ? 'Start Time' : 'Class'}</label>
+              <input id="pdfAddFieldA" type="text" value="${escHtml(f.a)}" oninput="updatePdfAddForm('a', this.value)" placeholder="${isSession ? 'HH:MM' : 'e.g. WB'}" style="width: 100px;">
+            </div>
+            <div class="modal-field grow"><label>${isSession ? 'Session Name' : 'Event'}</label>
+              <input type="text" value="${escHtml(f.b)}" oninput="updatePdfAddForm('b', this.value)" placeholder="${isSession ? 'e.g. Evening Session' : 'e.g. Sprint'}">
+            </div>
+            ${isSession ? '' : `
+            <div class="modal-field grow"><label>Round</label>
+              <input type="text" value="${escHtml(f.c)}" oninput="updatePdfAddForm('c', this.value)" placeholder="e.g. 1/4 Final (1st)">
+            </div>`}
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="secondary" onclick="closePdfAddForm()">Cancel</button>
+              <button type="button" class="primary" onclick="confirmPdfAdd()">Add</button>
+            </div>
+          </div>
+          ${f.error ? `<div class="modal-error">${escHtml(f.error)}</div>` : ''}
+        </div>`;
+    }
+
+    function openPdfAddForm(day, type = 'event') {
+      const days = Object.keys(parsedPdfScheduleData.editableSchedule);
+      parsedPdfScheduleData.addForm = { day: day || days[0], type, a: '', b: '', c: '', error: '', focus: true };
+      renderUploadModalPreview();
+    }
+
+    function closePdfAddForm() {
+      parsedPdfScheduleData.addForm = null;
+      renderUploadModalPreview();
+    }
+
+    function updatePdfAddForm(field, value, rerender = false) {
+      const f = parsedPdfScheduleData.addForm;
+      if (!f) return;
+      f[field] = value;
+      if (rerender) renderUploadModalPreview();
+    }
+
+    function confirmPdfAdd() {
+      const f = parsedPdfScheduleData.addForm;
+      const rows = f && parsedPdfScheduleData.editableSchedule[f.day];
+      if (!rows) return;
+      const a = f.a.trim();
+      const b = f.b.trim();
+      const c = f.c.trim();
+      let item;
+      if (f.type === 'session') {
+        const tm = a.match(/^(\d{1,2})[:.](\d{2})$/);
+        if (!tm) { f.error = 'Enter a start time as HH:MM.'; renderUploadModalPreview(); return; }
+        const time = minutesToTime(toMinutes(tm[1], tm[2]));
+        item = [b || pdfSessionTitle({ rows: [], start: toMinutes(tm[1], tm[2]) }), time];
+      } else {
+        if (!b) { f.error = 'Enter an event name.'; renderUploadModalPreview(); return; }
+        item = [a, b, c];
+      }
+
+      const index = rows.length;
+      rows.push(item);
+      parsedPdfScheduleData.addForm = null;
+      parsedPdfScheduleData.scrollTarget = { day: f.day, index };
+      renderUploadModalPreview();
+    }
+
+    // Interactive helper functions for the schedule modal
+    let draggedPdfRowInfo = null;
+
+    function updatePdfPreviewCell(day, rowIndex, fieldIndex, value) {
+      if (!parsedPdfScheduleData?.editableSchedule?.[day]?.[rowIndex]) return;
+      parsedPdfScheduleData.editableSchedule[day][rowIndex][fieldIndex] = value;
+    }
+
+    function movePdfPreviewRow(day, rowIndex, delta) {
+      const rows = parsedPdfScheduleData?.editableSchedule?.[day];
+      if (!rows) return;
+      const targetIndex = rowIndex + delta;
+      if (targetIndex < 0 || targetIndex >= rows.length) return;
+      const [item] = rows.splice(rowIndex, 1);
+      rows.splice(targetIndex, 0, item);
+      renderUploadModalPreview();
+    }
+
+    function deletePdfPreviewRow(day, rowIndex) {
+      const rows = parsedPdfScheduleData?.editableSchedule?.[day];
+      if (!rows) return;
+      rows.splice(rowIndex, 1);
+      renderUploadModalPreview();
+    }
+
+    function resetPdfPreviewEdits() {
+      if (!parsedPdfScheduleData) return;
+      parsedPdfScheduleData.editableSchedule = buildScheduleFromPdf(parsedPdfScheduleData.parsed, parsedPdfScheduleData.targetProg);
+      renderUploadModalPreview();
+    }
+
+    function onPdfRowDragStart(event, day, rowIndex) {
+      draggedPdfRowInfo = { day, rowIndex };
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', `${day}:${rowIndex}`);
+    }
+
+    function onPdfRowDragOver(event) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+    }
+
+    function onPdfRowDrop(event, targetDay, targetRowIndex) {
+      event.preventDefault();
+      if (!draggedPdfRowInfo) return;
+      const { day: sourceDay, rowIndex: sourceRowIndex } = draggedPdfRowInfo;
+      draggedPdfRowInfo = null;
+      const schedule = parsedPdfScheduleData?.editableSchedule;
+      if (!schedule || !schedule[sourceDay] || !schedule[targetDay]) return;
+
+      const [movedItem] = schedule[sourceDay].splice(sourceRowIndex, 1);
+      schedule[targetDay].splice(targetRowIndex, 0, movedItem);
+      renderUploadModalPreview();
+    }
+
+    function applyUploadedSchedule() {
+      if (!parsedPdfScheduleData?.editableSchedule) return;
+      const progSelect = document.getElementById('importProgSelect');
+      const dayTargetSelect = document.getElementById('importDaySelect');
+      const targetProg = progSelect ? progSelect.value : currentProgramme;
+      const targetDayChoice = dayTargetSelect ? dayTargetSelect.value : 'all';
+      const scheduleByDay = parsedPdfScheduleData.editableSchedule;
+
+      // Clone existing programme data
+      const existingProgData = { ...getProgrammes(targetProg) };
+      const daysToUpdate = targetDayChoice === 'all' ? Object.keys(scheduleByDay) : [targetDayChoice];
+
+      daysToUpdate.forEach(d => {
+        if (scheduleByDay[d]) {
+          existingProgData[d] = scheduleByDay[d];
+        }
+        // Clear old row-index-specific overrides so clean default calculated timings and suggested heats apply
+        Object.keys(saved).forEach(k => {
+          if (k.startsWith(`${targetProg}|${d}|`)) {
+            delete saved[k];
+          }
+        });
+      });
+
+      saved[`customProgrammes_${targetProg}`] = existingProgData;
+      persist();
+
+      // If imported discipline is different from current tab, switch tab
+      if (currentProgramme !== targetProg) {
+        switchView(targetProg === 'track' ? 'track' : 'programme');
+      } else {
+        const days = Object.keys(activeProgrammes());
+        daySelect.innerHTML = days.map(d => `<option value="${d}">${d}</option>`).join('');
+        if (days.includes(saved[`selectedDay|${currentProgramme}`])) {
+          daySelect.value = saved[`selectedDay|${currentProgramme}`];
+        } else {
+          daySelect.value = days[0] || 'Day 1';
+          saved[`selectedDay|${currentProgramme}`] = daySelect.value;
+        }
+        updatePrintHeader();
+        render(true);
+      }
+
+      closeUploadModal();
+
+      const statusEl = document.getElementById('raceStatus');
+      if (statusEl) {
+        statusEl.textContent = 'Race order updated from PDF!';
+        setTimeout(() => { if (statusEl.textContent === 'Race order updated from PDF!') statusEl.textContent = ''; }, 4000);
+      }
+    }
+
+    function closeUploadModal() {
+      document.getElementById('uploadModal').classList.remove('open');
+      parsedPdfScheduleData = null;
+    }
+
+    function restoreDefaultSchedule(progType = currentProgramme) {
+      delete saved[`customProgrammes_${progType}`];
+      Object.keys(saved).forEach(k => {
+        if (k.startsWith(`${progType}|`)) {
+          delete saved[k];
+        }
+      });
+      persist();
+      const days = Object.keys(activeProgrammes());
+      daySelect.innerHTML = days.map(d => `<option value="${d}">${d}</option>`).join('');
+      if (days.includes(saved[`selectedDay|${currentProgramme}`])) {
+        daySelect.value = saved[`selectedDay|${currentProgramme}`];
+      } else {
+        daySelect.value = days[0] || 'Day 1';
+        saved[`selectedDay|${currentProgramme}`] = daySelect.value;
+      }
+      updatePrintHeader();
+      render(true);
+      const statusEl = document.getElementById('raceStatus');
+      if (statusEl) {
+        statusEl.textContent = 'Default schedule restored.';
+        setTimeout(() => { if (statusEl.textContent === 'Default schedule restored.') statusEl.textContent = ''; }, 3000);
+      }
+    }
+
     // ==================== EVENT LISTENERS ====================
 
     // Race navigation controls
@@ -2467,18 +3906,15 @@
     document.getElementById('clearStartRace').onclick = clearStartRace;
 
     // Pause/Resume control
-    document.getElementById('pauseDelay').onclick = (e) => {
+    document.getElementById('pauseDelay').onclick = () => {
       if (currentIndex < 0) return;
       if (!pausedAt) {
         pausedAt = new Date();
-        e.target.textContent = 'Resume Schedule';
-        e.target.classList.add('paused');
         updatePauseTimer();
+        saveState();
       } else {
         totalDelayMs += new Date() - pausedAt;
         pausedAt = null;
-        e.target.textContent = 'Pause for Delay';
-        e.target.classList.remove('paused');
         updatePauseTimer();
         saveState();
         calculate();
@@ -2507,13 +3943,14 @@
         return;
       }
 
-      const dayCount = currentProgramme === 'track' ? 5 : 4;
-      daySelect.innerHTML = Array.from({ length: dayCount }, (_, i) => `<option>Day ${i + 1}</option>`).join('');
+      const days = Object.keys(activeProgrammes());
+      daySelect.innerHTML = days.map(d => `<option value="${d}">${d}</option>`).join('');
 
       const savedDay = saved[`selectedDay|${currentProgramme}`];
-      if (savedDay && Array.from(daySelect.options).some(o => o.value === savedDay)) {
+      if (savedDay && days.includes(savedDay)) {
         daySelect.value = savedDay;
       } else {
+        daySelect.value = days[0] || 'Day 1';
         saved[`selectedDay|${currentProgramme}`] = daySelect.value;
         persist();
       }
@@ -2530,8 +3967,18 @@
     // Reset all data
     document.getElementById('resetAll').onclick = () => {
       if (prompt('Type RESET to clear all saved data.') === 'RESET') {
+        // Blank the in-memory copy too, so a save firing before the reload can't write old values back
+        saved = {};
         localStorage.removeItem(STORE);
         location.reload();
+      }
+    };
+
+    // Restore default schedule
+    document.getElementById('restoreSchedule').onclick = () => {
+      const progName = currentProgramme === 'track' ? 'Track Cycling' : 'Para Track Cycling';
+      if (confirm(`Restore default schedule order for ${progName}?`)) {
+        restoreDefaultSchedule(currentProgramme);
       }
     };
 
@@ -2556,6 +4003,9 @@
     document.getElementById('openCountdown').onclick = () => document.getElementById('modal').classList.add('open');
     document.getElementById('closeModal').onclick = () => document.getElementById('modal').classList.remove('open');
 
+    // Upload modal close
+    document.getElementById('closeUploadModal').onclick = closeUploadModal;
+
     // Rider countdown dropdown
     const riderSelect = document.getElementById('riderSelect');
     function populateRiderSelect() {
@@ -2578,19 +4028,25 @@
         e.currentTarget.classList.remove('open');
       }
     };
+    document.getElementById('uploadModal').onclick = (e) => {
+      if (e.target.id === 'uploadModal') {
+        closeUploadModal();
+      }
+    };
 
     // Initialize the application with persisted tab, programme, day and collapsed states
     function initApp() {
       const activeView = saved['activeView'] || 'programme';
       currentProgramme = saved['currentProgramme'] || (activeView === 'track' ? 'track' : 'para');
 
-      const dayCount = currentProgramme === 'track' ? 5 : 4;
-      daySelect.innerHTML = Array.from({ length: dayCount }, (_, i) => `<option>Day ${i + 1}</option>`).join('');
+      const days = Object.keys(activeProgrammes());
+      daySelect.innerHTML = days.map(d => `<option value="${d}">${d}</option>`).join('');
 
       const savedDay = saved[`selectedDay|${currentProgramme}`];
-      if (savedDay && Array.from(daySelect.options).some(o => o.value === savedDay)) {
+      if (savedDay && days.includes(savedDay)) {
         daySelect.value = savedDay;
       } else {
+        daySelect.value = days[0] || 'Day 1';
         saved[`selectedDay|${currentProgramme}`] = daySelect.value;
         persist();
       }
@@ -2614,6 +4070,11 @@
     }
 
     initApp();
+  </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+    }
   </script>
 </body>
 

@@ -240,6 +240,116 @@
       background: #9aa7b0;
     }
 
+    .comparison-panel {
+      display: grid;
+      gap: 14px;
+    }
+
+    .comparison-header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .comparison-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .comparison-actions input[type="file"] {
+      max-width: min(100%, 360px);
+    }
+
+    .comparison-table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+    }
+
+    .comparison-table {
+      width: 100%;
+      min-width: 760px;
+      border-collapse: collapse;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .comparison-table th,
+    .comparison-table td {
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--color-border);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .comparison-table th {
+      background: var(--color-surface-alt);
+      color: var(--color-text-muted);
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
+    .comparison-sort {
+      width: 100%;
+      padding: 0;
+      border: 0;
+      color: inherit;
+      background: transparent;
+      font: inherit;
+      font-weight: 700;
+      text-align: inherit;
+      text-transform: inherit;
+      cursor: pointer;
+    }
+
+    .comparison-sort::after {
+      content: "↕";
+      margin-left: 6px;
+      color: #9aa7b0;
+    }
+
+    .comparison-sort[data-direction="ascending"]::after {
+      content: "↑";
+      color: var(--color-brand-blue);
+    }
+
+    .comparison-sort[data-direction="descending"]::after {
+      content: "↓";
+      color: var(--color-brand-blue);
+    }
+
+    .comparison-sort:focus-visible {
+      outline: 2px solid var(--tracker-cyan);
+      outline-offset: 4px;
+    }
+
+    .comparison-table th:first-child,
+    .comparison-table td:first-child {
+      width: 100%;
+      text-align: left;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    .comparison-table tbody tr:last-child td { border-bottom: 0; }
+
+    .comparison-empty {
+      margin: 0;
+      padding: 18px;
+      color: var(--color-text-muted);
+      text-align: center;
+    }
+
+    .comparison-status {
+      min-height: 18px;
+      margin: 0;
+      color: var(--color-text-secondary);
+      font-size: 13px;
+    }
+
     video,
     #processingCanvas {
       display: none;
@@ -308,6 +418,36 @@
             <div class="legend"><span class="raw">Horizontal speed</span></div>
           </section>
         </section>
+
+        <section class="panel comparison-panel" aria-labelledby="comparisonTitle">
+          <div class="comparison-header">
+            <div>
+              <h2 id="comparisonTitle" class="panel-title">Compare CSV results</h2>
+              <p class="panel-copy">Upload hip-speed CSV exports to compare each tracking result.</p>
+            </div>
+            <div class="comparison-actions">
+              <input id="comparisonInput" type="file" accept=".csv,text/csv" multiple aria-label="Choose CSV files to compare" />
+              <button id="clearComparisonButton" class="btn btn-surface" type="button" disabled>Clear</button>
+            </div>
+          </div>
+          <p id="comparisonStatus" class="comparison-status" role="status"></p>
+          <div class="comparison-table-wrap">
+            <table class="comparison-table">
+              <thead>
+                <tr>
+                  <th scope="col"><button class="comparison-sort" type="button" data-sort-key="fileName">File</button></th>
+                  <th scope="col"><button class="comparison-sort" type="button" data-sort-key="latestSpeed">Latest horizontal speed</button></th>
+                  <th scope="col"><button class="comparison-sort" type="button" data-sort-key="averageSpeed">Average horizontal speed</button></th>
+                  <th scope="col"><button class="comparison-sort" type="button" data-sort-key="peakSpeed">Peak speed</button></th>
+                  <th scope="col"><button class="comparison-sort" type="button" data-sort-key="confidence">Confidence</button></th>
+                  <th scope="col"><button class="comparison-sort" type="button" data-sort-key="sampleCount">Samples</button></th>
+                </tr>
+              </thead>
+              <tbody id="comparisonTableBody"></tbody>
+            </table>
+            <p id="comparisonEmpty" class="comparison-empty">No CSV files uploaded.</p>
+          </div>
+        </section>
       </div>
     </section>
   </main>
@@ -350,7 +490,12 @@
       speedKmhValue: document.getElementById('speedKmhValue'),
       peakSpeedValue: document.getElementById('peakSpeedValue'),
       confidenceValue: document.getElementById('confidenceValue'),
-      sampleValue: document.getElementById('sampleValue')
+      sampleValue: document.getElementById('sampleValue'),
+      comparisonInput: document.getElementById('comparisonInput'),
+      clearComparisonButton: document.getElementById('clearComparisonButton'),
+      comparisonStatus: document.getElementById('comparisonStatus'),
+      comparisonTableBody: document.getElementById('comparisonTableBody'),
+      comparisonEmpty: document.getElementById('comparisonEmpty')
     };
 
     const state = {
@@ -373,6 +518,12 @@
       lastPosition: null,
       lastTrackedTime: null,
       confidence: null
+    };
+
+    const comparisonState = {
+      results: [],
+      sortKey: null,
+      direction: 'descending'
     };
 
     const stageShell = document.querySelector('.stage-shell');
@@ -659,6 +810,121 @@
       elements.exportButton.disabled = state.samples.length === 0;
       elements.recalculateButton.disabled = state.samples.length === 0;
       updateMovementSummary();
+    }
+
+    function parseCsvRows(text) {
+      const rows = [];
+      let row = [];
+      let field = '';
+      let quoted = false;
+
+      for (let index = 0; index < text.length; index++) {
+        const character = text[index];
+        if (character === '"') {
+          if (quoted && text[index + 1] === '"') {
+            field += '"';
+            index++;
+          } else {
+            quoted = !quoted;
+          }
+        } else if (character === ',' && !quoted) {
+          row.push(field);
+          field = '';
+        } else if ((character === '\n' || character === '\r') && !quoted) {
+          if (character === '\r' && text[index + 1] === '\n') index++;
+          row.push(field);
+          if (row.some(value => value.trim())) rows.push(row);
+          row = [];
+          field = '';
+        } else {
+          field += character;
+        }
+      }
+
+      row.push(field);
+      if (row.some(value => value.trim())) rows.push(row);
+      return rows;
+    }
+
+    function summarizeCsv(text, fileName) {
+      const rows = parseCsvRows(text);
+      if (rows.length < 2) throw new Error('contains no samples');
+
+      const headers = rows[0].map(header => header.replace(/^\uFEFF/, '').trim().toLowerCase());
+      const speedIndex = headers.indexOf('horizontal_speed_m_s');
+      const timeIndex = headers.indexOf('time_s');
+      const confidenceIndex = headers.indexOf('confidence');
+      if (speedIndex < 0) throw new Error('is missing horizontal_speed_m_s');
+
+      const samples = rows.slice(1).map((columns, index) => ({
+        order: index,
+        time: timeIndex >= 0 ? Number(columns[timeIndex]) : index,
+        speed: Number(columns[speedIndex]),
+        confidence: confidenceIndex >= 0 ? Number(columns[confidenceIndex]) : null
+      })).filter(sample => Number.isFinite(sample.speed));
+
+      if (!samples.length) throw new Error('contains no valid speed samples');
+      samples.sort((first, second) =>
+        (Number.isFinite(first.time) ? first.time : first.order) -
+        (Number.isFinite(second.time) ? second.time : second.order)
+      );
+
+      const latest = samples.at(-1);
+      return {
+        fileName,
+        latestSpeed: latest.speed,
+        averageSpeed: samples.reduce((sum, sample) => sum + sample.speed, 0) / samples.length,
+        peakSpeed: Math.max(...samples.map(sample => Math.abs(sample.speed))),
+        confidence: Number.isFinite(latest.confidence) ? latest.confidence : null,
+        sampleCount: samples.length
+      };
+    }
+
+    function sortedComparisonResults() {
+      if (!comparisonState.sortKey) return comparisonState.results;
+      const { sortKey, direction } = comparisonState;
+      const directionFactor = direction === 'ascending' ? 1 : -1;
+      return [...comparisonState.results].sort((first, second) => {
+        const firstValue = first[sortKey];
+        const secondValue = second[sortKey];
+        if (firstValue === null && secondValue === null) return 0;
+        if (firstValue === null) return 1;
+        if (secondValue === null) return -1;
+        if (typeof firstValue === 'string') {
+          return firstValue.localeCompare(secondValue, undefined, { numeric: true, sensitivity: 'base' }) * directionFactor;
+        }
+        return (firstValue - secondValue) * directionFactor;
+      });
+    }
+
+    function renderComparison() {
+      const results = sortedComparisonResults();
+      elements.comparisonTableBody.replaceChildren();
+      results.forEach(result => {
+        const row = document.createElement('tr');
+        const values = [
+          result.fileName,
+          `${result.latestSpeed.toFixed(2)} m/s`,
+          `${result.averageSpeed.toFixed(2)} m/s`,
+          `${result.peakSpeed.toFixed(2)} m/s`,
+          result.confidence === null ? '--' : `${Math.round(result.confidence * 100)}%`,
+          String(result.sampleCount)
+        ];
+        values.forEach(value => {
+          const cell = document.createElement('td');
+          cell.textContent = value;
+          row.appendChild(cell);
+        });
+        elements.comparisonTableBody.appendChild(row);
+      });
+      elements.comparisonEmpty.hidden = results.length > 0;
+      elements.clearComparisonButton.disabled = results.length === 0;
+      document.querySelectorAll('.comparison-sort').forEach(button => {
+        const active = button.dataset.sortKey === comparisonState.sortKey;
+        const header = button.closest('th');
+        button.dataset.direction = active ? comparisonState.direction : '';
+        header.setAttribute('aria-sort', active ? comparisonState.direction : 'none');
+      });
     }
 
     function updateMovementSummary() {
@@ -1136,6 +1402,44 @@
       link.download = 'hip-speed.csv';
       link.click();
       URL.revokeObjectURL(url);
+    });
+
+    elements.comparisonInput.addEventListener('change', async event => {
+      const files = [...event.target.files];
+      const results = [];
+      const errors = [];
+      for (const file of files) {
+        try {
+          results.push(summarizeCsv(await file.text(), file.name));
+        } catch (error) {
+          errors.push(`${file.name} ${error.message}`);
+        }
+      }
+      comparisonState.results = results;
+      renderComparison();
+      elements.comparisonStatus.textContent = errors.length
+        ? `${results.length} file(s) loaded. Skipped: ${errors.join('; ')}.`
+        : `${results.length} file(s) loaded.`;
+    });
+
+    document.querySelectorAll('.comparison-sort').forEach(button => {
+      button.addEventListener('click', () => {
+        const sortKey = button.dataset.sortKey;
+        if (comparisonState.sortKey === sortKey) {
+          comparisonState.direction = comparisonState.direction === 'descending' ? 'ascending' : 'descending';
+        } else {
+          comparisonState.sortKey = sortKey;
+          comparisonState.direction = sortKey === 'fileName' ? 'ascending' : 'descending';
+        }
+        renderComparison();
+      });
+    });
+
+    elements.clearComparisonButton.addEventListener('click', () => {
+      elements.comparisonInput.value = '';
+      elements.comparisonStatus.textContent = '';
+      comparisonState.results = [];
+      renderComparison();
     });
 
     window.addEventListener('resize', drawPlot);
