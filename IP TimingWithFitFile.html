@@ -2050,21 +2050,21 @@
         (val, i) => diffs[i] !== null ? diffHeat(diffs[i]) : ''
       ));
 
-      // Cadence row
+      // Cadence row — higher cadence is greener
       if (hasCadence) {
         tbody.appendChild(makeRow(
           'Cadence (rpm)',
           cadValues.map(v => v != null ? v.toFixed(1) : '--'),
-          (val, i) => rangeHeat(cadValues[i], cadValues, false)
+          (val, i) => rangeHeat(cadValues[i], cadValues, true)
         ));
       }
 
-      // Power row
+      // Power row — higher power is greener
       if (hasPower) {
         tbody.appendChild(makeRow(
           'Power (W)',
           powValues.map(v => v != null ? v.toFixed(0) : '--'),
-          (val, i) => rangeHeat(powValues[i], powValues, false)
+          (val, i) => rangeHeat(powValues[i], powValues, true)
         ));
       }
 

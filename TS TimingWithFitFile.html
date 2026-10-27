@@ -990,7 +990,7 @@
         <button id="closeReportBtn" class="modal-close" type="button" aria-label="Close report dashboard">×</button>
       </div>
       <div class="table-card ts-report-card">
-        <h4>Lap 1 Summary</h4>
+        <h4>Summary</h4>
         <div id="tsSummaryEmpty" class="table-empty">Add Start, Rider Forward events, and the first 12 Marker events to build the report.</div>
         <div class="lap-table-wrap">
           <table id="tsSummaryTable" hidden>
@@ -1003,19 +1003,19 @@
                 <th>125</th>
                 <th>187.5</th>
                 <th>250</th>
-                <th>Lap 1 Time</th>
+                <th>Lap 1</th>
                 <th>Lag 1</th>
                 <th>312.5</th>
                 <th>375</th>
                 <th>437.5</th>
                 <th>500</th>
-                <th>Lap 2 Time</th>
+                <th>Lap 2</th>
                 <th>Lag 2</th>
                 <th>562.5</th>
                 <th>625</th>
                 <th>687.5</th>
                 <th>750</th>
-                <th>Lap 3 Time</th>
+                <th>Lap 3</th>
                 <th>Tissot 1</th>
                 <th>Tissot 2</th>
                 <th>Tissot 3</th>
@@ -1041,47 +1041,16 @@
             <div class="gap-chart-wrap">
               <canvas id="cadencePlot"></canvas>
             </div>
-            <div id="halfLapCadenceSection" hidden>
-              <h4 style="margin-top:10px;">Cadence at Half-Lap (rpm)</h4>
-              <div class="lap-table-wrap">
-                <table id="halfLapCadenceTable" style="border-collapse:collapse;font-size:13px;width:100%;" hidden>
-                  <thead>
-                    <tr>
-                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">Rider</th>
-                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H1</th>
-                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H2</th>
-                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H3</th>
-                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H4</th>
-                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H5</th>
-                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H6</th>
-                    </tr>
-                  </thead>
-                  <tbody id="halfLapCadenceTableBody"></tbody>
-                </table>
-              </div>
-            </div>
-            <div id="halfLapSpeedSection" hidden>
-              <h4 style="margin-top:10px;">Speed at Half-Lap (km/h)</h4>
-              <div class="lap-table-wrap">
-                <table id="halfLapSpeedTable" style="border-collapse:collapse;font-size:13px;width:100%;" hidden>
-                  <thead>
-                    <tr>
-                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">Rider</th>
-                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H1</th>
-                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H2</th>
-                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H3</th>
-                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H4</th>
-                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H5</th>
-                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H6</th>
-                    </tr>
-                  </thead>
-                  <tbody id="halfLapSpeedTableBody"></tbody>
-                </table>
-              </div>
+          </div>
+          <div class="table-card" id="powerPlotCard" hidden>
+            <h4>Power vs Time</h4>
+            <div class="gap-chart-legend" id="powerPlotLegend"></div>
+            <div class="gap-chart-wrap">
+              <canvas id="powerPlot"></canvas>
             </div>
           </div>
         </div>
-        <!-- Right column: half-lap times + FIT stats + power plot -->
+        <!-- Right column: half-lap tables + FIT stats -->
         <div style="flex:1;display:flex;flex-direction:column;gap:10px;">
           <div class="table-card" id="halfLapTimesCard" hidden>
             <h4>Cumulative Half-Lap Times</h4>
@@ -1100,6 +1069,44 @@
                 </thead>
                 <tbody id="halfLapTimesTableBody"></tbody>
               </table>
+            </div>
+          </div>
+          <div class="table-card" id="halfLapSplitsCard" hidden>
+            <h4>Half-Lap Splits</h4>
+            <div class="lap-table-wrap">
+              <table id="halfLapSplitsTable" style="border-collapse:collapse;font-size:13px;width:100%;">
+                <thead>
+                  <tr>
+                    <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">Rider</th>
+                    <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H1</th>
+                    <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H2</th>
+                    <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H3</th>
+                    <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H4</th>
+                    <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H5</th>
+                    <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H6</th>
+                  </tr>
+                </thead>
+                <tbody id="halfLapSplitsTableBody"></tbody>
+              </table>
+            </div>
+            <div id="halfLapStandardizedSection" hidden>
+              <h4 style="margin-top:10px;">Standardised Half-Lap Splits</h4>
+              <div class="lap-table-wrap">
+                <table id="halfLapStandardizedTable" style="border-collapse:collapse;font-size:13px;width:100%;">
+                  <thead>
+                    <tr>
+                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">Rider</th>
+                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H1</th>
+                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H2</th>
+                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H3</th>
+                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H4</th>
+                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H5</th>
+                      <th style="background:#f8fafc;padding:3px 6px;border:1px solid #dbe2ea;">H6</th>
+                    </tr>
+                  </thead>
+                  <tbody id="halfLapStandardizedTableBody"></tbody>
+                </table>
+              </div>
             </div>
           </div>
           <div class="table-card" id="fitStatsCard" hidden>
@@ -1122,11 +1129,24 @@
               </table>
             </div>
           </div>
-          <div class="table-card" id="powerPlotCard" hidden>
-            <h4>Power vs Time</h4>
-            <div class="gap-chart-legend" id="powerPlotLegend"></div>
-            <div class="gap-chart-wrap">
-              <canvas id="powerPlot"></canvas>
+          <div class="table-card" id="halfLapMetricsCard" hidden>
+            <div id="halfLapCadenceSection" hidden>
+              <h4>Cadence at Half-Lap (rpm)</h4>
+              <div class="lap-table-wrap">
+                <table id="halfLapCadenceTable" style="border-collapse:collapse;font-size:13px;width:100%;" hidden>
+                  <thead><tr><th>Rider</th><th>H1</th><th>H2</th><th>H3</th><th>H4</th><th>H5</th><th>H6</th></tr></thead>
+                  <tbody id="halfLapCadenceTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+            <div id="halfLapSpeedSection" hidden>
+              <h4 style="margin-top:10px;">Speed at Half-Lap (km/h)</h4>
+              <div class="lap-table-wrap">
+                <table id="halfLapSpeedTable" style="border-collapse:collapse;font-size:13px;width:100%;" hidden>
+                  <thead><tr><th>Rider</th><th>H1</th><th>H2</th><th>H3</th><th>H4</th><th>H5</th><th>H6</th></tr></thead>
+                  <tbody id="halfLapSpeedTableBody"></tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
@@ -1424,6 +1444,17 @@
       return gearRatio * 2.096;
     }
     function getTitleText() { return countryInput.value.trim() || 'Untitled Session'; }
+
+    function getDashboardFileBaseName() {
+      return getTitleText().replace(/[<>:"/\\|?*\x00-\x1F]+/g, '_').trim() || 'dashboard';
+    }
+
+    function getDataFileBaseName() {
+      const baseName = hasVideoLoaded && videoFileName && videoFileName !== 'data'
+        ? videoFileName
+        : getTitleText();
+      return baseName.replace(/[<>:"/\\|?*\x00-\x1F]+/g, '_').trim() || 'data';
+    }
     function speedFromTime(s) { return s > 0 ? (SPLIT_DISTANCE_METERS / s) * 3.6 : 0; }
     function speedFromDistanceTime(distanceMeters, seconds) {
       return seconds > 0 ? (distanceMeters / seconds) * 3.6 : 0;
@@ -2418,11 +2449,11 @@
       theadRow.innerHTML = `
         <th>Rider</th><th>Gears</th><th>RT</th>
         <th>62.5</th><th>125</th><th>187.5</th><th>250</th>
-        <th>Lap 1 Time</th><th>Lag 1</th>
+        <th>Lap 1</th><th>Lag 1</th>
         <th>312.5</th><th>375</th><th>437.5</th><th>500</th>
-        <th>Lap 2 Time</th><th>Lag 2</th>
+        <th>Lap 2</th><th>Lag 2</th>
         <th>562.5</th><th>625</th><th>687.5</th><th>750</th>
-        <th>Lap 3 Time</th>
+        <th>Lap 3</th>
         <th>Tissot 1</th><th>Tissot 2</th><th>Tissot 3</th>
         ${showStd ? '<th>Std 1</th><th>Std 2</th><th>Std 3</th>' : ''}
       `;
@@ -2490,6 +2521,8 @@
       renderHalfLapSpeedTable();
       renderPowerTimePlot();
       renderHalfLapTimesTable();
+      renderHalfLapSplitsTable();
+      renderStandardizedHalfLapSplitsTable();
       renderHalfLapCadenceTable();
       renderFitStatsTable();
       updateFitQuadGrid();
@@ -2497,7 +2530,10 @@
 
     function updateFitQuadGrid() {
       const grid = document.getElementById('fitQuadGrid');
-      const ids = ['gapChartCard', 'cadencePlotCard', 'powerPlotCard', 'fitStatsCard', 'halfLapTimesCard'];
+      const metricsCard = document.getElementById('halfLapMetricsCard');
+      metricsCard.hidden = document.getElementById('halfLapCadenceSection').hidden
+        && document.getElementById('halfLapSpeedSection').hidden;
+      const ids = ['gapChartCard', 'cadencePlotCard', 'powerPlotCard', 'fitStatsCard', 'halfLapTimesCard', 'halfLapSplitsCard', 'halfLapMetricsCard'];
       const anyVisible = ids.some((id) => !document.getElementById(id).hidden);
       grid.style.display = anyVisible ? 'flex' : 'none';
     }
@@ -3130,6 +3166,107 @@
       }
 
       card.hidden = !hasAnyData;
+    }
+
+    function renderHalfLapSplitsTable() {
+      const card = document.getElementById('halfLapSplitsCard');
+      const tbody = document.getElementById('halfLapSplitsTableBody');
+      tbody.innerHTML = '';
+
+      if (splitRows.length === 0 || !Number.isFinite(startTime)) {
+        card.hidden = true;
+        return;
+      }
+
+      const sumQ = (arr, from, to) => {
+        const values = arr.slice(from, to);
+        if (values.some((value) => !Number.isFinite(value))) return null;
+        return values.reduce((sum, value) => sum + value, 0);
+      };
+      const rows = getTeamSprintSummaryRows();
+      const riderNames = getRiderNames();
+      let hasAnyData = false;
+
+      rows.forEach((row, riderIndex) => {
+        const cumulative = [
+          sumQ(row.lap1QuarterTimes, 0, 2),
+          sumQ(row.lap1QuarterTimes, 0, 4),
+          sumQ([...row.lap1QuarterTimes, ...row.lap2QuarterTimes], 0, 6),
+          sumQ([...row.lap1QuarterTimes, ...row.lap2QuarterTimes], 0, 8),
+          sumQ([...row.lap1QuarterTimes, ...row.lap2QuarterTimes, ...row.lap3QuarterTimes], 0, 10),
+          sumQ([...row.lap1QuarterTimes, ...row.lap2QuarterTimes, ...row.lap3QuarterTimes], 0, 12)
+        ];
+        const splits = cumulative.map((value, index) => {
+          if (!Number.isFinite(value)) return null;
+          const previous = index > 0 ? cumulative[index - 1] : 0;
+          return Number.isFinite(previous) ? value - previous : null;
+        });
+        if (!splits.some((value) => value !== null)) return;
+        hasAnyData = true;
+
+        const tr = document.createElement('tr');
+        const nameTd = document.createElement('td');
+        nameTd.style.cssText = 'padding:3px 6px;border:1px solid #dbe2ea;font-weight:600;white-space:nowrap;';
+        nameTd.textContent = riderNames[riderIndex] || `P${riderIndex + 1}`;
+        tr.appendChild(nameTd);
+        splits.forEach((value) => {
+          const td = document.createElement('td');
+          td.style.cssText = 'padding:3px 6px;border:1px solid #dbe2ea;text-align:right;';
+          td.textContent = value !== null ? formatTime(value) : '';
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+
+      card.hidden = !hasAnyData;
+    }
+
+    function renderStandardizedHalfLapSplitsTable() {
+      const section = document.getElementById('halfLapStandardizedSection');
+      const tbody = document.getElementById('halfLapStandardizedTableBody');
+      tbody.innerHTML = '';
+
+      if (!isStandardizationEnabled() || splitRows.length === 0 || !Number.isFinite(startTime)) {
+        section.hidden = true;
+        return;
+      }
+
+      const rows = getTeamSprintSummaryRows();
+      const riderNames = getRiderNames();
+      const halfLapRanges = [[0, 2], [2, 4], [4, 6], [6, 8], [8, 10], [10, 12]];
+      let hasAnyData = false;
+
+      rows.forEach((row, riderIndex) => {
+        const quarters = [
+          ...row.lap1QuarterTimes,
+          ...row.lap2QuarterTimes,
+          ...row.lap3QuarterTimes
+        ];
+        const splits = halfLapRanges.map(([from, to]) => {
+          const values = quarters.slice(from, to);
+          if (values.length < to - from || values.some((value) => !Number.isFinite(value))) return null;
+          return values.reduce((sum, value, offset) => {
+            return sum + value * getStandardizationFactorForQuarter(from + offset);
+          }, 0);
+        });
+        if (!splits.some((value) => value !== null)) return;
+        hasAnyData = true;
+
+        const tr = document.createElement('tr');
+        const nameTd = document.createElement('td');
+        nameTd.style.cssText = 'padding:3px 6px;border:1px solid #dbe2ea;font-weight:600;white-space:nowrap;';
+        nameTd.textContent = riderNames[riderIndex] || `P${riderIndex + 1}`;
+        tr.appendChild(nameTd);
+        splits.forEach((value) => {
+          const td = document.createElement('td');
+          td.style.cssText = 'padding:3px 6px;border:1px solid #dbe2ea;text-align:right;';
+          td.textContent = value !== null ? formatTime(value) : '';
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+
+      section.hidden = !hasAnyData;
     }
 
     function getMetricValueAtVideoTime(stream, metricKey, videoTime) {
@@ -4445,6 +4582,21 @@
       return window.__html2canvasLoadingPromise;
     }
 
+    async function ensureJsPDFLoaded() {
+      if (window.jspdf?.jsPDF) return window.jspdf.jsPDF;
+      if (window.__jsPDFLoadingPromise) return window.__jsPDFLoadingPromise;
+
+      window.__jsPDFLoadingPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
+        script.onload = () => resolve(window.jspdf?.jsPDF || window.jsPDF);
+        script.onerror = () => reject(new Error('Failed to load PDF export library.'));
+        document.head.appendChild(script);
+      });
+
+      return window.__jsPDFLoadingPromise;
+    }
+
     async function ensureXLSXLoaded() {
       if (window.XLSX) return window.XLSX;
       if (window.__xlsxLoadingPromise) return window.__xlsxLoadingPromise;
@@ -4489,8 +4641,18 @@
     }
 
     function loadVisibleTableCsv(text) {
-      const lines = String(text || '').split(/\r?\n/).filter((line) => line.trim());
+      const allLines = String(text || '').split(/\r?\n/).filter((line) => line.trim());
+      const metaLines = allLines.filter((line) => line.startsWith('# '));
+      const lines = allLines.filter((line) => !line.startsWith('# '));
       if (lines.length < 2) throw new Error('CSV file is empty.');
+
+      for (const metaLine of metaLines) {
+        const parts = metaLine.slice(2).split(',');
+        if (parts[0] === 'airDensity') {
+          const density = parseFloat(parts[1]);
+          if (Number.isFinite(density) && density > 0) airDensityInput.value = density;
+        }
+      }
 
       const header = parseCsvLine(lines[0]).map((value) => value.trim());
       const col = (name) => header.indexOf(name);
@@ -4901,7 +5063,11 @@
         reportDashboardPanel.style.maxHeight = 'none';
         await new Promise((resolve) => setTimeout(resolve, 40));
 
-        const html2canvas = await ensureHtml2CanvasLoaded();
+        const [html2canvas, JsPDF] = await Promise.all([
+          ensureHtml2CanvasLoaded(),
+          ensureJsPDFLoaded()
+        ]);
+        if (!JsPDF) throw new Error('PDF export library is unavailable.');
         const scale = Math.max(2, window.devicePixelRatio || 1);
         const canvas = await html2canvas(reportDashboardPanel, {
           backgroundColor: '#ffffff',
@@ -4910,12 +5076,22 @@
           scale
         });
 
-        const link = document.createElement('a');
-        const safeBase = (videoFileName || 'report').replace(/[^a-z0-9_-]+/gi, '_');
-        link.download = `${safeBase}_dashboard.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-        setStatus('Report dashboard exported as PNG.');
+        const pdf = new JsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = 8;
+        const imageWidth = pageWidth - (margin * 2);
+        const imageHeight = canvas.height * imageWidth / canvas.width;
+        const usablePageHeight = pageHeight - (margin * 2);
+        const imageData = canvas.toDataURL('image/png');
+        const pageCount = Math.max(1, Math.ceil(imageHeight / usablePageHeight));
+        for (let page = 0; page < pageCount; page++) {
+          if (page > 0) pdf.addPage();
+          pdf.addImage(imageData, 'PNG', margin, margin - (page * usablePageHeight), imageWidth, imageHeight);
+        }
+
+        pdf.save(`${getDashboardFileBaseName()} dashboard.pdf`);
+        setStatus('Report dashboard exported as landscape PDF.');
       } catch (error) {
         console.error(error);
         setStatus(`Export failed: ${error.message || error}`);
@@ -4991,7 +5167,7 @@
       const visibleRows = getVisibleTableRows();
       if (visibleRows.length === 0) { setStatus('No data to download.'); return; }
       const headers = ['Title','Start time','Row','Riders','Gears'];
-      const lines = [headers.join(',')];
+      const lines = [`# airDensity,${getAirDensity()}`, headers.join(',')];
       for (const row of visibleRows) {
         lines.push([
           `"${String(row.title).replace(/"/g, '""')}"`,
@@ -5004,7 +5180,7 @@
       const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `${videoFileName} Data.csv`;
+      a.download = `${getDataFileBaseName()} Data.csv`;
       a.click();
       URL.revokeObjectURL(a.href);
       setStatus('CSV downloaded.');

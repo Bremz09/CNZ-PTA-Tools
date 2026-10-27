@@ -1332,6 +1332,17 @@
       }));
     }
     function getTitleText() { return countryInput.value.trim() || 'Untitled Session'; }
+
+    function getDashboardFileBaseName() {
+      return getTitleText().replace(/[<>:"/\\|?*\x00-\x1F]+/g, '_').trim() || 'dashboard';
+    }
+
+    function getDataFileBaseName() {
+      const baseName = hasVideoLoaded && videoFileName && videoFileName !== 'data'
+        ? videoFileName
+        : getTitleText();
+      return baseName.replace(/[<>:"/\\|?*\x00-\x1F]+/g, '_').trim() || 'data';
+    }
     function speedFromTime(s) { return s > 0 ? (SPLIT_DISTANCE_METERS / s) * 3.6 : 0; }
     function speedFromDistanceTime(distanceMeters, seconds) {
       return seconds > 0 ? (distanceMeters / seconds) * 3.6 : 0;
@@ -3523,8 +3534,7 @@
         });
 
         const link = document.createElement('a');
-        const safeBase = (videoFileName || 'report').replace(/[^a-z0-9_-]+/gi, '_');
-        link.download = `${safeBase}_dashboard.png`;
+        link.download = `${getDashboardFileBaseName()} dashboard.png`;
         link.href = canvas.toDataURL('image/png');
         link.click();
         setStatus('Report dashboard exported as PNG.');
@@ -3643,12 +3653,13 @@
       // Append metadata row for session state
       lines.push(`# startTime,${startTime != null ? startTime : ''}`);
       lines.push(`# title,"${getTitleText()}"`);
+      lines.push(`# airDensity,${getAirDensity()}`);
       riderInputs.forEach((inp, i) => lines.push(`# rider${i + 1},"${inp.value.trim()}"`));
       riderGearInputs.forEach((inp, i) => lines.push(`# rider${i + 1}Gear,${inp.value}`));
       const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `${videoFileName} Data.csv`;
+      a.download = `${getDataFileBaseName()} Data.csv`;
       a.click();
       URL.revokeObjectURL(a.href);
       setStatus('CSV downloaded.');
@@ -3714,6 +3725,10 @@
             const parts = ml.slice(2).split(',');
             if (parts[0] === 'startTime' && parts[1]) uploadedStartTime = parseFloat(parts[1]);
             if (parts[0] === 'title' || parts[0] === 'country') countryInput.value = parts[1].replace(/^"|"$/g, '');
+            if (parts[0] === 'airDensity') {
+              const density = parseFloat(parts[1]);
+              if (Number.isFinite(density) && density > 0) airDensityInput.value = density;
+            }
             riderInputs.forEach((inp, i) => {
               if (parts[0] === `rider${i + 1}`) inp.value = parts[1].replace(/^"|"$/g, '');
             });
@@ -3902,6 +3917,10 @@
                 const parts = ml.slice(2).split(',');
                 if (parts[0] === 'startTime' && parts[1]) uploadedStartTime = parseFloat(parts[1]);
                 if (parts[0] === 'title' || parts[0] === 'country') countryInput.value = parts[1].replace(/^"|"$/g, '');
+                if (parts[0] === 'airDensity') {
+                  const density = parseFloat(parts[1]);
+                  if (Number.isFinite(density) && density > 0) airDensityInput.value = density;
+                }
                 riderInputs.forEach((inp, i) => {
                   if (parts[0] === `rider${i + 1}`) inp.value = parts[1].replace(/^"|"$/g, '');
                 });
