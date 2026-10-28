@@ -4,9 +4,6 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#123e69">
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="apple-touch-icon" href="icons/icon-180.png">
   <title>Track Competition Programme Planner</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -1513,127 +1510,130 @@
       pointsRace: { women: [1, 39], men: [1, 52] }
     };
     const PROGRAMMES = { "Day 1": [["Morning Session", "10:00"], 
-    ["MC1", "1 Km Time Trial", "Qualifying"], 
-    ["MC5", "1 Km Time Trial", "Qualifying"], 
-    ["WC1", "Qualifying 200m", "Qualifying"], 
-    ["WB", "1 Km Time Trial", "Qualifying"], 
-    ["Afternoon Session", "13:00"], 
-    ["WC5", "1 Km Time Trial", "Qualifying"], 
-    ["MC4", "1 Km Time Trial", "Qualifying"], 
-    ["MC3", "Qualifying 200m", "Qualifying"], 
-    ["WC2", "1 Km Time Trial", "Qualifying"], 
-    ["MB", "4 Km Individual Pursuit", "Qualifying"], 
+    ["MC1", "1 Km Time Trial", "Qualifying", { heats: 4, heatTime: 5 }],
+    ["MC5", "1 Km Time Trial", "Qualifying", { heats: 15, heatTime: 3.5, nzlHeat: 8}],
+    ["WC1", "Qualifying 200m", "Qualifying", { heats: 4, heatTime: 2 }],
+    ["WB", "1 Km Time Trial", "Qualifying", { heats: 8, heatTime: 5, nzlHeat: 8}],
+    ["Afternoon Session", "13:00"],
+    ["WC5", "1 Km Time Trial", "Qualifying", { heats: 7, heatTime: 4, nzlHeat: 7}],
+    ["MC4", "1 Km Time Trial", "Qualifying", { heats: 11, heatTime: 4 }], 
+    ["MC3", "Qualifying 200m", "Qualifying", { heats: 14, heatTime: 2, nzlHeat: 11}], 
+    ["WC2", "1 Km Time Trial", "Qualifying", { heats: 4, heatTime: 4 }], 
+    ["MB", "4 Km Individual Pursuit", "Qualifying", { heats: 11, heatTime: 8 }], 
     ["Evening Session", "18:00"], 
-    ["MC1", "1 Km Time Trial", "Final"], 
-    ["MC5", "1 Km Time Trial", "Final"], 
-    ["MC2", "10 Km Scratch Race", "Final"], 
-    ["MC3", "Sprint", "1/2 Finals (1st)"], 
-    ["WB", "1 Km Time Trial", "Final"], 
-    ["WC1", "Sprint", "Final"], 
-    ["WC5", "1 Km Time Trial", "Final"], 
+    ["MC1", "1 Km Time Trial", "Final", { heats: 6, heatTime: 3 }],
+    ["MC5", "1 Km Time Trial", "Final", { heats: 6, heatTime: 3 }], 
+    ["MC2", "10 Km Scratch Race", "Final", { heats: 1, heatTime: 15 }], 
+    ["MC3", "Sprint", "1/2 Finals (1st)", { heats: 3, heatTime: 3 }], 
+    ["WB", "1 Km Time Trial", "Final", { heats: 6, heatTime: 3.5 }], 
+    ["WC1", "Sprint", "Final", { heats: 1, heatTime: 3 }], 
+    ["WC5", "1 Km Time Trial", "Final", { heats: 6, heatTime: 3.5 }], 
     ["", "Award Ceremonies", ""], 
-    ["WC4", "10 Km Scratch Race", "Final"], 
-    ["MC4", "1 Km Time Trial", "Final"], 
-    ["MC3", "Sprint", "Final"], 
-    ["WC3", "10 Km Scratch Race", "Final"], 
-    ["WC2", "1 Km Time Trial", "Final"], 
-    ["MB", "4 Km Individual Pursuit", "Final"], 
+    ["WC4", "10 Km Scratch Race", "Final", { heats: 1, heatTime: 18 }], 
+    ["MC4", "1 Km Time Trial", "Final", { heats: 6, heatTime: 3 }], 
+    ["MC3", "Sprint", "Final", { heats: 1, heatTime: 3 }], 
+    ["WC3", "10 Km Scratch Race", "Final", { heats: 1, heatTime: 18 }], 
+    ["WC2", "1 Km Time Trial", "Final", { heats: 6, heatTime: 3.5 }], 
+    ["MB", "4 Km Individual Pursuit", "Final", { heats: 2, heatTime: 7 }], 
+    ["MC5", "Elimination", "Qualifying", { heats: 2, heatTime: 13, nzlHeat: 1 }],
     ["", "Award Ceremonies", ""]], 
     "Day 2": [["Morning Session", "11:00"], 
-    ["WC3", "1 Km Time Trial", "Qualifying"], 
-    ["MC2", "Qualifying 200m", "Qualifying"], 
-    ["MB", "1 Km Time Trial", "Qualifying"], 
-    ["MC3", "1 Km Time Trial", "Qualifying"], 
+    ["WC3", "1 Km Time Trial", "Qualifying", { heats: 4, heatTime: 4.5 }], 
+    ["MC2", "Qualifying 200m", "Qualifying", { heats: 17, heatTime: 2 }],
+    ["MB", "1 Km Time Trial", "Qualifying", { heats: 17, heatTime: 4 }], 
+    ["MC3", "1 Km Time Trial", "Qualifying", { heats: 8, heatTime: 3.5 }], 
     ["Afternoon Session", "14:00"], 
-    ["WC4", "1 Km Time Trial", "Qualifying"], 
-    ["MC4", "Qualifying 200m", "Qualifying"], 
-    ["WB", "4 Km Individual Pursuit", "Qualifying"], 
+    ["WC4", "1 Km Time Trial", "Qualifying", { heats: 4, heatTime: 4.5 }], 
+    ["MC4", "Qualifying 200m", "Qualifying", { heats: 22, heatTime: 2.5 }],
+    ["WB", "4 Km Individual Pursuit", "Qualifying", { heats: 6, heatTime: 8.5 }], 
     ["Evening Session", "18:00"], 
-    ["WC3", "1 Km Time Trial", "Final"], 
-    ["MC2", "Sprint - Semi Finals", "1/2 Finals"], 
-    ["MC1", "10 Km Scratch Race", "Final"], 
-    ["MC4", "Sprint - Semi Finals", "1/2 Finals"], 
-    ["WC5", "Elimination", "Final"], 
-    ["MB", "1 Km Time Trial", "Final"], 
-    ["WC1/2", "10 Km Scratch Race", "Final"], 
+    ["WC3", "1 Km Time Trial", "Final", { heats: 6, heatTime: 4 }], 
+    ["MC2", "Sprint - Semi Finals", "1/2 Finals", { heats: 3, heatTime: 3 }], 
+    ["MC1", "10 Km Scratch Race", "Final", { heats: 1, heatTime: 15 }], 
+    ["MC4", "Sprint - Semi Finals", "1/2 Finals", { heats: 3, heatTime: 3 }], 
+    ["WC5", "Elimination", "Final", { heats: 1, heatTime: 15 }], 
+    ["MB", "1 Km Time Trial", "Final", { heats: 6, heatTime: 3 }], 
+    ["WC1/2", "10 Km Scratch Race", "Final", { heats: 1, heatTime: 18 }], 
     ["", "Award Ceremonies", ""], 
-    ["MC2", "Sprint", "Final"], 
-    ["MC3", "1 Km Time Trial", "Final"], 
-    ["MC4", "Sprint", "Final"], 
-    ["WC4", "1 Km Time Trial", "Final"], 
-    ["MC5", "Elimination", "Final"], 
-    ["WB", "4 Km Individual Pursuit", "Final"], 
+    ["MC2", "Sprint", "Final", { heats: 1, heatTime: 3 }], 
+    ["MC3", "1 Km Time Trial", "Final", { heats: 6, heatTime: 3 }], 
+    ["MC4", "Sprint", "Final", { heats: 1, heatTime: 3 }], 
+    ["WC4", "1 Km Time Trial", "Final", { heats: 6, heatTime: 4 }], 
+    ["MC5", "Elimination", "Final", { heats: 1, heatTime: 18 }], 
+    ["WB", "4 Km Individual Pursuit", "Final", { heats: 2, heatTime: 7 }],
+    ["MC4", "Elimination", "Qualifying", { heats: 1, heatTime: 18 }],
     ["", "Award Ceremonies", ""]], 
     "Day 3": [["Morning Session", "10:00"], 
-    ["WB", "Qualifying 200m", "Qualifying"], 
-    ["MB", "Qualifying 200m", "Qualifying"], 
-    ["WC2", "Qualifying 200m", "Qualifying"], 
-    ["MC5", "Qualifying 200m", "Qualifying"], 
-    ["WC4", "Qualifying 200m", "Qualifying"], 
-    ["WB", "Sprint", "1/4 Finals (1st)"], 
-    ["MB", "Sprint", "1/4 Finals (1st)"], 
-    ["Afternoon Session", "13:30"], 
-    ["WB", "Sprint", "1/4 Finals (2nd)"], 
-    ["MB", "Sprint", "1/4 Finals (2nd)"], 
-    ["WC5", "Sprint", "Qualifying"], 
-    ["MC2", "1 Km Time Trial", "Qualifying"], 
-    ["WB", "Sprint", "1/4 Finals (3rd)"], 
-    ["MB", "Sprint", "1/4 Finals (3rd)"], 
-    ["WC1", "1 Km Time Trial", "Qualifying"], 
+    ["WB", "Qualifying 200m", "Qualifying", { heats: 14, heatTime: 2.5 }], 
+    ["MB", "Qualifying 200m", "Qualifying", { heats: 28, heatTime: 2.5 }], 
+    ["WC2", "Qualifying 200m", "Qualifying", { heats: 7, heatTime: 2 }], 
+    ["MC5", "Qualifying 200m", "Qualifying", { heats: 27, heatTime: 2 }], 
+    ["WC4", "Qualifying 200m", "Qualifying", { heats: 8, heatTime: 2 }], 
+    ["WB", "Sprint", "1/4 Finals (1st)", { heats: 4, heatTime: 3.5 }], 
+    ["MB", "Sprint", "1/4 Finals (1st)", { heats: 4, heatTime: 3.5 }], 
+    ["Afternoon Session", "14:00"], 
+    ["WB", "Sprint", "1/4 Finals (2nd)", { heats: 4, heatTime: 3.5 }], 
+    ["MB", "Sprint", "1/4 Finals (2nd)", { heats: 4, heatTime: 3.5 }], 
+    ["WC5", "Sprint", "Qualifying", { heats: 14, heatTime: 2 }], 
+    ["MC2", "1 Km Time Trial", "Qualifying", { heats: 8, heatTime: 4 }],
+    ["MC4", "Scratch", "Qualifying", { heats: 2, heatTime: 12 }], 
+    ["WB", "Sprint", "1/4 Finals (3rd)", { heats: 2, heatTime: 3.5 }], 
+    ["MB", "Sprint", "1/4 Finals (3rd)", { heats: 2, heatTime: 3.5 }], 
     ["Evening Session", "17:00"], 
-    ["WC2", "Sprint", "1/2 Finals"], 
-    ["WB", "Sprint", "1/2 Finals (1st)"], 
-    ["MB", "Sprint", "1/2 Finals (1st)"], 
-    ["MC5", "Sprint", "1/2 Finals"], 
-    ["MC1", "Elimination", "Final"], 
-    ["WC4", "Sprint", "1/2 Finals"], 
-    ["WB", "Sprint", "1/2 Finals (2nd)"], 
-    ["MB", "Sprint", "1/2 Finals (2nd)"], 
-    ["WC3", "Elimination", "Final"], 
-    ["WC5", "Sprint", "1/2 Finals"], 
-    ["MC2", "1 Km Time Trial", "Final"], 
-    ["WB", "Sprint", "1/2 Finals (3rd)"], 
-    ["MB", "Sprint", "1/2 Finals (3rd)"], 
+    ["WC2", "Sprint", "1/2 Finals", { heats: 2, heatTime: 3 }], 
+    ["WB", "Sprint", "1/2 Finals (1st)", { heats: 2, heatTime: 3.5 }], 
+    ["MB", "Sprint", "1/2 Finals (1st)", { heats: 2, heatTime: 3.5 }], 
+    ["MC5", "Sprint", "1/2 Finals", { heats: 3, heatTime: 3 }], 
+    ["MC1", "Elimination", "Final", { heats: 1, heatTime: 18 }], 
+    ["WC4", "Sprint", "1/2 Finals", { heats: 3, heatTime: 3 }], 
+    ["WB", "Sprint", "1/2 Finals (2nd)", { heats: 2, heatTime: 3.5 }], 
+    ["MB", "Sprint", "1/2 Finals (2nd)", { heats: 2, heatTime: 3.5 }], 
+    ["WC3", "Elimination", "Final", { heats: 1, heatTime: 15 }], 
+    ["WC5", "Sprint", "1/2 Finals", { heats: 3, heatTime: 3 }], 
+    ["MC2", "1 Km Time Trial", "Final", { heats: 6, heatTime: 3.5 }], 
+    ["WB", "Sprint", "1/2 Finals (3rd)", { heats: 2, heatTime: 3.5 }], 
+    ["MB", "Sprint", "1/2 Finals (3rd)", { heats: 2, heatTime: 3.5 }], 
     [" ", "Award Ceremonies", " "],  
-    ["WC2", "Sprint", "Final"], 
-    ["WB", "Sprint", "Final (1st)"], 
-    ["MB", "Sprint", "Final (1st)"], 
-    ["WB", "Sprint", "7th - 8th Place"], 
-    ["WB", "Sprint", "5th - 6th Place"], 
-    ["MC5", "Sprint", "Final"], 
-    ["WC1", "1Km Time Trial", "Final"], 
-    ["WB", "Sprint", "Final (2nd)"], 
-    ["MB", "Sprint", "Final (2nd)"], 
-    ["MB", "Sprint", "7th - 8th Place"], 
-    ["MB", "Sprint", "5th - 6th Place"], 
-    ["MC4", "10 Km Scratch Race", "Final"], 
-    ["WC4", "Sprint", "Finals"], 
-    ["WC5", "Sprint", "Finals"], 
-    ["MC3", "Elimination", "Final"], 
-    ["WB", "Sprint", "Final (3rd)"], 
-    ["MB", "Sprint", "Final (3rd)"]], 
+    ["WC2", "Sprint", "Final", { heats: 1, heatTime: 3 }], 
+    ["WB", "Sprint", "Final (1st)", { heats: 2, heatTime: 3.5 }], 
+    ["MB", "Sprint", "Final (1st)", { heats: 2, heatTime: 3.5 }], 
+    ["WB", "Sprint", "7th - 8th Place", { heats: 1, heatTime: 4 }], 
+    ["WB", "Sprint", "5th - 6th Place", { heats: 1, heatTime: 4 }], 
+    ["MC5", "Sprint", "Final", { heats: 1, heatTime: 3 }], 
+    ["WC1", "1Km Time Trial", "Final", { heats: 6, heatTime: 3 }], 
+    ["WB", "Sprint", "Final (2nd)", { heats: 2, heatTime: 3.5 }], 
+    ["MB", "Sprint", "Final (2nd)", { heats: 2, heatTime: 3.5 }], 
+    ["MB", "Sprint", "7th - 8th Place", { heats: 1, heatTime: 4 }], 
+    ["MB", "Sprint", "5th - 6th Place", { heats: 1, heatTime: 4 }], 
+    ["MC4", "10 Km Scratch Race", "Final", { heats: 1, heatTime: 15 }], 
+    ["WC4", "Sprint", "Finals", { heats: 1, heatTime: 3 }], 
+    ["WC5", "Sprint", "Finals", { heats: 1, heatTime: 3 }], 
+    ["MC3", "Elimination", "Final", { heats: 1, heatTime: 18 }],
+    ["MC5", "Scratch", "Qualifying", { heats: 2, heatTime: 12 }],
+    ["WB", "Sprint", "Final (3rd)", { heats: 1, heatTime: 4 }], 
+    ["MB", "Sprint", "Final (3rd)", { heats: 1, heatTime: 4 }]], 
     "Day 4": [["Morning Session", "09:00"], 
-    ["M/WC1-5", "Team Sprint", "Qualifying"], 
-    ["M/WB", "Team Sprint", "Qualifying 200m"], 
-    ["MC1", "Qualifying 200m", "Qualifying"], 
-    ["WC3", "Qualifying 200m", "Qualifying"], 
+    ["M/WC1-5", "Team Sprint", "Qualifying", { heats: 10, heatTime: 5 }], 
+    ["M/WB", "Team Sprint", "Qualifying 200m", { heats: 10, heatTime: 4 }], 
+    ["MC1", "Qualifying 200m", "Qualifying", { heats: 8, heatTime: 2 }], 
+    ["WC3", "Qualifying 200m", "Qualifying", { heats: 9, heatTime: 2 }], 
     ["Afternoon Session", "13:00"], 
-    ["MC5", "10 Km Scratch Race", "Final"], 
-    ["MC2", "Elimination", "Final"], 
-    ["MC1", "Sprint", "1/2 Finals"], 
-    ["WC4", "Elimination", "Final"], 
-    ["WC3", "Sprint", "1/2 Finals"], 
+    ["MC5", "10 Km Scratch Race", "Final", { heats: 1, heatTime: 15 }], 
+    ["MC2", "Elimination", "Final", { heats: 1, heatTime: 18 }], 
+    ["MC1", "Sprint", "1/2 Finals", { heats: 3, heatTime: 3 }], 
+    ["WC4", "Elimination", "Final", { heats: 1, heatTime: 10 }], 
+    ["WC3", "Sprint", "1/2 Finals", { heats: 3, heatTime: 3 }], 
     ["", "Award Ceremonies", ""], 
-    ["MC3", "10 Km Scratch Race", "Final"], 
-    ["MC4", "Elimination", "Final"], 
-    ["WC5", "10 Km Scratch Race", "Final"], 
-    ["MC1", "Sprint", "Final"], 
+    ["MC3", "10 Km Scratch Race", "Final", { heats: 1, heatTime: 15 }], 
+    ["MC4", "Elimination", "Final", { heats: 1, heatTime: 18 }], 
+    ["WC5", "10 Km Scratch Race", "Final", { heats: 1, heatTime: 17 }], 
+    ["MC1", "Sprint", "Final", { heats: 1, heatTime: 3 }], 
     ["", "Award Ceremonies", ""], 
-    ["WC1-2", "Elimination", "Final"], 
-    ["WC3", "Sprint", "Final"], 
+    ["WC1-2", "Elimination", "Final", { heats: 1, heatTime: 15 }], 
+    ["WC3", "Sprint", "Final", { heats: 1, heatTime: 3 }], 
     ["", "Award Ceremonies", ""], 
-    ["M/WB", "Team Sprint", "Final"], 
-    ["M/WC1-5", "Team Sprint", "Final"], 
+    ["M/WB", "Team Sprint", "Final", { heats: 2, heatTime: 6 }], 
+    ["M/WC1-5", "Team Sprint", "Final", { heats: 2, heatTime: 3.5 }], 
     ["", "Award Ceremonies", ""]] }; 
     const TRACK_PROGRAMMES = { "Day 1": [["Morning Session", "10:30"], 
     ["W", "Team Pursuit", "Qualifying"], 
@@ -1873,7 +1873,7 @@
     }
     function guess(e) {
       e = e.toLowerCase();
-      if (e.includes('ceremon')) return 10;
+      if (e.includes('ceremon')) return currentProgramme === 'para' ? 20 : 10;
       if (e.includes('break')) return 15;
       if (e.includes('scratch') || e.includes('elimination')) return 15;
       if (e.includes('pursuit')) return 5;
@@ -1918,13 +1918,34 @@
       return event;
     }
 
+    const DEFAULT_PARA_ASSIGNMENTS = {
+      'Emma Foy and Jessie Hodges': ['Individual Pursuit', '1 km Time Trial'],
+      'Anna Taylor': ['1 km Time Trial'],
+      'Siobhan Terry': ['Elimination', 'Sprint', 'Scratch Race', '1 km Time Trial'],
+      'Devon Briggs': ['Elimination', 'Sprint', 'Scratch Race', '1 km Time Trial'],
+      'Ieuan Edwards': ['Elimination', 'Sprint', 'Scratch Race', '1 km Time Trial'],
+      'Nicole Murray': ['Elimination', 'Sprint', 'Scratch Race', '1 km Time Trial']
+    };
+
+    function applyDefaultParaAssignments() {
+      if (saved.defaultParaAssignmentsApplied || currentProgramme !== 'para') return;
+
+      Object.entries(DEFAULT_PARA_ASSIGNMENTS).forEach(([name, events]) => {
+        events.forEach(event => {
+          saved[`assigned|${name}|${normaliseEventBubble(event)}`] = true;
+        });
+      });
+      saved.defaultParaAssignmentsApplied = true;
+      persist();
+    }
+
     function allEventsFor(r) {
       if (r[3] === 'custom' && r[2] !== 'Para') return ABLE_BODIED_EVENTS;
       if (DISCIPLINE_EVENTS[r[2]]) return DISCIPLINE_EVENTS[r[2]];
       const set = new Set;
       const currentProgs = getProgrammes('para');
       Object.values(currentProgs).flat().forEach(x => {
-        if (x.length === 3 && classMatch(r[1], x[0])) {
+        if (x.length >= 3 && classMatch(r[1], x[0])) {
           set.add(normaliseEventBubble(x[1]));
         }
       });
@@ -2044,6 +2065,23 @@
       'WC1': 2, 'WC2': 4, 'WC3': 6, 'WC4': 7, 'WC5': 12,
       'WB': 14, 'MB': 17
     };
+    const PARA_QUALIFYING_HEATS = 4;
+    const PARA_EVENT_ENTRIES = {
+      MC1: { sprint: 8, tt: 8, ip: 0 }, MC2: { sprint: 17, tt: 16, ip: 0 },
+      MC3: { sprint: 14, tt: 15, ip: 0 }, MC4: { sprint: 22, tt: 22, ip: 0 },
+      MC5: { sprint: 27, tt: 27, ip: 0 },
+      WC1: { sprint: 4, tt: 4, ip: 0 }, WC2: { sprint: 7, tt: 8, ip: 0 },
+      WC3: { sprint: 9, tt: 8, ip: 0 }, WC4: { sprint: 8, tt: 8, ip: 0 },
+      WC5: { sprint: 14, tt: 14, ip: 0 },
+      WB: { sprint: 14, tt: 15, ip: 11 }, MB: { sprint: 28, tt: 33, ip: 21 }
+    };
+
+    function getParaEventEntries(classification, eventType) {
+      if (!classification) return null;
+      const classes = classification.match(/(?:MC|WC)\d/g) || [classification];
+      const total = classes.reduce((sum, c) => sum + (PARA_EVENT_ENTRIES[c]?.[eventType] || 0), 0);
+      return total || PARA_EVENT_ENTRIES[classification]?.[eventType] || null;
+    }
 
     function getEntries(classification) {
       if (!classification) return null;
@@ -2087,15 +2125,18 @@
       const r = round.toLowerCase();
       const make = pair => pair ? { heats:pair[0], heatTime:pair[1] } : null;
       const entries = getEntries(classification);
+      const sprintEntries = getParaEventEntries(classification, 'sprint');
+      const timeTrialEntries = getParaEventEntries(classification, 'tt');
+      const pursuitEntries = getParaEventEntries(classification, 'ip');
 
       // Sprint qualifying is sometimes listed as its own "Qualifying 200m" event
       if (e.includes('qualifying 200m') || (e.includes('sprint') && r.includes('qualif'))) {
-        return make([entries ?? 7, 2]);
+        return make([sprintEntries ?? PARA_QUALIFYING_HEATS, 3]);
       }
 
       // Sprint events
       if (e.includes('sprint')) {
-        if (r.includes('qualif')) return make([entries ?? 7, 2]);
+        if (r.includes('qualif')) return make([PARA_QUALIFYING_HEATS, 3]);
         if (r.includes('1/4')) return make([4, 3]);
         if (r.includes('1/2')) return make([2, 3]);
         if (r.includes('final')) return make([1, 3]);
@@ -2104,7 +2145,7 @@
 
       // Time trials
       if (e.includes('1 km') || e.includes('1km')) {
-        if (r.includes('qualif')) return make([entries ? Math.ceil(entries * 0.5) : 4, 4]);  // One heat per entry
+        if (r.includes('qualif')) return make([timeTrialEntries ? Math.ceil(timeTrialEntries * 0.5) : PARA_QUALIFYING_HEATS, 4]);
         if (r.includes('final')) return make([6, 4]);
       }
 
@@ -2116,7 +2157,7 @@
 
       // Individual Pursuit
       if (e.includes('pursuit')) {
-        if (r.includes('qualif')) return make([entries ? Math.ceil(entries * 0.5) : 4, 8]); // One heat per entry
+        if (r.includes('qualif')) return make([pursuitEntries ? Math.ceil(pursuitEntries * 0.5) : PARA_QUALIFYING_HEATS, 8]);
         if (r.includes('final')) return make([2, 8]);
       }
 
@@ -2206,8 +2247,9 @@
         }
 
         // Handle event rows
-        const [c, e, round] = item;
-        const suggested = currentProgramme === 'track' ? trackDefaults(c, e, round) : paraDefaults(c, e, round);
+        const [c, e, round, raceOverride] = item;
+        const suggestedDefaults = currentProgramme === 'track' ? trackDefaults(c, e, round) : paraDefaults(c, e, round);
+        const suggested = raceOverride ? { ...suggestedDefaults, ...raceOverride } : suggestedDefaults;
         const isAwardCeremony = e.toLowerCase().includes('award ceremony');
         const isTeamEvent = isTrackTeam(c, e);
         const special = !c || isAwardCeremony;
@@ -2253,18 +2295,25 @@
 
         // Build row HTML with input fields
         // Blank NZL heat when no NZL rider is entered in this event
-        let defaultNzlHeat = assigned.length === 0 ? '' : 1;
-        if (assigned.length === 0 && manual === 0 && !isTeamEvent) {
+        const configuredNzlHeat = currentProgramme === 'para' ? suggested?.nzlHeat : null;
+        const hasNzlRider = !special && (assigned.length > 0 || manual > 0);
+        const paraNzlHeat = configuredNzlHeat ?? 1;
+        let defaultNzlHeat = special ? '' : hasNzlRider ? paraNzlHeat : configuredNzlHeat ?? '';
+        if (currentProgramme === 'para' && hasNzlRider) {
+          if (assigned.length > 0) {
+            put(daySelect.value, idx, 'assignedHeat0', paraNzlHeat);
+          }
+        } else if (assigned.length === 0 && manual === 0 && !isTeamEvent) {
           if (saved[key(daySelect.value, idx, 'assignedHeat0')] === 1 || saved[key(daySelect.value, idx, 'assignedHeat0')] === '1') {
             delete saved[key(daySelect.value, idx, 'assignedHeat0')];
           }
-        } else if (maxHeats === 1 && assigned.length > 0) {
+        } else if (configuredNzlHeat != null && maxHeats === 1 && assigned.length > 0) {
           defaultNzlHeat = 1;
           const currentVal = get(daySelect.value, idx, 'assignedHeat0');
           if (currentVal !== '' && currentVal != null && Number(currentVal) !== 1) {
             put(daySelect.value, idx, 'assignedHeat0', 1);
           }
-        } else if (maxHeats > 1 && assigned.length > 0) {
+        } else if (configuredNzlHeat != null && maxHeats > 1 && assigned.length > 0) {
           const currentVal = get(daySelect.value, idx, 'assignedHeat0');
           if (currentVal !== '' && currentVal != null && Number(currentVal) > maxHeats) {
             put(daySelect.value, idx, 'assignedHeat0', maxHeats);
@@ -2288,13 +2337,17 @@
         // Add sub-rows for additional riders
         if (rowBlank) {
           assigned.forEach((r, n) => {
-            let riderHeat = maxHeats === 1 ? 1 : (maxHeats > 0 ? Math.min(n + 1, maxHeats) : n + 1);
-            if (maxHeats === 1) {
+            let riderHeat = currentProgramme === 'para'
+              ? paraNzlHeat
+              : maxHeats === 1 ? 1 : (maxHeats > 0 ? Math.min(n + 1, maxHeats) : n + 1);
+            if (currentProgramme === 'para') {
+              put(daySelect.value, idx, `assignedHeat${n}`, paraNzlHeat);
+            } else if (configuredNzlHeat != null && maxHeats === 1) {
               const currentVal = get(daySelect.value, idx, `assignedHeat${n}`);
               if (currentVal !== '' && currentVal != null && Number(currentVal) !== 1) {
                 put(daySelect.value, idx, `assignedHeat${n}`, 1);
               }
-            } else if (maxHeats > 1) {
+            } else if (configuredNzlHeat != null && maxHeats > 1) {
               const currentVal = get(daySelect.value, idx, `assignedHeat${n}`);
               if (currentVal !== '' && currentVal != null && Number(currentVal) > maxHeats) {
                 put(daySelect.value, idx, `assignedHeat${n}`, maxHeats);
@@ -2303,13 +2356,17 @@
             addSub(row, idx, r[0], `assignedHeat${n}`, `a${n}`, false, null, riderHeat);
           });
           for (let n = 1; n <= manual; n++) {
-            let manualHeat = maxHeats === 1 ? 1 : (maxHeats > 0 ? Math.min(assigned.length + n, maxHeats) : assigned.length + n);
-            if (maxHeats === 1) {
+            let manualHeat = currentProgramme === 'para'
+              ? paraNzlHeat
+              : maxHeats === 1 ? 1 : (maxHeats > 0 ? Math.min(assigned.length + n, maxHeats) : assigned.length + n);
+            if (currentProgramme === 'para') {
+              put(daySelect.value, idx, `manualHeat${n}`, paraNzlHeat);
+            } else if (configuredNzlHeat != null && maxHeats === 1) {
               const currentVal = get(daySelect.value, idx, `manualHeat${n}`);
               if (currentVal !== '' && currentVal != null && Number(currentVal) !== 1) {
                 put(daySelect.value, idx, `manualHeat${n}`, 1);
               }
-            } else if (maxHeats > 1) {
+            } else if (configuredNzlHeat != null && maxHeats > 1) {
               const currentVal = get(daySelect.value, idx, `manualHeat${n}`);
               if (currentVal !== '' && currentVal != null && Number(currentVal) > maxHeats) {
                 put(daySelect.value, idx, `manualHeat${n}`, maxHeats);
@@ -4038,6 +4095,7 @@
     function initApp() {
       const activeView = saved['activeView'] || 'programme';
       currentProgramme = saved['currentProgramme'] || (activeView === 'track' ? 'track' : 'para');
+      applyDefaultParaAssignments();
 
       const days = Object.keys(activeProgrammes());
       daySelect.innerHTML = days.map(d => `<option value="${d}">${d}</option>`).join('');
@@ -4070,11 +4128,6 @@
     }
 
     initApp();
-  </script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
-    }
   </script>
 </body>
 
