@@ -150,11 +150,11 @@
     <section class="page-frame">
       <div class="page-body">
         <div class="tab-nav" role="tablist" aria-label="Gear finder tabs">
-          <button class="tab-btn" id="tabBtnMain" role="tab" aria-selected="true" aria-controls="tabMain" type="button">From Cadence + Split</button>
-          <button class="tab-btn" id="tabBtnVideo" role="tab" aria-selected="false" aria-controls="tabVideo" type="button">From Video</button>
+          <button class="tab-btn" id="tabBtnMain" role="tab" aria-selected="false" aria-controls="tabMain" type="button">From Cadence + Split</button>
+          <button class="tab-btn" id="tabBtnVideo" role="tab" aria-selected="true" aria-controls="tabVideo" type="button">From Video</button>
         </div>
 
-        <section id="tabMain" class="tab-panel active" role="tabpanel" aria-labelledby="tabBtnMain">
+        <section id="tabMain" class="tab-panel" role="tabpanel" aria-labelledby="tabBtnMain">
           <div class="grid-two">
             <section class="panel">
               <h2 class="panel-title">Inputs</h2>
@@ -234,7 +234,7 @@
           </div>
         </section>
 
-        <section id="tabVideo" class="tab-panel" role="tabpanel" aria-labelledby="tabBtnVideo">
+        <section id="tabVideo" class="tab-panel active" role="tabpanel" aria-labelledby="tabBtnVideo">
           <div class="panel">
             <h2 class="panel-title">Gear From Video</h2>
             <div id="videoErrorBox" class="error-box" role="alert" aria-live="polite"></div>
@@ -698,6 +698,57 @@
         el.revMarksSummary.textContent = "Start: " + startText + ", End: " + endText + ", Duration: " + durationText + ", Revs/s: " + revPerSecText;
       }
 
+      function hasCompleteVideoGearInputs() {
+        return isPositiveFinite(Number(el.lineDistance.value)) &&
+          isPositiveFinite(Number(el.revCount.value)) &&
+          uniqueSorted(parseGearList(el.chainrings.value)).length > 0 &&
+          uniqueSorted(parseGearList(el.cogs.value)).length > 0 &&
+          Number.isFinite(videoState.line1) &&
+          Number.isFinite(videoState.line2) &&
+          videoState.line2 > videoState.line1 &&
+          Number.isFinite(videoState.revStart) &&
+          Number.isFinite(videoState.revEnd) &&
+          videoState.revEnd > videoState.revStart;
+      }
+
+      function autoCalculateVideoGear() {
+        if (!hasCompleteVideoGearInputs()) {
+          el.videoGearStats.innerHTML = "";
+          clearVideoError();
+          return;
+        }
+
+        calculateVideoGear();
+      }
+
+      function markLine1() {
+        clearVideoError();
+        videoState.line1 = el.video.currentTime;
+        updateLineSummary();
+        autoCalculateVideoGear();
+      }
+
+      function markLine2() {
+        clearVideoError();
+        videoState.line2 = el.video.currentTime;
+        updateLineSummary();
+        autoCalculateVideoGear();
+      }
+
+      function markRevStart() {
+        clearVideoError();
+        videoState.revStart = el.video.currentTime;
+        updateRevSummary();
+        autoCalculateVideoGear();
+      }
+
+      function markRevEnd() {
+        clearVideoError();
+        videoState.revEnd = el.video.currentTime;
+        updateRevSummary();
+        autoCalculateVideoGear();
+      }
+
       function calculateVideoGear() {
         clearVideoError();
 
@@ -797,32 +848,21 @@
         el.video.playbackRate = el.halfSpeedToggle.checked ? 0.5 : 1;
       });
 
-      el.markLine1Btn.addEventListener("click", () => {
-        clearVideoError();
-        videoState.line1 = el.video.currentTime;
+      el.markLine1Btn.addEventListener("click", markLine1);
+      el.markLine2Btn.addEventListener("click", markLine2);
+      el.markRevStartBtn.addEventListener("click", markRevStart);
+      el.markRevEndBtn.addEventListener("click", markRevEnd);
+
+      el.lineDistance.addEventListener("input", () => {
         updateLineSummary();
+        autoCalculateVideoGear();
       });
-
-      el.markLine2Btn.addEventListener("click", () => {
-        clearVideoError();
-        videoState.line2 = el.video.currentTime;
-        updateLineSummary();
-      });
-
-      el.markRevStartBtn.addEventListener("click", () => {
-        clearVideoError();
-        videoState.revStart = el.video.currentTime;
+      el.revCount.addEventListener("input", () => {
         updateRevSummary();
+        autoCalculateVideoGear();
       });
-
-      el.markRevEndBtn.addEventListener("click", () => {
-        clearVideoError();
-        videoState.revEnd = el.video.currentTime;
-        updateRevSummary();
-      });
-
-      el.lineDistance.addEventListener("input", updateLineSummary);
-      el.revCount.addEventListener("input", updateRevSummary);
+      el.chainrings.addEventListener("input", autoCalculateVideoGear);
+      el.cogs.addEventListener("input", autoCalculateVideoGear);
 
       el.calculateVideoGearBtn.addEventListener("click", calculateVideoGear);
       el.resetVideoMarksBtn.addEventListener("click", resetVideoMarks);
@@ -836,7 +876,7 @@
           activeTag === "INPUT" ||
           activeTag === "TEXTAREA" ||
           (activeElement && activeElement.isContentEditable);
-        if (isEditable) return;
+        if (isEditable || event.altKey || event.ctrlKey || event.metaKey) return;
 
         if (event.key === "ArrowRight") {
           event.preventDefault();
@@ -846,6 +886,32 @@
           event.preventDefault();
           event.stopPropagation();
           stepVideoByFrames(-1);
+        } else if (event.code === "Space") {
+          event.preventDefault();
+          event.stopPropagation();
+          if (el.video.paused) {
+            el.video.play().catch(() => {});
+          } else {
+            el.video.pause();
+          }
+        } else {
+          const hotkeyActions = {
+            "1": markLine1,
+            "2": markLine2,
+            s: markRevStart,
+            e: markRevEnd,
+            r: resetVideoMarks,
+            z: () => {
+              el.halfSpeedToggle.checked = !el.halfSpeedToggle.checked;
+              el.halfSpeedToggle.dispatchEvent(new Event("change"));
+            }
+          };
+          const action = hotkeyActions[event.key.toLowerCase()];
+          if (!action) return;
+
+          event.preventDefault();
+          event.stopPropagation();
+          action();
         }
       }
 

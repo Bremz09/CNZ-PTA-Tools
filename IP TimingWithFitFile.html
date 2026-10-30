@@ -736,6 +736,7 @@
         <button id="updateBtn">Update Data</button>
         <button id="downloadBtn">Download Data</button>
         <button id="createReportBtn">Create Report</button>
+        <a href="Compare Rides.html" style="display:inline-block;padding:8px 12px;border:1px solid #cbd5e1;border-radius:4px;text-decoration:none;color:inherit;">Compare Rides</a>
         <label>
           <button id="uploadBtn" onclick="document.getElementById('csvUploadInput').click()" style="margin-bottom:0;">Upload Data</button>
         </label>
@@ -809,6 +810,13 @@
           <button id="fitUploadSyncBtn" type="button">Upload synced fit file</button>
         </div>
         <input id="fitSyncedUploadInput" type="file" accept=".json,.ipsync" style="display:none;">
+        <div class="fit-control-row" style="margin-top:8px;">
+          <button id="fitMasterFileBtn" type="button" disabled title="Choose the master .xlsx file to load a race from">Master file</button>
+          <select id="fitMasterRaceSelect" disabled>
+            <option value="">Select race</option>
+          </select>
+          <button id="fitAppendToFileBtn" type="button" disabled title="Write average power, cadence and torque per quarter to the master file">Append to file</button>
+        </div>
       </div>
       <div class="fit-field">
         <label for="fitMetricSelect">FIT Metric</label>
@@ -1023,6 +1031,9 @@
     const fitSaveSyncBtn = document.getElementById('fitSaveSyncBtn');
     const fitUploadSyncBtn = document.getElementById('fitUploadSyncBtn');
     const fitSyncedUploadInput = document.getElementById('fitSyncedUploadInput');
+    const fitMasterFileBtn = document.getElementById('fitMasterFileBtn');
+    const fitMasterRaceSelect = document.getElementById('fitMasterRaceSelect');
+    const fitAppendToFileBtn = document.getElementById('fitAppendToFileBtn');
     const fitSamplingHz = document.getElementById('fitSamplingHz');
     const fitVideoFps = document.getElementById('fitVideoFps');
     const fitTraceOffset = document.getElementById('fitTraceOffset');
@@ -1266,6 +1277,7 @@
         : '<span class="fit-slot-placeholder">Drop FIT file here</span>';
 
       syncStreamFromAssignment();
+      updateFitAppendAvailability();
       if (rebuild) rebuildFitMetricOptions();
     }
     function buildSyncedFitExportPayload() {
@@ -1619,6 +1631,23 @@
       const xFromT = (t) => margin.l + ((t - viewMinT) / (viewMaxT - viewMinT || 1)) * plotWidth;
       const yFromV = (v) => margin.t + (1 - (v - yMin) / (yMax - yMin || 1)) * plotHeight;
       fitSyncState.drawingData = { xFromT, viewMinT, viewMaxT, visibleSpan, plotWidth };
+      if (splitRows.length > 0 && Number.isFinite(startTime)) {
+        let quarterStart = startTime;
+        splitRows.forEach((row, index) => {
+          const segStart = quarterStart;
+          const segEnd = row.endTime;
+          if (!Number.isFinite(segEnd) || segEnd <= segStart) return;
+          quarterStart = segEnd;
+          const left = Math.max(margin.l, xFromT(segStart));
+          const right = Math.min(width - margin.r, xFromT(segEnd));
+          if (right <= left) return;
+          fitPlotContext.fillStyle = index % 2 === 0 ? 'rgba(37, 99, 235, 0.11)' : 'rgba(100, 116, 139, 0.11)';
+          fitPlotContext.fillRect(left, margin.t, right - left, plotHeight);
+          fitPlotContext.fillStyle = 'rgba(15, 23, 42, 0.72)';
+          fitPlotContext.font = '11px sans-serif';
+          fitPlotContext.fillText(`Q${index + 1}`, Math.max(left + 3, margin.l + 3), margin.t + 14);
+        });
+      }
       fitPlotContext.strokeStyle = 'rgba(31, 41, 55, 0.15)';
       fitPlotContext.lineWidth = 1;
       fitPlotContext.beginPath();
@@ -2409,6 +2438,233 @@
       }
       throw new Error('Unable to find a blank row to append into.');
     }
+
+    // --- Master file: load a race's quarters and append FIT averages ---
+    // Master layout (A:I): Title, DateTime, Rider, Distance, Cumulative, Quarter Time, Speed, Event, Video URL. Row 1 = headers.
+    const MASTER_DATA_LAST_COL = 8;
+    const fitMasterState = { fileHandle: null, races: [], race: null };
+
+    function updateFitAppendAvailability() {
+      const hasFit = fitSyncState.parsedFiles.length > 0;
+      fitMasterFileBtn.disabled = !hasFit;
+      fitMasterRaceSelect.disabled = !hasFit || fitMasterState.races.length === 0;
+      fitAppendToFileBtn.disabled = !hasFit || !fitMasterState.race;
+    }
+
+    function getMasterCell(sheet, XLSX, r, c) {
+      const cell = sheet[XLSX.utils.encode_cell({ r, c })];
+      return cell && cell.v != null ? cell.v : '';
+    }
+
+    function setMasterCell(sheet, XLSX, range, r, c, value) {
+      const address = XLSX.utils.encode_cell({ r, c });
+      if (value === null || value === undefined || value === '') {
+        delete sheet[address];
+        return;
+      }
+      sheet[address] = typeof value === 'number' ? { t: 'n', v: value } : { t: 's', v: String(value) };
+      range.e.r = Math.max(range.e.r, r);
+      range.e.c = Math.max(range.e.c, c);
+    }
+
+    async function readMasterWorkbook() {
+      const XLSX = await ensureXLSXLoaded();
+      const file = await fitMasterState.fileHandle.getFile();
+      const workbook = XLSX.read(new Uint8Array(await file.arrayBuffer()), { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      if (!sheet || !sheet['!ref']) throw new Error('Master file has no data.');
+      return { XLSX, file, workbook, sheet, range: XLSX.utils.decode_range(sheet['!ref']) };
+    }
+
+    function getMasterRaces(sheet, XLSX, range) {
+      const races = new Map();
+      for (let r = 1; r <= range.e.r; r++) {
+        const title = String(getMasterCell(sheet, XLSX, r, 0)).trim();
+        if (!title) continue;
+        const dateCell = sheet[XLSX.utils.encode_cell({ r, c: 1 })];
+        const dateText = dateCell ? String(dateCell.w ?? dateCell.v ?? '').trim() : '';
+        const key = `${title}\u0000${dateText}`;
+        if (!races.has(key)) races.set(key, { key, title, dateText, rowIndexes: [] });
+        races.get(key).rowIndexes.push(r);
+      }
+      return [...races.values()];
+    }
+
+    function populateMasterRaceSelect() {
+      const titleCounts = {};
+      fitMasterState.races.forEach((race) => { titleCounts[race.title] = (titleCounts[race.title] || 0) + 1; });
+      fitMasterRaceSelect.innerHTML = '<option value="">Select race</option>';
+      for (const race of fitMasterState.races) {
+        const option = document.createElement('option');
+        option.value = race.key;
+        option.textContent = titleCounts[race.title] > 1 && race.dateText ? `${race.title} (${race.dateText})` : race.title;
+        fitMasterRaceSelect.appendChild(option);
+      }
+    }
+
+    function loadMasterRaceIntoSession(sheet, XLSX, race) {
+      const playhead = Number.isFinite(startTime) ? startTime : (Number.isFinite(video.currentTime) ? video.currentTime : 0);
+      const masterRows = race.rowIndexes.map((r) => ({
+        quarterTime: toNumeric(getMasterCell(sheet, XLSX, r, 5)),
+        event: String(getMasterCell(sheet, XLSX, r, 7)).trim()
+      }));
+      if (masterRows.some((row) => !(row.quarterTime > 0))) {
+        throw new Error(`Race "${race.title}" has rows without a valid quarter time.`);
+      }
+      const riderName = String(getMasterCell(sheet, XLSX, race.rowIndexes[0], 2)).trim();
+
+      resetSession();
+      countryInput.value = race.title;
+      if (riderName) {
+        rider1Input.value = riderName;
+        renderFitAssignments({ rebuild: false });
+      }
+      raceDistanceInput.value = String(Math.round(masterRows.length * SPLIT_DISTANCE_METERS));
+      startTime = playhead;
+      let endTime = playhead;
+      masterRows.forEach((row, index) => {
+        endTime += row.quarterTime;
+        splitRows.push({
+          splitType: index === masterRows.length - 1 ? 'FINISH' : 'QUARTER',
+          splitLabel: '',
+          endTime,
+          quarterTime: row.quarterTime,
+          speed: speedFromTime(row.quarterTime),
+          eventLabel: !row.event || row.event === 'No Change' ? 'None' : row.event
+        });
+      });
+      finished = splitRows.length > 0;
+      lastMarkerTime = endTime;
+      renumberRows();
+      updateTitle();
+      renderRows();
+      if (fitSyncState.metricKey) buildFitSeries(fitSyncState.metricKey);
+      else drawFitPlot();
+    }
+
+    function getFitAppendAverages(stream, start, end) {
+      const powerKey = getPowerColumnKeyForStream(stream);
+      const cadenceKey = getCadenceColumnKeyForStream(stream);
+      const torqueKey = getPreferredMetricColumnKeyForStream(stream, ['torque'], 'torque');
+      const power = powerKey ? getAverageMetricForVideoInterval(stream, powerKey, start, end) : null;
+      const cadence = cadenceKey ? getAverageMetricForVideoInterval(stream, cadenceKey, start, end) : null;
+      let torque = torqueKey ? getAverageMetricForVideoInterval(stream, torqueKey, start, end) : null;
+      if (torque == null && power != null && cadence > 0) torque = (power * 60) / (2 * Math.PI * cadence);
+      const round = (v, d) => (Number.isFinite(v) ? parseFloat(v.toFixed(d)) : null);
+      return [round(power, 1), round(cadence, 1), round(torque, 2)];
+    }
+
+    function writeFitColumnsToMaster(sheet, XLSX, range, rowIndexes) {
+      const stream = fitSyncState.stream;
+      if (!stream) return 0;
+      let nextCol = MASTER_DATA_LAST_COL;
+      for (let c = 0; c <= range.e.c; c++) {
+        if (String(getMasterCell(sheet, XLSX, 0, c)).trim()) nextCol = Math.max(nextCol, c);
+      }
+      nextCol++;
+      const findOrAddColumn = (header) => {
+        const target = header.toLowerCase();
+        for (let c = 0; c <= range.e.c; c++) {
+          if (String(getMasterCell(sheet, XLSX, 0, c)).trim().toLowerCase() === target) return c;
+        }
+        const col = nextCol++;
+        setMasterCell(sheet, XLSX, range, 0, col, header);
+        return col;
+      };
+      const cols = [
+        findOrAddColumn('Avg Power (W)'),
+        findOrAddColumn('Avg Cadence (rpm)'),
+        findOrAddColumn('Avg Torque (Nm)')
+      ];
+      let quarterStart = startTime;
+      rowIndexes.forEach((r, i) => {
+        const row = splitRows[i];
+        const values = row ? getFitAppendAverages(stream, quarterStart, row.endTime) : [null, null, null];
+        if (row) quarterStart = row.endTime;
+        values.forEach((value, k) => setMasterCell(sheet, XLSX, range, r, cols[k], value));
+      });
+      sheet['!ref'] = XLSX.utils.encode_range(range);
+      return 1;
+    }
+
+    fitMasterFileBtn.addEventListener('click', async () => {
+      let fileHandle;
+      try {
+        [fileHandle] = await window.showOpenFilePicker({
+          types: [{
+            description: 'Excel Files',
+            accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] }
+          }]
+        });
+      } catch {
+        return;
+      }
+      try {
+        fitMasterState.fileHandle = fileHandle;
+        fitMasterState.race = null;
+        const { file, sheet, XLSX, range } = await readMasterWorkbook();
+        fitMasterState.races = getMasterRaces(sheet, XLSX, range);
+        populateMasterRaceSelect();
+        setFitStatus(fitMasterState.races.length > 0
+          ? `Master file ${file.name} loaded with ${fitMasterState.races.length} race(s). Select a race.`
+          : `No races found in ${file.name}.`, fitMasterState.races.length > 0 ? 'ok' : 'warn');
+      } catch (error) {
+        console.error(error);
+        fitMasterState.races = [];
+        populateMasterRaceSelect();
+        setFitStatus(`Master file error: ${error.message || error}`);
+      }
+      updateFitAppendAvailability();
+    });
+
+    fitMasterRaceSelect.addEventListener('change', async () => {
+      fitMasterState.race = null;
+      const key = fitMasterRaceSelect.value;
+      if (key) {
+        try {
+          const { sheet, XLSX, range } = await readMasterWorkbook();
+          fitMasterState.races = getMasterRaces(sheet, XLSX, range);
+          const race = fitMasterState.races.find((item) => item.key === key);
+          if (!race) throw new Error('Race no longer found in master file.');
+          loadMasterRaceIntoSession(sheet, XLSX, race);
+          fitMasterState.race = race;
+          setFitStatus(`Loaded ${race.rowIndexes.length} quarters for "${race.title}". Align the FIT trace to the quarters, then Append to file.`, 'ok');
+        } catch (error) {
+          console.error(error);
+          setFitStatus(`Race load error: ${error.message || error}`);
+        }
+      }
+      updateFitAppendAvailability();
+    });
+
+    fitAppendToFileBtn.addEventListener('click', async () => {
+      if (!fitMasterState.race || !fitMasterState.fileHandle) return;
+      const originalText = fitAppendToFileBtn.textContent;
+      fitAppendToFileBtn.disabled = true;
+      fitAppendToFileBtn.textContent = 'Appending...';
+      try {
+        const { file, workbook, sheet, XLSX, range } = await readMasterWorkbook();
+        const race = getMasterRaces(sheet, XLSX, range).find((item) => item.key === fitMasterState.race.key);
+        if (!race) throw new Error('Race no longer found in master file.');
+        if (race.rowIndexes.length !== splitRows.length) {
+          throw new Error(`Race has ${race.rowIndexes.length} rows in the file but ${splitRows.length} quarters are loaded. Reselect the race.`);
+        }
+        if (writeFitColumnsToMaster(sheet, XLSX, range, race.rowIndexes) === 0) {
+          throw new Error('No rider FIT file is assigned.');
+        }
+        const wbArray = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
+        const writable = await fitMasterState.fileHandle.createWritable();
+        await writable.write(new Blob([wbArray], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+        await writable.close();
+        setFitStatus(`Wrote FIT averages for ${race.rowIndexes.length} quarters to ${file.name}.`, 'ok');
+      } catch (error) {
+        console.error(error);
+        setFitStatus(`Append error: ${error.message || error}`);
+      } finally {
+        fitAppendToFileBtn.textContent = originalText;
+        updateFitAppendAvailability();
+      }
+    });
 
     function updateReport() {
       updateTitle();

@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <script src="auth-gate.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compare Rides | CNZ PTA Tools</title>
+  <link rel="stylesheet" href="theme.css">
+  <style>
+    .compare-grid { display:grid; grid-template-columns:repeat(2,minmax(240px,1fr)); gap:12px; }
+    .compare-input { border:1px solid #dbe2ea; border-radius:8px; padding:12px; background:#fff; }
+    .compare-input h3 { margin:0 0 8px; font-size:15px; }
+    .compare-input input { width:100%; box-sizing:border-box; }
+    .compare-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:12px; }
+    .compare-status { min-height:20px; color:#475569; font-size:13px; }
+    .legend { display:flex; gap:14px; flex-wrap:wrap; margin:14px 0 8px; font-size:13px; }
+    .legend-item { display:inline-flex; align-items:center; gap:6px; }
+    .legend-team { display:inline-flex; gap:14px; flex-wrap:wrap; }
+    .legend-team-b { margin-left:auto; }
+    .swatch { width:12px; height:12px; border-radius:2px; display:inline-block; }
+    .table-wrap { overflow:auto; border:1px solid #dbe2ea; }
+    table { width:100%; min-width:720px; border-collapse:collapse; font-size:14px; }
+    th, td { border:1px solid #dbe2ea; padding:7px 9px; text-align:right; white-space:nowrap; }
+    th { background:#f8fafc; color:#334155; text-align:center; }
+    th:first-child, td:first-child { text-align:left; }
+    .lap-bar { display:flex; height:22px; min-width:150px; border:1px solid #cbd5e1; background:#f1f5f9; }
+    .lap-bar span { display:block; flex:1 1 0; min-width:2px; }
+    .conditional-cell { transition:background-color .15s ease; }
+    .empty { color:#64748b; text-align:center; padding:18px; }
+    @media (max-width:700px) { .compare-grid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <section class="page-frame">
+      <header class="page-header">
+        <div class="page-title-row">
+          <div>
+            <h1 class="page-title">Compare Rides</h1>
+            <p class="page-subtitle">Compare two timing-builder split CSV exports lap by lap.</p>
+          </div>
+          <div class="page-actions"><a class="btn btn-ghost" href="report-builders.html">Back to Report Builders</a></div>
+        </div>
+      </header>
+      <div class="page-body grid-stack">
+        <section class="panel">
+          <div class="compare-grid">
+            <div class="compare-input">
+              <h3>Ride A</h3>
+              <input id="rideAInput" type="file" accept=".csv,text/csv">
+              <label for="rideAName">Display name</label>
+              <input id="rideAName" type="text" placeholder="Ride A">
+            </div>
+            <div class="compare-input">
+              <h3>Ride B</h3>
+              <input id="rideBInput" type="file" accept=".csv,text/csv">
+              <label for="rideBName">Display name</label>
+              <input id="rideBName" type="text" placeholder="Ride B">
+            </div>
+          </div>
+          <div class="compare-actions">
+            <button id="compareBtn" class="btn btn-primary" type="button">Compare rides</button>
+            <button id="clearBtn" class="btn btn-ghost" type="button">Clear</button>
+            <span id="status" class="compare-status">Select two Download Data CSV files.</span>
+          </div>
+        </section>
+        <section id="resultPanel" class="panel" hidden>
+          <h2 class="panel-title">Lap Comparison</h2>
+          <p id="totalTimes" class="note"></p>
+          <div id="legend" class="legend"></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Lap</th><th id="aLapHeader">Ride A</th><th id="aHeader">Ride A</th><th id="bHeader">Ride B</th><th>Split Gap<br>(A - B)</th><th>Total Gap</th><th id="bLapHeader">Ride B</th></tr></thead>
+              <tbody id="resultBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+<script>
+  const RIDER_COLORS = ['#ff7f41', '#2dc84d', '#1683c7', '#7138b8'];
+  const ui = {
+    aInput: document.getElementById('rideAInput'), bInput: document.getElementById('rideBInput'),
+    aName: document.getElementById('rideAName'), bName: document.getElementById('rideBName'),
+    compare: document.getElementById('compareBtn'), clear: document.getElementById('clearBtn'),
+    status: document.getElementById('status'), panel: document.getElementById('resultPanel'),
+    legend: document.getElementById('legend'), body: document.getElementById('resultBody'),
+    totalTimes: document.getElementById('totalTimes'), aHeader: document.getElementById('aHeader'), bHeader: document.getElementById('bHeader'),
+    aLapHeader: document.getElementById('aLapHeader'), bLapHeader: document.getElementById('bLapHeader')
+  };
+
+  function parseCsvLine(line) {
+    const values = []; let value = ''; let quoted = false;
+    for (const char of line) {
+      if (char === '"') quoted = !quoted;
+      else if (char === ',' && !quoted) { values.push(value); value = ''; }
+      else value += char;
+    }
+    values.push(value);
+    return values.map(item => item.trim());
+  }
+
+  function unquote(value) { return String(value || '').replace(/^"|"$/g, '').replace(/""/g, '"').trim(); }
+
+  function parseRide(text, fileName) {
+    const lines = String(text).split(/\r?\n/).filter(line => line.trim());
+    const dataLines = lines.filter(line => !line.startsWith('#'));
+    if (dataLines.length < 2) throw new Error(`${fileName}: CSV has no split rows.`);
+    const header = parseCsvLine(dataLines[0]);
+    const column = name => header.findIndex(value => value.toLowerCase() === name.toLowerCase());
+    const timeIndex = column('Quarter Time (s)');
+    const riderIndex = column('frontRiderIndex');
+    const riderNameIndex = column('Athlete In Front');
+    const absoluteTimeIndex = column('Start time');
+    const tsRiderIndex = column('Riders');
+    let rows;
+    if (timeIndex >= 0) {
+      rows = dataLines.slice(1).map(line => parseCsvLine(line)).map((values, index) => {
+        const time = Number(values[timeIndex]);
+        if (!Number.isFinite(time)) return null;
+        const rider = riderIndex >= 0 && Number.isInteger(Number(values[riderIndex])) ? Number(values[riderIndex]) : -1;
+        return { time, rider, riderName: riderNameIndex >= 0 ? unquote(values[riderNameIndex]) : '', index };
+      }).filter(Boolean);
+    } else if (absoluteTimeIndex >= 0) {
+      const absoluteRows = dataLines.slice(1).map(line => parseCsvLine(line)).map(values => ({
+        time: Number(values[absoluteTimeIndex]),
+        riderName: tsRiderIndex >= 0 ? unquote(values[tsRiderIndex]) : ''
+      })).filter(row => Number.isFinite(row.time));
+      const riderLabels = [...new Set(absoluteRows.map(row => row.riderName).filter(Boolean))];
+      rows = absoluteRows.slice(1).map((row, index) => ({
+        time: row.time - absoluteRows[index].time,
+        rider: riderLabels.indexOf(row.riderName),
+        riderName: row.riderName,
+        index
+      })).filter(row => row.time > 0);
+    } else {
+      throw new Error(`${fileName}: expected a current timing-builder Download Data CSV.`);
+    }
+    if (!rows.length) throw new Error(`${fileName}: no numeric quarter times found.`);
+    const metadata = {};
+    lines.filter(line => line.startsWith('# ')).forEach(line => {
+      const parts = parseCsvLine(line.slice(2));
+      if (parts.length >= 2) metadata[parts[0]] = unquote(parts.slice(1).join(','));
+    });
+    const riderNames = {};
+    Object.keys(metadata).forEach(key => {
+      const match = key.match(/^rider(\d+)$/);
+      if (match) riderNames[Number(match[1]) - 1] = metadata[key];
+    });
+    rows.forEach(row => {
+      if (row.rider >= 0 && !riderNames[row.rider] && row.riderName && row.riderName !== 'No Active Rider') riderNames[row.rider] = row.riderName;
+    });
+    const laps = [];
+    for (let index = 0; index < rows.length; index += 4) {
+      const quarters = rows.slice(index, index + 4);
+      laps.push({ total: quarters.reduce((sum, row) => sum + row.time, 0), quarters, riderNames });
+    }
+    return { fileName, laps, riderNames };
+  }
+
+  function displayName(input, ride) { return input.value.trim() || ride.fileName.replace(/\.[^.]+$/, ''); }
+  function formatRaceTime(value) {
+    const minutes = Math.floor(value / 60);
+    const seconds = (value - minutes * 60).toFixed(2).padStart(5, '0');
+    return `${minutes}:${seconds}`;
+  }
+  function formatGap(value) { return `${value >= 0 ? '' : ''}${value.toFixed(2)}`; }
+  function mixColor(start, end, amount) {
+    const channel = (index) => Math.round(start[index] + (end[index] - start[index]) * amount);
+    return `rgb(${channel(0)}, ${channel(1)}, ${channel(2)})`;
+  }
+  function heatColor(value) {
+    const green = [140, 197, 124];
+    const yellow = [232, 229, 138];
+    const orange = [249, 173, 124];
+    return value <= 0.5
+      ? mixColor(green, yellow, value * 2)
+      : mixColor(yellow, orange, (value - 0.5) * 2);
+  }
+  function scaleColor(value, min, max, diverging = false) {
+    if (!Number.isFinite(value)) return '';
+    if (diverging && min < 0 && max > 0) {
+      if (value <= 0) {
+        const ratio = min === 0 ? 0 : (value - min) / (0 - min);
+        return heatColor(ratio * 0.5);
+      }
+      const ratio = max === 0 ? 1 : value / max;
+      return heatColor(0.5 + ratio * 0.5);
+    }
+    const ratio = max === min ? 0.5 : (value - min) / (max - min);
+    return heatColor(Math.max(0, Math.min(1, ratio)));
+  }
+  function range(values) {
+    const finite = values.filter(Number.isFinite);
+    return finite.length ? [Math.min(...finite), Math.max(...finite)] : [0, 0];
+  }
+  function cellStyle(value, limits, diverging = false) {
+    return ` class="conditional-cell" style="background:${scaleColor(value, limits[0], limits[1], diverging)}"`;
+  }
+
+  async function readFile(input) {
+    const file = input.files[0];
+    if (!file) throw new Error('Select both CSV files first.');
+    return parseRide(await file.text(), file.name);
+  }
+
+  function render(a, b) {
+    const nameA = displayName(ui.aName, a); const nameB = displayName(ui.bName, b);
+    const count = Math.min(a.laps.length, b.laps.length); let totalGap = 0;
+    const lapData = [];
+    for (let index = 0; index < count; index += 1) {
+      const splitGap = a.laps[index].total - b.laps[index].total;
+      totalGap += splitGap;
+      lapData.push({ lapA: a.laps[index], lapB: b.laps[index], splitGap, totalGap });
+    }
+    const splitGapLimits = range(lapData.map(row => row.splitGap));
+    const totalGapLimits = range(lapData.map(row => row.totalGap));
+    const combinedSplitValues = lapData.slice(1).flatMap(row => [row.lapA.total, row.lapB.total]);
+    const combinedSplitLimits = range(combinedSplitValues);
+    ui.aHeader.textContent = nameA; ui.bHeader.textContent = nameB;
+    ui.aLapHeader.textContent = nameA; ui.bLapHeader.textContent = nameB;
+    const getLegendEntries = ride => Object.keys(ride.riderNames).sort((left, right) => Number(left) - Number(right)).map(index => {
+      const riderName = ride.riderNames[index] || `Rider ${Number(index) + 1}`;
+      return { index, riderName };
+    });
+    const renderLegendGroup = entries => entries.map(entry => `<span class="legend-item"><i class="swatch" style="background:${RIDER_COLORS[entry.index % RIDER_COLORS.length]}"></i>${entry.riderName}</span>`).join('');
+    ui.legend.innerHTML = `<span class="legend-team">${renderLegendGroup(getLegendEntries(a))}</span><span class="legend-team legend-team-b">${renderLegendGroup(getLegendEntries(b))}</span>`;
+    ui.totalTimes.textContent = `${nameA}: ${formatRaceTime(a.laps.reduce((sum, lap) => sum + lap.total, 0))}  |  ${nameB}: ${formatRaceTime(b.laps.reduce((sum, lap) => sum + lap.total, 0))}`;
+    ui.body.innerHTML = '';
+    for (let index = 0; index < count; index += 1) {
+      const { lapA, lapB, splitGap, totalGap: runningGap } = lapData[index];
+      const makeSegments = lap => lap.quarters.map((quarter, quarterIndex) => `<span style="background:${quarter.rider >= 0 ? RIDER_COLORS[quarter.rider % RIDER_COLORS.length] : '#cbd5e1'}" title="Quarter ${quarterIndex + 1}"></span>`).join('');
+      const segmentsA = makeSegments(lapA);
+      const segmentsB = makeSegments(lapB);
+      const tr = document.createElement('tr');
+      const splitStyle = index === 0 ? '' : cellStyle(lapA.total, combinedSplitLimits);
+      const splitBStyle = index === 0 ? '' : cellStyle(lapB.total, combinedSplitLimits);
+      tr.innerHTML = `<td>Lap ${index + 1}</td><td><div class="lap-bar">${segmentsA || '<span style="width:100%;background:#cbd5e1"></span>'}</div></td><td${splitStyle}>${lapA.total.toFixed(2)}</td><td${splitBStyle}>${lapB.total.toFixed(2)}</td><td${cellStyle(splitGap, splitGapLimits, true)}>${formatGap(splitGap)}</td><td${cellStyle(runningGap, totalGapLimits)}>${formatGap(runningGap)}</td><td><div class="lap-bar">${segmentsB || '<span style="width:100%;background:#cbd5e1"></span>'}</div></td>`;
+      ui.body.appendChild(tr);
+    }
+    if (a.laps.length !== b.laps.length) ui.status.textContent = `Compared ${count} matching laps; extra rows were ignored.`;
+    else ui.status.textContent = `Compared ${count} laps.`;
+    ui.panel.hidden = false;
+  }
+
+  ui.compare.addEventListener('click', async () => {
+    try { ui.compare.disabled = true; const [a, b] = await Promise.all([readFile(ui.aInput), readFile(ui.bInput)]); render(a, b); }
+    catch (error) { ui.panel.hidden = true; ui.status.textContent = error.message; }
+    finally { ui.compare.disabled = false; }
+  });
+  ui.clear.addEventListener('click', () => { ui.aInput.value = ''; ui.bInput.value = ''; ui.aName.value = ''; ui.bName.value = ''; ui.body.innerHTML = ''; ui.panel.hidden = true; ui.status.textContent = 'Select two Download Data CSV files.'; });
+</script>
+</body>
+</html>
