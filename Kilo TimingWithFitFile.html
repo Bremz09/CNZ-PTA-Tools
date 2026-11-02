@@ -716,6 +716,10 @@
           <input id="airDensityInput" type="number" min="0.5" max="2" step="0.001" value="1.169">
         </div>
         <div>
+          <label for="riderGearInput">Rider Gear (in)</label>
+          <input id="riderGearInput" type="number" min="1" step="0.1" placeholder="Gear inches">
+        </div>
+        <div>
           <label for="jumpFramesInput">Jump Ahead (frames)</label>
           <input id="jumpFramesInput" type="number" min="1" value="160">
         </div>
@@ -774,7 +778,7 @@
       <div class="fit-control-group">
         <label for="fitScaleControl">Trace window scale</label>
         <div class="fit-control-row">
-          <input id="fitScaleControl" type="range" min="20" max="400" step="10" value="100">
+          <input id="fitScaleControl" type="range" min="5" max="100" step="5" value="100">
           <span id="fitScaleValue" class="fit-control-value">100%</span>
         </div>
       </div>
@@ -807,11 +811,12 @@
         </div>
         <input id="fitSyncedUploadInput" type="file" accept=".json,.ipsync" style="display:none;">
         <div class="fit-control-row" style="margin-top:8px;">
-          <button id="fitMasterFileBtn" type="button" disabled title="Choose the master .xlsx file to load a race from">Master file</button>
+          <button id="fitMasterFileBtn" type="button" title="Choose the master .xlsx file to load a race from">Master file</button>
           <select id="fitMasterRaceSelect" disabled>
             <option value="">Select race</option>
           </select>
           <button id="fitAppendToFileBtn" type="button" disabled title="Write average power, cadence and torque per quarter to the master file">Append to file</button>
+          <button id="fitUpdateMasterBtn" type="button" disabled title="Update the matching race in the selected master file">Update Master</button>
         </div>
       </div>
       <div class="fit-field">
@@ -854,6 +859,7 @@
             <label for="chartYMaxInput" style="white-space:nowrap;">Y max</label>
             <input type="number" id="chartYMaxInput" placeholder="auto" step="1" style="width:60px;padding:4px 6px;">
           </div>
+          <button id="updateMasterBtn" type="button" disabled title="Update the matching race in the selected master file">Update Master</button>
           <button id="appendToFileBtn" type="button">Append to file</button>
           <button id="exportReportBtn" type="button">Export report</button>
         </div>
@@ -950,6 +956,7 @@
     const jumpFramesInput = document.getElementById('jumpFramesInput');
     const fixedJumpFramesInput = document.getElementById('fixedJumpFramesInput');
     const airDensityInput = document.getElementById('airDensityInput');
+    const riderGearInput = document.getElementById('riderGearInput');
     const raceDistanceInput = document.getElementById('raceDistanceInput');
 
     const countryInput = document.getElementById('countryInput');
@@ -983,6 +990,7 @@
     const closeReportBtn = document.getElementById('closeReportBtn');
     const exportReportBtn = document.getElementById('exportReportBtn');
     const appendToFileBtn = document.getElementById('appendToFileBtn');
+    const updateMasterBtn = document.getElementById('updateMasterBtn');
     const reportChartWrapper = document.getElementById('reportChartWrapper');
     const reportChart = document.getElementById('reportChart');
     const reportChartEmpty = document.getElementById('reportChartEmpty');
@@ -1010,6 +1018,7 @@
     const fitMasterFileBtn = document.getElementById('fitMasterFileBtn');
     const fitMasterRaceSelect = document.getElementById('fitMasterRaceSelect');
     const fitAppendToFileBtn = document.getElementById('fitAppendToFileBtn');
+    const fitUpdateMasterBtn = document.getElementById('fitUpdateMasterBtn');
     const fitSamplingHz = document.getElementById('fitSamplingHz');
     const fitVideoFps = document.getElementById('fitVideoFps');
     const fitTraceOffset = document.getElementById('fitTraceOffset');
@@ -1262,6 +1271,10 @@
           fileName: file.fileName,
           assignedRiderIndex: file.assignedRiderIndex === 0 ? 0 : null,
           offset: Number.isFinite(file.offset) ? file.offset : 0,
+          timingStartVideoTime: Number.isFinite(startTime) ? startTime : (Number.isFinite(file.timingStartVideoTime) ? file.timingStartVideoTime : null),
+          fitTimeAtTimingStart: Number.isFinite(startTime)
+            ? startTime - (Number.isFinite(file.offset) ? file.offset : 0)
+            : (Number.isFinite(file.fitTimeAtTimingStart) ? file.fitTimeAtTimingStart : null),
           timeColumnKey: file.timeColumnKey,
           metricColumns: Array.isArray(file.metricColumns) ? file.metricColumns : [],
           samplingHz: Number.isFinite(file.samplingHz) ? file.samplingHz : null,
@@ -1281,6 +1294,8 @@
         metricColumns: Array.isArray(file.metricColumns) ? file.metricColumns : [],
         samplingHz: Number.isFinite(file.samplingHz) ? file.samplingHz : null,
         offset: Number.isFinite(file.offset) ? file.offset : 0,
+        timingStartVideoTime: Number.isFinite(file.timingStartVideoTime) ? file.timingStartVideoTime : null,
+        fitTimeAtTimingStart: Number.isFinite(file.fitTimeAtTimingStart) ? file.fitTimeAtTimingStart : null,
         assignedRiderIndex: file.assignedRiderIndex === 0 ? 0 : null,
         riderIndex: file.assignedRiderIndex === 0 ? 0 : null
       }));
@@ -2359,13 +2374,86 @@
     // --- Master file: load a race's quarters and append FIT averages ---
     // Master layout (A:I): Title, DateTime, Rider, Distance, Cumulative, Quarter Time, Speed, Event, Video URL. Row 1 = headers.
     const MASTER_DATA_LAST_COL = 8;
+    const MASTER_METADATA_FIELDS = [
+      { key: 'airDensity', header: 'Air Density', label: 'Air Density' },
+      { key: 'gear', header: 'Gear (in)', label: 'Gear' }
+    ];
     const fitMasterState = { fileHandle: null, races: [], race: null };
+
+    function getProvidedMasterMetadata() {
+      const densityText = airDensityInput.value.trim();
+      const density = densityText ? Number(densityText) : null;
+      const gearText = riderGearInput.value.trim();
+      const gear = gearText ? Number(gearText) : null;
+      return {
+        airDensity: Number.isFinite(density) && density > 0 ? density : null,
+        gear: Number.isFinite(gear) && gear > 0 ? gear : null
+      };
+    }
+
+    function findMasterMetadataColumn(sheet, XLSX, range, field) {
+      for (let c = 0; c <= range.e.c; c++) {
+        const header = String(getMasterCell(sheet, XLSX, 0, c)).trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (field.key === 'airDensity' && header.startsWith('airdensity')) return c;
+        if (field.key === 'gear' && header.startsWith('gear')) return c;
+      }
+      return -1;
+    }
+
+    function ensureMasterMetadataColumns(sheet, XLSX, range, metadata) {
+      const columns = {};
+      for (const field of MASTER_METADATA_FIELDS) {
+        let column = findMasterMetadataColumn(sheet, XLSX, range, field);
+        if (column < 0 && metadata[field.key] != null) {
+          column = Math.max(MASTER_DATA_LAST_COL + 1, range.e.c + 1);
+          setMasterCell(sheet, XLSX, range, 0, column, field.header);
+        }
+        columns[field.key] = column;
+      }
+      return columns;
+    }
+
+    function masterMetadataValuesEqual(current, proposed) {
+      if (current === '' || current == null) return false;
+      const currentNumber = Number(current);
+      return Number.isFinite(currentNumber)
+        ? currentNumber === proposed
+        : String(current).trim().toLowerCase() === String(proposed).trim().toLowerCase();
+    }
+
+    function getMasterMetadataDifferences(sheet, XLSX, range, rowIndexes, metadata) {
+      return MASTER_METADATA_FIELDS.filter((field) => {
+        const proposed = metadata[field.key];
+        if (proposed == null) return false;
+        const column = findMasterMetadataColumn(sheet, XLSX, range, field);
+        return rowIndexes.some((row) => !masterMetadataValuesEqual(
+          column < 0 ? '' : getMasterCell(sheet, XLSX, row, column), proposed
+        ));
+      });
+    }
+
+    function writeMasterMetadata(sheet, XLSX, range, rowIndexes, metadata, fields) {
+      const columns = ensureMasterMetadataColumns(sheet, XLSX, range, metadata);
+      for (const field of fields) {
+        for (const row of rowIndexes) {
+          setMasterCell(sheet, XLSX, range, row, columns[field.key], metadata[field.key]);
+        }
+      }
+      sheet['!ref'] = XLSX.utils.encode_range(range);
+    }
 
     function updateFitAppendAvailability() {
       const hasFit = fitSyncState.parsedFiles.length > 0;
-      fitMasterFileBtn.disabled = !hasFit;
-      fitMasterRaceSelect.disabled = !hasFit || fitMasterState.races.length === 0;
+      const hasMaster = Boolean(fitMasterState.fileHandle);
+      const reportRows = buildReportRows();
+      const title = reportRows.length ? String(reportRows[0][0] || '').trim().toLowerCase() : '';
+      const canUpdateMaster = hasMaster && title
+        && fitMasterState.races.some((race) => race.title.trim().toLowerCase() === title);
+      fitMasterFileBtn.disabled = false;
+      fitMasterRaceSelect.disabled = !hasMaster || fitMasterState.races.length === 0;
       fitAppendToFileBtn.disabled = !hasFit || !fitMasterState.race;
+      updateMasterBtn.disabled = !canUpdateMaster;
+      fitUpdateMasterBtn.disabled = !canUpdateMaster;
     }
 
     function getMasterCell(sheet, XLSX, r, c) {
@@ -2393,18 +2481,77 @@
       return { XLSX, file, workbook, sheet, range: XLSX.utils.decode_range(sheet['!ref']) };
     }
 
-    function getMasterRaces(sheet, XLSX, range) {
-      const races = new Map();
-      for (let r = 1; r <= range.e.r; r++) {
-        const title = String(getMasterCell(sheet, XLSX, r, 0)).trim();
-        if (!title) continue;
-        const dateCell = sheet[XLSX.utils.encode_cell({ r, c: 1 })];
-        const dateText = dateCell ? String(dateCell.w ?? dateCell.v ?? '').trim() : '';
-        const key = `${title}\u0000${dateText}`;
-        if (!races.has(key)) races.set(key, { key, title, dateText, rowIndexes: [] });
-        races.get(key).rowIndexes.push(r);
+    function getMasterColumns(sheet, XLSX, range) {
+      const headerColumns = new Map();
+      for (let c = 0; c <= range.e.c; c++) {
+        const header = String(getMasterCell(sheet, XLSX, 0, c)).toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (header && !headerColumns.has(header)) headerColumns.set(header, c);
       }
-      return [...races.values()];
+      const findColumn = (...names) => names.map((name) => headerColumns.get(name)).find((column) => column != null) ?? -1;
+      return {
+        title: findColumn('title', 'race'),
+        saveDate: findColumn('savedate', 'datetime'),
+        distance: findColumn('distance'),
+        cumulative: findColumn('cumulative', 'cumulativetime', 'runningtime'),
+        time: findColumn('time', 'elapsedtime'),
+        split: findColumn('split', 'splittime', 'quartertime', 'quartertimes'),
+        speed: findColumn('avgspeed', 'speed'),
+        rider: findColumn('rider', 'ridername', 'athlete'),
+        event: findColumn('action', 'event'),
+        video: findColumn('video', 'videourl')
+      };
+    }
+
+    function writeMasterReportRows(sheet, XLSX, range, rowIndexes, reportRows, columns) {
+      const timeColumn = columns.cumulative >= 0 ? columns.cumulative : columns.time;
+      const fieldColumns = [
+        [columns.title, 0],
+        [columns.distance, 3],
+        [timeColumn, 4],
+        [columns.split, 5],
+        [columns.speed, 6],
+        [columns.video, 8]
+      ];
+      reportRows.forEach((row, index) => {
+        for (const [column, valueIndex] of fieldColumns) {
+          const value = row[valueIndex];
+          if (column >= 0 && value != null && value !== '') {
+            setMasterCell(sheet, XLSX, range, rowIndexes[index], column, value);
+          }
+        }
+      });
+      sheet['!ref'] = XLSX.utils.encode_range(range);
+    }
+
+    function getMasterRaces(sheet, XLSX, range) {
+      const columns = getMasterColumns(sheet, XLSX, range);
+      if (columns.title < 0 || columns.split < 0) {
+        throw new Error('Master file must include Title and Split columns.');
+      }
+      const races = [];
+      let currentRace = null;
+      let previousDistance = null;
+      for (let r = 1; r <= range.e.r; r++) {
+        const title = String(getMasterCell(sheet, XLSX, r, columns.title)).trim();
+        if (!title) {
+          currentRace = null;
+          previousDistance = null;
+          continue;
+        }
+        const dateText = columns.saveDate >= 0 ? String(getMasterCell(sheet, XLSX, r, columns.saveDate)).trim() : '';
+        const distance = columns.distance >= 0 ? toNumeric(getMasterCell(sheet, XLSX, r, columns.distance)) : null;
+        const distanceReset = currentRace && distance > 0 && previousDistance > 0 && distance <= previousDistance;
+        const dateChanged = currentRace && dateText && currentRace.dateText && dateText !== currentRace.dateText;
+        if (!currentRace || currentRace.title !== title || dateChanged || distanceReset) {
+          currentRace = { key: `${r}\u0000${title}\u0000${dateText}`, title, dateText, rowIndexes: [], columns };
+          races.push(currentRace);
+          previousDistance = null;
+        }
+        if (!currentRace.dateText && dateText) currentRace.dateText = dateText;
+        if (toNumeric(getMasterCell(sheet, XLSX, r, columns.split)) > 0) currentRace.rowIndexes.push(r);
+        if (distance > 0) previousDistance = distance;
+      }
+      return races.filter((race) => race.rowIndexes.length > 0);
     }
 
     function populateMasterRaceSelect() {
@@ -2422,16 +2569,19 @@
     function loadMasterRaceIntoSession(sheet, XLSX, race) {
       const playhead = Number.isFinite(startTime) ? startTime : (Number.isFinite(video.currentTime) ? video.currentTime : 0);
       const masterRows = race.rowIndexes.map((r) => ({
-        quarterTime: toNumeric(getMasterCell(sheet, XLSX, r, 5)),
-        event: String(getMasterCell(sheet, XLSX, r, 7)).trim()
+        quarterTime: toNumeric(getMasterCell(sheet, XLSX, r, race.columns.split)),
+        event: race.columns.event >= 0 ? String(getMasterCell(sheet, XLSX, r, race.columns.event)).trim() : ''
       }));
-      if (masterRows.some((row) => !(row.quarterTime > 0))) {
-        throw new Error(`Race "${race.title}" has rows without a valid quarter time.`);
+      if (masterRows.length === 0 || masterRows.some((row) => !(row.quarterTime > 0))) {
+        throw new Error(`Race "${race.title}" has no valid quarter times.`);
       }
+      const finalDistance = race.columns.distance >= 0
+        ? toNumeric(getMasterCell(sheet, XLSX, race.rowIndexes[race.rowIndexes.length - 1], race.columns.distance))
+        : null;
 
       resetSession();
       countryInput.value = race.title;
-      raceDistanceInput.value = String(Math.round(masterRows.length * SPLIT_DISTANCE_METERS));
+      raceDistanceInput.value = String(Math.round(finalDistance > 0 ? finalDistance : masterRows.length * SPLIT_DISTANCE_METERS));
       startTime = playhead;
       let endTime = playhead;
       masterRows.forEach((row, index) => {
@@ -2563,11 +2713,26 @@
         if (writeFitColumnsToMaster(sheet, XLSX, range, race.rowIndexes) === 0) {
           throw new Error('No rider FIT file is assigned.');
         }
+        const metadata = getProvidedMasterMetadata();
+        const metadataDifferences = getMasterMetadataDifferences(sheet, XLSX, range, race.rowIndexes, metadata);
+        let metadataUpdated = false;
+        if (metadataDifferences.length > 0) {
+          const labels = metadataDifferences.map((field) => field.label).join(' and ');
+          if (window.confirm(`${labels} from the timing section differ from the master race. Update the master values for all ${race.rowIndexes.length} quarters?`)) {
+            writeMasterMetadata(sheet, XLSX, range, race.rowIndexes, metadata, metadataDifferences);
+            metadataUpdated = true;
+          }
+        }
         const wbArray = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
         const writable = await fitMasterState.fileHandle.createWritable();
         await writable.write(new Blob([wbArray], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
         await writable.close();
-        setFitStatus(`Wrote FIT averages for ${race.rowIndexes.length} quarters to ${file.name}.`, 'ok');
+        const metadataStatus = metadataDifferences.length === 0
+          ? ''
+          : metadataUpdated
+            ? ` ${metadataDifferences.map((field) => field.label).join(' and ')} updated.`
+            : ' Metadata left unchanged.';
+        setFitStatus(`Wrote FIT averages for ${race.rowIndexes.length} quarters to ${file.name}.${metadataStatus}`, 'ok');
       } catch (error) {
         console.error(error);
         setFitStatus(`Append error: ${error.message || error}`);
@@ -2790,8 +2955,19 @@
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const reportRows = buildReportRows();
         if (reportRows.length === 0) { setStatus('No rows to append.'); return; }
+        const range = XLSX.utils.decode_range(sheet['!ref']);
+        const columns = getMasterColumns(sheet, XLSX, range);
+        if (columns.title < 0 || columns.split < 0) {
+          throw new Error('Master file must include Title and Split columns.');
+        }
+        const metadata = getProvidedMasterMetadata();
         const appendAtRow = getFirstBlankRowIndex(sheet, XLSX);
-        XLSX.utils.sheet_add_aoa(sheet, reportRows, { origin: { r: appendAtRow, c: 0 } });
+        const rowIndexes = reportRows.map((_, index) => appendAtRow + index);
+        writeMasterReportRows(sheet, XLSX, range, rowIndexes, reportRows, columns);
+        writeMasterMetadata(sheet, XLSX, range, rowIndexes, metadata,
+          MASTER_METADATA_FIELDS.filter((field) => metadata[field.key] != null));
+        writeFitColumnsToMaster(sheet, XLSX, range, rowIndexes);
+        sheet['!ref'] = XLSX.utils.encode_range(range);
         const wbArray = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
         const blob = new Blob([wbArray], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const writable = await fileHandle.createWritable();
@@ -2806,6 +2982,56 @@
         appendToFileBtn.textContent = originalText;
       }
     });
+
+    async function updateMasterReport(button) {
+      if (!fitMasterState.fileHandle) return;
+      const reportRows = buildReportRows();
+      const title = reportRows.length ? String(reportRows[0][0] || '').trim() : '';
+      if (!title) return;
+
+      const originalText = button.textContent;
+      updateMasterBtn.disabled = true;
+      fitUpdateMasterBtn.disabled = true;
+      button.textContent = 'Updating...';
+      try {
+        const { file, workbook, sheet, XLSX, range } = await readMasterWorkbook();
+        const matchingRaces = getMasterRaces(sheet, XLSX, range)
+          .filter((race) => race.title.trim().toLowerCase() === title.toLowerCase());
+        if (matchingRaces.length === 0) throw new Error(`No race titled "${title}" was found in the selected master file.`);
+
+        let race = matchingRaces[0];
+        if (matchingRaces.length > 1) {
+          race = matchingRaces.find((item) => item.key === fitMasterState.race?.key);
+          if (!race) throw new Error(`Multiple races are titled "${title}". Select the matching race in the Master File list, then try again.`);
+        }
+        if (reportRows.length !== race.rowIndexes.length) {
+          throw new Error(`The report has ${reportRows.length} rows but the matching master race has ${race.rowIndexes.length}. The master was not changed.`);
+        }
+        const fitUpdateMessage = fitSyncState.stream ? ' FIT averages will be updated.' : ' Existing FIT averages will be preserved.';
+        if (!window.confirm(`Replace the report data for "${race.title}" in ${file.name}?${fitUpdateMessage}`)) return;
+
+        writeMasterReportRows(sheet, XLSX, range, race.rowIndexes, reportRows, race.columns);
+        writeFitColumnsToMaster(sheet, XLSX, range, race.rowIndexes);
+        const metadata = getProvidedMasterMetadata();
+        writeMasterMetadata(sheet, XLSX, range, race.rowIndexes, metadata,
+          MASTER_METADATA_FIELDS.filter((field) => metadata[field.key] != null));
+        sheet['!ref'] = XLSX.utils.encode_range(range);
+
+        const wbArray = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
+        const writable = await fitMasterState.fileHandle.createWritable();
+        await writable.write(new Blob([wbArray], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+        await writable.close();
+        setStatus(`Updated ${reportRows.length} rows for "${race.title}" in ${file.name}.`);
+      } catch (error) {
+        console.error(error);
+        setStatus(`Update Master error: ${error.message || error}`);
+      } finally {
+        button.textContent = originalText;
+        updateFitAppendAvailability();
+      }
+    }
+    updateMasterBtn.addEventListener('click', () => updateMasterReport(updateMasterBtn));
+    fitUpdateMasterBtn.addEventListener('click', () => updateMasterReport(fitUpdateMasterBtn));
 
     reportModal.addEventListener('click', (e) => { if (e.target === reportModal) closeReportModal(); });
     flyingToggle.addEventListener('change', () => { flyingMode = flyingToggle.checked; renderRows(); });
@@ -3079,7 +3305,7 @@
     fitScaleControl.addEventListener('input', (event) => {
       const raw = toNumeric(event.target.value);
       if (raw === null) return;
-      fitSyncState.viewScale = clampValue(raw / 100, 0.2, 4);
+      fitSyncState.viewScale = clampValue(raw / 100, 0.05, 1);
       updateFitControlLabels();
       drawFitPlot();
     });

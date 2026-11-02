@@ -913,7 +913,7 @@
       <div class="fit-control-group">
         <label for="fitScaleControl">Trace window scale</label>
         <div class="fit-control-row">
-          <input id="fitScaleControl" type="range" min="20" max="400" step="10" value="100">
+          <input id="fitScaleControl" type="range" min="5" max="100" step="5" value="100">
           <span id="fitScaleValue" class="fit-control-value">100%</span>
         </div>
       </div>
@@ -944,13 +944,14 @@
           <button id="fitSaveSyncBtn" type="button">Save sync</button>
           <button id="fitUploadSyncBtn" type="button">Upload synced fit file</button>
         </div>
-        <input id="fitSyncedUploadInput" type="file" accept=".json,.tpsync" style="display:none;">
+        <input id="fitSyncedUploadInput" type="file" accept=".sync" style="display:none;">
         <div class="fit-control-row" style="margin-top:8px;">
-          <button id="fitMasterFileBtn" type="button" disabled title="Choose the master .xlsx file to load a race from">Master file</button>
+          <button id="fitMasterFileBtn" type="button" title="Choose the master .xlsx file to load a race from">Master file</button>
           <select id="fitMasterRaceSelect" disabled>
             <option value="">Select race</option>
           </select>
           <button id="fitAppendToFileBtn" type="button" disabled title="Write average power, cadence and torque per quarter for each rider to the master file">Append to file</button>
+          <button id="fitUpdateMasterBtn" type="button" disabled title="Update the matching race in the selected master file">Update Master</button>
         </div>
       </div>
       <div class="fit-field">
@@ -991,6 +992,7 @@
     <div id="reportDashboardPanel" class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="reportDashboardTitle">
       <div class="modal-header">
         <div class="report-header-actions">
+          <button id="updateMasterBtn" type="button" disabled title="Update the matching race in the selected master file">Update Master</button>
           <button id="appendToFileBtn" type="button">Append to file</button>
           <button id="exportReportBtn" type="button">Export report</button>
         </div>
@@ -1269,6 +1271,7 @@
     const SPLIT_DISTANCE_METERS = 62.5;
     const LAP_DISTANCE_METERS = SPLIT_DISTANCE_METERS * 4;
     const QUARTERS_PER_KILO = 16; // 4 laps × 4 quarters = 1000 m
+    const TS_TRACE_LAP_END_MARKER_NUMBERS = [10, 19, 24];
 
     const video = document.getElementById('video');
     const videoInput = document.getElementById('videoInput');
@@ -1323,6 +1326,7 @@
     const closeReportBtn = document.getElementById('closeReportBtn');
     const exportReportBtn = document.getElementById('exportReportBtn');
     const appendToFileBtn = document.getElementById('appendToFileBtn');
+    const updateMasterBtn = document.getElementById('updateMasterBtn');
     const reportChartWrapper = document.getElementById('reportChartWrapper');
     const reportChart = document.getElementById('reportChart');
     const reportChartEmpty = document.getElementById('reportChartEmpty');
@@ -1367,6 +1371,7 @@
     const fitMasterFileBtn = document.getElementById('fitMasterFileBtn');
     const fitMasterRaceSelect = document.getElementById('fitMasterRaceSelect');
     const fitAppendToFileBtn = document.getElementById('fitAppendToFileBtn');
+    const fitUpdateMasterBtn = document.getElementById('fitUpdateMasterBtn');
     const fitSamplingHz = document.getElementById('fitSamplingHz');
     const fitVideoFps = document.getElementById('fitVideoFps');
     const fitTraceOffset = document.getElementById('fitTraceOffset');
@@ -1714,6 +1719,10 @@
           fileName: file.fileName,
           assignedRiderIndex: Number.isInteger(file.assignedRiderIndex) ? file.assignedRiderIndex : null,
           offset: Number.isFinite(file.offset) ? file.offset : 0,
+          timingStartVideoTime: Number.isFinite(startTime) ? startTime : (Number.isFinite(file.timingStartVideoTime) ? file.timingStartVideoTime : null),
+          fitTimeAtTimingStart: Number.isFinite(startTime)
+            ? startTime - (Number.isFinite(file.offset) ? file.offset : 0)
+            : (Number.isFinite(file.fitTimeAtTimingStart) ? file.fitTimeAtTimingStart : null),
           timeColumnKey: file.timeColumnKey,
           metricColumns: Array.isArray(file.metricColumns) ? file.metricColumns : [],
           samplingHz: Number.isFinite(file.samplingHz) ? file.samplingHz : null,
@@ -1733,6 +1742,8 @@
         metricColumns: Array.isArray(file.metricColumns) ? file.metricColumns : [],
         samplingHz: Number.isFinite(file.samplingHz) ? file.samplingHz : null,
         offset: Number.isFinite(file.offset) ? file.offset : 0,
+        timingStartVideoTime: Number.isFinite(file.timingStartVideoTime) ? file.timingStartVideoTime : null,
+        fitTimeAtTimingStart: Number.isFinite(file.fitTimeAtTimingStart) ? file.fitTimeAtTimingStart : null,
         assignedRiderIndex: Number.isInteger(file.assignedRiderIndex) ? file.assignedRiderIndex : null,
         riderIndex: Number.isInteger(file.assignedRiderIndex) ? file.assignedRiderIndex : null
       }));
@@ -2098,22 +2109,24 @@
       const xFromT = (t) => margin.l + ((t - viewMinT) / (viewMaxT - viewMinT || 1)) * plotWidth;
       const yFromV = (v) => margin.t + (1 - (v - yMin) / (yMax - yMin || 1)) * plotHeight;
       fitSyncState.drawingData = { xFromT, viewMinT, viewMaxT, visibleSpan, plotWidth };
-      if (splitRows.length > 0 && Number.isFinite(startTime)) {
-        let quarterStart = startTime;
-        splitRows.forEach((row, index) => {
-          const segStart = quarterStart;
-          const segEnd = row.endTime;
-          if (!Number.isFinite(segEnd) || segEnd <= segStart) return;
-          quarterStart = segEnd;
+      if (Number.isFinite(startTime)) {
+        const lapBoundaries = [
+          startTime,
+          ...TS_TRACE_LAP_END_MARKER_NUMBERS.map((markerNumber) => splitRows[markerNumber - 1]?.endTime)
+        ];
+        for (let lapIndex = 0; lapIndex < TS_TRACE_LAP_END_MARKER_NUMBERS.length; lapIndex++) {
+          const segStart = lapBoundaries[lapIndex];
+          const segEnd = lapBoundaries[lapIndex + 1];
+          if (!Number.isFinite(segStart) || !Number.isFinite(segEnd) || segEnd <= segStart) continue;
           const left = Math.max(margin.l, xFromT(segStart));
           const right = Math.min(width - margin.r, xFromT(segEnd));
-          if (right <= left) return;
-          fitPlotContext.fillStyle = index % 2 === 0 ? 'rgba(37, 99, 235, 0.11)' : 'rgba(100, 116, 139, 0.11)';
+          if (right <= left) continue;
+          fitPlotContext.fillStyle = lapIndex % 2 === 0 ? 'rgba(37, 99, 235, 0.2)' : 'rgba(100, 116, 139, 0.2)';
           fitPlotContext.fillRect(left, margin.t, right - left, plotHeight);
           fitPlotContext.fillStyle = 'rgba(15, 23, 42, 0.72)';
           fitPlotContext.font = '11px sans-serif';
-          fitPlotContext.fillText(`Q${index + 1}`, Math.max(left + 3, margin.l + 3), margin.t + 14);
-        });
+          fitPlotContext.fillText(`Lap ${lapIndex + 1}`, Math.max(left + 3, margin.l + 3), margin.t + 14);
+        }
       }
       fitPlotContext.strokeStyle = 'rgba(31, 41, 55, 0.15)';
       fitPlotContext.lineWidth = 1;
@@ -4772,9 +4785,16 @@
 
     function updateFitAppendAvailability() {
       const hasFit = fitSyncState.parsedFiles.length > 0;
-      fitMasterFileBtn.disabled = !hasFit;
-      fitMasterRaceSelect.disabled = !hasFit || fitMasterState.races.length === 0;
+      const hasMaster = Boolean(fitMasterState.fileHandle);
+      const reportRows = buildReportRows();
+      const title = reportRows.length ? String(reportRows[0][0] || '').trim().toLowerCase() : '';
+      const canUpdateMaster = hasMaster && title
+        && fitMasterState.races.some((race) => race.title.trim().toLowerCase() === title);
+      fitMasterFileBtn.disabled = false;
+      fitMasterRaceSelect.disabled = !hasMaster || fitMasterState.races.length === 0;
       fitAppendToFileBtn.disabled = !hasFit || !fitMasterState.race;
+      updateMasterBtn.disabled = !canUpdateMaster;
+      fitUpdateMasterBtn.disabled = !canUpdateMaster;
     }
 
     function getMasterCell(sheet, XLSX, r, c) {
@@ -4834,6 +4854,17 @@
       }));
     }
 
+    function getCurrentMasterRaceRows(reportRows, race) {
+      return reportRows.map((row, index) => ({
+        sheetRow: race.rowIndexes[index],
+        title: String(row[0] || ''),
+        time: toNumeric(row[1]),
+        label: String(row[2] || '').trim(),
+        rider: String(row[3] || '').trim(),
+        gear: String(row[4] || '').trim()
+      }));
+    }
+
     // Keeps FIT files on the same rider when rider names are reordered.
     function applyRiderNamesKeepingFitAssignments(newNames) {
       const oldNames = riderInputs.map((input) => input.value.trim().toLowerCase());
@@ -4859,20 +4890,8 @@
       drawFitPlot();
     }
 
-    function getFitAppendAverages(stream, start, end) {
-      const powerKey = getPowerColumnKeyForStream(stream);
-      const cadenceKey = getCadenceColumnKeyForStream(stream);
-      const torqueKey = getPreferredMetricColumnKeyForStream(stream, ['torque'], 'torque');
-      const power = powerKey ? getAverageMetricForVideoInterval(stream, powerKey, start, end) : null;
-      const cadence = cadenceKey ? getAverageMetricForVideoInterval(stream, cadenceKey, start, end) : null;
-      let torque = torqueKey ? getAverageMetricForVideoInterval(stream, torqueKey, start, end) : null;
-      if (torque == null && power != null && cadence > 0) torque = (power * 60) / (2 * Math.PI * cadence);
-      const round = (v, d) => (Number.isFinite(v) ? parseFloat(v.toFixed(d)) : null);
-      return [round(power, 1), round(cadence, 1), round(torque, 2)];
-    }
-
-    function writeFitColumnsToMaster(sheet, XLSX, range, raceRows) {
-      let nextCol = MASTER_DATA_LAST_COL;
+    function writeTsDashboardMetricsToMaster(sheet, XLSX, range, raceRows) {
+      let nextCol = Math.max(MASTER_DATA_LAST_COL, range.e.c);
       for (let c = 0; c <= range.e.c; c++) {
         if (String(getMasterCell(sheet, XLSX, 0, c)).trim()) nextCol = Math.max(nextCol, c);
       }
@@ -4886,39 +4905,100 @@
         setMasterCell(sheet, XLSX, range, 0, col, header);
         return col;
       };
+      const startRow = raceRows.find((row) => row.label === 'Start');
+      if (!startRow) throw new Error('No Start row found for this race.');
+      const airDensityCol = findOrAddColumn('Air Density (kg/m³)');
+      setMasterCell(sheet, XLSX, range, startRow.sheetRow, airDensityCol, getAirDensity());
 
-      // Each Marker closes the quarter that began at the previous Start/Marker.
-      const quarters = [];
-      let quarterStart = null;
-      for (const row of [...raceRows].filter((item) => Number.isFinite(item.time)).sort((a, b) => a.time - b.time)) {
-        if (row.label === 'Start') quarterStart = row.time;
-        else if (row.label === 'Marker' && Number.isFinite(quarterStart)) {
-          quarters.push({ sheetRow: row.sheetRow, start: quarterStart, end: row.time });
-          quarterStart = row.time;
-        }
-      }
-      if (quarters.length === 0) throw new Error('No Marker rows found for this race.');
-
-      const names = getRiderNames();
+      const markerRows = raceRows.filter((row) => row.label === 'Marker');
+      const markerTimes = markerRows.map((row) => row.time);
+      const teamRows = getTeamSprintSummaryRows();
+      const totalElapsed = splitRows.reduce((sum, row) => sum + row.quarterTime, 0);
+      const firstRiderFinish = teamRows[0]?.tissot1;
+      const secondRiderFinish = teamRows[1]?.tissot2;
+      const riderCutoffs = [
+        Number.isFinite(firstRiderFinish) ? firstRiderFinish : totalElapsed,
+        Number.isFinite(firstRiderFinish) && Number.isFinite(secondRiderFinish)
+          ? firstRiderFinish + secondRiderFinish
+          : totalElapsed,
+        totalElapsed
+      ];
+      const halfLapMarkerNumbers = [[4, 10], [5, 11, 15, 19], [6, 12, 16, 20, 22, 24]];
+      const averageCadenceWindows = {
+        1: [{ halfLap: 3, startMarker: 11, endMarker: 15 }, { halfLap: 4, startMarker: 15, endMarker: 19 }],
+        2: [
+          { halfLap: 3, startMarker: 12, endMarker: 16 },
+          { halfLap: 4, startMarker: 16, endMarker: 20 },
+          { halfLap: 5, startMarker: 20, endMarker: 22 },
+          { halfLap: 6, startMarker: 22, endMarker: 24 }
+        ]
+      };
+      const round = (value, digits) => Number.isFinite(value) ? Number(value.toFixed(digits)) : null;
       let ridersWritten = 0;
       for (let riderIndex = 0; riderIndex < riderInputs.length; riderIndex++) {
         const stream = fitSyncState.streams[riderIndex];
         if (!stream) continue;
         const prefix = `R${riderIndex + 1}`;
-        const cols = [
-          findOrAddColumn(`${prefix} Name`),
-          findOrAddColumn(`${prefix} Avg Power (W)`),
-          findOrAddColumn(`${prefix} Avg Cadence (rpm)`),
-          findOrAddColumn(`${prefix} Avg Torque (Nm)`)
-        ];
-        for (const quarter of quarters) {
-          const values = getFitAppendAverages(stream, quarter.start, quarter.end);
-          [names[riderIndex], ...values].forEach((value, k) => setMasterCell(sheet, XLSX, range, quarter.sheetRow, cols[k], value));
+        const powerKey = getPowerColumnKeyForStream(stream);
+        const cadenceKey = getCadenceColumnKeyForStream(stream);
+        const peakPowerCol = findOrAddColumn(`${prefix} Peak Power (W)`);
+        const peakCadenceCol = findOrAddColumn(`${prefix} Peak Cadence (rpm)`);
+        const peakTorqueCol = findOrAddColumn(`${prefix} Peak Torque (Nm)`);
+        let peakPower = null;
+        let peakCadence = null;
+        let peakTorque = null;
+
+        if ((powerKey || cadenceKey) && Number.isFinite(startTime)) {
+          const rawTimes = stream.rows
+            .map((row) => toNumeric(row[stream.timeColumnKey]))
+            .filter((time) => time !== null);
+          if (rawTimes.length > 0) {
+            const baseTime = Math.min(...rawTimes);
+            const offset = Number.isFinite(stream.offset) ? stream.offset : 0;
+            const cutoff = riderCutoffs[riderIndex];
+            for (const row of stream.rows) {
+              const rawTime = toNumeric(row[stream.timeColumnKey]);
+              if (rawTime === null) continue;
+              const elapsed = ((rawTime - baseTime) + offset) - startTime;
+              if (elapsed < 0 || elapsed > cutoff) continue;
+              const power = powerKey ? toNumeric(row[powerKey]) : null;
+              const cadence = cadenceKey ? toNumeric(row[cadenceKey]) : null;
+              if (power !== null && (peakPower === null || power > peakPower)) peakPower = power;
+              if (cadence !== null && (peakCadence === null || cadence > peakCadence)) peakCadence = cadence;
+              if (power !== null && cadence !== null && cadence > 0) {
+                const torque = (power * 60) / (cadence * 2 * Math.PI);
+                if (peakTorque === null || torque > peakTorque) peakTorque = torque;
+              }
+            }
+          }
+        }
+        setMasterCell(sheet, XLSX, range, startRow.sheetRow, peakPowerCol, round(peakPower, 0));
+        setMasterCell(sheet, XLSX, range, startRow.sheetRow, peakCadenceCol, round(peakCadence, 0));
+        setMasterCell(sheet, XLSX, range, startRow.sheetRow, peakTorqueCol, round(peakTorque, 1));
+
+        const markerNumbers = halfLapMarkerNumbers[riderIndex];
+        markerNumbers.forEach((markerNumber, halfLapIndex) => {
+          const cadenceCol = findOrAddColumn(`${prefix} Cadence H${halfLapIndex + 1} (rpm)`);
+          const markerTime = markerTimes[markerNumber - 1];
+          const cadence = cadenceKey && Number.isFinite(markerTime)
+            ? getMetricValueAtVideoTime(stream, cadenceKey, markerTime)
+            : null;
+          setMasterCell(sheet, XLSX, range, startRow.sheetRow, cadenceCol, round(cadence, 1));
+        });
+
+        for (const window of averageCadenceWindows[riderIndex] || []) {
+          const avgCadenceCol = findOrAddColumn(`${prefix} Avg Cadence H${window.halfLap} (rpm)`);
+          const windowStart = markerTimes[window.startMarker - 1];
+          const windowEnd = markerTimes[window.endMarker - 1];
+          const average = cadenceKey && Number.isFinite(windowStart) && Number.isFinite(windowEnd) && windowEnd > windowStart
+            ? getAverageMetricForVideoInterval(stream, cadenceKey, windowStart, windowEnd)
+            : null;
+          setMasterCell(sheet, XLSX, range, startRow.sheetRow, avgCadenceCol, round(average, 1));
         }
         ridersWritten++;
       }
       sheet['!ref'] = XLSX.utils.encode_range(range);
-      return { ridersWritten, quarterCount: quarters.length };
+      return { ridersWritten };
     }
 
     fitMasterFileBtn.addEventListener('click', async () => {
@@ -4980,13 +5060,22 @@
         const { file, workbook, sheet, XLSX, range } = await readMasterWorkbook();
         const race = getMasterRaces(sheet, XLSX, range).find((item) => item.key === fitMasterState.race.key);
         if (!race) throw new Error('Race no longer found in master file.');
-        const { ridersWritten, quarterCount } = writeFitColumnsToMaster(sheet, XLSX, range, getMasterRaceRows(sheet, XLSX, race));
+        const reportRows = buildReportRows();
+        if (reportRows.length !== race.rowIndexes.length) {
+          throw new Error('The report row count no longer matches the selected master race.');
+        }
+        const { ridersWritten } = writeTsDashboardMetricsToMaster(
+          sheet,
+          XLSX,
+          range,
+          getCurrentMasterRaceRows(reportRows, race)
+        );
         if (ridersWritten === 0) throw new Error('No rider FIT files are assigned.');
         const wbArray = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
         const writable = await fitMasterState.fileHandle.createWritable();
         await writable.write(new Blob([wbArray], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
         await writable.close();
-        setFitStatus(`Wrote FIT averages for ${ridersWritten} rider(s) across ${quarterCount} quarters to ${file.name}.`, 'ok');
+        setFitStatus(`Wrote TS FIT dashboard metrics for ${ridersWritten} rider(s) to ${file.name}.`, 'ok');
       } catch (error) {
         console.error(error);
         setFitStatus(`Append error: ${error.message || error}`);
@@ -5027,6 +5116,75 @@
 
       throw new Error('Unable to find a blank row to append into.');
     }
+
+    async function updateMasterReport(button) {
+      if (!fitMasterState.fileHandle) return;
+      const reportRows = buildReportRows();
+      const title = reportRows.length ? String(reportRows[0][0] || '').trim() : '';
+      if (!title) return;
+
+      const originalText = button.textContent;
+      updateMasterBtn.disabled = true;
+      fitUpdateMasterBtn.disabled = true;
+      button.textContent = 'Updating...';
+      try {
+        const { file, workbook, sheet, XLSX, range } = await readMasterWorkbook();
+        const matchingRaces = getMasterRaces(sheet, XLSX, range)
+          .filter((race) => race.title.trim().toLowerCase() === title.toLowerCase());
+        if (matchingRaces.length === 0) throw new Error(`No race titled "${title}" was found in the selected master file.`);
+
+        let race = matchingRaces[0];
+        if (matchingRaces.length > 1) {
+          race = matchingRaces.find((item) => item.key === fitMasterState.race?.key);
+          if (!race) throw new Error(`Multiple races are titled "${title}". Select the matching race in the Master File list, then try again.`);
+        }
+        if (reportRows.length !== race.rowIndexes.length) {
+          throw new Error(`The report has ${reportRows.length} rows but the matching master race has ${race.rowIndexes.length}. The master was not changed.`);
+        }
+        if (!window.confirm(`Replace the report data for "${race.title}" in ${file.name}? Assigned FIT metrics will be added or refreshed.`)) return;
+
+        reportRows.forEach((row, index) => {
+          const targetRow = race.rowIndexes[index];
+          row.forEach((value, column) => {
+            const address = XLSX.utils.encode_cell({ r: targetRow, c: column });
+            const existing = sheet[address] || {};
+            sheet[address] = {
+              ...existing,
+              t: typeof value === 'number' ? 'n' : 's',
+              v: value == null ? '' : value
+            };
+            range.e.r = Math.max(range.e.r, targetRow);
+            range.e.c = Math.max(range.e.c, column);
+          });
+        });
+        sheet['!ref'] = XLSX.utils.encode_range(range);
+
+        const fitStreamsAssigned = fitSyncState.streams.some(Boolean);
+        const { ridersWritten } = writeTsDashboardMetricsToMaster(
+          sheet,
+          XLSX,
+          range,
+          getCurrentMasterRaceRows(reportRows, race)
+        );
+        const fitSummary = fitStreamsAssigned
+          ? ` TS FIT dashboard metrics added or refreshed for ${ridersWritten} rider(s).`
+          : ' Air density saved; gears were written to the existing Gears column, and existing FIT metrics were preserved because no FIT streams are assigned.';
+
+        const wbArray = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
+        const writable = await fitMasterState.fileHandle.createWritable();
+        await writable.write(new Blob([wbArray], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+        await writable.close();
+        setStatus(`Updated ${reportRows.length} rows for "${race.title}" in ${file.name}.${fitSummary}`);
+      } catch (error) {
+        console.error(error);
+        setStatus(`Update Master error: ${error.message || error}`);
+      } finally {
+        button.textContent = originalText;
+        updateFitAppendAvailability();
+      }
+    }
+    updateMasterBtn.addEventListener('click', () => updateMasterReport(updateMasterBtn));
+    fitUpdateMasterBtn.addEventListener('click', () => updateMasterReport(fitUpdateMasterBtn));
 
     // Re-reads names + re-applies current change time to all adjusted rows
     function updateReport() {
@@ -5664,7 +5822,7 @@
     fitScaleControl.addEventListener('input', (event) => {
       const raw = toNumeric(event.target.value);
       if (raw === null) return;
-      fitSyncState.viewScale = clampValue(raw / 100, 0.2, 4);
+      fitSyncState.viewScale = clampValue(raw / 100, 0.05, 1);
       updateFitControlLabels();
       drawFitPlot();
     });
