@@ -9,7 +9,14 @@
     .container { display: flex; gap: 20px; align-items: flex-start; }
     .video-section { flex: 0 0 auto; }
     .lap-section { flex: 1; }
-    video { max-width: 900px; height: 537px; margin-bottom: 10px; }
+    .media-stage { position: relative; width: 900px; max-width: 100%; aspect-ratio: 900 / 537; margin-bottom: 10px; background: #111; }
+    .media-stage video, #youtubePlayerContainer { position: absolute; inset: 0; width: 100%; height: 100%; max-width: 100%; }
+    .media-stage video { object-fit: contain; }
+    #youtubePlayerContainer iframe { width: 100%; height: 100%; }
+    .angle-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .media-stage.drawing .angle-canvas { pointer-events: auto; cursor: crosshair; touch-action: none; }
+    .angle-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+    #angleStatus { margin-left: 6px; }
     button { margin: 5px; }
     #info { margin-top: 10px; }
     .lap-table { margin-top: 15px; }
@@ -20,9 +27,32 @@
   <h2>Frame-by-Frame Video Viewer</h2>
   <h3>Use Spacebar to Play/Pause, arrows to go frame by frame, Shift + arrows for 2x fast forward or rewind while held, Ctrl + arrows to skip by the last lap gap, Ctrl + Shift + arrows to use a fixed jump, "s" to start timer, "l" or "z" to lap, and "r" to reset.</h3>
   <input type="file" accept="video/mp4,video/quicktime" id="videoInput"><br><br>
+  <input type="url" id="youtubeUrlInput" placeholder="YouTube video link" style="width:320px; max-width:80%;">
+  <button id="loadYoutubeBtn" type="button">Load YouTube</button><br><br>
   <div class="container">
     <div class="video-section">
-      <video id="video" controls style="display:none;"></video><br>
+      <div id="mediaStage" class="media-stage" style="display:none;">
+        <video id="video" controls style="display:none;"></video>
+        <div id="youtubePlayerContainer" style="display:none;"></div>
+        <canvas id="angleCanvas" class="angle-canvas" aria-label="Video angle drawing overlay"></canvas>
+      </div>
+      <div class="angle-controls">
+        <button id="drawAngleBtn" type="button" aria-pressed="false" disabled>Draw angle</button>
+        <label for="referenceLengthInput">Reference:</label>
+        <input id="referenceLengthInput" type="number" min="0.0001" step="any" value="100" style="width:75px;" disabled>
+        <select id="lengthUnitSelect" aria-label="Reference and measurement units" disabled>
+          <option value="mm">mm</option>
+          <option value="cm" selected>cm</option>
+          <option value="m">m</option>
+          <option value="in">in</option>
+          <option value="ft">ft</option>
+        </select>
+        <button id="drawReferenceBtn" type="button" aria-pressed="false" disabled>Draw reference</button>
+        <button id="measureLengthBtn" type="button" aria-pressed="false" disabled>Measure length</button>
+        <button id="undoAngleBtn" type="button" disabled>Undo</button>
+        <button id="clearAnglesBtn" type="button" disabled>Clear drawings</button>
+        <span id="measurementStatus" aria-live="polite">Load a video to measure angles or lengths.</span>
+      </div>
       <label for="fpsInput">FPS:</label>
       <input type="number" id="fpsInput" min="1" max="240" value="50" style="width:60px;">
       <label for="skipFramesInput">Skip Frames:</label>
@@ -58,6 +88,20 @@
   <script>
   const video = document.getElementById('video');
   const videoInput = document.getElementById('videoInput');
+  const youtubeUrlInput = document.getElementById('youtubeUrlInput');
+  const loadYoutubeBtn = document.getElementById('loadYoutubeBtn');
+  const youtubePlayerContainer = document.getElementById('youtubePlayerContainer');
+  const mediaStage = document.getElementById('mediaStage');
+  const angleCanvas = document.getElementById('angleCanvas');
+  const angleContext = angleCanvas.getContext('2d');
+  const drawAngleBtn = document.getElementById('drawAngleBtn');
+  const referenceLengthInput = document.getElementById('referenceLengthInput');
+  const lengthUnitSelect = document.getElementById('lengthUnitSelect');
+  const drawReferenceBtn = document.getElementById('drawReferenceBtn');
+  const measureLengthBtn = document.getElementById('measureLengthBtn');
+  const undoAngleBtn = document.getElementById('undoAngleBtn');
+  const clearAnglesBtn = document.getElementById('clearAnglesBtn');
+  const measurementStatus = document.getElementById('measurementStatus');
   const currentTimeDisplay = document.getElementById('currentTime');
   const fpsInput = document.getElementById('fpsInput');
   const skipFramesInput = document.getElementById('skipFramesInput');
@@ -71,6 +115,457 @@
   const lapTableInvertedHeadRow = document.getElementById('lapTableInvertedHeadRow');
   const lapTimeRow = document.getElementById('lapTimeRow');
   const totalTimeRow = document.getElementById('totalTimeRow');
+  let youtubePlayer = null;
+  let youtubeReady = false;
+  let activeSource = 'local';
+  let youtubeApiPromise = null;
+  let pendingSeekTime = null;
+  let lastSeekAt = 0;
+  let drawingMode = null;
+  let drawingAvailable = false;
+  let pendingPoints = [];
+  let referencePoints = null;
+  let referenceLengthMeters = null;
+  let calibrationMetersPerStageUnit = null;
+  const measuredAngles = [];
+  const measuredLengths = [];
+  const drawingHistory = [];
+  const lengthUnits = { mm: 0.001, cm: 0.01, m: 1, in: 0.0254, ft: 0.3048 };
+
+  function updateDrawingControls() {
+    drawAngleBtn.disabled = !drawingAvailable;
+    drawReferenceBtn.disabled = !drawingAvailable;
+    referenceLengthInput.disabled = !drawingAvailable || drawingMode === 'reference';
+    lengthUnitSelect.disabled = !drawingAvailable || drawingMode === 'reference';
+    measureLengthBtn.disabled = !drawingAvailable || calibrationMetersPerStageUnit === null;
+    undoAngleBtn.disabled = pendingPoints.length === 0 && drawingHistory.length === 0;
+    clearAnglesBtn.disabled = pendingPoints.length === 0 && drawingHistory.length === 0;
+    if (drawingMode === 'angle') {
+      measurementStatus.textContent = `Angle tool active: click endpoint, vertex, endpoint. ${measuredAngles.length} measured.`;
+    } else if (drawingMode === 'reference') {
+      measurementStatus.textContent = `Draw a ${referenceLengthInput.value} ${lengthUnitSelect.value} reference: click both endpoints.`;
+    } else if (drawingMode === 'length') {
+      measurementStatus.textContent = `Length tool active: click two points. ${measuredLengths.length} measured.`;
+    } else if (!drawingAvailable) {
+      measurementStatus.textContent = 'Load a video to measure angles or lengths.';
+    } else if (calibrationMetersPerStageUnit === null) {
+      measurementStatus.textContent = referencePoints
+        ? 'Enter a reference length greater than zero.'
+        : `${measuredAngles.length} angle${measuredAngles.length === 1 ? '' : 's'} measured. Set a reference to measure lengths.`;
+    } else if (referencePoints && measuredLengths.length === 0) {
+      measurementStatus.textContent = `Reference calibrated to ${formatLength(referenceLengthMeters)}.`;
+    } else if (measuredLengths.length) {
+      const lastLength = measuredLengths[measuredLengths.length - 1];
+      measurementStatus.textContent = `${measuredAngles.length} angle${measuredAngles.length === 1 ? '' : 's'}, ${measuredLengths.length} length${measuredLengths.length === 1 ? '' : 's'} measured. Last: ${formatLength(lastLength.meters)}.`;
+    } else {
+      measurementStatus.textContent = `${measuredAngles.length} angle${measuredAngles.length === 1 ? '' : 's'}, ${measuredLengths.length} length${measuredLengths.length === 1 ? '' : 's'} measured.`;
+    }
+  }
+
+  function setDrawingMode(mode) {
+    drawingMode = mode;
+    mediaStage.classList.toggle('drawing', mode !== null);
+    drawAngleBtn.setAttribute('aria-pressed', String(mode === 'angle'));
+    drawReferenceBtn.setAttribute('aria-pressed', String(mode === 'reference'));
+    measureLengthBtn.setAttribute('aria-pressed', String(mode === 'length'));
+    drawAngleBtn.textContent = mode === 'angle' ? 'Finish angle' : 'Draw angle';
+    drawReferenceBtn.textContent = mode === 'reference' ? 'Finish reference' : 'Draw reference';
+    measureLengthBtn.textContent = mode === 'length' ? 'Finish measuring' : 'Measure length';
+    updateDrawingControls();
+  }
+
+  function toggleDrawingMode(mode) {
+    if (mode === 'reference' && !(Number(referenceLengthInput.value) > 0)) {
+      measurementStatus.textContent = 'Enter a reference length greater than zero.';
+      return;
+    }
+    if (drawingMode !== mode) pauseVideo();
+    pendingPoints = [];
+    setDrawingMode(drawingMode === mode ? null : mode);
+    renderAngles();
+  }
+
+  function resizeAngleCanvas() {
+    const bounds = mediaStage.getBoundingClientRect();
+    const pixelRatio = window.devicePixelRatio || 1;
+    angleCanvas.width = Math.round(bounds.width * pixelRatio);
+    angleCanvas.height = Math.round(bounds.height * pixelRatio);
+    angleContext.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    renderAngles();
+  }
+
+  function angleDegrees(points) {
+    const [first, vertex, last] = points;
+    const firstX = first.x - vertex.x;
+    const verticalScale = mediaStage.clientHeight / mediaStage.clientWidth;
+    const firstY = (first.y - vertex.y) * verticalScale;
+    const lastX = last.x - vertex.x;
+    const lastY = (last.y - vertex.y) * verticalScale;
+    const dot = firstX * lastX + firstY * lastY;
+    const magnitude = Math.hypot(firstX, firstY) * Math.hypot(lastX, lastY);
+    if (magnitude === 0) return null;
+    return Math.acos(Math.max(-1, Math.min(1, dot / magnitude))) * 180 / Math.PI;
+  }
+
+  function getStageDistance(points) {
+    const verticalScale = mediaStage.clientHeight / mediaStage.clientWidth;
+    return Math.hypot(points[1].x - points[0].x, (points[1].y - points[0].y) * verticalScale);
+  }
+
+  function clearMeasuredLengths() {
+    measuredLengths.length = 0;
+    for (let index = drawingHistory.length - 1; index >= 0; index--) {
+      if (drawingHistory[index].type === 'length') drawingHistory.splice(index, 1);
+    }
+  }
+
+  function recalibrateReference() {
+    if (!referencePoints) return;
+    const enteredLength = Number(referenceLengthInput.value);
+    clearMeasuredLengths();
+    if (!Number.isFinite(enteredLength) || enteredLength <= 0) {
+      referenceLengthMeters = null;
+      calibrationMetersPerStageUnit = null;
+      if (drawingMode === 'length') setDrawingMode(null);
+    } else {
+      referenceLengthMeters = enteredLength * lengthUnits[lengthUnitSelect.value];
+      calibrationMetersPerStageUnit = referenceLengthMeters / getStageDistance(referencePoints);
+    }
+    renderAngles();
+    updateDrawingControls();
+  }
+
+  function formatLength(meters) {
+    const unit = lengthUnitSelect.value;
+    const value = meters / lengthUnits[unit];
+    return `${Number(value.toPrecision(4))} ${unit}`;
+  }
+
+  function drawLine(points, color, label, width, height) {
+    const pixels = points.map(point => ({ x: point.x * width, y: point.y * height }));
+    angleContext.strokeStyle = color;
+    angleContext.fillStyle = color;
+    angleContext.beginPath();
+    angleContext.moveTo(pixels[0].x, pixels[0].y);
+    angleContext.lineTo(pixels[1].x, pixels[1].y);
+    angleContext.stroke();
+    for (const point of pixels) {
+      angleContext.beginPath();
+      angleContext.arc(point.x, point.y, 4, 0, Math.PI * 2);
+      angleContext.fill();
+    }
+    angleContext.fillStyle = 'rgba(0, 0, 0, 0.75)';
+    angleContext.fillRect(pixels[0].x + 8, pixels[0].y - 14, angleContext.measureText(label).width + 10, 28);
+    angleContext.fillStyle = '#fff';
+    angleContext.fillText(label, pixels[0].x + 13, pixels[0].y);
+  }
+
+  function renderAngles(previewPoint = null) {
+    const bounds = mediaStage.getBoundingClientRect();
+    const width = bounds.width;
+    const height = bounds.height;
+    angleContext.clearRect(0, 0, width, height);
+    angleContext.lineWidth = 2;
+    angleContext.font = 'bold 16px sans-serif';
+    angleContext.textBaseline = 'middle';
+
+    function drawAngle(points, label) {
+      const pixels = points.map(point => ({ x: point.x * width, y: point.y * height }));
+      angleContext.strokeStyle = '#42e8c5';
+      angleContext.fillStyle = '#42e8c5';
+      angleContext.beginPath();
+      angleContext.moveTo(pixels[0].x, pixels[0].y);
+      angleContext.lineTo(pixels[1].x, pixels[1].y);
+      angleContext.lineTo(pixels[2].x, pixels[2].y);
+      angleContext.stroke();
+      for (const point of pixels) {
+        angleContext.beginPath();
+        angleContext.arc(point.x, point.y, 4, 0, Math.PI * 2);
+        angleContext.fill();
+      }
+      const degrees = angleDegrees(points);
+      const text = `${degrees.toFixed(1)}°`;
+      angleContext.fillStyle = 'rgba(0, 0, 0, 0.75)';
+      angleContext.fillRect(pixels[1].x + 8, pixels[1].y - 14, angleContext.measureText(text).width + 10, 28);
+      angleContext.fillStyle = '#fff';
+      angleContext.fillText(text, pixels[1].x + 13, pixels[1].y);
+      if (label) angleContext.fillText(label, pixels[0].x + 8, pixels[0].y - 10);
+    }
+
+    measuredAngles.forEach((points, index) => drawAngle(points, `A${index + 1}`));
+    if (referencePoints) {
+      const lengthText = referenceLengthMeters === null
+        ? 'Ref: enter valid length'
+        : `Ref: ${Number((referenceLengthMeters / lengthUnits[lengthUnitSelect.value]).toPrecision(4))} ${lengthUnitSelect.value}`;
+      drawLine(referencePoints, '#ffd166', lengthText, width, height);
+    }
+    measuredLengths.forEach((measurement, index) => {
+      drawLine(measurement.points, '#42e8c5', `D${index + 1}: ${formatLength(measurement.meters)}`, width, height);
+    });
+    if (pendingPoints.length) {
+      const draft = [...pendingPoints];
+      if (previewPoint && draft.length < (drawingMode === 'angle' ? 3 : 2)) draft.push(previewPoint);
+      if (drawingMode === 'angle' && draft.length === 3) {
+        drawAngle(draft, `${angleDegrees(draft).toFixed(1)}°`);
+        return;
+      }
+      if (drawingMode !== 'angle' && draft.length === 2) {
+        const label = drawingMode === 'length' && calibrationMetersPerStageUnit !== null
+          ? formatLength(getStageDistance(draft) * calibrationMetersPerStageUnit)
+          : 'Reference';
+        drawLine(draft, '#ffd166', label, width, height);
+        return;
+      }
+      angleContext.strokeStyle = '#ffd166';
+      angleContext.fillStyle = '#ffd166';
+      angleContext.beginPath();
+      angleContext.moveTo(draft[0].x * width, draft[0].y * height);
+      for (let index = 1; index < draft.length; index++) {
+        angleContext.lineTo(draft[index].x * width, draft[index].y * height);
+      }
+      angleContext.stroke();
+      for (const point of pendingPoints) {
+        angleContext.beginPath();
+        angleContext.arc(point.x * width, point.y * height, 4, 0, Math.PI * 2);
+        angleContext.fill();
+      }
+    }
+  }
+
+  function getCanvasPoint(event) {
+    const bounds = angleCanvas.getBoundingClientRect();
+    return {
+      x: Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width)),
+      y: Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height))
+    };
+  }
+
+  angleCanvas.addEventListener('pointerdown', event => {
+    if (!drawingMode) return;
+    event.preventDefault();
+    pendingPoints.push(getCanvasPoint(event));
+    const requiredPoints = drawingMode === 'angle' ? 3 : 2;
+    if (pendingPoints.length === requiredPoints) {
+      if (drawingMode === 'angle' && angleDegrees(pendingPoints) === null) {
+        pendingPoints.pop();
+        renderAngles();
+        updateDrawingControls();
+        measurementStatus.textContent = 'Choose distinct points to form an angle.';
+        return;
+      }
+      if (drawingMode === 'angle') {
+        measuredAngles.push(pendingPoints);
+        drawingHistory.push({ type: 'angle' });
+      } else if (drawingMode === 'reference') {
+        const referenceDistance = getStageDistance(pendingPoints);
+        if (referenceDistance === 0) {
+          pendingPoints.pop();
+          renderAngles();
+          updateDrawingControls();
+          measurementStatus.textContent = 'Choose two different points for the reference.';
+          return;
+        }
+        referencePoints = pendingPoints;
+        referenceLengthMeters = Number(referenceLengthInput.value) * lengthUnits[lengthUnitSelect.value];
+        calibrationMetersPerStageUnit = referenceLengthMeters / referenceDistance;
+        for (let index = drawingHistory.length - 1; index >= 0; index--) {
+          if (drawingHistory[index].type === 'reference') drawingHistory.splice(index, 1);
+        }
+        clearMeasuredLengths();
+        drawingHistory.push({ type: 'reference' });
+      } else {
+        const distance = getStageDistance(pendingPoints);
+        if (distance === 0) {
+          pendingPoints.pop();
+          renderAngles();
+          updateDrawingControls();
+          measurementStatus.textContent = 'Choose two different points to measure a length.';
+          return;
+        }
+        measuredLengths.push({ points: pendingPoints, meters: distance * calibrationMetersPerStageUnit });
+        drawingHistory.push({ type: 'length' });
+      }
+      pendingPoints = [];
+      if (drawingMode === 'reference') setDrawingMode(null);
+    }
+    renderAngles();
+    updateDrawingControls();
+  });
+  angleCanvas.addEventListener('pointermove', event => {
+    if (drawingMode && pendingPoints.length) renderAngles(getCanvasPoint(event));
+  });
+  drawAngleBtn.addEventListener('click', () => {
+    toggleDrawingMode('angle');
+  });
+  drawReferenceBtn.addEventListener('click', () => {
+    toggleDrawingMode('reference');
+  });
+  measureLengthBtn.addEventListener('click', () => {
+    toggleDrawingMode('length');
+  });
+  undoAngleBtn.addEventListener('click', () => {
+    if (pendingPoints.length) pendingPoints.pop();
+    else {
+      const lastDrawing = drawingHistory.pop();
+      if (lastDrawing?.type === 'angle') measuredAngles.pop();
+      if (lastDrawing?.type === 'length') measuredLengths.pop();
+      if (lastDrawing?.type === 'reference') {
+        referencePoints = null;
+        referenceLengthMeters = null;
+        calibrationMetersPerStageUnit = null;
+      }
+    }
+    renderAngles();
+    updateDrawingControls();
+  });
+  clearAnglesBtn.addEventListener('click', () => {
+    pendingPoints = [];
+    measuredAngles.length = 0;
+    measuredLengths.length = 0;
+    referencePoints = null;
+    referenceLengthMeters = null;
+    calibrationMetersPerStageUnit = null;
+    drawingHistory.length = 0;
+    renderAngles();
+    updateDrawingControls();
+  });
+  function resetDrawingState() {
+    setDrawingMode(null);
+    pendingPoints = [];
+    referencePoints = null;
+    referenceLengthMeters = null;
+    calibrationMetersPerStageUnit = null;
+    measuredAngles.length = 0;
+    measuredLengths.length = 0;
+    drawingHistory.length = 0;
+    renderAngles();
+    updateDrawingControls();
+  }
+  lengthUnitSelect.addEventListener('change', () => {
+    renderAngles();
+    updateDrawingControls();
+  });
+  referenceLengthInput.addEventListener('input', recalibrateReference);
+  window.addEventListener('resize', resizeAngleCanvas);
+  new ResizeObserver(resizeAngleCanvas).observe(mediaStage);
+
+  function getCurrentTime() {
+    if (activeSource === 'youtube') {
+      return youtubeReady ? youtubePlayer.getCurrentTime() : 0;
+    }
+    return video.currentTime || 0;
+  }
+
+  function getDuration() {
+    if (activeSource === 'youtube') {
+      return youtubeReady ? youtubePlayer.getDuration() : 0;
+    }
+    return video.duration;
+  }
+
+  function pauseVideo() {
+    if (activeSource === 'youtube') {
+      if (youtubeReady) youtubePlayer.pauseVideo();
+    } else {
+      video.pause();
+    }
+  }
+
+  function playVideo() {
+    if (drawingMode) setDrawingMode(null);
+    if (activeSource === 'youtube') {
+      if (youtubeReady) youtubePlayer.playVideo();
+    } else {
+      video.play();
+    }
+  }
+
+  function isVideoPaused() {
+    if (activeSource === 'youtube') {
+      return !youtubeReady || youtubePlayer.getPlayerState() !== YT.PlayerState.PLAYING;
+    }
+    return video.paused;
+  }
+
+  function parseYouTubeVideoId(value) {
+    try {
+      const url = new URL(value);
+      const host = url.hostname.replace(/^www\./, '').replace(/^m\./, '');
+      if (host === 'youtu.be') {
+        const videoId = url.pathname.split('/').filter(Boolean)[0];
+        return videoId && /^[a-zA-Z0-9_-]{11}$/.test(videoId) ? videoId : null;
+      }
+      if (host !== 'youtube.com' && host !== 'youtube-nocookie.com') return null;
+      if (url.pathname === '/watch') {
+        const videoId = url.searchParams.get('v');
+        return videoId && /^[a-zA-Z0-9_-]{11}$/.test(videoId) ? videoId : null;
+      }
+      const pathParts = url.pathname.split('/').filter(Boolean);
+      if (['shorts', 'embed', 'live'].includes(pathParts[0])) {
+        const videoId = pathParts[1];
+        return videoId && /^[a-zA-Z0-9_-]{11}$/.test(videoId) ? videoId : null;
+      }
+    } catch (error) {
+      return null;
+    }
+    return null;
+  }
+
+  function loadYouTubeApi() {
+    if (window.YT && window.YT.Player) return Promise.resolve();
+    if (youtubeApiPromise) return youtubeApiPromise;
+    youtubeApiPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://www.youtube.com/iframe_api';
+      script.onerror = () => reject(new Error('Could not load the YouTube player API.'));
+      window.onYouTubeIframeAPIReady = resolve;
+      document.head.appendChild(script);
+    });
+    return youtubeApiPromise;
+  }
+
+  function showYouTubePlayer(videoId) {
+    return loadYouTubeApi().then(() => {
+      if (youtubePlayer) youtubePlayer.destroy();
+      video.pause();
+      video.style.display = 'none';
+      mediaStage.style.display = 'block';
+      youtubePlayerContainer.replaceChildren();
+      const playerTarget = document.createElement('div');
+      playerTarget.id = 'youtubePlayer';
+      youtubePlayerContainer.appendChild(playerTarget);
+      youtubePlayerContainer.style.display = '';
+      youtubeReady = false;
+      activeSource = 'youtube';
+      drawingAvailable = false;
+      resetDrawingState();
+      resizeAngleCanvas();
+      pendingSeekTime = null;
+      youtubePlayer = new YT.Player('youtubePlayer', {
+        width: '900',
+        height: '537',
+        videoId,
+        playerVars: { autoplay: 0, controls: 1, playsinline: 1, rel: 0 },
+        events: {
+          onReady: () => {
+            youtubeReady = true;
+            drawingAvailable = true;
+            updateDrawingControls();
+          },
+          onError: () => alert('YouTube could not play this video. It may be private or have embedding disabled.')
+        }
+      });
+    });
+  }
+
+  loadYoutubeBtn.addEventListener('click', () => {
+    const videoId = parseYouTubeVideoId(youtubeUrlInput.value.trim());
+    if (!videoId) {
+      alert('Enter a valid YouTube video link.');
+      return;
+    }
+    showYouTubePlayer(videoId).catch(error => alert(error.message));
+  });
 
   function getSkipFrameCount() {
     return parseInt(skipFramesInput.value, 10) || 10;
@@ -102,7 +597,7 @@
   let lapCount = 0;
   // Start button handler
   startBtn.addEventListener('click', () => {
-    startTime = video.currentTime;
+    startTime = getCurrentTime();
     lastLapTime = startTime;
     lapCount = 0;
     resetLapTables();
@@ -114,7 +609,7 @@
   lapBtn.addEventListener('click', () => {
     if (startTime === null) return;
     lapCount++;
-    const now = video.currentTime;
+    const now = getCurrentTime();
     const lapTime = now - lastLapTime;
     const totalTime = now - startTime;
     const framesSinceLastMark = Math.max(1, Math.round(lapTime / frameDuration()));
@@ -140,10 +635,17 @@
     videoInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
+        if (youtubePlayer && youtubeReady) youtubePlayer.pauseVideo();
+        activeSource = 'local';
+        drawingAvailable = true;
+        mediaStage.style.display = 'block';
+        resetDrawingState();
+        youtubePlayerContainer.style.display = 'none';
         const url = URL.createObjectURL(file);
         video.src = url;
         video.load();
-        video.style.display = '';
+        video.style.display = 'block';
+        resizeAngleCanvas();
         // Prevent video from taking focus and interfering with our controls
         video.addEventListener('focus', () => video.blur());
       }
@@ -160,6 +662,7 @@
     video.addEventListener('loadedmetadata', () => {
       // Reset to user-set FPS on new video
       video.frameRate = parseInt(fpsInput.value, 10) || 50;
+      resizeAngleCanvas();
     });
 
     // Hold-to-repeat for frame stepping
@@ -173,14 +676,26 @@
     const shuttleStepSeconds = (2 * shuttleIntervalMs) / 1000;
 
     function stepByFrames(frameCount) {
-      video.pause();
-      const targetTime = video.currentTime + (frameDuration() * frameCount);
-      video.currentTime = Math.min(video.duration, Math.max(0, targetTime));
+      stepBySeconds(frameDuration() * frameCount);
     }
     function stepBySeconds(seconds) {
-      video.pause();
-      const targetTime = video.currentTime + seconds;
-      video.currentTime = Math.min(video.duration, Math.max(0, targetTime));
+      pauseVideo();
+      const currentTime = getCurrentTime();
+      const now = performance.now();
+      const baseTime = activeSource === 'youtube' && pendingSeekTime !== null && now - lastSeekAt < 750
+        ? pendingSeekTime
+        : currentTime;
+      const duration = getDuration();
+      let targetTime = Math.max(0, baseTime + seconds);
+      if (Number.isFinite(duration) && duration > 0) targetTime = Math.min(duration, targetTime);
+      if (activeSource === 'youtube') {
+        if (!youtubeReady) return;
+        youtubePlayer.seekTo(targetTime, true);
+        pendingSeekTime = targetTime;
+        lastSeekAt = now;
+      } else {
+        video.currentTime = targetTime;
+      }
     }
     function stepNextFrame() {
       stepByFrames(1);
@@ -245,7 +760,7 @@
 
     // Arrow key controls for frame navigation
     document.addEventListener('keydown', (e) => {
-      if (document.activeElement === fpsInput || document.activeElement === skipFramesInput || document.activeElement === fixedSkipFramesInput) return; // Don't trigger when editing inputs
+      if (document.activeElement === fpsInput || document.activeElement === skipFramesInput || document.activeElement === fixedSkipFramesInput || document.activeElement === youtubeUrlInput) return; // Don't trigger when editing inputs
       
       // Always prevent default arrow key behavior to override video controls
       if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
@@ -286,10 +801,10 @@
         lapBtn.click();
         e.preventDefault();
       } else if (e.key === ' ') {
-        if (video.paused) {
-          video.play();
+        if (isVideoPaused()) {
+          playVideo();
         } else {
-          video.pause();
+          pauseVideo();
         }
         e.preventDefault();
       } else if (e.key === 'r' || e.key === 'R') {
@@ -304,9 +819,9 @@
       }
     });
 
-    video.addEventListener('timeupdate', () => {
-      currentTimeDisplay.textContent = video.currentTime.toFixed(2);
-    });
+    setInterval(() => {
+      currentTimeDisplay.textContent = getCurrentTime().toFixed(2);
+    }, 100);
   </script>
 </body>
 </html>

@@ -933,6 +933,7 @@
         <div class="fit-control-row" style="margin-top:8px;">
           <button id="fitSaveSyncBtn" type="button">Save sync</button>
           <button id="fitUploadSyncBtn" type="button">Upload synced fit file</button>
+          <button id="fitClearFilesBtn" type="button" title="Remove all loaded FIT files and imported synced FIT data">Clear FIT data</button>
         </div>
         <input id="fitSyncedUploadInput" type="file" accept=".json,.tpsync,.sync" style="display:none;">
         <div class="fit-control-row" style="margin-top:8px;">
@@ -1233,6 +1234,7 @@
     const fitSaveSyncBtn = document.getElementById('fitSaveSyncBtn');
     const fitUploadSyncBtn = document.getElementById('fitUploadSyncBtn');
     const fitSyncedUploadInput = document.getElementById('fitSyncedUploadInput');
+    const fitClearFilesBtn = document.getElementById('fitClearFilesBtn');
     const fitMasterFileBtn = document.getElementById('fitMasterFileBtn');
     const fitMasterRaceSelect = document.getElementById('fitMasterRaceSelect');
     const fitAppendToFileBtn = document.getElementById('fitAppendToFileBtn');
@@ -4002,6 +4004,13 @@
       }
     });
 
+    function hasExistingMasterVideoLink(sheet, XLSX, row, column) {
+      const header = String(getMasterCell(sheet, XLSX, 0, column)).trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (header !== 'video' && header !== 'videourl') return false;
+      const cell = sheet[XLSX.utils.encode_cell({ r: row, c: column })];
+      return [cell?.v, cell?.l?.Target, cell?.f].some(value => String(value ?? '').trim() !== '');
+    }
+
     async function updateMasterReport(button) {
       if (!fitMasterState.fileHandle) return;
       const title = countryInput.value.trim();
@@ -4035,6 +4044,7 @@
             if (column === 1) return;
             const address = XLSX.utils.encode_cell({ r: targetRow, c: column });
             const existing = sheet[address] || {};
+            if (hasExistingMasterVideoLink(sheet, XLSX, targetRow, column)) return;
             sheet[address] = {
               ...existing,
               t: typeof value === 'number' ? 'n' : 's',
@@ -4055,13 +4065,15 @@
             setMasterCell(sheet, XLSX, range, targetRow, column, value);
           }
         }
+        const fitRidersWritten = writeFitColumnsToMaster(sheet, XLSX, range, race.rowIndexes);
         sheet['!ref'] = XLSX.utils.encode_range(range);
 
         const wbArray = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
         const writable = await fitMasterState.fileHandle.createWritable();
         await writable.write(new Blob([wbArray], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
         await writable.close();
-        setStatus(`Updated ${reportRows.length} rows for "${race.title}" in ${file.name}.`);
+        const fitStatus = fitRidersWritten > 0 ? ` FIT metrics updated for ${fitRidersWritten} rider(s).` : '';
+        setStatus(`Updated ${reportRows.length} rows for "${race.title}" in ${file.name}.${fitStatus}`);
       } catch (error) {
         console.error(error);
         setStatus(`Update Master error: ${error.message || error}`);
@@ -4312,6 +4324,15 @@
 
     fitUploadSyncBtn.addEventListener('click', () => {
       fitSyncedUploadInput.click();
+    });
+
+    fitClearFilesBtn.addEventListener('click', () => {
+      fitSyncState.parsedFiles = [];
+      fitSyncState.nextParsedFileId = 1;
+      fitFilesInput.value = '';
+      fitSyncedUploadInput.value = '';
+      renderFitAssignments();
+      setFitStatus('Loaded FIT files and synced FIT data cleared.', 'ok');
     });
 
     fitSyncedUploadInput.addEventListener('change', (event) => {

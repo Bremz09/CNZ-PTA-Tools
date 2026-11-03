@@ -943,6 +943,7 @@
         <div class="fit-control-row" style="margin-top:8px;">
           <button id="fitSaveSyncBtn" type="button">Save sync</button>
           <button id="fitUploadSyncBtn" type="button">Upload synced fit file</button>
+          <button id="fitClearFilesBtn" type="button" title="Remove all loaded FIT files and imported synced FIT data">Clear FIT data</button>
         </div>
         <input id="fitSyncedUploadInput" type="file" accept=".sync" style="display:none;">
         <div class="fit-control-row" style="margin-top:8px;">
@@ -1368,6 +1369,7 @@
     const fitSaveSyncBtn = document.getElementById('fitSaveSyncBtn');
     const fitUploadSyncBtn = document.getElementById('fitUploadSyncBtn');
     const fitSyncedUploadInput = document.getElementById('fitSyncedUploadInput');
+    const fitClearFilesBtn = document.getElementById('fitClearFilesBtn');
     const fitMasterFileBtn = document.getElementById('fitMasterFileBtn');
     const fitMasterRaceSelect = document.getElementById('fitMasterRaceSelect');
     const fitAppendToFileBtn = document.getElementById('fitAppendToFileBtn');
@@ -5117,6 +5119,13 @@
       throw new Error('Unable to find a blank row to append into.');
     }
 
+    function hasExistingMasterVideoLink(sheet, XLSX, row, column) {
+      const header = String(getMasterCell(sheet, XLSX, 0, column)).trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (header !== 'video' && header !== 'videourl') return false;
+      const cell = sheet[XLSX.utils.encode_cell({ r: row, c: column })];
+      return [cell?.v, cell?.l?.Target, cell?.f].some(value => String(value ?? '').trim() !== '');
+    }
+
     async function updateMasterReport(button) {
       if (!fitMasterState.fileHandle) return;
       const reportRows = buildReportRows();
@@ -5146,6 +5155,7 @@
         reportRows.forEach((row, index) => {
           const targetRow = race.rowIndexes[index];
           row.forEach((value, column) => {
+            if (hasExistingMasterVideoLink(sheet, XLSX, targetRow, column)) return;
             const address = XLSX.utils.encode_cell({ r: targetRow, c: column });
             const existing = sheet[address] || {};
             sheet[address] = {
@@ -5673,6 +5683,15 @@
 
     fitUploadSyncBtn.addEventListener('click', () => {
       fitSyncedUploadInput.click();
+    });
+
+    fitClearFilesBtn.addEventListener('click', () => {
+      fitSyncState.parsedFiles = [];
+      fitSyncState.nextParsedFileId = 1;
+      fitFilesInput.value = '';
+      fitSyncedUploadInput.value = '';
+      renderFitAssignments();
+      setFitStatus('Loaded FIT files and synced FIT data cleared.', 'ok');
     });
 
     fitSyncedUploadInput.addEventListener('change', (event) => {
