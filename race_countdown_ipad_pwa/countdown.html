@@ -2193,6 +2193,27 @@
 
     }
 
+    @media (min-width: 701px) and (max-width: 850px) {
+      .header {
+        align-items: center;
+        flex-direction: row
+      }
+
+      .header-actions {
+        margin-left: auto
+      }
+
+      .pinned-race-tiles {
+        grid-template-columns: repeat(4, minmax(0, 1fr))
+      }
+
+      .pinned-race-country { font-size: 14px; }
+      .pinned-race-event,
+      .pinned-race-start-time,
+      .pinned-race-separator { font-size: 13px; }
+      .pinned-race-countdown { font-size: 20px; }
+    }
+
     .header-actions,
     .race-controls,
     .tabs {
@@ -2229,18 +2250,24 @@
 
     @media (hover: none) and (pointer: coarse) {
       .est-start-content {
-        padding-right: 120px
+        padding-right: 92px
+      }
+
+      #programmeHead th:nth-child(1) { width: 17%; }
+      #programmeHead th:nth-child(3) { width: 20%; }
+      #programmeHead th:nth-child(4) { width: 13%; }
+      #programmeHead th:nth-child(5) { width: 17%; }
+      #programmeHead th:nth-child(6) { width: 19%; }
+
+      .schedule-order-button {
+        width: 28px;
+        height: 28px;
+        flex-basis: 28px;
+        font-size: 12px
       }
 
       .heat-toggle {
         min-height: 40px
-      }
-
-      .schedule-order-button {
-        width: 32px;
-        height: 32px;
-        flex-basis: 32px;
-        font-size: 14px
       }
 
       .schedule-delete-button,
@@ -2250,13 +2277,92 @@
         height: 40px
       }
 
+      .schedule-delete-button {
+        width: 28px;
+        height: 28px;
+        flex: 0 0 28px
+      }
+
       .schedule-order-actions,
       .schedule-row-actions {
-        gap: 4px
+        gap: 2px
       }
 
       .schedule-row-actions {
-        height: 40px
+        height: 28px
+      }
+    }
+
+    @media (hover: none) and (pointer: coarse) and (min-width: 701px) and (max-width: 1100px) {
+      .table-wrap {
+        overflow-x: hidden
+      }
+
+      .programme table {
+        min-width: 0
+      }
+
+      #programmeHead th:nth-child(1) { width: 19%; }
+      #programmeHead th:nth-child(2) { width: 13%; }
+      #programmeHead th:nth-child(3) { width: 21%; }
+      #programmeHead th:nth-child(4) { width: 13%; }
+      #programmeHead th:nth-child(5) { width: 17%; }
+      #programmeHead th:nth-child(6) { width: 17%; }
+
+      th { padding: 4px 3px; }
+      td { padding: 3px 4px; }
+
+      .est-start-content {
+        padding-right: 72px
+      }
+
+      .schedule-order-button {
+        width: 22px;
+        height: 28px;
+        flex-basis: 22px
+      }
+
+      .schedule-delete-button {
+        width: 24px;
+        height: 28px;
+        flex-basis: 24px
+      }
+
+      .heats-control {
+        gap: 2px
+      }
+
+      .heats-control > .number-input {
+        width: 40px;
+        flex: 0 0 40px
+      }
+
+      .heat-toggle {
+        width: 62px;
+        min-height: 32px;
+        gap: 1px;
+        padding: 4px 2px;
+        font-size: 9px
+      }
+
+      .duration-actions {
+        gap: 3px
+      }
+
+      .duration-actions .number-input {
+        width: 44px;
+        flex: 0 0 44px
+      }
+
+      .race-actions {
+        gap: 2px
+      }
+
+      .race-actions .pin-button,
+      .race-actions .heat-play {
+        width: 32px;
+        height: 32px;
+        flex: 0 0 32px
       }
     }
 
@@ -2981,7 +3087,9 @@
     function num(i, f, d = '', ph = '') {
       const step = f === 'heatTime' ? '0.5' : '1';
       const value = get(daySelect.value, i, f, d);
-      return `<input class="number-input" type="number" min="0" step="${step}" data-index="${i}" data-field="${f}" value="${value}" placeholder="${ph}">`;
+      const inputType = f === 'heatTime' ? 'text' : 'number';
+      const inputAttributes = f === 'heatTime' ? 'inputmode="decimal"' : `min="0" step="${step}"`;
+      return `<input class="number-input" type="${inputType}" ${inputAttributes} data-index="${i}" data-field="${f}" value="${value}" placeholder="${ph}">`;
     }
 
     function escapeHtml(value) {
@@ -5440,6 +5548,15 @@
     };
     document.addEventListener('keydown', event => {
       if (event.key === 'Escape' && resetConfirmModal.classList.contains('open')) closeResetConfirm();
+      if (
+        event.key === 'Enter' &&
+        window.matchMedia('(hover: none) and (pointer: coarse)').matches &&
+        event.target instanceof HTMLInputElement &&
+        ['text', 'number'].includes(event.target.type)
+      ) {
+        event.preventDefault();
+        event.target.blur();
+      }
     });
 
     document.getElementById('startFromFresh').onclick = startFreshSchedule;

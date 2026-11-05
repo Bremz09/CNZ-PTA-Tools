@@ -6,66 +6,65 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CNZ PTA Tools</title>
   <link rel="stylesheet" href="theme.css" />
+  <script src="favorites.js" defer></script>
 </head>
 <body>
   <main class="page-shell">
     <section class="page-frame">
-      <header class="page-header">
+      <header class="page-header brand-header">
 
         <div class="page-title-row">
           <div>
             <h1 class="page-title">PTA Tools</h1>
            
           </div>
+          <img class="brand-logo" src="Cycling NZ Logo Landscape REV.png" alt="Cycling New Zealand" />
         </div>
       </header>
 
       <div class="page-body grid-stack">
 
-
         <section class="tool-section">
           <h2 class="tool-section-title">App Categories</h2>
           <div class="tool-grid">
-          <a class="tool-card" href="video-analysis.html">
-            <div class="tool-card-header">
-              <div class="tool-icon">VA</div>
-              <span class="tool-tag">Category</span>
-            </div>
-            <div>
-              <h3>Video Analysis</h3>
-              <p>Open video timing, FIT file, sync, and Excel overlay tools.</p>
-            </div>
-          </a>
-
-          <a class="tool-card" href="aero.html">
-            <div class="tool-card-header">
-              <div class="tool-icon">CdA</div>
-              <span class="tool-tag">Category</span>
-            </div>
-            <div>
-              <h3>Aero</h3>
-              <p>Open aero testing and drafting analysis tools.</p>
-            </div>
-          </a>
-
-          <a class="tool-card" href="data-aggregation.html">
+          <a class="tool-card" href="data-aggregation.html" data-no-favorite>
             <div class="tool-card-header">
               <div class="tool-icon">DA</div>
               <span class="tool-tag">Category</span>
             </div>
             <div>
               <h3>Data Aggregation</h3>
-              <p>Open endurance monitoring, gap analysis, and sprint training summary tools.</p>
+              <p>Review endurance, gap, and sprint data.</p>
             </div>
           </a>
-          <a class="tool-card" href="report-builders.html">
+          <a class="tool-card" href="report-builders.html" data-no-favorite>
             <div class="tool-card-header">
               <div class="tool-icon">RB</div>
               <span class="tool-tag">Category</span>
             </div>
             <div>
               <h3>Report Builders</h3>
-              <p>Open a dedicated page with Team Pursuit, Team Sprint, Individual Pursuit, Kilo, and Madison report builders.</p>
+              <p>Build cycling race reports.</p>
+            </div>
+          </a>
+          <a class="tool-card" href="video-analysis.html" data-no-favorite>
+            <div class="tool-card-header">
+              <div class="tool-icon">VA</div>
+              <span class="tool-tag">Category</span>
+            </div>
+            <div>
+              <h3>Video Analysis</h3>
+              <p>Time, sync, and review video and FIT data.</p>
+            </div>
+          </a>
+          <a class="tool-card" href="favorites.html" data-no-favorite data-sort-last>
+            <div class="tool-card-header">
+              <div class="tool-icon">★</div>
+              <span class="tool-tag">Category</span>
+            </div>
+            <div>
+              <h3>Favourites</h3>
+              <p>Open your saved tools.</p>
             </div>
           </a>
           </div>
@@ -76,106 +75,46 @@
         <section class="tool-section">
           <h2 class="tool-section-title">Standalone Tools</h2>
           <div class="tool-grid">
-          <a class="tool-card" href="image_alignment_tool.html">
+          <a class="tool-card" href="Flying 200m Approach Analysis.html">
             <div class="tool-card-header">
-              <div class="tool-icon">IA</div>
-              <span class="tool-tag">Alignment</span>
+              <div class="tool-icon">200m</div>
+              <span class="tool-tag">Sprint</span>
             </div>
             <div>
-              <h3>Image Alignment Tool</h3>
-              <p>Capture images from video and align them based on reference points.</p>
+              <h3>Flying 200m Approach Analysis</h3>
+              <p>Compare entry speeds with the final 200m time.</p>
             </div>
           </a>
-          <a class="tool-card" href="Gear From Cadence And Split.html">
+          <a class="tool-card" href="Aero Test UI.html">
             <div class="tool-card-header">
-              <div class="tool-icon">GF</div>
-              <span class="tool-tag">Timing</span>
+              <div class="tool-icon">CdA</div>
+              <span class="tool-tag">Aero</span>
             </div>
             <div>
-              <h3>Gear From Cadence And Split</h3>
-              <p>Find ideal gearing from split time and cadence, with air-density standardization.</p>
+              <h3>Aero Test UI</h3>
+              <p>Compare segment-level CdA, power, and speed.</p>
             </div>
           </a>
-
-          <a class="tool-card" href="Race Video Analysis.html">
+          <a class="tool-card" href="https://cambridge-velodrome-environmentals.netlify.app/" target="_blank" rel="noopener noreferrer">
             <div class="tool-card-header">
-              <div class="tool-icon">RVA</div>
-              <span class="tool-tag">Video</span>
+              <div class="tool-icon">ST</div>
+              <span class="tool-tag">App</span>
             </div>
             <div>
-              <h3>Race Video Analysis</h3>
-              <p>Analyse race video alongside rider and event data.</p>
+              <h3>Cambridge Velodrome Environmentals</h3>
+              <p>View Cambridge Velodrome conditions.</p>
             </div>
           </a>
-
-          <a class="tool-card" href="W Prime Balance.html">
+          <a class="tool-card" href="https://bremz09-cnzpd-home-bgqs4y.streamlit.app/" target="_blank" rel="noopener noreferrer">
             <div class="tool-card-header">
-              <div class="tool-icon">TP</div>
-              <span class="tool-tag">Track</span>
+              <div class="tool-icon">ST</div>
+              <span class="tool-tag">App</span>
             </div>
             <div>
-              <h3>W' Balance</h3>
-              <p>Upload a fit file to see W' balance over time.</p>
+              <h3>CNZPD</h3>
+              <p>Analyse video, results, and performance forecasts.</p>
             </div>
           </a>
-
-
-
-          <a class="tool-card" href="TP Strategy Builder.html">
-            <div class="tool-card-header">
-              <div class="tool-icon">TP</div>
-              <span class="tool-tag">Track</span>
-            </div>
-            <div>
-              <h3>TP Strategy Builder</h3>
-              <p>CP & W' models to simulate a Team Pursuit.</p>
-            </div>
-          </a>
-
-          <a class="tool-card" href="TP Pace Analysis.html">
-            <div class="tool-card-header">
-              <div class="tool-icon">TP</div>
-              <span class="tool-tag">Track</span>
-            </div>
-            <div>
-              <h3>TP Pace Analysis</h3>
-              <p>Compare Team Pursuit flying and starts pace by athlete from the master workbooks.</p>
-            </div>
-          </a>
-
-          <a class="tool-card" href="Scheduler.html">
-            <div class="tool-card-header">
-              <div class="tool-icon">RDS</div>
-              <span class="tool-tag">Schedule</span>
-            </div>
-            <div>
-              <h3>Race Day Schedule Builder</h3>
-              <p>Schedule your race day.</p>
-            </div>
-          </a>
-
-          <a class="tool-card" href="race_countdown_ipad_pwa/countdown.html">
-            <div class="tool-card-header">
-              <div class="tool-icon">RC</div>
-              <span class="tool-tag">Race Day</span>
-            </div>
-            <div>
-              <h3>Live Race Countdown</h3>
-              <p>Track the time remaining until your next race.</p>
-            </div>
-          </a>
-
-          <a class="tool-card" href="Stopwatch/Stopwatch.html">
-            <div class="tool-card-header">
-              <div class="tool-icon">SW</div>
-              <span class="tool-tag">Timing</span>
-            </div>
-            <div>
-              <h3>Stopwatch</h3>
-              <p>Open the standalone stopwatch app with laps, target alerts, and export.</p>
-            </div>
-          </a>
-
           <a class="tool-card" href="cyclist_system_height.html">
             <div class="tool-card-header">
               <div class="tool-icon">MM</div>
@@ -183,17 +122,17 @@
             </div>
             <div>
               <h3>Cyclist System Height</h3>
-              <p>Measure rider or bike height from an image using the wheel reference radius and a baseline defined on the canvas.</p>
+              <p>Measure rider and bike height from images.</p>
             </div>
           </a>
-          <a class="tool-card" href="Para Factoring Tool.html">
+          <a class="tool-card" href="Drafting.html">
             <div class="tool-card-header">
-              <div class="tool-icon">XLSX</div>
-              <span class="tool-tag">Overlay</span>
+              <div class="tool-icon">DRF</div>
+              <span class="tool-tag">Aero</span>
             </div>
             <div>
-              <h3>Para Factoring Tool</h3>
-              <p>Calculate para factoring for athletes with different classifications.</p>
+              <h3>Drafting Dashboard</h3>
+              <p>Compare drafting benefits by rider position.</p>
             </div>
           </a>
           <a class="tool-card" href="https://cnz-fatigue-rate-finder.streamlit.app/" target="_blank" rel="noopener noreferrer">
@@ -203,10 +142,110 @@
             </div>
             <div>
               <h3>Fatigue Rate Finder</h3>
-              <p>For use with the TS modelling tool.</p>
+              <p>Find athlete fatigue rates for TS modelling.</p>
+            </div>
+          </a>
+          <a class="tool-card" href="Gear From Cadence And Split.html">
+            <div class="tool-card-header">
+              <div class="tool-icon">GF</div>
+              <span class="tool-tag">Timing</span>
+            </div>
+            <div>
+              <h3>Gear From Cadence And Split</h3>
+              <p>Find gearing from cadence and split time.</p>
+            </div>
+          </a>
+          <a class="tool-card" href="image_alignment_tool.html">
+            <div class="tool-card-header">
+              <div class="tool-icon">IA</div>
+              <span class="tool-tag">Alignment</span>
+            </div>
+            <div>
+              <h3>Image Alignment Tool</h3>
+              <p>Align video frames using reference points.</p>
+            </div>
+          </a>
+          <a class="tool-card" href="race_countdown_ipad_pwa/countdown.html">
+            <div class="tool-card-header">
+              <div class="tool-icon">RC</div>
+              <span class="tool-tag">Race Day</span>
+            </div>
+            <div>
+              <h3>Live Race Countdown</h3>
+              <p>Track time until the next race.</p>
             </div>
           </a>
 
+          <a class="tool-card" href="Para Factoring Tool.html">
+            <div class="tool-card-header">
+              <div class="tool-icon">XLSX</div>
+              <span class="tool-tag">Overlay</span>
+            </div>
+            <div>
+              <h3>Para Factoring Tool</h3>
+              <p>Calculate results across para classifications.</p>
+            </div>
+          </a>
+          <a class="tool-card" href="Scheduler.html">
+            <div class="tool-card-header">
+              <div class="tool-icon">RDS</div>
+              <span class="tool-tag">Schedule</span>
+            </div>
+            <div>
+              <h3>Race Day Schedule Builder</h3>
+              <p>Build a race-day schedule.</p>
+            </div>
+          </a>
+          <a class="tool-card" href="Race Position Tagger.html">
+            <div class="tool-card-header">
+              <div class="tool-icon">RP</div>
+              <span class="tool-tag">Tagging</span>
+            </div>
+            <div>
+              <h3>Race Position Tagger</h3>
+              <p>Tag rider positions in race footage.</p>
+            </div>
+          </a>
+          <a class="tool-card" href="Race Video Analysis.html">
+            <div class="tool-card-header">
+              <div class="tool-icon">RVA</div>
+              <span class="tool-tag">Video</span>
+            </div>
+            <div>
+              <h3>Race Video Analysis</h3>
+              <p>Analyse race footage with rider and event data.</p>
+            </div>
+          </a>
+          <a class="tool-card" href="Stopwatch/Stopwatch.html">
+            <div class="tool-card-header">
+              <div class="tool-icon">SW</div>
+              <span class="tool-tag">Timing</span>
+            </div>
+            <div>
+              <h3>Stopwatch</h3>
+              <p>Time laps with alerts and export.</p>
+            </div>
+          </a>
+          <a class="tool-card" href="TP Pace Analysis.html">
+            <div class="tool-card-header">
+              <div class="tool-icon">TP</div>
+              <span class="tool-tag">Track</span>
+            </div>
+            <div>
+              <h3>TP Pace Analysis</h3>
+              <p>Compare Team Pursuit pacing by rider.</p>
+            </div>
+          </a>
+          <a class="tool-card" href="TP Strategy Builder.html">
+            <div class="tool-card-header">
+              <div class="tool-icon">TP</div>
+              <span class="tool-tag">Track</span>
+            </div>
+            <div>
+              <h3>TP Strategy Builder</h3>
+              <p>Model Team Pursuit strategy with CP and W'.</p>
+            </div>
+          </a>
           <a class="tool-card" href="https://cnz-wts-model.streamlit.app/" target="_blank" rel="noopener noreferrer">
             <div class="tool-card-header">
               <div class="tool-icon">ST</div>
@@ -217,26 +256,14 @@
               <p>Model a Team Sprint.</p>
             </div>
           </a>
-
-          <a class="tool-card" href="https://bremz09-cnzpd-home-bgqs4y.streamlit.app/" target="_blank" rel="noopener noreferrer">
+          <a class="tool-card" href="W Prime Balance.html">
             <div class="tool-card-header">
-              <div class="tool-icon">ST</div>
-              <span class="tool-tag">App</span>
+              <div class="tool-icon">TP</div>
+              <span class="tool-tag">Track</span>
             </div>
             <div>
-              <h3>CNZPD</h3>
-              <p>Video analysis, results tracking, forecasting, benchmarking.</p>
-            </div>
-          </a>
-
-          <a class="tool-card" href="https://cambridge-velodrome-environmentals.netlify.app/" target="_blank" rel="noopener noreferrer">
-            <div class="tool-card-header">
-              <div class="tool-icon">ST</div>
-              <span class="tool-tag">App</span>
-            </div>
-            <div>
-              <h3>Cambridge Velodrome Environmentals</h3>
-              <p>Access environmental data for the Cambridge Velodrome.</p>
+              <h3>W' Balance</h3>
+              <p>View W' balance from a FIT file.</p>
             </div>
           </a>
           </div>

@@ -1,0 +1,1976 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <script src="auth-gate.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Race Position Tagger</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172923;
+      --muted: #5c6e66;
+      --line: #cbd7d0;
+      --surface: #ffffff;
+      --canvas: #edf2ee;
+      --green: #0f766e;
+      --green-dark: #115e59;
+      --coral: #c24132;
+      --amber: #a45b0a;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 22px;
+      background: var(--canvas);
+      color: var(--ink);
+      font-family: "Trebuchet MS", "Aptos", sans-serif;
+    }
+
+    main { max-width: 1500px; margin: 0 auto; }
+    h1, h2, p { margin-top: 0; }
+    h1 { margin-bottom: 4px; font-size: 26px; }
+    h2 { margin-bottom: 12px; font-size: 18px; }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: .48; }
+
+    .page-header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 18px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .page-header p { margin-bottom: 0; color: var(--muted); font-size: 14px; }
+    .header-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .upload-bar { display: flex; flex-wrap: wrap; gap: 14px 22px; padding: 16px 0; }
+    .field { display: grid; gap: 5px; min-width: 210px; }
+    .field label, .field-label { color: var(--muted); font-size: 13px; font-weight: 700; }
+    input[type="file"], input[type="text"], select {
+      min-height: 38px;
+      max-width: 100%;
+      padding: 7px 9px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: var(--surface);
+      color: var(--ink);
+    }
+
+    .work-area {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .video-column, .tag-column { min-width: 0; }
+    .video-wrap { overflow: hidden; background: #101614; border-radius: 4px; }
+    video { display: block; width: 100%; max-height: 68vh; aspect-ratio: 16 / 9; background: #101614; }
+    .timebar { display: flex; justify-content: space-between; gap: 12px; padding: 9px 2px 14px; color: var(--muted); font-size: 13px; }
+    .timebar strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+    .video-step-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding-bottom: 12px; }
+    .video-step-controls label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+    .video-step-controls input { width: 68px; min-height: 32px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; }
+    .race-boundary-button { min-height: 28px; padding: 4px 8px; font-size: 12px; }
+
+    .tag-section { padding: 0 0 18px; border-bottom: 1px solid var(--line); }
+    .rider-controls { display: grid; grid-template-columns: minmax(0, 1fr) 82px auto; gap: 8px; align-items: end; }
+    .rider-controls .field { min-width: 0; }
+    .rider-controls > .field:first-child { grid-column: 1; grid-row: 1; }
+    .rider-controls > #removeRiderBtn { grid-column: 3; grid-row: 1; }
+    .rider-controls > .placing-field { grid-column: 2; grid-row: 1; }
+    .rider-controls select { width: 100%; }
+    .placing-display { width: 100%; min-height: 38px; display: flex; align-items: center; padding: 7px 9px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--ink); font-variant-numeric: tabular-nums; }
+    .rider-actions { display: contents; }
+    .rider-actions input { width: 100%; min-width: 0; min-height: 38px; }
+    #riderNameInput { grid-column: 1; grid-row: 2; }
+    #riderPlacingInput { grid-column: 2; grid-row: 2; }
+    .rider-action-buttons { display: flex; flex-wrap: wrap; gap: 6px; grid-column: 1 / -1; grid-row: 3; }
+
+    .button {
+      min-height: 36px;
+      padding: 7px 11px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: var(--surface);
+      color: var(--ink);
+    }
+    .button:hover:not(:disabled) { border-color: var(--green); }
+    .button-primary { border-color: var(--green); background: var(--green); color: #fff; }
+    .button-primary:hover:not(:disabled) { background: var(--green-dark); }
+    .button-danger { color: var(--coral); }
+
+    .tag-buttons { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; width: min(100%, 260px); margin-top: 16px; }
+    .tag-button {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+      min-height: 44px;
+      padding: 8px 12px;
+      text-align: left;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: var(--surface);
+      color: var(--ink);
+    }
+    .tag-button:hover:not(:disabled) { transform: translateY(-1px); border-color: var(--green); }
+    .tag-button strong { font-size: 15px; }
+    .tag-button span { display: flex; color: var(--muted); font-size: 12px; }
+    .tag-button .tag-key {
+      display: inline-grid;
+      place-items: center;
+      width: 23px;
+      height: 23px;
+      border: 1px solid currentColor;
+      border-radius: 3px;
+      font-weight: 700;
+    }
+    .front-controls { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; width: min(100%, 260px); margin-top: 10px; }
+    .front-toggle { display: inline-flex; align-items: center; justify-content: space-between; gap: 9px; width: 100%; }
+    .front-toggle kbd { min-width: 22px; padding: 2px 5px; border: 1px solid currentColor; border-radius: 3px; font: inherit; text-align: center; }
+    .front-state { color: var(--muted); font-size: 13px; }
+    .front-state.is-front { color: var(--green-dark); font-weight: 700; }
+    .section-heading { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin: 18px 0 8px; }
+    .section-heading h2 { margin: 0; }
+    .tag-count { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+    .status { min-height: 20px; margin: 10px 0 0; color: var(--muted); font-size: 13px; }
+
+    .table-wrap { max-height: 310px; overflow: auto; border-top: 1px solid var(--line); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 8px 6px; border-bottom: 1px solid #dfe6e1; text-align: left; }
+    th { position: sticky; top: 0; background: var(--canvas); color: var(--muted); font-size: 12px; }
+    td:last-child, th:last-child { width: 38px; text-align: right; }
+    .empty-row { padding: 18px 6px; color: var(--muted); text-align: center; }
+    .row-delete { width: 30px; min-height: 30px; border: 0; background: transparent; color: var(--coral); font-size: 18px; }
+    .timestamp-link { padding: 0; border: 0; background: none; color: var(--green-dark); font-variant-numeric: tabular-nums; text-decoration: underline; text-underline-offset: 2px; }
+    .timestamp-link:hover { color: var(--coral); }
+
+    .fit-section { margin: 16px 0 0; padding: 12px; border: 1px solid #dbe2ea; border-radius: 12px; background: linear-gradient(180deg, #f8fbff 0%, #fff 100%); }
+    .fit-section h3 { margin: 0 0 8px; }
+    .fit-section > p { margin: 0 0 10px; color: #475569; font-size: 13px; }
+    .fit-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+    .fit-chip { padding: 5px 10px; border: 1px solid #dbe2ea; border-radius: 999px; background: #fff; color: #334155; font-size: 12px; }
+    .fit-chip strong { color: #0f172a; font-variant-numeric: tabular-nums; }
+    .fit-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px 12px; margin: 10px 0 12px; }
+    .fit-controls .field { min-width: 0; }
+    .fit-controls .field label { display: block; margin-bottom: 4px; font-size: 13px; }
+    .fit-controls input[type="file"], .fit-controls select { width: 100%; padding: 6px 8px; }
+    .fit-sync-file-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: -2px 0 12px; }
+    .fit-file-list { margin: 0 0 10px; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px 14px; }
+    .fit-file-list li { display: flex; align-items: center; gap: 5px; color: #334155; font-size: 12px; }
+    .fit-stream-swatch { flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; }
+    .plot-wrap { position: relative; overflow: hidden; border: 1px solid #dbe2ea; border-radius: 10px; background: #fff; }
+    #fitPlot { display: block; width: 100%; height: 280px; touch-action: none; cursor: grab; }
+    .fit-current-values { padding: 8px 10px 0; color: #334155; font-size: 13px; }
+    .plot-help { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px 16px; padding: 8px 10px; color: #475569; font-size: 12px; }
+    .fit-controls-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; align-items: end; }
+    .fit-control-group { flex: 1 1 180px; }
+    .fit-control-group.fit-actions { flex: 0 0 auto; }
+    .fit-control-group label { display: block; margin-bottom: 4px; font-size: 13px; }
+    .fit-control-row { display: flex; gap: 8px; align-items: center; }
+    .fit-control-row input { flex: 1 1 auto; }
+    .fit-control-value { min-width: 54px; color: #475569; font-size: 12px; text-align: right; }
+    .fit-sync-targets { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .fit-target-btn { padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 999px; background: #fff; color: #334155; font-size: 12px; }
+    .fit-target-btn.active { border-color: #0f766e; background: #ecfdf5; color: #166534; }
+    .fit-status { min-height: 19px; margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: #fff7ed; color: #b45309; font-size: 13px; }
+    .fit-status.ok { background: #f0fdf4; color: #166534; }
+    .position-analysis { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+    .position-analysis > p { margin: -4px 0 18px; color: var(--muted); font-size: 13px; }
+    .analysis-block + .analysis-block { margin-top: 24px; }
+    .analysis-block h3 { margin: 0 0 10px; font-size: 15px; }
+    .analysis-empty { padding: 14px 0; color: var(--muted); font-size: 13px; }
+    .category-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 12px; color: var(--muted); font-size: 12px; }
+    .category-legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .category-legend i { width: 10px; height: 10px; border-radius: 2px; }
+    .category-legend .front-hatch-key { background: repeating-linear-gradient(135deg, #fff 0 3px, #26352f 3px 5px); border: 1px solid #718078; }
+    .rider-bars { margin: 0 0 14px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+    .rider-bars:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
+    .rider-bars h4, .gantt-rider h4 { margin: 0 0 8px; font-size: 13px; }
+    .bar-row { display: grid; grid-template-columns: minmax(125px, 175px) minmax(40px, 1fr) 68px; gap: 8px; align-items: center; margin: 5px 0; font-size: 12px; }
+    .bar-label { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+    .bar-track { position: relative; height: 13px; overflow: hidden; background: #e6ece8; }
+    .bar-fill { height: 100%; min-width: 0; }
+    .bar-front-hatch { position: absolute; top: 0; bottom: 0; left: 0; pointer-events: none; background: repeating-linear-gradient(135deg, transparent 0 3px, rgba(17, 24, 20, .8) 3px 5px); }
+    .bar-value { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .gantt-rider { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+    .gantt-axis, .gantt-row { display: grid; grid-template-columns: minmax(125px, 175px) minmax(0, 1fr); gap: 8px; align-items: center; }
+    .gantt-axis { margin: 0 0 5px; color: var(--muted); font-size: 10px; }
+    .gantt-ticks { display: flex; justify-content: space-between; gap: 4px; }
+    .gantt-row { margin: 4px 0; }
+    .gantt-lane { position: relative; height: 19px; overflow: hidden; background: repeating-linear-gradient(to right, #f0f3f1 0, #f0f3f1 calc(25% - 1px), #dce4df calc(25% - 1px), #dce4df 25%); }
+    .gantt-segment { position: absolute; top: 2px; height: 15px; min-width: 2px; padding: 0; border: 0; border-radius: 2px; cursor: pointer; }
+    .gantt-segment:hover { filter: brightness(.82); }
+    .gantt-front-hatch { position: absolute; top: 0; height: 100%; background: repeating-linear-gradient(135deg, transparent 0 3px, rgba(17, 24, 20, .8) 3px 5px); pointer-events: none; }
+
+    @media (max-width: 900px) {
+      body { padding: 14px; }
+      .work-area { grid-template-columns: minmax(0, 1fr) minmax(270px, 320px); gap: 14px; }
+    }
+    @media (max-width: 700px) {
+      .page-header { align-items: start; flex-direction: column; }
+      .work-area { grid-template-columns: 1fr; }
+      .tag-column { border-top: 1px solid var(--line); padding-top: 16px; }
+      video { max-height: 52vh; }
+      #fitPlot { height: 210px; }
+      .bar-row, .gantt-axis, .gantt-row { grid-template-columns: minmax(90px, 115px) minmax(0, 1fr); }
+      .bar-value { grid-column: 2; margin-top: -5px; text-align: left; }
+      .bar-row { row-gap: 5px; }
+    }
+    @media (max-width: 420px) {
+      .gantt-ticks span:nth-child(2), .gantt-ticks span:nth-child(4) { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="page-header">
+      <div>
+        <h1>Race Position Tagger</h1>
+        <p>Tag a rider's position against the video playhead.</p>
+      </div>
+      <div class="header-actions">
+        <button id="importCsvBtn" class="button" type="button">Load CSV</button>
+        <input id="importCsvInput" type="file" accept=".csv,text/csv" hidden>
+        <button id="exportCsvBtn" class="button" type="button" disabled>Export CSV</button>
+      </div>
+    </header>
+
+    <section class="upload-bar" aria-label="Video and FIT files">
+      <div class="field">
+        <label for="videoInput">Race video</label>
+        <input id="videoInput" type="file" accept="video/*">
+      </div>
+    </section>
+
+    <div class="work-area">
+      <section class="video-column" aria-label="Race video">
+        <div class="video-wrap">
+          <video id="video" controls preload="metadata" playsinline></video>
+        </div>
+        <div class="timebar">
+          <span>Video time <strong id="videoTime">0:00.000</strong></span>
+          <span id="videoName">No video loaded</span>
+        </div>
+        <div class="video-step-controls">
+          <label for="videoFpsInput">FPS <input id="videoFpsInput" type="number" min="1" max="240" step="1" value="50"></label>
+          <label for="skipFramesInput">Skip frames <input id="skipFramesInput" type="number" min="1" step="1" value="160"></label>
+          <button id="raceStartBtn" class="button race-boundary-button" type="button" disabled>Start race <kbd>S</kbd></button>
+          <button id="raceEndBtn" class="button race-boundary-button" type="button" disabled>End race <kbd>E</kbd></button>
+          <button id="eliminateRiderBtn" class="button race-boundary-button" type="button" disabled title="End the active rider's race at the current playhead">Rider end race</button>
+        </div>
+
+      </section>
+
+      <section class="tag-column" aria-labelledby="tagHeading">
+        <div class="tag-section">
+          <h2 id="tagHeading">Elbow Angle Tags</h2>
+          <div class="rider-controls">
+            <div class="field">
+              <label for="activeRider">Active rider</label>
+              <select id="activeRider"></select>
+            </div>
+            <button id="removeRiderBtn" class="button button-danger" type="button" title="Remove active rider">Remove</button>
+            <div class="field placing-field">
+              <span class="field-label">Placing</span>
+              <output id="activeRiderPlacing" class="placing-display"></output>
+            </div>
+            <div class="rider-actions">
+              <input id="riderNameInput" type="text" placeholder="Rider name" aria-label="Rider name">
+              <input id="riderPlacingInput" type="number" min="1" step="1" placeholder="Place" aria-label="Rider placing">
+              <div class="rider-action-buttons">
+                <button id="addRiderBtn" class="button" type="button">Add rider</button>
+                <button id="renameRiderBtn" class="button" type="button">Rename</button>
+              </div>
+            </div>
+          </div>
+          <div class="tag-buttons" aria-label="Elbow angle tag hotkeys">
+            <button class="tag-button tag-straight" data-category="Straight arms" type="button" disabled>
+              <strong>Straight arms</strong><span><b class="tag-key">1</b></span>
+            </button>
+            <button class="tag-button tag-intermediate" data-category="Slightly bent" type="button" disabled>
+              <strong>Slightly bent</strong><span><b class="tag-key">2</b></span>
+            </button>
+            <button class="tag-button tag-position" data-category="In position" type="button" disabled>
+              <strong>In position</strong><span><b class="tag-key">3</b></span>
+            </button>
+          </div>
+          <div class="front-controls">
+            <button id="frontToggleBtn" class="button front-toggle" type="button" disabled>Toggle Front / Bunch <kbd>F</kbd></button>
+            <span id="frontStateDisplay" class="front-state">Current: Bunch</span>
+          </div>
+          <p id="tagStatus" class="status" role="status">Load a video to start tagging.</p>
+        </div>
+
+        <div class="section-heading">
+          <h2>Recorded Events</h2>
+          <span id="tagCount" class="tag-count">0 tags</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Video time</th><th>Duration</th><th>Rider</th><th>Event</th><th></th></tr></thead>
+            <tbody id="tagRows"><tr><td class="empty-row" colspan="5">No tags yet</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+    <section class="fit-section fit-sync-panel" aria-labelledby="fitHeading">
+      <div class="fit-stats">
+        <span class="fit-chip">Sampling: <strong id="samplingHz">-</strong></span>
+        <span class="fit-chip">Video FPS: <strong id="fitVideoFpsValue">50 fps</strong></span>
+        <span class="fit-chip">Sync Offset: <strong id="traceOffset">0.000s</strong></span>
+        <span class="fit-chip">Video Time: <strong id="fitVideoTimeValue">0.000s</strong></span>
+      </div>
+      <ul id="fitFileList" class="fit-file-list"><li>No FIT files loaded</li></ul>
+      <div class="plot-wrap">
+        <canvas id="fitPlot" aria-label="FIT metric plot"></canvas>
+        <div id="fitCurrentValues" class="fit-current-values">Values @ playhead: -</div>
+        <div class="plot-help"><span>Left drag: scrub video</span><span>Right drag: sync selected FIT files</span></div>
+      </div>
+      <div class="fit-controls-row">
+        <div class="fit-control-group">
+          <label for="fitScale">Trace window scale</label>
+          <div class="fit-control-row"><input id="fitScale" type="range" min="20" max="400" step="10" value="100"><span id="fitScaleValue" class="fit-control-value">100%</span></div>
+        </div>
+        <div class="fit-control-group">
+          <label for="fitSensitivity">Drag sensitivity</label>
+          <div class="fit-control-row"><input id="fitSensitivity" type="range" min="5" max="300" step="5" value="20"><span id="fitSensitivityValue" class="fit-control-value">0.20x</span></div>
+        </div>
+        <div class="fit-control-group fit-actions">
+          <label>&nbsp;</label>
+          <div class="fit-control-row"><button id="fitSnapBtn" class="button" type="button">Snap to playhead</button></div>
+        </div>
+      </div>
+      <div id="fitSyncTargets" class="fit-sync-targets" aria-label="FIT sync targets"></div>
+      <div id="fitStatus" class="fit-status" role="status">Assign one or more FIT files to start syncing.</div>
+      <h3 id="fitHeading">FIT Sync</h3>
+      <p>Choose FIT files and a shared metric, then left-drag to scrub video or right-drag to sync the selected files.</p>
+      <div class="fit-controls">
+        <div class="field">
+          <label for="fitInput">FIT files (.fit)</label>
+          <input id="fitInput" type="file" accept=".fit,application/octet-stream">
+        </div>
+        <div class="field">
+          <label for="fitRiderSelect">FIT Rider</label>
+          <select id="fitRiderSelect"></select>
+        </div>
+        <div class="field">
+          <label for="metricSelect">Shared FIT Metric</label>
+          <select id="metricSelect" disabled><option value="">Select metric</option></select>
+        </div>
+      </div>
+      <div class="fit-sync-file-actions">
+        <button id="saveFitSyncBtn" class="button" type="button">Save sync</button>
+        <button id="loadFitSyncBtn" class="button" type="button">Load saved sync</button>
+        <input id="fitSyncInput" type="file" accept=".json,.sync,application/json" hidden>
+      </div>
+    </section>
+    <section class="position-analysis" aria-labelledby="positionAnalysisHeading">
+      <h2 id="positionAnalysisHeading">Time in each position</h2>
+      <p>Each tag lasts until the next tag for that rider. A rider's final tag lasts to the end of the video.</p>
+      <div class="analysis-block">
+        <h3>Time by category</h3>
+        <div id="positionBarGraph"></div>
+      </div>
+      <div class="analysis-block">
+        <h3>Position timeline</h3>
+        <div id="positionGanttGraph"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const video = document.getElementById('video');
+    const videoInput = document.getElementById('videoInput');
+    const fitInput = document.getElementById('fitInput');
+    const fitSyncInput = document.getElementById('fitSyncInput');
+    const videoTimeDisplay = document.getElementById('videoTime');
+    const videoNameDisplay = document.getElementById('videoName');
+    const activeRiderSelect = document.getElementById('activeRider');
+    const riderNameInput = document.getElementById('riderNameInput');
+    const riderPlacingInput = document.getElementById('riderPlacingInput');
+    const tagButtons = [...document.querySelectorAll('.tag-button')];
+    const tagRows = document.getElementById('tagRows');
+    const tagCount = document.getElementById('tagCount');
+    const tagStatus = document.getElementById('tagStatus');
+    const fitStatus = document.getElementById('fitStatus');
+    const fitPlot = document.getElementById('fitPlot');
+    const fitContext = fitPlot.getContext('2d');
+    const videoFpsInput = document.getElementById('videoFpsInput');
+    const skipFramesInput = document.getElementById('skipFramesInput');
+    const fitRiderSelect = document.getElementById('fitRiderSelect');
+    const metricSelect = document.getElementById('metricSelect');
+    const fitScale = document.getElementById('fitScale');
+    const fitSensitivity = document.getElementById('fitSensitivity');
+    const fitFileList = document.getElementById('fitFileList');
+    const fitSyncTargets = document.getElementById('fitSyncTargets');
+    const saveFitSyncBtn = document.getElementById('saveFitSyncBtn');
+    const loadFitSyncBtn = document.getElementById('loadFitSyncBtn');
+    const positionBarGraph = document.getElementById('positionBarGraph');
+    const positionGanttGraph = document.getElementById('positionGanttGraph');
+    const importCsvInput = document.getElementById('importCsvInput');
+    const fitStreams = [];
+    const fitSyncStorageKey = 'race-position-tagger.fit-sync.v1';
+    const riders = [];
+    const tags = [];
+    const frontEvents = [];
+    const raceBoundaries = { start: null, end: null };
+    const pendingFitSyncs = [];
+    const riderPalette = ['#0f766e', '#c24132', '#2563a6', '#a45b0a', '#7c3f72', '#4d7c0f', '#475569', '#b83280'];
+    const positionCategories = [
+      { label: 'Straight arms', color: '#FF5F4D' },
+      { label: 'Slightly bent', color: '#FF944D' },
+      { label: 'In position', color: '#59C977' }
+    ];
+    const positionBandColors = {
+      'Straight arms': { bunch: 'rgba(255, 95, 77, 0.16)', front: 'rgba(255, 95, 77, 0.35)' },
+      'Slightly bent': { bunch: 'rgba(255, 148, 77, 0.16)', front: 'rgba(255, 148, 77, 0.35)' },
+      'In position': { bunch: 'rgba(89, 201, 119, 0.16)', front: 'rgba(89, 201, 119, 0.35)' }
+    };
+    let nextRiderId = 1;
+    let nextTagId = 1;
+    let nextFrontEventId = 1;
+    let fitParserClass = null;
+    let videoObjectUrl = null;
+    let pointerMode = null;
+    let dragLastX = 0;
+    let fitDrawingData = null;
+    let estimatedSamplingHz = null;
+
+    function setTagStatus(message) { tagStatus.textContent = message; }
+    function setFitStatus(message, level = 'warn') {
+      fitStatus.textContent = message;
+      fitStatus.classList.toggle('ok', level === 'ok');
+    }
+    function formatVideoTime(seconds) {
+      const safe = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
+      const minutes = Math.floor(safe / 60);
+      const remainder = safe - minutes * 60;
+      if (minutes >= 60) {
+        const hours = Math.floor(minutes / 60);
+        return `${String(hours).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}:${remainder.toFixed(3).padStart(6, '0')}`;
+      }
+      return `${minutes}:${remainder.toFixed(3).padStart(6, '0')}`;
+    }
+    function seekVideoFrames(frameCount) {
+      if (!video.src) return;
+      const fps = Math.max(1, Number(videoFpsInput.value) || 50);
+      const frameDelta = frameCount / fps;
+      const nextTime = currentVideoTime() + frameDelta;
+      video.pause();
+      video.currentTime = Number.isFinite(video.duration)
+        ? Math.max(0, Math.min(nextTime, video.duration))
+        : Math.max(0, nextTime);
+      updateVideoTime();
+    }
+    function currentVideoTime() { return Number.isFinite(video.currentTime) ? video.currentTime : 0; }
+    function escapeCsv(value) { return `"${String(value).replaceAll('"', '""')}"`; }
+    function parseCsvRows(text) {
+      const source = text.replace(/\r\n?/g, '\n');
+      const rows = [];
+      let row = [];
+      let field = '';
+      let quoted = false;
+      for (let index = 0; index < source.length; index += 1) {
+        const character = source[index];
+        if (quoted) {
+          if (character === '"' && source[index + 1] === '"') {
+            field += '"';
+            index += 1;
+          } else if (character === '"') {
+            quoted = false;
+          } else {
+            field += character;
+          }
+        } else if (character === '"') {
+          if (field.length) throw new Error('Unexpected quote in an unquoted CSV field.');
+          quoted = true;
+        } else if (character === ',') {
+          row.push(field);
+          field = '';
+        } else if (character === '\n') {
+          row.push(field);
+          if (row.some((value) => value.trim())) rows.push(row);
+          row = [];
+          field = '';
+        } else {
+          field += character;
+        }
+      }
+      if (quoted) throw new Error('CSV contains an unclosed quoted field.');
+      row.push(field);
+      if (row.some((value) => value.trim())) rows.push(row);
+      return rows;
+    }
+    function parseCsvVideoTime(value) {
+      const text = String(value ?? '').trim();
+      if (!text) return null;
+      const numeric = Number(text);
+      if (Number.isFinite(numeric)) return numeric >= 0 ? numeric : null;
+      const parts = text.split(':');
+      if (parts.length < 2 || parts.length > 3 || parts.some((part) => part.trim() === '')) return null;
+      const values = parts.map(Number);
+      if (values.some((part) => !Number.isFinite(part) || part < 0)) return null;
+      const seconds = values.length === 2
+        ? values[0] * 60 + values[1]
+        : values[0] * 3600 + values[1] * 60 + values[2];
+      return Number.isFinite(seconds) ? seconds : null;
+    }
+    function parseTagCsv(text) {
+      const rows = parseCsvRows(text);
+      if (rows.length < 2) throw new Error('CSV must include a header and at least one event.');
+      const headers = rows[0].map((value) => value.replace(/^\uFEFF/, '').trim().toLowerCase().replace(/[\s-]+/g, '_'));
+      const column = (...names) => names.map((name) => headers.indexOf(name)).find((index) => index >= 0) ?? -1;
+      const secondsColumn = column('video_seconds', 'seconds', 'time_seconds');
+      const timeColumn = column('video_time', 'timestamp', 'time');
+      const riderColumn = column('rider', 'rider_name', 'athlete');
+      const placingColumn = column('placing', 'place', 'rank');
+      const positionColumn = column('position');
+      const stateColumn = column('state', 'status');
+      const tagColumn = column('tag', 'category', 'label');
+      const eventTypeColumn = column('event_type', 'event');
+      const racePositionColumn = column('race_position', 'race_state');
+      const hasPositionColumns = positionColumn >= 0 && stateColumn >= 0;
+      if ((secondsColumn < 0 && timeColumn < 0) || (tagColumn < 0 && !hasPositionColumns && eventTypeColumn < 0 && racePositionColumn < 0)) {
+        throw new Error('CSV needs a video time column and either a tag/category column or separate position and state columns.');
+      }
+
+      const importedRiders = [];
+      const riderIdsByName = new Map();
+      const importedTags = [];
+      const importedFrontEvents = [];
+      const importedRaceBoundaries = { start: null, end: null };
+      for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
+        const values = rows[rowIndex];
+        const getValue = (index) => index >= 0 ? String(values[index] ?? '').trim() : '';
+        const rawSeconds = secondsColumn >= 0 ? getValue(secondsColumn) : '';
+        const videoSeconds = rawSeconds ? parseCsvVideoTime(rawSeconds) : parseCsvVideoTime(getValue(timeColumn));
+        if (videoSeconds === null) throw new Error(`Row ${rowIndex + 1} has an invalid video time.`);
+
+        const combinedTag = getValue(tagColumn);
+        const racePosition = getValue(racePositionColumn) || combinedTag;
+        const eventType = getValue(eventTypeColumn).toLowerCase().replace(/[\s-]+/g, '_');
+        const raceBoundaryType = ({ race_start: 'start', start_race: 'start', race_end: 'end', end_race: 'end' })[eventType]
+          || (eventType === 'race_boundary' ? ({ 'start_race': 'start', 'end_race': 'end' })[combinedTag.toLowerCase().replace(/[\s-]+/g, '_')] : null);
+        if (raceBoundaryType) {
+          importedRaceBoundaries[raceBoundaryType] = videoSeconds;
+          continue;
+        }
+        const isFrontEvent = ['front', 'bunch'].includes(racePosition.toLowerCase())
+          || ['race_position', 'front_bunch', 'front', 'bunch'].includes(eventType);
+        const isRiderElimination = ['rider_elimination', 'rider_eliminated', 'elimination'].includes(eventType)
+          || ['eliminated', 'elimination'].includes(combinedTag.toLowerCase());
+        const riderName = getValue(riderColumn) || 'Rider 1';
+        const rawPlacing = getValue(placingColumn);
+        const placing = rawPlacing ? Number(rawPlacing.replace(/(?:st|nd|rd|th)$/i, '')) : null;
+        if (rawPlacing && (!Number.isSafeInteger(placing) || placing < 1)) {
+          throw new Error(`Row ${rowIndex + 1} has an invalid rider placing.`);
+        }
+        const normalizedName = riderName.toLocaleLowerCase();
+        let riderId = riderIdsByName.get(normalizedName);
+        if (riderId === undefined) {
+          riderId = importedRiders.length + 1;
+          riderIdsByName.set(normalizedName, riderId);
+          importedRiders.push({ id: riderId, name: riderName, placing: null, eliminationSeconds: null });
+        }
+        if (placing !== null) importedRiders[riderId - 1].placing = placing;
+        if (isRiderElimination) {
+          importedRiders[riderId - 1].eliminationSeconds = videoSeconds;
+          continue;
+        }
+
+        if (isFrontEvent) {
+          const label = racePosition || (eventType === 'front' ? 'Front' : eventType === 'bunch' ? 'Bunch' : '');
+          if (!/^(front|bunch)$/i.test(label)) throw new Error(`Row ${rowIndex + 1} has an invalid Front/Bunch event.`);
+          importedFrontEvents.push({
+            id: importedFrontEvents.length + 1,
+            videoSeconds,
+            riderId,
+            rider: riderName
+          });
+          continue;
+        }
+
+        let category = positionCategories.find((item) => item.label.toLowerCase() === combinedTag.toLowerCase())?.label || '';
+        if (!category && combinedTag.toLowerCase() === 'intermediate') category = 'Slightly bent';
+        if (!category) {
+          let position = getValue(positionColumn);
+          let state = getValue(stateColumn);
+          if ((!position || !state) && combinedTag) {
+            const match = combinedTag.match(/^\s*(bars|drops)\s*[-:]\s*(in\s+position|out\s+of\s+position|in|out)\s*$/i);
+            if (match) {
+              position = match[1];
+              state = match[2];
+            }
+          }
+          position = /^bars$/i.test(position) ? 'Bars' : /^drops$/i.test(position) ? 'Drops' : '';
+          state = /^in(?:\s+position)?$/i.test(state) ? 'In' : /^(?:out|out\s+of\s+position)$/i.test(state) ? 'Out' : '';
+          if (position && state) category = `${position} - ${state === 'In' ? 'In position' : 'Out of position'}`;
+        }
+        if (!category) throw new Error(`Row ${rowIndex + 1} has an invalid position tag.`);
+
+        importedTags.push({
+          id: importedTags.length + 1,
+          videoSeconds,
+          riderId,
+          rider: riderName,
+          category
+        });
+      }
+      if (Number.isFinite(importedRaceBoundaries.start) && Number.isFinite(importedRaceBoundaries.end) && importedRaceBoundaries.end <= importedRaceBoundaries.start) {
+        throw new Error('End race must be after Start race.');
+      }
+      if (!importedTags.length && !importedFrontEvents.length && !importedRiders.some((rider) => Number.isFinite(rider.eliminationSeconds))
+        && !Number.isFinite(importedRaceBoundaries.start) && !Number.isFinite(importedRaceBoundaries.end)) {
+        throw new Error('CSV contains no tag rows.');
+      }
+      if (!importedRiders.length) importedRiders.push({ id: 1, name: 'Rider 1', placing: null, eliminationSeconds: null });
+      return { riders: importedRiders, tags: importedTags, frontEvents: importedFrontEvents, raceBoundaries: importedRaceBoundaries };
+    }
+    function getTagLabel(tag) {
+      return tag.category || `${tag.position} - ${tag.state === 'In' ? 'In position' : 'Out of position'}`;
+    }
+    function getRaceBounds() {
+      const videoEnd = Number.isFinite(video.duration) ? video.duration : Infinity;
+      const start = Number.isFinite(raceBoundaries.start) ? Math.min(raceBoundaries.start, videoEnd) : 0;
+      const end = Number.isFinite(raceBoundaries.end) ? Math.min(raceBoundaries.end, videoEnd) : videoEnd;
+      return { start, end };
+    }
+    function getRaceBoundaryEvents() {
+      return ['start', 'end'].filter((type) => Number.isFinite(raceBoundaries[type])).map((type) => ({
+        id: type === 'start' ? -2 : -1,
+        eventType: 'race_boundary',
+        boundaryType: type,
+        videoSeconds: raceBoundaries[type],
+        durationSeconds: null,
+        rider: 'Race',
+        label: `${type === 'start' ? 'Start' : 'End'} race`
+      }));
+    }
+    function getRiderEliminationEvents() {
+      return riders.filter((rider) => Number.isFinite(rider.eliminationSeconds)).map((rider) => ({
+        id: -1000 - rider.id,
+        eventType: 'rider_elimination',
+        videoSeconds: rider.eliminationSeconds,
+        durationSeconds: null,
+        riderId: rider.id,
+        rider: rider.name,
+        label: 'Eliminated'
+      }));
+    }
+    function getRiderRaceEnd(riderId) {
+      const { end } = getRaceBounds();
+      const eliminationSeconds = riders.find((rider) => rider.id === riderId)?.eliminationSeconds;
+      return Number.isFinite(eliminationSeconds) ? Math.min(end, eliminationSeconds) : end;
+    }
+    function getSortedTagsWithDurations() {
+      const sorted = [...tags].sort((a, b) => a.videoSeconds - b.videoSeconds || a.id - b.id);
+      const nextTagTimeById = new Map();
+      const lastTagByRider = new Map();
+      for (const tag of sorted) {
+        const previousTag = lastTagByRider.get(tag.riderId);
+        if (previousTag) nextTagTimeById.set(previousTag.id, tag.videoSeconds);
+        lastTagByRider.set(tag.riderId, tag);
+      }
+      const { start: raceStart } = getRaceBounds();
+      return sorted.map((tag) => {
+        const nextTagTime = nextTagTimeById.get(tag.id);
+        const riderEnd = getRiderRaceEnd(tag.riderId);
+        const intervalEnd = Number.isFinite(nextTagTime) ? Math.min(nextTagTime, riderEnd) : riderEnd;
+        let positionStartSeconds = Math.max(tag.videoSeconds, raceStart);
+        if (Number.isFinite(riderEnd)) positionStartSeconds = Math.min(positionStartSeconds, riderEnd);
+        const positionEndSeconds = Number.isFinite(intervalEnd) ? intervalEnd : null;
+        const boundedEnd = positionEndSeconds === null ? null : Math.max(positionStartSeconds, positionEndSeconds);
+        return {
+          ...tag,
+          positionStartSeconds,
+          positionEndSeconds: boundedEnd,
+          durationSeconds: boundedEnd === null ? null : boundedEnd - positionStartSeconds
+        };
+      });
+    }
+    function getSortedFrontEventsWithDurations() {
+      const sorted = [...frontEvents].sort((a, b) => a.videoSeconds - b.videoSeconds || a.id - b.id);
+      const stateByRider = new Map();
+      const startByRider = new Map();
+      const durations = new Map();
+      for (const event of sorted) {
+        const isFront = !(stateByRider.get(event.riderId) || false);
+        stateByRider.set(event.riderId, isFront);
+        event.isFront = isFront;
+        if (isFront) {
+          startByRider.set(event.riderId, event);
+        } else {
+          const startEvent = startByRider.get(event.riderId);
+          if (startEvent) durations.set(startEvent.id, Math.max(0, Math.min(event.videoSeconds, getRiderRaceEnd(event.riderId)) - startEvent.videoSeconds));
+          startByRider.delete(event.riderId);
+        }
+      }
+      for (const startEvent of startByRider.values()) {
+        const intervalEnd = Math.min(Number.isFinite(video.duration) ? video.duration : Infinity, getRiderRaceEnd(startEvent.riderId));
+        if (Number.isFinite(intervalEnd) && intervalEnd >= startEvent.videoSeconds) {
+          durations.set(startEvent.id, intervalEnd - startEvent.videoSeconds);
+        }
+      }
+      return sorted.map((event) => ({ ...event, durationSeconds: durations.get(event.id) ?? null }));
+    }
+    function getFrontIntervalsByRider() {
+      const intervals = new Map();
+      for (const event of getSortedFrontEventsWithDurations()) {
+        if (!event.isFront || !Number.isFinite(event.durationSeconds) || event.durationSeconds <= 0) continue;
+        const { start: raceStart, end: raceEnd } = getRaceBounds();
+        const start = Math.max(event.videoSeconds, raceStart);
+        const end = Math.min(event.videoSeconds + event.durationSeconds, raceEnd, getRiderRaceEnd(event.riderId));
+        if (end <= start) continue;
+        const riderIntervals = intervals.get(event.riderId) || [];
+        riderIntervals.push({ start, end });
+        intervals.set(event.riderId, riderIntervals);
+      }
+      return intervals;
+    }
+    function isRiderInFrontAt(riderId, seconds) {
+      const eliminationSeconds = riders.find((rider) => rider.id === riderId)?.eliminationSeconds;
+      if (Number.isFinite(eliminationSeconds) && seconds >= eliminationSeconds) return false;
+      let isFront = false;
+      for (const event of getSortedFrontEventsWithDurations()) {
+        if (event.riderId !== riderId) continue;
+        if (event.videoSeconds > seconds) break;
+        isFront = event.isFront;
+      }
+      return isFront;
+    }
+    function updateFrontStateDisplay() {
+      const riderId = Number(activeRiderSelect.value);
+      const rider = riders.find((item) => item.id === riderId);
+      const isEliminated = Number.isFinite(rider?.eliminationSeconds) && currentVideoTime() >= rider.eliminationSeconds;
+      const isFront = riderId ? isRiderInFrontAt(riderId, currentVideoTime()) : false;
+      const display = document.getElementById('frontStateDisplay');
+      display.textContent = `Current: ${isFront ? 'Front' : 'Bunch'}`;
+      display.classList.toggle('is-front', isFront);
+      const button = document.getElementById('frontToggleBtn');
+      button.disabled = !video.src || !riderId || isEliminated;
+      document.getElementById('eliminateRiderBtn').disabled = !video.src || !rider;
+      tagButtons.forEach((tagButton) => { tagButton.disabled = !video.src || isEliminated; });
+      button.setAttribute('aria-pressed', String(isFront));
+    }
+    function toggleFrontState() {
+      if (!video.src) return;
+      const rider = riders.find((item) => item.id === Number(activeRiderSelect.value));
+      if (!rider || (Number.isFinite(rider.eliminationSeconds) && currentVideoTime() >= rider.eliminationSeconds)) return;
+      const videoSeconds = currentVideoTime();
+      const isFront = !isRiderInFrontAt(rider.id, videoSeconds);
+      frontEvents.push({
+        id: nextFrontEventId++,
+        videoSeconds,
+        riderId: rider.id,
+        rider: rider.name,
+        isFront
+      });
+      renderTags();
+      setTagStatus(`${rider.name}: ${isFront ? 'Front' : 'Bunch'} at ${formatVideoTime(videoSeconds)}.`);
+    }
+    function eliminateActiveRider() {
+      if (!video.src) return;
+      const rider = riders.find((item) => item.id === Number(activeRiderSelect.value));
+      if (!rider) return;
+      rider.eliminationSeconds = currentVideoTime();
+      renderTags();
+      setTagStatus(`${rider.name} eliminated at ${formatVideoTime(rider.eliminationSeconds)}.`);
+    }
+    function setRaceBoundary(type) {
+      if (!video.src) return;
+      const videoSeconds = currentVideoTime();
+      if (type === 'start' && Number.isFinite(raceBoundaries.end) && videoSeconds >= raceBoundaries.end) {
+        setTagStatus('Start race must be before End race.');
+        return;
+      }
+      if (type === 'end' && Number.isFinite(raceBoundaries.start) && videoSeconds <= raceBoundaries.start) {
+        setTagStatus('End race must be after Start race.');
+        return;
+      }
+      raceBoundaries[type] = videoSeconds;
+      renderTags();
+      setTagStatus(`${type === 'start' ? 'Start' : 'End'} race set at ${formatVideoTime(videoSeconds)}.`);
+    }
+    function seekVideo(seconds) {
+      if (!video.src) return;
+      video.pause();
+      video.currentTime = Number.isFinite(video.duration)
+        ? Math.max(0, Math.min(seconds, video.duration))
+        : Math.max(0, seconds);
+      updateVideoTime();
+    }
+
+    function renderRiders(selectedId = Number(activeRiderSelect.value) || riders[0]?.id) {
+      const previousFitRiderId = Number(fitRiderSelect.value);
+      activeRiderSelect.replaceChildren();
+      fitRiderSelect.replaceChildren();
+      for (const rider of riders) {
+        const option = document.createElement('option');
+        option.value = String(rider.id);
+        option.textContent = rider.name;
+        activeRiderSelect.appendChild(option);
+        fitRiderSelect.add(new Option(rider.name, String(rider.id)));
+      }
+      const selected = riders.find((rider) => rider.id === selectedId) || riders[0];
+      const fitSelected = riders.find((rider) => rider.id === previousFitRiderId) || selected;
+      activeRiderSelect.disabled = !riders.length;
+      fitRiderSelect.disabled = !riders.length;
+      if (selected) {
+        activeRiderSelect.value = String(selected.id);
+        riderNameInput.value = selected.name;
+        riderPlacingInput.value = selected.placing ?? '';
+        document.getElementById('activeRiderPlacing').textContent = selected.placing ?? '';
+      } else {
+        riderNameInput.value = '';
+        riderPlacingInput.value = '';
+        document.getElementById('activeRiderPlacing').textContent = '';
+      }
+      if (fitSelected) {
+        fitRiderSelect.value = String(fitSelected.id);
+        for (const stream of fitStreams) stream.riderId = fitSelected.id;
+      }
+      document.getElementById('removeRiderBtn').disabled = riders.length <= 1;
+      drawFitPlot();
+    }
+
+    function renderTags() {
+      const sorted = [
+        ...getSortedTagsWithDurations().map((tag) => ({ ...tag, eventType: 'position', label: getTagLabel(tag) })),
+        ...getSortedFrontEventsWithDurations().map((event) => ({
+          ...event,
+          eventType: 'race_position',
+          label: event.isFront ? 'Front' : 'Bunch'
+        })),
+        ...getRaceBoundaryEvents(),
+        ...getRiderEliminationEvents()
+      ].sort((a, b) => a.videoSeconds - b.videoSeconds || a.id - b.id || a.eventType.localeCompare(b.eventType));
+      tagRows.replaceChildren();
+      if (sorted.length === 0) {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 5;
+        cell.className = 'empty-row';
+        cell.textContent = 'No events yet';
+        row.appendChild(cell);
+        tagRows.appendChild(row);
+      } else {
+        for (const tag of sorted) {
+          const row = document.createElement('tr');
+          const timeCell = document.createElement('td');
+          const timeLink = document.createElement('button');
+          timeLink.type = 'button';
+          timeLink.className = 'timestamp-link';
+          timeLink.textContent = formatVideoTime(tag.videoSeconds);
+          timeLink.setAttribute('aria-label', `Seek video to ${formatVideoTime(tag.videoSeconds)}`);
+          timeLink.addEventListener('click', () => seekVideo(tag.videoSeconds));
+          timeCell.appendChild(timeLink);
+          row.appendChild(timeCell);
+
+          const durationCell = document.createElement('td');
+          durationCell.textContent = Number.isFinite(tag.durationSeconds) ? formatVideoTime(tag.durationSeconds) : '\u2014';
+          row.appendChild(durationCell);
+
+          for (const value of [tag.rider, tag.label]) {
+            const cell = document.createElement('td');
+            cell.textContent = value;
+            row.appendChild(cell);
+          }
+          const actionCell = document.createElement('td');
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.className = 'row-delete';
+          remove.setAttribute('aria-label', `Delete ${tag.label} event for ${tag.rider} at ${formatVideoTime(tag.videoSeconds)}`);
+          remove.textContent = '\u00d7';
+          remove.addEventListener('click', () => {
+            if (tag.eventType === 'race_boundary') {
+              raceBoundaries[tag.boundaryType] = null;
+            } else if (tag.eventType === 'rider_elimination') {
+              const rider = riders.find((item) => item.id === tag.riderId);
+              if (rider) rider.eliminationSeconds = null;
+            } else {
+              const eventList = tag.eventType === 'position' ? tags : frontEvents;
+              const index = eventList.findIndex((item) => item.id === tag.id);
+              if (index >= 0) eventList.splice(index, 1);
+            }
+            renderTags();
+            updateFrontStateDisplay();
+            setTagStatus('Event deleted.');
+          });
+          actionCell.appendChild(remove);
+          row.appendChild(actionCell);
+          tagRows.appendChild(row);
+        }
+      }
+      const eventCount = tags.length + frontEvents.length + getRaceBoundaryEvents().length + getRiderEliminationEvents().length;
+      tagCount.textContent = `${eventCount} ${eventCount === 1 ? 'event' : 'events'}`;
+      document.getElementById('exportCsvBtn').disabled = eventCount === 0;
+      renderPositionAnalysis();
+      updateFrontStateDisplay();
+      drawFitPlot();
+    }
+
+    function getPositionRiders(sortedTags) {
+      const byId = new Map(riders.map((rider) => [rider.id, { id: rider.id, name: rider.name, placing: rider.placing }]));
+      for (const tag of sortedTags) {
+        if (!byId.has(tag.riderId)) byId.set(tag.riderId, { id: tag.riderId, name: tag.rider, placing: null });
+      }
+      for (const event of frontEvents) {
+        if (!byId.has(event.riderId)) byId.set(event.riderId, { id: event.riderId, name: event.rider, placing: null });
+      }
+      return [...byId.values()].sort((a, b) => {
+        const aPlacing = Number.isSafeInteger(a.placing) ? a.placing : Infinity;
+        const bPlacing = Number.isSafeInteger(b.placing) ? b.placing : Infinity;
+        return aPlacing - bPlacing || a.name.localeCompare(b.name);
+      });
+    }
+
+    function formatRiderHeading(rider) {
+      if (!Number.isSafeInteger(rider.placing)) return rider.name;
+      const lastTwoDigits = rider.placing % 100;
+      const suffix = lastTwoDigits >= 11 && lastTwoDigits <= 13
+        ? 'th'
+        : ({ 1: 'st', 2: 'nd', 3: 'rd' }[rider.placing % 10] || 'th');
+      return `${rider.placing}${suffix} · ${rider.name}`;
+    }
+
+    function renderCategoryLegend() {
+      const legend = document.createElement('div');
+      legend.className = 'category-legend';
+      for (const category of getAnalysisCategories()) {
+        const item = document.createElement('span');
+        const swatch = document.createElement('i');
+        swatch.style.backgroundColor = category.color;
+        item.append(swatch, document.createTextNode(category.label));
+        legend.appendChild(item);
+      }
+      const frontItem = document.createElement('span');
+      const frontSwatch = document.createElement('i');
+      frontSwatch.className = 'front-hatch-key';
+      frontItem.append(frontSwatch, document.createTextNode('Time in front'));
+      legend.appendChild(frontItem);
+      return legend;
+    }
+
+    function getAnalysisCategories() {
+      const categories = [...positionCategories];
+      const knownLabels = new Set(categories.map((category) => category.label.toLowerCase()));
+      for (const tag of tags) {
+        const label = getTagLabel(tag);
+        if (knownLabels.has(label.toLowerCase())) continue;
+        knownLabels.add(label.toLowerCase());
+        categories.push({ label, color: '#64748b' });
+      }
+      return categories;
+    }
+
+    function renderPositionAnalysis() {
+      const sortedTags = getSortedTagsWithDurations();
+      const categories = getAnalysisCategories();
+      const frontIntervalsByRider = getFrontIntervalsByRider();
+      const positionRiders = getPositionRiders(sortedTags);
+      const totalsByRider = new Map(positionRiders.map((rider) => [rider.id, new Map()]));
+      const frontTotalsByRider = new Map(positionRiders.map((rider) => [rider.id, new Map()]));
+      for (const tag of sortedTags) {
+        if (!Number.isFinite(tag.durationSeconds)) continue;
+        const riderTotals = totalsByRider.get(tag.riderId);
+        const categoryKey = getTagLabel(tag);
+        riderTotals.set(categoryKey, (riderTotals.get(categoryKey) || 0) + tag.durationSeconds);
+        const tagStart = tag.positionStartSeconds;
+        const tagEnd = tag.positionEndSeconds;
+        const frontSeconds = (frontIntervalsByRider.get(tag.riderId) || []).reduce((total, interval) => {
+          return total + Math.max(0, Math.min(tagEnd, interval.end) - Math.max(tagStart, interval.start));
+        }, 0);
+        const riderFrontTotals = frontTotalsByRider.get(tag.riderId);
+        riderFrontTotals.set(categoryKey, (riderFrontTotals.get(categoryKey) || 0) + frontSeconds);
+      }
+
+      positionBarGraph.replaceChildren();
+      positionGanttGraph.replaceChildren();
+      if (sortedTags.length === 0 && frontEvents.length === 0) {
+        for (const graph of [positionBarGraph, positionGanttGraph]) {
+          const empty = document.createElement('p');
+          empty.className = 'analysis-empty';
+          empty.textContent = 'Add position tags to build this chart.';
+          graph.appendChild(empty);
+        }
+        return;
+      }
+
+      const maximumTotal = Math.max(0, ...[...totalsByRider.values()].flatMap((values) => categories.map((category) => values.get(category.label) || 0)));
+      positionBarGraph.appendChild(renderCategoryLegend());
+      for (const rider of positionRiders) {
+        const riderBlock = document.createElement('section');
+        riderBlock.className = 'rider-bars';
+        const heading = document.createElement('h4');
+        heading.textContent = formatRiderHeading(rider);
+        riderBlock.appendChild(heading);
+        const riderTotals = totalsByRider.get(rider.id);
+        const riderFrontTotals = frontTotalsByRider.get(rider.id);
+        for (const category of categories) {
+          const categoryKey = category.label;
+          const total = riderTotals.get(categoryKey) || 0;
+          const frontTotal = riderFrontTotals.get(categoryKey) || 0;
+          const row = document.createElement('div');
+          row.className = 'bar-row';
+          const label = document.createElement('span');
+          label.className = 'bar-label';
+          label.textContent = category.label;
+          const track = document.createElement('div');
+          track.className = 'bar-track';
+          track.setAttribute('role', 'img');
+          track.setAttribute('aria-label', `${rider.name}: ${category.label}, ${formatVideoTime(total)} total, ${formatVideoTime(frontTotal)} in front`);
+          const fill = document.createElement('div');
+          fill.className = 'bar-fill';
+          fill.style.width = maximumTotal > 0 ? `${(total / maximumTotal) * 100}%` : '0%';
+          fill.style.backgroundColor = category.color;
+          track.appendChild(fill);
+          if (maximumTotal > 0 && frontTotal > 0) {
+            const frontHatch = document.createElement('span');
+            frontHatch.className = 'bar-front-hatch';
+            frontHatch.style.width = `${(frontTotal / maximumTotal) * 100}%`;
+            track.appendChild(frontHatch);
+          }
+          const value = document.createElement('span');
+          value.className = 'bar-value';
+          value.textContent = formatVideoTime(total);
+          row.append(label, track, value);
+          riderBlock.appendChild(row);
+        }
+        positionBarGraph.appendChild(riderBlock);
+      }
+
+      const videoDuration = Number.isFinite(video.duration) ? video.duration : 0;
+      if (videoDuration <= 0) {
+        const empty = document.createElement('p');
+        empty.className = 'analysis-empty';
+        empty.textContent = 'Video duration is not available for the timeline yet.';
+        positionGanttGraph.appendChild(empty);
+        return;
+      }
+      const { start: raceStart, end: raceEnd } = getRaceBounds();
+      const timelineStart = Math.max(0, Math.min(raceStart, videoDuration));
+      const timelineEnd = Math.max(timelineStart, Math.min(raceEnd, videoDuration));
+      const timelineSpan = timelineEnd - timelineStart;
+      if (timelineSpan <= 0) {
+        const empty = document.createElement('p');
+        empty.className = 'analysis-empty';
+        empty.textContent = 'The race window has no duration.';
+        positionGanttGraph.appendChild(empty);
+        return;
+      }
+
+      positionGanttGraph.appendChild(renderCategoryLegend());
+      for (const rider of positionRiders) {
+        const block = document.createElement('section');
+        block.className = 'gantt-rider';
+        const heading = document.createElement('h4');
+        heading.textContent = formatRiderHeading(rider);
+        block.appendChild(heading);
+        const axis = document.createElement('div');
+        axis.className = 'gantt-axis';
+        const axisLabel = document.createElement('span');
+        axisLabel.textContent = 'Video time';
+        const ticks = document.createElement('div');
+        ticks.className = 'gantt-ticks';
+        for (let tick = 0; tick <= 4; tick += 1) {
+          const tickLabel = document.createElement('span');
+          tickLabel.textContent = formatVideoTime(timelineStart + (timelineSpan * tick) / 4);
+          ticks.appendChild(tickLabel);
+        }
+        axis.append(axisLabel, ticks);
+        block.appendChild(axis);
+
+        for (const category of categories) {
+          const row = document.createElement('div');
+          row.className = 'gantt-row';
+          const label = document.createElement('span');
+          label.className = 'bar-label';
+          label.textContent = category.label;
+          const lane = document.createElement('div');
+          lane.className = 'gantt-lane';
+          for (const tag of sortedTags) {
+            if (tag.riderId !== rider.id || getTagLabel(tag) !== category.label || !Number.isFinite(tag.durationSeconds)) continue;
+            const start = Math.max(timelineStart, Math.min(tag.positionStartSeconds, timelineEnd));
+            const end = Math.max(start, Math.min(tag.positionEndSeconds, timelineEnd));
+            if (end <= start) continue;
+            const segment = document.createElement('button');
+            segment.type = 'button';
+            segment.className = 'gantt-segment';
+            segment.style.left = `${((start - timelineStart) / timelineSpan) * 100}%`;
+            segment.style.width = `${((end - start) / timelineSpan) * 100}%`;
+            segment.style.backgroundColor = category.color;
+            segment.title = `${rider.name}: ${category.label}, ${formatVideoTime(start)} to ${formatVideoTime(end)}`;
+            segment.setAttribute('aria-label', segment.title);
+            segment.addEventListener('click', () => seekVideo(start));
+            for (const interval of frontIntervalsByRider.get(rider.id) || []) {
+              const frontStart = Math.max(start, interval.start);
+              const frontEnd = Math.min(end, interval.end);
+              if (frontEnd <= frontStart) continue;
+              const hatch = document.createElement('span');
+              hatch.className = 'gantt-front-hatch';
+              hatch.style.left = `${((frontStart - start) / (end - start)) * 100}%`;
+              hatch.style.width = `${((frontEnd - frontStart) / (end - start)) * 100}%`;
+              segment.appendChild(hatch);
+            }
+            lane.appendChild(segment);
+          }
+          row.append(label, lane);
+          block.appendChild(row);
+        }
+        positionGanttGraph.appendChild(block);
+      }
+    }
+
+    function addTag(category) {
+      if (!video.src || !riders.length) return;
+      const rider = riders.find((item) => item.id === Number(activeRiderSelect.value));
+      if (!rider || (Number.isFinite(rider.eliminationSeconds) && currentVideoTime() >= rider.eliminationSeconds)) return;
+      const videoSeconds = currentVideoTime();
+      tags.push({ id: nextTagId++, videoSeconds, riderId: rider.id, rider: rider.name, category });
+      renderTags();
+      setTagStatus(`${rider.name}: ${category} at ${formatVideoTime(videoSeconds)}.`);
+    }
+
+    document.getElementById('addRiderBtn').addEventListener('click', () => {
+      const name = riderNameInput.value.trim();
+      const placingValue = riderPlacingInput.value.trim();
+      const placing = placingValue ? Number(placingValue) : null;
+      if (!name) {
+        riderNameInput.focus();
+        setTagStatus('Enter a rider name first.');
+        return;
+      }
+      if (placing !== null && (!Number.isSafeInteger(placing) || placing < 1)) {
+        riderPlacingInput.focus();
+        setTagStatus('Rider placing must be a positive whole number.');
+        return;
+      }
+      const existing = riders.find((rider) => rider.name.toLowerCase() === name.toLowerCase());
+      if (existing) {
+        renderRiders(existing.id);
+        setTagStatus('That rider is already in the list.');
+        return;
+      }
+      const rider = { id: nextRiderId++, name, placing };
+      riders.push(rider);
+      renderRiders(rider.id);
+      riderNameInput.value = '';
+      riderPlacingInput.value = '';
+      renderPositionAnalysis();
+      setTagStatus(`${name} added.`);
+    });
+
+    document.getElementById('renameRiderBtn').addEventListener('click', () => {
+      const rider = riders.find((item) => item.id === Number(activeRiderSelect.value));
+      const nextName = riderNameInput.value.trim();
+      if (!rider || !nextName) {
+        setTagStatus('Enter a rider name first.');
+        return;
+      }
+      if (riders.some((item) => item.id !== rider.id && item.name.toLowerCase() === nextName.toLowerCase())) {
+        setTagStatus('That rider name is already in the list.');
+        return;
+      }
+      const previousName = rider.name;
+      rider.name = nextName;
+      for (const tag of tags) {
+        if (tag.riderId === rider.id) tag.rider = nextName;
+      }
+      for (const event of frontEvents) {
+        if (event.riderId === rider.id) event.rider = nextName;
+      }
+      renderRiders(rider.id);
+      renderTags();
+      setTagStatus(`${previousName} renamed to ${nextName}.`);
+    });
+
+    riderPlacingInput.addEventListener('change', () => {
+      const rider = riders.find((item) => item.id === Number(activeRiderSelect.value));
+      if (!rider || riderNameInput.value.trim().toLocaleLowerCase() !== rider.name.toLocaleLowerCase()) return;
+      const value = riderPlacingInput.value.trim();
+      const placing = value ? Number(value) : null;
+      if (placing !== null && (!Number.isSafeInteger(placing) || placing < 1)) {
+        riderPlacingInput.value = rider.placing ?? '';
+        setTagStatus('Rider placing must be a positive whole number.');
+        return;
+      }
+      rider.placing = placing;
+      document.getElementById('activeRiderPlacing').textContent = placing ?? '';
+      renderPositionAnalysis();
+    });
+
+    document.getElementById('removeRiderBtn').addEventListener('click', () => {
+      if (riders.length <= 1) return;
+      const riderId = Number(activeRiderSelect.value);
+      const riderIndex = riders.findIndex((rider) => rider.id === riderId);
+      if (riderIndex < 0) return;
+      const [removed] = riders.splice(riderIndex, 1);
+      const next = riders[Math.max(0, riderIndex - 1)];
+      renderRiders(next.id);
+      renderPositionAnalysis();
+      setTagStatus(`${removed.name} removed. Existing tags are kept.`);
+    });
+
+    activeRiderSelect.addEventListener('change', () => {
+      const rider = riders.find((item) => item.id === Number(activeRiderSelect.value));
+      riderNameInput.value = rider?.name || '';
+      riderPlacingInput.value = rider?.placing ?? '';
+      document.getElementById('activeRiderPlacing').textContent = rider?.placing ?? '';
+      updateFrontStateDisplay();
+      drawFitPlot();
+    });
+
+    tagButtons.forEach((button) => {
+      button.addEventListener('click', () => addTag(button.dataset.category));
+    });
+    document.getElementById('raceStartBtn').addEventListener('click', () => setRaceBoundary('start'));
+    document.getElementById('raceEndBtn').addEventListener('click', () => setRaceBoundary('end'));
+    document.getElementById('eliminateRiderBtn').addEventListener('click', eliminateActiveRider);
+    document.getElementById('frontToggleBtn').addEventListener('click', toggleFrontState);
+
+    document.getElementById('importCsvBtn').addEventListener('click', () => importCsvInput.click());
+    importCsvInput.addEventListener('change', async () => {
+      const file = importCsvInput.files?.[0];
+      if (!file) return;
+      try {
+        const imported = parseTagCsv(await file.text());
+        if ((tags.length || frontEvents.length || getRaceBoundaryEvents().length || getRiderEliminationEvents().length)
+          && !window.confirm('Loading this CSV will replace the current riders and tags. Continue?')) return;
+        tags.splice(0, tags.length, ...imported.tags);
+        frontEvents.splice(0, frontEvents.length, ...imported.frontEvents);
+        raceBoundaries.start = imported.raceBoundaries.start;
+        raceBoundaries.end = imported.raceBoundaries.end;
+        riders.splice(0, riders.length, ...imported.riders);
+        nextTagId = imported.tags.length + 1;
+        nextFrontEventId = imported.frontEvents.length + 1;
+        nextRiderId = imported.riders.length + 1;
+        renderRiders(imported.riders[0]?.id);
+        renderTags();
+        setTagStatus(`Loaded ${imported.tags.length} position tags, ${imported.frontEvents.length} Front/Bunch events, and ${getRaceBoundaryEvents().length} race boundaries from ${file.name}.`);
+      } catch (error) {
+        setTagStatus(`CSV not loaded: ${error.message || error}`);
+      } finally {
+        importCsvInput.value = '';
+      }
+    });
+
+    document.getElementById('exportCsvBtn').addEventListener('click', () => {
+      if (!tags.length && !frontEvents.length && !getRaceBoundaryEvents().length && !getRiderEliminationEvents().length) return;
+      const headers = ['video_seconds', 'video_time', 'duration_seconds', 'duration', 'rider', 'placing', 'tag', 'event_type'];
+      const allEvents = [
+        ...getSortedTagsWithDurations().map((tag) => ({ ...tag, eventType: 'position', label: getTagLabel(tag) })),
+        ...getSortedFrontEventsWithDurations().map((event) => ({
+          ...event,
+          eventType: 'race_position',
+          label: event.isFront ? 'Front' : 'Bunch'
+        })),
+        ...getRaceBoundaryEvents().map((event) => ({
+          ...event,
+          eventType: event.boundaryType === 'start' ? 'race_start' : 'race_end'
+        })),
+        ...getRiderEliminationEvents()
+      ].sort((a, b) => a.videoSeconds - b.videoSeconds || a.id - b.id || a.eventType.localeCompare(b.eventType));
+      const rows = allEvents.map((event) => [
+        event.videoSeconds.toFixed(3),
+        formatVideoTime(event.videoSeconds),
+        Number.isFinite(event.durationSeconds) ? event.durationSeconds.toFixed(3) : '',
+        Number.isFinite(event.durationSeconds) ? formatVideoTime(event.durationSeconds) : '',
+        event.rider,
+        riders.find((rider) => rider.id === event.riderId)?.placing ?? '',
+        event.label,
+        event.eventType
+      ]);
+      const csv = [headers, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\r\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const base = (videoNameDisplay.textContent.replace(/\.[^.]+$/, '') || 'race-position-tags').replace(/[^a-z0-9_-]+/gi, '_');
+      link.href = url;
+      link.download = `${base}_position_tags.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    });
+
+    videoInput.addEventListener('change', () => {
+      const file = videoInput.files?.[0];
+      if (!file) return;
+      const hasExistingEvents = tags.length > 0 || frontEvents.length > 0 || getRaceBoundaryEvents().length > 0;
+      if (videoObjectUrl) URL.revokeObjectURL(videoObjectUrl);
+      videoObjectUrl = URL.createObjectURL(file);
+      video.src = videoObjectUrl;
+      video.load();
+      videoNameDisplay.textContent = file.name;
+      tagButtons.forEach((button) => { button.disabled = false; });
+      document.getElementById('raceStartBtn').disabled = false;
+      document.getElementById('raceEndBtn').disabled = false;
+      updateFrontStateDisplay();
+      setTagStatus(hasExistingEvents
+        ? 'Video loaded. Existing CSV events were kept.'
+        : 'Video ready. Select a rider and tag the current playhead.');
+      updateVideoTime();
+    });
+
+    function updateVideoTime() {
+      videoTimeDisplay.textContent = formatVideoTime(currentVideoTime());
+      document.getElementById('fitVideoTimeValue').textContent = `${currentVideoTime().toFixed(3)}s`;
+      document.getElementById('fitVideoFpsValue').textContent = `${Math.max(1, Number(videoFpsInput.value) || 50)} fps`;
+      drawFitPlot();
+      updateFrontStateDisplay();
+    }
+    video.addEventListener('timeupdate', updateVideoTime);
+    video.addEventListener('seeked', () => {
+      updateVideoTime();
+      video.blur();
+    });
+    video.addEventListener('loadedmetadata', () => {
+      updateVideoTime();
+      renderTags();
+    });
+    video.addEventListener('durationchange', renderTags);
+
+    function toNumber(value) {
+      if (typeof value === 'string' && value.trim() === '') return null;
+      const number = Number(value);
+      return Number.isFinite(number) ? number : null;
+    }
+    function toTimestampSeconds(value) {
+      if (value instanceof Date) return value.getTime() / 1000;
+      if (typeof value === 'string') {
+        const parsed = Date.parse(value);
+        if (Number.isFinite(parsed)) return parsed / 1000;
+      }
+      const number = toNumber(value);
+      if (number === null) return null;
+      if (number > 1e12) return number / 1000;
+      return number;
+    }
+    async function ensureFitParserLoaded() {
+      if (fitParserClass) return fitParserClass;
+      const urls = [
+        'https://cdn.jsdelivr.net/npm/fit-file-parser@2.3.3/+esm',
+        'https://esm.sh/fit-file-parser@2.3.3'
+      ];
+      let lastError = null;
+      for (const url of urls) {
+        try {
+          const module = await import(url);
+          fitParserClass = module.default || module.FitParser || null;
+          if (fitParserClass) return fitParserClass;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      throw lastError || new Error('Unable to load FIT parser module.');
+    }
+    async function parseFitArrayBuffer(buffer) {
+      const Parser = await ensureFitParserLoaded();
+      return new Promise((resolve, reject) => {
+        const parser = new Parser({
+          force: true,
+          speedUnit: 'm/s',
+          lengthUnit: 'm',
+          temperatureUnit: 'celsius',
+          elapsedRecordField: true,
+          mode: 'both'
+        });
+        parser.parse(new Uint8Array(buffer), (error, data) => {
+          if (error) reject(error);
+          else resolve(data || {});
+        });
+      });
+    }
+    function extractFitRecords(data) {
+      if (!data || typeof data !== 'object') return [];
+      if (Array.isArray(data.records) && data.records.length) return data.records;
+      const records = [];
+      const pushRecords = (candidate) => { if (Array.isArray(candidate)) records.push(...candidate); };
+      for (const session of data.activity?.sessions || data.sessions || []) {
+        pushRecords(session.records);
+        for (const lap of session.laps || []) pushRecords(lap.records);
+      }
+      for (const lap of data.laps || []) pushRecords(lap.records);
+      return records;
+    }
+    function normalizeFitRecords(records) {
+      const rows = [];
+      for (const record of records) {
+        if (!record || typeof record !== 'object') continue;
+        const rawTime = record.timestamp ?? record.enhanced_timestamp ?? record.local_timestamp ?? record.time;
+        const time = toTimestampSeconds(rawTime);
+        if (time === null) continue;
+        const row = { Time: time };
+        for (const [key, value] of Object.entries(record)) {
+          if (['timestamp', 'enhanced_timestamp', 'local_timestamp', 'time'].includes(key)) continue;
+          const numeric = toNumber(value);
+          if (numeric !== null) row[key] = numeric;
+        }
+        rows.push(row);
+      }
+      rows.sort((a, b) => a.Time - b.Time);
+      if (rows.some((row) => row.power != null && row.cadence != null)) {
+        for (const row of rows) {
+          if (row.power != null && row.cadence != null) {
+            row.torque = row.power > 0 && row.cadence > 0 ? (row.power * 60) / (2 * Math.PI * row.cadence) : 0;
+          }
+        }
+      }
+      return rows;
+    }
+    function commonMetricColumns() {
+      if (!fitStreams.length) return [];
+      return fitStreams.slice(1).reduce((common, stream) => {
+        const keys = new Set(stream.metricColumns);
+        return common.filter((key) => keys.has(key));
+      }, [...fitStreams[0].metricColumns]).sort((a, b) => a.localeCompare(b));
+    }
+    function populateMetrics(previous = '') {
+      const metrics = commonMetricColumns();
+      metricSelect.replaceChildren(new Option('Select metric', ''));
+      for (const metric of metrics) metricSelect.add(new Option(metric, metric));
+      metricSelect.disabled = metrics.length === 0;
+      if (metrics.includes(previous)) metricSelect.value = previous;
+      if (!metricSelect.value && metrics.includes('power')) metricSelect.value = 'power';
+      renderFitFiles();
+      updateFitStats();
+      drawFitPlot();
+    }
+    function renderFitFiles() {
+      fitFileList.replaceChildren();
+      fitSyncTargets.replaceChildren();
+      if (!fitStreams.length) {
+        const item = document.createElement('li');
+        item.textContent = 'No FIT files loaded';
+        fitFileList.appendChild(item);
+        return;
+      }
+      fitStreams.forEach((stream, streamIndex) => {
+        const swatch = document.createElement('span');
+        swatch.className = 'fit-stream-swatch';
+        swatch.style.backgroundColor = riderPalette[streamIndex % riderPalette.length];
+        const label = document.createElement('span');
+        label.textContent = stream.fileName;
+        const legendItem = document.createElement('li');
+        legendItem.append(swatch, label);
+        legendItem.title = `${stream.rows.length} records; trace offset ${stream.offset.toFixed(3)}s`;
+        fitFileList.appendChild(legendItem);
+
+        const target = document.createElement('button');
+        target.type = 'button';
+        target.className = `fit-target-btn${stream.syncEnabled ? ' active' : ''}`;
+        target.textContent = stream.fileName;
+        target.setAttribute('aria-pressed', String(stream.syncEnabled));
+        target.setAttribute('aria-label', `${stream.syncEnabled ? 'Disable' : 'Enable'} sync for ${stream.fileName}`);
+        target.title = `Toggle alignment for ${stream.fileName}`;
+        target.addEventListener('click', () => {
+          stream.syncEnabled = !stream.syncEnabled;
+          renderFitFiles();
+        });
+        fitSyncTargets.appendChild(target);
+      });
+    }
+    function readSavedFitSyncs() {
+      let entries = [];
+      try {
+        const saved = JSON.parse(localStorage.getItem(fitSyncStorageKey) || '{}');
+        if (saved?.version === 1 && Array.isArray(saved.files)) entries = saved.files;
+      } catch {}
+      for (const entry of pendingFitSyncs) {
+        const existingIndex = entries.findIndex((item) => String(item.fileName || '').toLocaleLowerCase() === String(entry.fileName || '').toLocaleLowerCase()
+          && item.fileSize === entry.fileSize);
+        if (existingIndex >= 0) entries[existingIndex] = entry;
+        else entries.push(entry);
+      }
+      return entries;
+    }
+    function findSavedFitSync(entries, fileName, fileSize) {
+      const normalizedName = String(fileName).toLocaleLowerCase();
+      const namedEntries = entries.filter((entry) => String(entry.fileName || '').toLocaleLowerCase() === normalizedName);
+      return namedEntries.find((entry) => Number.isFinite(entry.fileSize) && entry.fileSize === fileSize)
+        || namedEntries.find((entry) => !Number.isFinite(entry.fileSize));
+    }
+    function cacheFitSyncPayload(payload) {
+      const entries = readSavedFitSyncs();
+      for (const entry of payload.files) {
+        const normalizedName = String(entry.fileName).toLocaleLowerCase();
+        const matchingIndices = entries.map((saved, index) => ({ saved, index }))
+          .filter(({ saved }) => String(saved.fileName || '').toLocaleLowerCase() === normalizedName
+            && (!Number.isFinite(saved.fileSize) || !Number.isFinite(entry.fileSize) || saved.fileSize === entry.fileSize))
+          .map(({ index }) => index);
+        for (const index of matchingIndices.reverse()) entries.splice(index, 1);
+        entries.push(entry);
+      }
+      pendingFitSyncs.splice(0, pendingFitSyncs.length, ...entries);
+      try {
+        const storedEntries = entries.map(({ rows, ...entry }) => entry);
+        localStorage.setItem(fitSyncStorageKey, JSON.stringify({ version: 1, files: storedEntries }));
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    function applyFitSyncPayload(payload) {
+      if (!payload || payload.format !== 'race-position-tagger-fit-sync' || payload.version !== 1 || !Array.isArray(payload.files)) {
+        throw new Error('Saved FIT sync file format not recognised.');
+      }
+      const validEntries = payload.files.filter((entry) => entry && typeof entry.fileName === 'string'
+        && Number.isFinite(entry.offset)
+        && (entry.fileSize == null || (Number.isFinite(entry.fileSize) && entry.fileSize >= 0)));
+      if (!validEntries.length) throw new Error('Saved FIT sync file contains no valid entries.');
+      const normalizedPayload = { ...payload, files: validEntries };
+      cacheFitSyncPayload(normalizedPayload);
+      const currentMatch = validEntries.map((entry) => ({
+        entry,
+        stream: fitStreams.find((candidate) => findSavedFitSync([entry], candidate.fileName, candidate.fileSize))
+      })).find((match) => match.stream);
+      const entry = currentMatch?.entry || validEntries[0];
+      let stream = currentMatch?.stream || null;
+      if (stream) {
+        stream.offset = entry.offset;
+        stream.syncEnabled = entry.syncEnabled !== false;
+        if (riders.some((rider) => rider.id === entry.riderId)) stream.riderId = entry.riderId;
+      } else if (Array.isArray(entry.rows) && entry.rows.length >= 2) {
+        const rows = entry.rows.filter((row) => row && Number.isFinite(row.Time));
+        if (rows.length >= 2) {
+          const baseTime = Number.isFinite(entry.baseTime) ? entry.baseTime : rows[0].Time;
+          const metricColumns = Array.isArray(entry.metricColumns)
+            ? entry.metricColumns.filter((metric) => rows.some((row) => Number.isFinite(row[metric])))
+            : [...new Set(rows.flatMap((row) => Object.keys(row)))].filter((metric) => metric !== 'Time' && rows.some((row) => Number.isFinite(row[metric])));
+          stream = {
+            fileName: entry.fileName,
+            fileSize: Number.isFinite(entry.fileSize) ? entry.fileSize : 0,
+            rows,
+            baseTime,
+            metricColumns,
+            samplingHz: Number.isFinite(entry.samplingHz) ? entry.samplingHz : null,
+            offset: entry.offset,
+            riderId: riders.some((rider) => rider.id === entry.riderId) ? entry.riderId : Number(payload.riderId) || riders[0]?.id,
+            syncEnabled: entry.syncEnabled !== false
+          };
+        }
+      }
+      const restoredCount = stream ? 1 : 0;
+      if (stream) fitStreams.splice(0, fitStreams.length, stream);
+      if (riders.some((rider) => rider.id === payload.riderId)) fitRiderSelect.value = String(payload.riderId);
+      if (restoredCount) populateMetrics(payload.metric || metricSelect.value);
+      if (payload.metric && [...metricSelect.options].some((option) => option.value === payload.metric)) metricSelect.value = payload.metric;
+      updateFitStats();
+      drawFitPlot();
+      return restoredCount;
+    }
+    async function loadFitFiles(files) {
+      const previousMetric = metricSelect.value;
+      fitStreams.length = 0;
+      metricSelect.disabled = true;
+      setFitStatus('Loading FIT parser and reading file(s)...');
+      const failures = [];
+      const savedSyncs = readSavedFitSyncs();
+      let restoredRiderId = null;
+      let restoredCount = 0;
+      for (const file of files.slice(0, 1)) {
+        try {
+          const fitData = await parseFitArrayBuffer(await file.arrayBuffer());
+          const rows = normalizeFitRecords(extractFitRecords(fitData));
+          if (rows.length < 2) throw new Error('No usable timestamp series.');
+          const baseTime = rows[0].Time;
+          const samples = [];
+          for (let index = 1; index < rows.length; index += 1) {
+            const delta = rows[index].Time - rows[index - 1].Time;
+            if (delta > 0) samples.push(delta);
+          }
+          const columns = new Set(rows.flatMap((row) => Object.keys(row)));
+          const metricColumns = [...columns].filter((key) => key !== 'Time' && rows.some((row) => Number.isFinite(row[key])));
+          const savedSync = findSavedFitSync(savedSyncs, file.name, file.size);
+          const hasSavedSync = savedSync && Number.isFinite(savedSync.offset);
+          const savedRiderId = hasSavedSync && riders.some((rider) => rider.id === savedSync.riderId) ? savedSync.riderId : null;
+          if (hasSavedSync) restoredCount += 1;
+          if (savedRiderId !== null && restoredRiderId === null) restoredRiderId = savedRiderId;
+          fitStreams.push({
+            fileName: file.name,
+            fileSize: file.size,
+            rows,
+            baseTime,
+            riderId: savedRiderId ?? Number(fitRiderSelect.value) ?? riders[0]?.id,
+            metricColumns,
+            samplingHz: samples.length ? 1 / (samples.reduce((sum, value) => sum + value, 0) / samples.length) : null,
+            offset: hasSavedSync ? savedSync.offset : 0,
+            syncEnabled: hasSavedSync ? savedSync.syncEnabled !== false : true
+          });
+        } catch (error) {
+          console.error(`Failed parsing ${file.name}`, error);
+          failures.push(file.name);
+        }
+      }
+      if (restoredRiderId !== null) fitRiderSelect.value = String(restoredRiderId);
+      populateMetrics(previousMetric);
+      if (fitStreams.length) {
+        const count = fitStreams.length;
+        const restoredMessage = restoredCount ? ` Restored sync for ${restoredCount} ${restoredCount === 1 ? 'matching file' : 'matching files'}.` : '';
+        setFitStatus(`${count} FIT ${count === 1 ? 'file' : 'files'} loaded.${restoredMessage}${failures.length ? ` Could not read: ${failures.join(', ')}.` : ' Choose a shared metric to plot.'}`, failures.length ? 'warn' : 'ok');
+      } else {
+        setFitStatus('No readable FIT streams were found. Check the files and try again.');
+      }
+    }
+    fitInput.addEventListener('change', async () => {
+      const files = [...(fitInput.files || [])];
+      if (!files.length) return;
+      try {
+        await loadFitFiles(files);
+      } catch (error) {
+        console.error(error);
+        setFitStatus(`FIT loading failed: ${error.message || error}`);
+      }
+    });
+    saveFitSyncBtn.addEventListener('click', () => {
+      if (!fitStreams.length) {
+        setFitStatus('Load FIT files and align them before saving sync.');
+        return;
+      }
+      const payload = {
+        format: 'race-position-tagger-fit-sync',
+        version: 1,
+        savedAt: new Date().toISOString(),
+        videoName: videoNameDisplay.textContent,
+        riderId: Number(fitRiderSelect.value) || null,
+        metric: metricSelect.value,
+        files: fitStreams.map((stream) => ({
+          fileName: stream.fileName,
+          fileSize: stream.fileSize,
+          baseTime: stream.baseTime,
+          metricColumns: stream.metricColumns,
+          samplingHz: stream.samplingHz,
+          rows: stream.rows,
+          offset: Number.isFinite(stream.offset) ? stream.offset : 0,
+          riderId: stream.riderId,
+          syncEnabled: stream.syncEnabled
+        }))
+      };
+      const cached = cacheFitSyncPayload(payload);
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const base = (videoNameDisplay.textContent.replace(/\.[^.]+$/, '') || 'race').replace(/[^a-z0-9_-]+/gi, '_');
+      link.href = url;
+      link.download = `${base}_fit_sync.sync`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setFitStatus(cached ? 'FIT sync saved. Matching files will restore automatically on this device.' : 'FIT sync file downloaded; local auto-restore was unavailable.', 'ok');
+    });
+    loadFitSyncBtn.addEventListener('click', () => fitSyncInput.click());
+    fitSyncInput.addEventListener('change', async () => {
+      const file = fitSyncInput.files?.[0];
+      if (!file) return;
+      try {
+        const payload = JSON.parse(await file.text());
+        const restoredCount = applyFitSyncPayload(payload);
+        setFitStatus(restoredCount
+          ? `Loaded saved sync and restored ${restoredCount} matching FIT ${restoredCount === 1 ? 'file' : 'files'}.`
+          : 'Saved sync loaded. Upload its matching FIT file(s) to restore alignment.', 'ok');
+      } catch (error) {
+        console.error(error);
+        setFitStatus(`Saved FIT sync not loaded: ${error.message || error}`);
+      } finally {
+        fitSyncInput.value = '';
+      }
+    });
+    metricSelect.addEventListener('change', drawFitPlot);
+    fitRiderSelect.addEventListener('change', () => {
+      const riderId = Number(fitRiderSelect.value);
+      for (const stream of fitStreams) stream.riderId = riderId;
+      drawFitPlot();
+    });
+    fitScale.addEventListener('input', () => {
+      document.getElementById('fitScaleValue').textContent = `${fitScale.value}%`;
+      drawFitPlot();
+    });
+    fitSensitivity.addEventListener('input', () => {
+      document.getElementById('fitSensitivityValue').textContent = `${(Number(fitSensitivity.value) / 100).toFixed(2)}x`;
+    });
+    document.addEventListener('wheel', () => {
+      if (document.activeElement === fitScale || document.activeElement === fitSensitivity) document.activeElement.blur();
+    }, { capture: true, passive: true });
+    videoFpsInput.addEventListener('input', updateVideoTime);
+    document.getElementById('fitSnapBtn').addEventListener('click', () => {
+      const selectedStreams = fitStreams.filter((stream) => stream.syncEnabled);
+      if (!selectedStreams.length) {
+        setFitStatus('Select at least one FIT file in the legend before snapping.');
+        return;
+      }
+      const playhead = currentVideoTime();
+      for (const stream of selectedStreams) {
+        let closestTime = stream.rows[0].Time;
+        let closestDistance = Infinity;
+        for (const row of stream.rows) {
+          const videoTime = row.Time - stream.baseTime + stream.offset;
+          const distance = Math.abs(videoTime - playhead);
+          if (distance < closestDistance) {
+            closestDistance = distance;
+            closestTime = row.Time;
+          }
+        }
+        stream.offset = playhead - (closestTime - stream.baseTime);
+      }
+      updateFitStats();
+      drawFitPlot();
+      setFitStatus(`Snapped ${selectedStreams.length} FIT ${selectedStreams.length === 1 ? 'file' : 'files'} to the video playhead.`, 'ok');
+    });
+
+    function updateFitStats() {
+      const samples = fitStreams.map((stream) => stream.samplingHz).filter(Number.isFinite);
+      if (samples.length) {
+        const min = Math.min(...samples);
+        const max = Math.max(...samples);
+        document.getElementById('samplingHz').textContent = Math.abs(max - min) < 1e-6 ? `${min.toFixed(2)} Hz` : `${min.toFixed(2)}-${max.toFixed(2)} Hz`;
+      } else {
+        document.getElementById('samplingHz').textContent = '-';
+      }
+      const offsets = fitStreams.map((stream) => stream.offset);
+      const offsetText = !offsets.length ? '0.000s' : offsets.every((value) => Math.abs(value - offsets[0]) < 1e-6) ? `${offsets[0].toFixed(3)}s` : 'mixed';
+      document.getElementById('traceOffset').textContent = offsetText;
+      renderFitFiles();
+    }
+
+    function drawFitPlot() {
+      const bounds = fitPlot.getBoundingClientRect();
+      fitDrawingData = null;
+      if (bounds.width < 2) return;
+      const ratio = window.devicePixelRatio || 1;
+      fitPlot.width = Math.round(bounds.width * ratio);
+      fitPlot.height = Math.round(bounds.height * ratio);
+      fitContext.setTransform(ratio, 0, 0, ratio, 0, 0);
+      const width = bounds.width;
+      const height = bounds.height;
+      fitContext.clearRect(0, 0, width, height);
+      document.getElementById('fitCurrentValues').textContent = 'Values @ playhead: -';
+      fitContext.fillStyle = '#fff';
+      fitContext.fillRect(0, 0, width, height);
+
+      const left = 58;
+      const right = 16;
+      const top = 14;
+      const bottom = 26;
+      const plotWidth = Math.max(1, width - left - right);
+      const plotHeight = Math.max(1, height - top - bottom);
+      const metric = metricSelect.value;
+      const playhead = currentVideoTime();
+      const pointsByStream = fitStreams.map((stream) => stream.rows
+        .map((row) => ({ time: row.Time - stream.baseTime + stream.offset, value: row[metric] }))
+        .filter((point) => Number.isFinite(point.value)));
+      const allValues = pointsByStream.flatMap((points) => points.map((point) => point.value));
+      const allTimes = pointsByStream.flatMap((points) => points.map((point) => point.time));
+      const minDisplayTime = allTimes.length ? Math.min(...allTimes) : 0;
+      const maxDisplayTime = allTimes.length ? Math.max(...allTimes) : 1;
+      const baseSpan = Math.max(0.01, maxDisplayTime - minDisplayTime);
+      const visibleSpan = Math.max(0.01, baseSpan * Number(fitScale.value) / 100);
+      const minTime = playhead - visibleSpan / 2;
+      const maxTime = playhead + visibleSpan / 2;
+      let minValue = allValues.length ? Math.min(...allValues) : 0;
+      let maxValue = allValues.length ? Math.max(...allValues) : 1;
+      if (minValue === maxValue) {
+        const padding = Math.abs(minValue) * 0.05 || 1;
+        minValue -= padding;
+        maxValue += padding;
+      } else {
+        const padding = (maxValue - minValue) * 0.08;
+        minValue -= padding;
+        maxValue += padding;
+      }
+      const x = (time) => left + ((time - minTime) / Math.max(0.01, maxTime - minTime)) * plotWidth;
+      const y = (value) => top + (1 - (value - minValue) / Math.max(0.01, maxValue - minValue)) * plotHeight;
+      fitDrawingData = { visibleSpan, plotWidth };
+
+      const fitRiderId = Number(fitRiderSelect.value);
+      if (fitRiderId) {
+        const riderFrontEvents = getSortedFrontEventsWithDurations().filter((event) => event.riderId === fitRiderId);
+        const frontBoundaries = riderFrontEvents.map((event) => event.videoSeconds);
+        for (const tag of getSortedTagsWithDurations()) {
+          if (tag.riderId !== fitRiderId) continue;
+          const tagEnd = Number.isFinite(tag.positionEndSeconds)
+            ? tag.positionEndSeconds
+            : Number.isFinite(video.duration) ? video.duration : maxTime;
+          const segmentStart = Math.max(minTime, tag.positionStartSeconds);
+          const segmentEnd = Math.min(maxTime, tagEnd);
+          if (segmentEnd <= segmentStart) continue;
+          const boundaries = [
+            segmentStart,
+            ...frontBoundaries.filter((time) => time > segmentStart && time < segmentEnd),
+            segmentEnd
+          ].sort((a, b) => a - b);
+          const categoryColors = positionBandColors[getTagLabel(tag)];
+          if (!categoryColors) continue;
+          for (let index = 0; index < boundaries.length - 1; index += 1) {
+            const start = boundaries[index];
+            const end = boundaries[index + 1];
+            const isFront = isRiderInFrontAt(fitRiderId, (start + end) / 2);
+            fitContext.fillStyle = categoryColors[isFront ? 'front' : 'bunch'];
+            fitContext.fillRect(x(start), top, Math.max(0, x(end) - x(start)), plotHeight);
+          }
+        }
+      }
+
+      fitContext.strokeStyle = 'rgba(31, 41, 55, 0.15)';
+      fitContext.lineWidth = 1;
+      for (let tick = 0; tick <= 4; tick += 1) {
+        const py = top + (plotHeight * tick) / 4;
+        fitContext.beginPath(); fitContext.moveTo(left, py); fitContext.lineTo(width - right, py); fitContext.stroke();
+      }
+
+      if (!metric || !fitStreams.length) {
+        fitContext.fillStyle = '#64748b';
+        fitContext.font = '14px Trebuchet MS, sans-serif';
+        fitContext.fillText('Load a FIT file and choose a metric to draw the trace.', 14, 28);
+        return;
+      }
+
+      pointsByStream.forEach((points, streamIndex) => {
+        if (!points.length) return;
+        fitContext.beginPath();
+        fitContext.strokeStyle = riderPalette[streamIndex % riderPalette.length];
+        fitContext.lineWidth = 1.8;
+        points.forEach((point, index) => {
+          if (index === 0) fitContext.moveTo(x(point.time), y(point.value));
+          else fitContext.lineTo(x(point.time), y(point.value));
+        });
+        fitContext.stroke();
+      });
+
+      fitContext.strokeStyle = '#111827';
+      fitContext.lineWidth = 1;
+      fitContext.beginPath();
+      fitContext.moveTo(left, top);
+      fitContext.lineTo(left, top + plotHeight);
+      fitContext.lineTo(left + plotWidth, top + plotHeight);
+      fitContext.stroke();
+      fitContext.fillStyle = '#374151';
+      fitContext.font = '12px sans-serif';
+      fitContext.fillText(maxValue.toFixed(2), 8, top + 4);
+      fitContext.fillText(minValue.toFixed(2), 8, top + plotHeight + 4);
+      fitContext.fillText(`${minTime.toFixed(2)} s`, left, height - 8);
+      fitContext.fillText(`${maxTime.toFixed(2)} s`, width - right - 64, height - 8);
+      const playheadX = left + plotWidth / 2;
+      fitContext.strokeStyle = '#dc2626';
+      fitContext.lineWidth = 2;
+      fitContext.beginPath();
+      fitContext.moveTo(playheadX, top);
+      fitContext.lineTo(playheadX, top + plotHeight);
+      fitContext.stroke();
+      const currentValues = fitStreams.map((stream) => {
+        let closest = null;
+        let closestDistance = Infinity;
+        for (const row of stream.rows) {
+          if (!Number.isFinite(row[metric])) continue;
+          const videoTime = row.Time - stream.baseTime + stream.offset;
+          const distance = Math.abs(videoTime - playhead);
+          if (distance < closestDistance) {
+            closest = row[metric];
+            closestDistance = distance;
+          }
+        }
+        return `${stream.fileName}: ${closest === null ? '-' : closest.toFixed(4)}`;
+      });
+      document.getElementById('fitCurrentValues').textContent = `Values @ playhead: ${metric && currentValues.length ? currentValues.join(' | ') : '-'}`;
+    }
+
+    fitPlot.addEventListener('contextmenu', (event) => event.preventDefault());
+    fitPlot.addEventListener('pointerdown', (event) => {
+      if (!fitStreams.length || !metricSelect.value || !fitDrawingData) return;
+      fitPlot.setPointerCapture(event.pointerId);
+      dragLastX = event.clientX;
+      pointerMode = event.button === 2 ? 'sync' : event.button === 0 ? 'scrub' : null;
+    });
+    fitPlot.addEventListener('pointermove', (event) => {
+      if (!pointerMode) return;
+      const deltaX = event.clientX - dragLastX;
+      dragLastX = event.clientX;
+      const secondsPerPixel = fitDrawingData.visibleSpan / fitDrawingData.plotWidth * (Number(fitSensitivity.value) / 100);
+      if (pointerMode === 'sync') {
+        for (const stream of fitStreams) {
+          if (stream.syncEnabled) stream.offset += deltaX * secondsPerPixel;
+        }
+        updateFitStats();
+        drawFitPlot();
+      } else if (pointerMode === 'scrub') {
+        const nextTime = currentVideoTime() - deltaX * secondsPerPixel;
+        video.currentTime = Number.isFinite(video.duration) ? Math.max(0, Math.min(nextTime, video.duration)) : Math.max(0, nextTime);
+        updateVideoTime();
+      }
+    });
+    function endPlotDrag(event) {
+      if (fitPlot.hasPointerCapture(event.pointerId)) fitPlot.releasePointerCapture(event.pointerId);
+      pointerMode = null;
+    }
+    fitPlot.addEventListener('pointerup', endPlotDrag);
+    fitPlot.addEventListener('pointercancel', endPlotDrag);
+
+    window.addEventListener('keydown', (event) => {
+      if (event.code !== 'Space' && event.key !== ' ') return;
+      if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
+      const target = event.target;
+      const typing = target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
+      if (typing) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (event.repeat || !video.src) return;
+      if (video.paused) {
+        video.play().catch(() => setTagStatus('Video playback could not start.'));
+      } else {
+        video.pause();
+      }
+    }, { capture: true });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.repeat || event.altKey || event.metaKey) return;
+      const target = event.target;
+      const typing = target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
+      if (typing) return;
+      if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && event.ctrlKey && event.shiftKey) {
+        const skipFrames = Math.max(1, Math.round(Number(skipFramesInput.value) || 160));
+        event.preventDefault();
+        seekVideoFrames(event.key === 'ArrowRight' ? skipFrames : -skipFrames);
+        return;
+      }
+      if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && !event.ctrlKey && !event.shiftKey) {
+        event.preventDefault();
+        seekVideoFrames(event.key === 'ArrowRight' ? 1 : -1);
+        return;
+      }
+      if (event.ctrlKey || event.shiftKey) return;
+      if (event.key.toLowerCase() === 's' || event.key.toLowerCase() === 'e') {
+        const type = event.key.toLowerCase() === 's' ? 'start' : 'end';
+        const button = document.getElementById(type === 'start' ? 'raceStartBtn' : 'raceEndBtn');
+        if (!button.disabled) {
+          event.preventDefault();
+          setRaceBoundary(type);
+        }
+        return;
+      }
+      if (event.key.toLowerCase() === 'f') {
+        const frontToggle = document.getElementById('frontToggleBtn');
+        if (frontToggle.disabled) return;
+        event.preventDefault();
+        toggleFrontState();
+        return;
+      }
+      const index = Number(event.key) - 1;
+      if (index < 0 || index >= tagButtons.length) return;
+      const button = tagButtons[index];
+      if (button.disabled) return;
+      event.preventDefault();
+      addTag(button.dataset.category);
+    });
+
+    renderRiders();
+    renderTags();
+    updateFitStats();
+    drawFitPlot();
+    window.addEventListener('resize', drawFitPlot);
+  </script>
+</body>
+</html>
