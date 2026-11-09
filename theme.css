@@ -111,6 +111,24 @@ textarea {
   flex-wrap: wrap;
 }
 
+.brand-header .page-title-row {
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.brand-header .page-title-row > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.brand-header .brand-logo {
+  display: block;
+  width: min(300px, 42vw);
+  max-height: 72px;
+  object-fit: contain;
+  object-position: right center;
+}
+
 .page-title {
   margin: 0;
   font-size: clamp(30px, 4vw, 44px);
@@ -381,16 +399,84 @@ tbody tr:hover {
   text-decoration: none;
 }
 
+.tool-card-item {
+  position: relative;
+  min-width: 0;
+}
+
+.tool-card-item .tool-card {
+  width: 100%;
+  min-height: 100%;
+  padding-top: 20px;
+}
+
+.tool-card-item .tool-card h3 {
+  min-height: 3.6em;
+  padding-right: 44px;
+}
+
+.favorite-toggle {
+  position: absolute;
+  top: 14px;
+  right: 12px;
+  z-index: 1;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.favorite-toggle::before {
+  content: "☆";
+  font-size: 27px;
+}
+
+.favorite-toggle:hover::before,
+.favorite-toggle:focus-visible::before {
+  content: "★";
+  color: #ffdf3e;
+}
+
+.favorite-toggle[aria-pressed="true"]::before {
+  content: "★";
+  color: #FFD400;
+}
+
+.favorite-toggle[aria-pressed="true"]:hover::before {
+  content: "★";
+  color: #ffbb00;
+}
+
+.favorite-toggle:focus-visible {
+  outline: 2px solid var(--color-brand-blue);
+  outline-offset: 2px;
+}
+
+.favorites-empty {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
 .tool-card:hover {
   border-color: rgba(0, 174, 199, 0.45);
   transform: translateY(-2px);
 }
 
+.tool-card-item:hover .tool-card {
+  border-color: rgba(0, 174, 199, 0.45);
+}
+
 .tool-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
+  display: none;
 }
 
 .tool-icon {
@@ -416,13 +502,16 @@ tbody tr:hover {
 }
 
 .tool-card h3 {
-  margin: 0;
+  margin: 0 0 6px;
   font-size: 20px;
+  line-height: 1.2;
+  min-height: 2.4em;
 }
 
 .tool-card p {
   margin: 0;
   color: var(--color-text-secondary);
+  font-size: 14px;
   line-height: 1.55;
 }
 
@@ -497,6 +586,14 @@ tbody tr:hover {
 @media (max-width: 640px) {
   .page-title-row {
     flex-direction: column;
+  }
+
+  .brand-header .page-title-row {
+    flex-direction: row;
+  }
+
+  .brand-header .brand-logo {
+    width: min(180px, 32vw);
   }
 
   .page-actions {
