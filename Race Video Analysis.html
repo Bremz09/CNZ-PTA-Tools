@@ -73,6 +73,36 @@
       justify-content: center;
       font-size: 15px;
     }
+    .video-sync-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      padding-top: 8px;
+      color: #475569;
+      font-size: 13px;
+    }
+    #tpLapSummaryTable tbody tr.video-current-lap td {
+      box-shadow: inset 0 0 0 2px #0f766e;
+    }
+    #tpCadenceTable tbody td.video-current-lap {
+      box-shadow: inset 0 0 0 2px #0f766e;
+      font-weight: 700;
+    }
+    #ipLapMergedTable [data-lap-index].video-current-lap {
+      box-shadow: inset 0 0 0 2px #0f766e;
+      font-weight: 700;
+    }
+    #tsSummaryTable [data-quarter-index].video-current-ts-column,
+    .half-lap-table [data-half-lap-index].video-current-ts-column {
+      box-shadow: inset 0 0 0 2px #0f766e;
+      font-weight: 700;
+    }
+    #tpLapSummaryTable tbody tr[data-start-time],
+    #tpCadenceTable tbody td[data-lap-index],
+    #ipLapMergedTable [data-start-time] {
+      cursor: pointer;
+    }
     button {
       padding: 6px 10px;
       border-radius: 8px;
@@ -441,6 +471,11 @@
     <video id="video" controls hidden></video>
     <div id="youtubePlayerWrap" class="video-embed-wrap" hidden><div id="youtubePlayer"></div></div>
     <div id="videoPlaceholder" class="video-placeholder">No video linked for this race. Load a local video file to view.</div>
+    <div id="videoSyncControls" class="video-sync-controls" hidden>
+      <button id="setRaceStartBtn" type="button">Set race start here</button>
+      <button id="resetRaceStartBtn" type="button">Reset race start</button>
+      <span id="videoRaceStartLabel">Race start: video 0:00.00</span>
+    </div>
   </div>
 
   <section id="reportSection" class="report-section">
@@ -452,6 +487,7 @@
           <label class="report-toggle"><input id="tpRecovOnlyToggle" type="checkbox" checked> Recov only</label>
           <label class="report-toggle"><input id="tpHlToggle" type="checkbox" checked> HL</label>
           <label class="report-toggle"><input id="tpDeliveryBarsToggle" type="checkbox" checked> Delivery bars</label>
+          <label class="report-toggle" hidden><input id="tpPowerToggle" type="checkbox"> Power (W)</label>
           <div class="report-axis-controls">
             <label for="tpChartYMinInput">Y min</label>
             <input id="tpChartYMinInput" type="number" placeholder="auto" step="1">
@@ -463,6 +499,7 @@
         <div id="ipReportControls" class="tp-report-controls" hidden>
           <label class="report-toggle"><input id="ipFlyToggle" type="checkbox"> Fly</label>
           <label class="report-toggle"><input id="ipHlToggle" type="checkbox" checked> HL</label>
+          <label class="report-toggle" hidden><input id="ipPowerToggle" type="checkbox"> Power (W)</label>
           <div class="report-axis-controls">
             <label for="ipChartYMinInput">Y min</label>
             <input id="ipChartYMinInput" type="number" value="44" placeholder="auto" step="1">
@@ -732,10 +769,12 @@
     const TEAM_SPRINT_RIDER_COUNT = 3;
 
     const riderPalette = ['#ff7f41', '#2dc84d', '#147bd1', '#753bbd'];
+    const tpRiderPalette = ['#00e600', '#3452ff', '#ff0000', '#000000'];
     const deliverySpeedColor = '#e03c31';
     const averageLineColor = '#f7ea48';
     const inactiveRiderColor = '#94a3b8';
     const IP_BAR_COLOR = '#2563eb';
+    const IP_TIME_EPSILON_SECONDS = 0.000001;
 
     const isLocalServer = ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
     const WORKBOOK_URLS = isLocalServer
@@ -768,6 +807,8 @@
     const video = $('video');
     const youtubePlayerWrap = $('youtubePlayerWrap');
     const videoPlaceholder = $('videoPlaceholder');
+    const videoSyncControls = $('videoSyncControls');
+    const videoRaceStartLabel = $('videoRaceStartLabel');
     const reportSection = $('reportSection');
     const reportDashboardTitle = $('reportDashboardTitle');
     const reportEmpty = $('reportEmpty');
@@ -783,6 +824,13 @@
     let youtubePlayer = null;
     let youtubeApiPromise = null;
     let hasLocalVideo = false;
+    let pendingYouTubeSeekTime = null;
+    let lastYouTubeSeekAt = 0;
+    let speedProfileRanges = [];
+    let activeSpeedProfileIndex = -1;
+    let speedProfileHitTargets = [];
+    let activeIpBarIndex = -1;
+    let ipChartHitTargets = [];
 
     // --- Helpers ---
 
@@ -807,6 +855,9 @@
     }
     function getRiderColor(riderIndex) {
       return riderIndex >= 0 ? riderPalette[riderIndex % riderPalette.length] : inactiveRiderColor;
+    }
+    function getTpRiderColor(riderIndex) {
+      return riderIndex >= 0 ? tpRiderPalette[riderIndex % tpRiderPalette.length] : inactiveRiderColor;
     }
     function heatColor(t) {
       const n = Math.max(0, Math.min(1, (t + 1) / 2));
@@ -893,8 +944,169 @@
       video.hidden = mode !== 'local';
       youtubePlayerWrap.hidden = mode !== 'youtube';
       videoPlaceholder.hidden = mode !== 'none';
+      videoSyncControls.hidden = mode === 'none' || !state.session;
+      updateVideoRaceStartLabel();
       if (mode !== 'local') video.pause();
       if (mode !== 'youtube' && youtubePlayer && typeof youtubePlayer.pauseVideo === 'function') youtubePlayer.pauseVideo();
+    }
+    function getVideoRaceStartStorageKey(session) {
+      return `raceVideoStart:${state.dataset}:${session.raceType}:${session.title}:${session.savedAtRaw || ''}:${session.videoUrl || ''}`;
+    }
+    function getMasterVideoRaceStartOffset(session) {
+      return Number.isFinite(session?.videoStartTime) && session.videoStartTime >= 0
+        ? session.videoStartTime
+        : 0;
+    }
+    function hasVideoRaceStartOffset(session = state.session) {
+      return Number.isFinite(session?.videoRaceStartOffset) && session.videoRaceStartOffset > 0;
+    }
+    function loadVideoRaceStartOffset(session) {
+      try {
+        const storedOffset = localStorage.getItem(getVideoRaceStartStorageKey(session));
+        if (storedOffset !== null) {
+          const offset = Number(storedOffset);
+          if (Number.isFinite(offset) && offset >= 0) return offset;
+        }
+      } catch (_) {}
+      return getMasterVideoRaceStartOffset(session);
+    }
+    function updateVideoRaceStartLabel() {
+      if (videoRaceStartLabel) {
+        videoRaceStartLabel.textContent = hasVideoRaceStartOffset()
+          ? `Race start: video ${formatClockTime(state.session.videoRaceStartOffset)}`
+          : 'Race start: not set';
+      }
+    }
+    function getCurrentVideoTime() {
+      if (!video.hidden && hasLocalVideo && Number.isFinite(video.currentTime)) return video.currentTime;
+      if (!youtubePlayerWrap.hidden && youtubePlayer && typeof youtubePlayer.getCurrentTime === 'function') {
+        if (pendingYouTubeSeekTime !== null && performance.now() - lastYouTubeSeekAt < 750) return pendingYouTubeSeekTime;
+        const currentTime = youtubePlayer.getCurrentTime();
+        return Number.isFinite(currentTime) ? currentTime : null;
+      }
+      return null;
+    }
+    function seekToRaceTime(raceTime) {
+      if (!hasVideoRaceStartOffset() || !Number.isFinite(raceTime)) return;
+      const targetTime = Math.max(0, (state.session.videoRaceStartOffset || 0) + raceTime);
+      if (!video.hidden && hasLocalVideo && video.readyState >= HTMLMediaElement.HAVE_METADATA) {
+        video.pause();
+        video.currentTime = Math.min(Number.isFinite(video.duration) ? video.duration : Infinity, targetTime);
+        return;
+      }
+      if (!youtubePlayerWrap.hidden && youtubePlayer && typeof youtubePlayer.seekTo === 'function') {
+        const duration = youtubePlayer.getDuration();
+        const boundedTime = Math.min(Number.isFinite(duration) && duration > 0 ? duration : Infinity, targetTime);
+        youtubePlayer.pauseVideo();
+        youtubePlayer.seekTo(boundedTime, true);
+        pendingYouTubeSeekTime = boundedTime;
+        lastYouTubeSeekAt = performance.now();
+        updateActiveLapHighlight();
+      }
+    }
+    function updateActiveLapHighlight() {
+      const lapRows = $('tpLapSummaryTable').querySelectorAll('tbody tr');
+      lapRows.forEach((row) => {
+        row.classList.remove('video-current-lap');
+        row.removeAttribute('aria-current');
+      });
+      const cadenceCells = $('tpCadenceTable').querySelectorAll('tbody td[data-lap-index]');
+      cadenceCells.forEach((cell) => cell.classList.remove('video-current-lap'));
+      updateActiveTsHighlight();
+      if (state.session?.raceType === 'IP') {
+        updateActiveIpHighlight();
+        return;
+      }
+      if (state.session?.raceType === 'TS') {
+        activeSpeedProfileIndex = -1;
+        return;
+      }
+      if (state.session?.raceType !== 'TP') {
+        activeSpeedProfileIndex = -1;
+        return;
+      }
+      if (!hasVideoRaceStartOffset()) {
+        const shouldRerenderChart = activeSpeedProfileIndex !== -1;
+        activeSpeedProfileIndex = -1;
+        if (shouldRerenderChart && !$('tpChartWrapper').hidden) {
+          renderTpChart(state.session.rows, getTpRiderNames(state.session));
+        }
+        return;
+      }
+      const videoTime = getCurrentVideoTime();
+      const raceTime = videoTime === null ? null : videoTime - (state.session.videoRaceStartOffset || 0);
+      const currentLap = raceTime !== null && raceTime >= 0
+        ? Array.from(lapRows).find((row) =>
+          raceTime >= Number(row.dataset.startTime) && raceTime < Number(row.dataset.endTime))
+        : null;
+      if (currentLap) {
+        currentLap.classList.add('video-current-lap');
+        currentLap.setAttribute('aria-current', 'true');
+        const lapIndex = Array.from(lapRows).indexOf(currentLap);
+        cadenceCells.forEach((cell) => {
+          if (Number(cell.dataset.lapIndex) === lapIndex) cell.classList.add('video-current-lap');
+        });
+      }
+      const profileIndex = raceTime !== null && raceTime >= 0
+        ? speedProfileRanges.findIndex((range) => raceTime >= range.startTime && raceTime < range.endTime)
+        : -1;
+      if (profileIndex !== activeSpeedProfileIndex) {
+        activeSpeedProfileIndex = profileIndex;
+        if (!$('tpChartWrapper').hidden) renderTpChart(state.session.rows, getTpRiderNames(state.session));
+      }
+    }
+    function updateActiveIpHighlight() {
+      const lapCells = $('ipLapMergedTable').querySelectorAll('[data-lap-index]');
+      lapCells.forEach((cell) => cell.classList.remove('video-current-lap'));
+      const videoTime = hasVideoRaceStartOffset() ? getCurrentVideoTime() : null;
+      const raceTime = videoTime === null ? null : videoTime - (state.session.videoRaceStartOffset || 0);
+      const activeTarget = raceTime !== null && raceTime >= 0
+        ? ipChartHitTargets.find((target) =>
+          raceTime >= target.startTime - IP_TIME_EPSILON_SECONDS
+          && raceTime < target.endTime - IP_TIME_EPSILON_SECONDS)
+        : null;
+      const nextBarIndex = activeTarget ? activeTarget.index : -1;
+      if (nextBarIndex !== activeIpBarIndex) {
+        activeIpBarIndex = nextBarIndex;
+        if (!$('ipChartWrapper').hidden) renderIpChart(state.session.rows);
+      }
+      const activeLapHeader = raceTime !== null && raceTime >= 0
+        ? Array.from($('ipLapMergedTable').querySelectorAll('thead [data-lap-index]')).find((cell) =>
+          raceTime >= Number(cell.dataset.startTime) - IP_TIME_EPSILON_SECONDS
+          && raceTime < Number(cell.dataset.endTime) - IP_TIME_EPSILON_SECONDS)
+        : null;
+      const activeLapIndex = activeLapHeader ? Number(activeLapHeader.dataset.lapIndex) : -1;
+      lapCells.forEach((cell) => {
+        if (Number(cell.dataset.lapIndex) === activeLapIndex) cell.classList.add('video-current-lap');
+      });
+    }
+    function updateActiveTsHighlight() {
+      const quarterColumns = $('tsSummaryTable').querySelectorAll('[data-quarter-index]');
+      const halfLapColumns = document.querySelectorAll('.half-lap-table [data-half-lap-index]');
+      quarterColumns.forEach((cell) => cell.classList.remove('video-current-ts-column'));
+      halfLapColumns.forEach((cell) => cell.classList.remove('video-current-ts-column'));
+      if (state.session?.raceType !== 'TS' || !hasVideoRaceStartOffset()) return;
+
+      const videoTime = getCurrentVideoTime();
+      const raceTime = videoTime === null ? null : videoTime - state.session.videoRaceStartOffset;
+      if (raceTime === null || raceTime < 0) return;
+      const { startTime, quarters } = getTeamSprintQuarters(state.session);
+      if (!Number.isFinite(startTime)) return;
+      // Marker events are interleaved by rider; several consecutive markers can represent one quarter.
+      const markerQuarterIndexes = [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 9, 10, 11];
+      let quarterIndex = 0;
+      for (let markerIndex = 0; markerIndex < Math.min(quarters.length, markerQuarterIndexes.length); markerIndex++) {
+        if (raceTime < quarters[markerIndex].end - startTime) break;
+        quarterIndex = Math.min(11, markerQuarterIndexes[markerIndex] + 1);
+      }
+
+      quarterColumns.forEach((cell) => {
+        if (Number(cell.dataset.quarterIndex) === quarterIndex) cell.classList.add('video-current-ts-column');
+      });
+      const halfLapIndex = Math.floor(quarterIndex / 2);
+      halfLapColumns.forEach((cell) => {
+        if (Number(cell.dataset.halfLapIndex) === halfLapIndex) cell.classList.add('video-current-ts-column');
+      });
     }
     function ensureYouTubeApiLoaded() {
       if (window.YT && window.YT.Player) return Promise.resolve(window.YT);
@@ -960,6 +1172,27 @@
         return;
       }
       showVideoMode(hasLocalVideo ? 'local' : 'none');
+    }
+    function stepVideoFrame(direction) {
+      const frameDuration = 1 / 50;
+      if (!video.hidden && hasLocalVideo && video.readyState >= HTMLMediaElement.HAVE_METADATA) {
+        video.pause();
+        const duration = Number.isFinite(video.duration) ? video.duration : Infinity;
+        video.currentTime = Math.max(0, Math.min(duration, video.currentTime + direction * frameDuration));
+        return;
+      }
+      if (!youtubePlayerWrap.hidden && youtubePlayer && typeof youtubePlayer.getCurrentTime === 'function') {
+        const now = performance.now();
+        const currentTime = now - lastYouTubeSeekAt < 750 && pendingYouTubeSeekTime !== null
+          ? pendingYouTubeSeekTime
+          : youtubePlayer.getCurrentTime();
+        const duration = youtubePlayer.getDuration();
+        const targetTime = Math.max(0, Math.min(duration || Infinity, currentTime + direction * frameDuration));
+        youtubePlayer.pauseVideo();
+        youtubePlayer.seekTo(targetTime, true);
+        pendingYouTubeSeekTime = targetTime;
+        lastYouTubeSeekAt = now;
+      }
     }
 
     // --- Workbook / CSV parsing ---
@@ -1075,7 +1308,8 @@
       const solo = {
         power: norm.indexOf('avg power (w)'),
         cadence: norm.indexOf('avg cadence (rpm)'),
-        torque: norm.indexOf('avg torque (nm)')
+        torque: norm.indexOf('avg torque (nm)'),
+        gear: normalized.findIndex((value) => ['gear', 'gearin', 'gearinches'].includes(value))
       };
       return { riders, solo };
     }
@@ -1187,6 +1421,7 @@
       const iAction = findColumnIndex('Action', ['event']);
       const iFront = findColumnIndex('Front', ['athleteinfront', 'lead']);
       const iVideo = findColumnIndex('Video');
+      const iVideoStartTime = findColumnIndex('Video Start Time', ['Race Video Start Time', 'Race Start Video Time']);
       const iAirDensity = findColumnIndex('Air Density', ['airdensity']);
 
       if ([iTitle, iTime, iFront].some((value) => value < 0)) {
@@ -1221,6 +1456,7 @@
             savedAtRaw: '',
             savedAtMs: null,
             videoUrl: '',
+            videoStartTime: null,
             rows: []
           };
           riderNameMap = new Map();
@@ -1255,6 +1491,7 @@
         const eventKey = eventLabel.toLowerCase();
         const savedAtRaw = iSaveDate >= 0 ? String(cols[iSaveDate] || '').trim() : '';
         const videoUrl = iVideo >= 0 ? String(cols[iVideo] || '').trim() : '';
+        const videoStartTime = readNumber(cols, iVideoStartTime);
         const airDensity = readNumber(cols, iAirDensity);
         if (!(currentSession.airDensity > 0) && airDensity > 0) currentSession.airDensity = airDensity;
         if (!currentSession.savedAtRaw && savedAtRaw) {
@@ -1262,6 +1499,9 @@
           currentSession.savedAtMs = parseSessionDateToTimestamp(savedAtRaw);
         }
         if (!currentSession.videoUrl && videoUrl) currentSession.videoUrl = videoUrl;
+        if (!Number.isFinite(currentSession.videoStartTime) && Number.isFinite(videoStartTime)) {
+          currentSession.videoStartTime = videoStartTime;
+        }
 
         const teamSpeed = Number.isFinite(importedTeamSpeed) ? importedTeamSpeed : speedFromTime(quarterTime);
         const riderMetrics = readRiderMetrics(metricCols, cols);
@@ -1306,6 +1546,7 @@
       const iAirDensity = findColumnIndex('Air Density (kg/m³)', ['airdensity']);
       const iSaveDate = findColumnIndex('Save_date', ['savedate']);
       const iVideo = findColumnIndex('Video');
+      const iVideoStartTime = findColumnIndex('Video Start Time', ['Race Video Start Time', 'Race Start Video Time']);
 
       if ([iTitle, iTime, iRow, iRiders].some((value) => value < 0)) {
         throw new Error('CSV columns not recognised.');
@@ -1337,6 +1578,7 @@
             savedAtRaw: '',
             savedAtMs: null,
             videoUrl: '',
+            videoStartTime: null,
             eventRows: []
           };
         }
@@ -1345,6 +1587,7 @@
         const gear = iGears >= 0 ? String(cols[iGears] || '').trim() : '';
         const savedAtRaw = iSaveDate >= 0 ? String(cols[iSaveDate] || '').trim() : '';
         const videoUrl = iVideo >= 0 ? String(cols[iVideo] || '').trim() : '';
+        const videoStartTime = readNumber(cols, iVideoStartTime);
 
         // Rider name/gear are only stamped on the first N event rows (one per rider), by position.
         const eventIndex = currentSession.eventRows.length;
@@ -1362,6 +1605,9 @@
           currentSession.savedAtMs = parseSessionDateToTimestamp(savedAtRaw);
         }
         if (!currentSession.videoUrl && videoUrl) currentSession.videoUrl = videoUrl;
+        if (!Number.isFinite(currentSession.videoStartTime) && Number.isFinite(videoStartTime)) {
+          currentSession.videoStartTime = videoStartTime;
+        }
 
         currentSession.eventRows.push({ time, label, riderMetrics: readRiderMetrics(metricCols, cols) });
       }
@@ -1388,6 +1634,8 @@
       const iAvgSpeed = findColumnIndex('Avg_Speed', ['avgspeed', 'speed']);
       const iAction = findColumnIndex('Action', ['event']);
       const iVideo = findColumnIndex('Video', ['videourl']);
+      const iVideoStartTime = findColumnIndex('Video Start Time', ['Race Video Start Time', 'Race Start Video Time']);
+      const iAirDensity = findColumnIndex('Air Density', ['airdensity']);
 
       if ([iTitle, iTime].some((value) => value < 0)) {
         throw new Error('CSV columns not recognised.');
@@ -1410,9 +1658,12 @@
             title,
             raceType: 'IP',
             riderName: '',
+            gear: '',
+            airDensity: null,
             savedAtRaw: '',
             savedAtMs: null,
             videoUrl: '',
+            videoStartTime: null,
             rows: []
           };
         }
@@ -1431,12 +1682,21 @@
         const rider = iRider >= 0 ? String(cols[iRider] || '').trim() : '';
         const savedAtRaw = iSaveDate >= 0 ? String(cols[iSaveDate] || '').trim() : '';
         const videoUrl = iVideo >= 0 ? String(cols[iVideo] || '').trim() : '';
+        const videoStartTime = readNumber(cols, iVideoStartTime);
+        const airDensity = readNumber(cols, iAirDensity);
         if (!currentSession.riderName && rider) currentSession.riderName = rider;
+        if (!currentSession.gear && metricCols.solo.gear >= 0) {
+          currentSession.gear = String(cols[metricCols.solo.gear] || '').trim();
+        }
+        if (!(currentSession.airDensity > 0) && airDensity > 0) currentSession.airDensity = airDensity;
         if (!currentSession.savedAtRaw && savedAtRaw) {
           currentSession.savedAtRaw = savedAtRaw;
           currentSession.savedAtMs = parseSessionDateToTimestamp(savedAtRaw);
         }
         if (!currentSession.videoUrl && videoUrl) currentSession.videoUrl = videoUrl;
+        if (!Number.isFinite(currentSession.videoStartTime) && Number.isFinite(videoStartTime)) {
+          currentSession.videoStartTime = videoStartTime;
+        }
 
         const importedSpeed = parseFloat(cols[iAvgSpeed]);
         currentSession.rows.push({
@@ -1538,6 +1798,7 @@
 
     function selectRace(index) {
       state.session = state.sessions[index] || null;
+      if (state.session) state.session.videoRaceStartOffset = loadVideoRaceStartOffset(state.session);
       renderReport();
       if (!state.session) {
         showVideoMode(hasLocalVideo ? 'local' : 'none');
@@ -1661,13 +1922,24 @@
       renderTpLeadLapsTable(rows, names);
     }
 
-    function renderTpChartLegend(legendEl, rows, names, showPostFirstLapAverageLine) {
+    function weightedAverageMetric(rows, key) {
+      let weightedSum = 0;
+      let weightedDuration = 0;
+      rows.forEach((row) => {
+        if (!Number.isFinite(row[key]) || !(row.quarterTime > 0)) return;
+        weightedSum += row[key] * row.quarterTime;
+        weightedDuration += row.quarterTime;
+      });
+      return weightedDuration > 0 ? weightedSum / weightedDuration : null;
+    }
+
+    function renderTpChartLegend(legendEl, rows, names, showPostFirstLapAverageLine, powerMode) {
       legendEl.innerHTML = '';
       const riderIndexes = [...new Set(rows.map((row) => row.riderIndex).filter((idx) => idx >= 0))];
       riderIndexes.forEach((riderIndex) => {
         const item = document.createElement('span');
         item.className = 'legend-item';
-        item.innerHTML = `<span class="legend-swatch" style="background:${getRiderColor(riderIndex)}"></span>${escapeHtml(names[riderIndex] || `Rider ${riderIndex + 1}`)}`;
+        item.innerHTML = `<span class="legend-swatch" style="background:${getTpRiderColor(riderIndex)}"></span>${escapeHtml(names[riderIndex] || `Rider ${riderIndex + 1}`)}`;
         legendEl.appendChild(item);
       });
       if (rows.some((row) => row.riderIndex < 0)) {
@@ -1676,7 +1948,12 @@
         item.innerHTML = `<span class="legend-swatch" style="background:${inactiveRiderColor}"></span>No Active Rider`;
         legendEl.appendChild(item);
       }
-      if (!$('tpDeliveryBarsToggle').checked) {
+      if (powerMode) {
+        const powerItem = document.createElement('span');
+        powerItem.className = 'legend-item';
+        powerItem.innerHTML = '<span class="legend-dot"></span>Front rider power';
+        legendEl.appendChild(powerItem);
+      } else if (!$('tpDeliveryBarsToggle').checked) {
         const deliveryItem = document.createElement('span');
         deliveryItem.className = 'legend-item';
         deliveryItem.innerHTML = '<span class="legend-dot"></span>Delivery speed';
@@ -1694,16 +1971,30 @@
       const canvas = $('tpChart');
       const wrapper = $('tpChartWrapper');
       const ctx = canvas.getContext('2d');
-      const allRows = sourceRows.map((row) => ({
-        riderIndex: row.frontRiderIndex,
-        teamSpeed: row.teamSpeed,
-        deliverySpeed: row.deliverySpeed,
-        quarterTime: row.quarterTime,
-        deliveryAdjusted: row.deliveryAdjusted
-      }));
+      const powerToggle = $('tpPowerToggle');
+      const hasPower = sourceRows.some((row) => Number.isFinite(row.riderMetrics?.[row.frontRiderIndex]?.power));
+      powerToggle.closest('label').hidden = !hasPower;
+      if (!hasPower) powerToggle.checked = false;
+      const powerMode = powerToggle.checked;
+      speedProfileHitTargets = [];
+      let elapsedTime = 0;
+      const allRows = sourceRows.map((row) => {
+        const startTime = elapsedTime;
+        elapsedTime += row.quarterTime;
+        return {
+          riderIndex: row.frontRiderIndex,
+          teamSpeed: row.teamSpeed,
+          deliverySpeed: row.deliverySpeed,
+          power: row.riderMetrics?.[row.frontRiderIndex]?.power ?? null,
+          quarterTime: row.quarterTime,
+          deliveryAdjusted: row.deliveryAdjusted,
+          startTime,
+          endTime: elapsedTime
+        };
+      });
       const globalStartIndex = $('tpFlyToggle').checked ? 0 : 4;
       const hlMode = $('tpHlToggle').checked;
-      $('tpSpeedProfileTitle').textContent = hlMode ? 'Half Lap Speed Profile' : 'Quarter Split Speed Profile';
+      $('tpSpeedProfileTitle').textContent = `${hlMode ? 'Half Lap' : 'Quarter Split'} ${powerMode ? 'Power' : 'Speed'} Profile`;
       const quarterRows = allRows.slice(globalStartIndex);
 
       let rows;
@@ -1728,41 +2019,52 @@
             riderIndex: a.riderIndex,
             teamSpeed: hlTeamSpeed,
             deliverySpeed: hlDeliverySpeed,
+            power: weightedAverageMetric([a, b], 'power'),
+            startTime: a.startTime,
+            endTime: b.endTime,
             _hlEndQuarterIndex: globalStartIndex + 1 + p + 1
           });
         }
       } else {
         rows = quarterRows;
       }
+      speedProfileRanges = rows.map(({ startTime, endTime }) => ({ startTime, endTime }));
       const hasRows = rows.length > 0;
+      const deliveryBarsMode = $('tpDeliveryBarsToggle').checked;
+      const plotValues = rows.map((row) => powerMode
+        ? row.power
+        : (deliveryBarsMode ? row.deliverySpeed : row.teamSpeed));
+      const hasPlotValues = plotValues.some(Number.isFinite);
       const postFirstLapAverage = getAverageLapSplitAfterFirstLap(getLapTotalsFromRows(sourceRows, false));
       const postFirstLapAverageSpeed = Number.isFinite(postFirstLapAverage)
         ? speedFromDistanceTime(LAP_DISTANCE_METERS, postFirstLapAverage)
         : null;
-      wrapper.hidden = !hasRows;
-      $('tpChartEmpty').hidden = hasRows;
-      renderTpChartLegend($('tpChartLegend'), rows, names, Number.isFinite(postFirstLapAverageSpeed));
+      wrapper.hidden = !hasRows || !hasPlotValues;
+      $('tpChartEmpty').hidden = hasRows && hasPlotValues;
+      $('tpChartEmpty').textContent = hasRows && powerMode && !hasPlotValues
+        ? 'No power data for these splits.'
+        : 'No quarter splits for this race.';
+      renderTpChartLegend($('tpChartLegend'), rows, names, !powerMode && Number.isFinite(postFirstLapAverageSpeed), powerMode);
 
       const { width, height } = resizeChartCanvas(canvas, wrapper);
       ctx.clearRect(0, 0, width, height);
-      if (!hasRows) return;
+      if (!hasRows || !hasPlotValues) return;
 
       const padding = { top: 22, right: 18, bottom: 80, left: 68 };
       const chartWidth = width - padding.left - padding.right;
       const chartHeight = height - padding.top - padding.bottom;
-      const deliverySpeeds = rows.map((row) => row.deliverySpeed);
-      const minDeliverySpeed = Math.min(...deliverySpeeds);
-      const maxDeliverySpeed = Math.max(...deliverySpeeds);
-      const deliveryBarsMode = $('tpDeliveryBarsToggle').checked;
+      const minValue = Math.min(...plotValues.filter(Number.isFinite));
+      const maxValue = Math.max(...plotValues.filter(Number.isFinite));
       const userYMin = parseFloat($('tpChartYMinInput').value);
       const userYMax = parseFloat($('tpChartYMaxInput').value);
-      const axisMin = Number.isFinite(userYMin) ? userYMin : minDeliverySpeed - 1;
-      const axisMax = Number.isFinite(userYMax) ? Math.max(userYMax, axisMin + 1) : Math.max(maxDeliverySpeed + 1, axisMin + 1);
+      const autoAxisPadding = powerMode ? 10 : 1;
+      const axisMin = Number.isFinite(userYMin) ? userYMin : minValue - autoAxisPadding;
+      const axisMax = Number.isFinite(userYMax) ? Math.max(userYMax, axisMin + 1) : Math.max(maxValue + autoAxisPadding, axisMin + 1);
       const axisRange = Math.max(0.001, axisMax - axisMin);
       const tickCount = 5;
       const baseY = padding.top + chartHeight;
       const barSlot = chartWidth / rows.length;
-      const barWidth = Math.min(40, Math.max(8, barSlot * 0.82));
+      const barWidth = Math.max(8, barSlot * 0.9);
 
       ctx.font = '12px sans-serif';
       ctx.textAlign = 'right';
@@ -1794,34 +2096,65 @@
       ctx.rotate(-Math.PI / 2);
       ctx.textAlign = 'center';
       ctx.fillStyle = '#0f172a';
-      ctx.fillText('Speed (km/h)', 0, 0);
+      ctx.fillText(powerMode ? 'Power (W)' : 'Speed (km/h)', 0, 0);
       ctx.restore();
-
-      if (Number.isFinite(postFirstLapAverageSpeed)) {
-        const avgY = baseY - ((postFirstLapAverageSpeed - axisMin) / axisRange) * chartHeight;
-        ctx.save();
-        ctx.strokeStyle = averageLineColor;
-        ctx.lineWidth = 2;
-        ctx.setLineDash([6, 6]);
-        ctx.beginPath();
-        ctx.moveTo(padding.left, avgY);
-        ctx.lineTo(width - padding.right, avgY);
-        ctx.stroke();
-        ctx.restore();
-      }
 
       rows.forEach((row, index) => {
         const centerX = padding.left + barSlot * index + barSlot / 2;
-        const barValue = deliveryBarsMode ? row.deliverySpeed : row.teamSpeed;
-        const barHeight = ((barValue - axisMin) / axisRange) * chartHeight;
+        const barValue = plotValues[index];
+        const hasValue = Number.isFinite(barValue);
+        const barHeight = hasValue ? ((barValue - axisMin) / axisRange) * chartHeight : 0;
         const barX = centerX - barWidth / 2;
         const barY = baseY - barHeight;
-        const dotY = baseY - ((row.deliverySpeed - axisMin) / axisRange) * chartHeight;
+        const dotY = !powerMode ? baseY - ((row.deliverySpeed - axisMin) / axisRange) * chartHeight : null;
+        if (hasValue) {
+          speedProfileHitTargets.push({
+            left: barX - 4,
+            right: barX + barWidth + 4,
+            top: Math.min(barY, baseY) - 4,
+            bottom: Math.max(barY, baseY) + 4,
+            dotX: centerX,
+            dotY,
+            startTime: row.startTime
+          });
+        }
 
-        ctx.fillStyle = getRiderColor(row.riderIndex);
-        ctx.fillRect(barX, barY, barWidth, barHeight);
+        if (index === activeSpeedProfileIndex) {
+          ctx.fillStyle = 'rgba(15,118,110,0.12)';
+          ctx.fillRect(padding.left + barSlot * index, padding.top, barSlot, chartHeight);
+        }
+        if (hasValue) {
+          ctx.fillStyle = getTpRiderColor(row.riderIndex);
+          ctx.fillRect(barX, barY, barWidth, barHeight);
+        }
+        if (hasValue && index === activeSpeedProfileIndex) {
+          ctx.strokeStyle = '#0f766e';
+          ctx.lineWidth = 3;
+          ctx.strokeRect(barX - 2, Math.min(barY, baseY) - 2, barWidth + 4, Math.abs(barHeight) + 4);
+        }
+        if (powerMode && hasValue && barHeight > 0) {
+          const powerLabel = String(Math.round(barValue));
+          const labelY = barY + Math.min(14, barHeight / 2);
+          ctx.save();
+          ctx.font = '13px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = '#fff';
+          ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+          ctx.lineWidth = 3;
+          if (ctx.measureText(powerLabel).width <= barWidth - 4) {
+            ctx.strokeText(powerLabel, centerX, labelY);
+            ctx.fillText(powerLabel, centerX, labelY);
+          } else {
+            ctx.translate(centerX, labelY);
+            ctx.rotate(-Math.PI / 2);
+            ctx.strokeText(powerLabel, 0, 0);
+            ctx.fillText(powerLabel, 0, 0);
+          }
+          ctx.restore();
+        }
 
-        if (!deliveryBarsMode) {
+        if (!powerMode && !deliveryBarsMode) {
           ctx.fillStyle = deliverySpeedColor;
           ctx.beginPath();
           ctx.arc(centerX, dotY, 5, 0, Math.PI * 2);
@@ -1840,6 +2173,19 @@
         ctx.fillText(xLabel, 0, 0);
         ctx.restore();
       });
+
+      if (!powerMode && Number.isFinite(postFirstLapAverageSpeed)) {
+        const avgY = baseY - ((postFirstLapAverageSpeed - axisMin) / axisRange) * chartHeight;
+        ctx.save();
+        ctx.strokeStyle = averageLineColor;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 6]);
+        ctx.beginPath();
+        ctx.moveTo(padding.left, avgY);
+        ctx.lineTo(width - padding.right, avgY);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
 
     function renderTpLapSummaryTable(rows) {
@@ -1848,11 +2194,14 @@
       const emptyEl = $('tpLapSummaryEmpty');
       tbody.innerHTML = '';
       const completedLaps = [];
+      let lapStartTime = 0;
       for (let lapStart = 0; lapStart < rows.length; lapStart += 4) {
         const lapRows = rows.slice(lapStart, lapStart + 4);
         if (lapRows.length < 4) continue;
         const lapTotal = lapRows.reduce((acc, row) => acc + row.quarterTime, 0);
-        completedLaps.push({ total: lapTotal, riderIndices: lapRows.map((r) => r.frontRiderIndex) });
+        const lapEndTime = lapStartTime + lapTotal;
+        completedLaps.push({ total: lapTotal, startTime: lapStartTime, endTime: lapEndTime, riderIndices: lapRows.map((r) => r.frontRiderIndex) });
+        lapStartTime = lapEndTime;
       }
       const completedLapTotals = completedLaps.map((l) => l.total);
       const postFirstLapAverage = getAverageLapSplitAfterFirstLap(completedLapTotals);
@@ -1872,18 +2221,20 @@
       const maxAbsDiff = postFirstDiffs.length > 0 ? Math.max(...postFirstDiffs.map(Math.abs)) : 0;
       const totalHeat = (v) => (maxTotal === minTotal ? 0 : ((v - minTotal) / (maxTotal - minTotal)) * 2 - 1);
 
-      completedLaps.forEach(({ total: lapTotal, riderIndices }, i) => {
+      completedLaps.forEach(({ total: lapTotal, startTime, endTime, riderIndices }, i) => {
         const diff = Number.isFinite(postFirstLapAverage) ? lapTotal - postFirstLapAverage : null;
-        const c = riderIndices.map((idx) => getRiderColor(idx));
+        const c = riderIndices.map((idx) => getTpRiderColor(idx));
         const gradient = `linear-gradient(to right, ${c[0]} 25%, ${c[1]} 25% 50%, ${c[2]} 50% 75%, ${c[3]} 75%)`;
         const isFirstLap = i === 0;
         const totalBg = !isFirstLap ? heatColor(totalHeat(lapTotal)) : '';
         const diffBg = (!isFirstLap && diff !== null && maxAbsDiff > 0) ? heatColor(diff / maxAbsDiff) : '';
 
         const tr = document.createElement('tr');
+        tr.dataset.startTime = String(startTime);
+        tr.dataset.endTime = String(endTime);
         const lapTd = document.createElement('td');
         lapTd.style.cssText = `background:${gradient};padding:0;`;
-        lapTd.innerHTML = `<span style="display:block;padding:8px 10px;font-weight:600;color:#0f172a;text-shadow:0 0 3px rgba(255,255,255,0.9),0 0 6px rgba(255,255,255,0.6);">Lap ${i + 1}</span>`;
+        lapTd.innerHTML = `<span style="display:block;padding:8px 10px;font-weight:600;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.85);">Lap ${i + 1}</span>`;
         tr.appendChild(lapTd);
 
         const totalTd = document.createElement('td');
@@ -1901,9 +2252,10 @@
 
       table.hidden = false;
       emptyEl.hidden = true;
+      updateActiveLapHighlight();
     }
 
-    function renderFirstLapAndAveragesTables(rows, firstLapTable, firstLapEmpty, lapAveragesTable, airDensity) {
+    function renderFirstLapAndAveragesTables(rows, firstLapTable, firstLapEmpty, lapAveragesTable, airDensity, flyingToggle = $('tpFlyToggle')) {
       const firstLapBody = firstLapTable.querySelector('tbody');
       const averagesBody = lapAveragesTable.querySelector('tbody');
       firstLapBody.innerHTML = '';
@@ -1917,7 +2269,7 @@
         for (let lapStart = 0; lapStart + 4 <= rows.length; lapStart += 4) {
           let total = 0;
           for (let index = lapStart; index < lapStart + 4; index++) {
-            const shouldStandardize = $('tpFlyToggle').checked || index >= 4;
+            const shouldStandardize = flyingToggle.checked || index >= 4;
             total += shouldStandardize ? rows[index].quarterTime * factor : rows[index].quarterTime;
           }
           lapTotalsStandardized.push(total);
@@ -1927,8 +2279,9 @@
       const averageAfterFirstRaw = getAverageLapSplitAfterFirstLap(lapTotalsRaw);
       const averageOverallStandardized = getAverageLapSplitOverall(lapTotalsStandardized);
       const averageAfterFirstStandardized = getAverageLapSplitAfterFirstLap(lapTotalsStandardized);
+      const standardizationEnabled = hasAirDensity && Math.abs(airDensity - 1.169) > 0.0000001;
       const lapAveragesHeaderRow = lapAveragesTable.querySelector('thead tr');
-      lapAveragesHeaderRow.innerHTML = hasAirDensity
+      lapAveragesHeaderRow.innerHTML = standardizationEnabled
         ? '<th>Metric</th><th>Raw (s)</th><th>Standardised (s)</th>'
         : '<th>Metric</th><th>Raw (s)</th>';
 
@@ -1946,12 +2299,12 @@
       });
 
       const overallRow = document.createElement('tr');
-      overallRow.innerHTML = hasAirDensity
+      overallRow.innerHTML = standardizationEnabled
         ? `<td>Average lap split (overall)</td><td>${formatTime(averageOverallRaw)}</td><td>${formatTime(averageOverallStandardized)}</td>`
         : `<td>Average lap split (overall)</td><td>${formatTime(averageOverallRaw)}</td>`;
       averagesBody.appendChild(overallRow);
       const postFirstRow = document.createElement('tr');
-      postFirstRow.innerHTML = hasAirDensity
+      postFirstRow.innerHTML = standardizationEnabled
         ? `<td>Average lap split (after first lap)</td><td>${formatTime(averageAfterFirstRaw)}</td><td>${formatTime(averageAfterFirstStandardized)}</td>`
         : `<td>Average lap split (after first lap)</td><td>${formatTime(averageAfterFirstRaw)}</td>`;
       averagesBody.appendChild(postFirstRow);
@@ -2024,6 +2377,7 @@
         const hasMetric = metricRiders.includes(riderIndex);
         for (let lapIndex = 0; lapIndex < completedLapCount; lapIndex++) {
           const td = document.createElement('td');
+          td.dataset.lapIndex = String(lapIndex);
           if (isDropped(riderIndex, lapIndex)) {
             td.style.background = '#f0f0f0';
           } else {
@@ -2046,6 +2400,7 @@
 
       table.hidden = !hasAnyMetric;
       emptyEl.hidden = hasAnyMetric;
+      updateActiveLapHighlight();
     }
 
     function renderTpKiloSplitsTable(rows) {
@@ -2070,11 +2425,11 @@
       kilos.forEach(({ total: time, riderIndices }, i) => {
         const speed = speedFromDistanceTime(1000, time);
         const pct = 100 / QUARTERS_PER_KILO;
-        const stops = riderIndices.map((idx, q) => `${getRiderColor(idx)} ${(q * pct).toFixed(4)}% ${((q + 1) * pct).toFixed(4)}%`);
+        const stops = riderIndices.map((idx, q) => `${getTpRiderColor(idx)} ${(q * pct).toFixed(4)}% ${((q + 1) * pct).toFixed(4)}%`);
         const tr = document.createElement('tr');
         const kmTd = document.createElement('td');
         kmTd.style.cssText = `background:linear-gradient(to right, ${stops.join(', ')});padding:0;`;
-        kmTd.innerHTML = `<span style="display:block;padding:8px 10px;font-weight:600;color:#0f172a;text-shadow:0 0 3px rgba(255,255,255,0.9),0 0 6px rgba(255,255,255,0.6);">${i + 1} km</span>`;
+        kmTd.innerHTML = `<span style="display:block;padding:8px 10px;font-weight:600;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.85);">${i + 1} km</span>`;
         tr.appendChild(kmTd);
         tr.insertAdjacentHTML('beforeend', `<td>${formatTime(time)}</td><td>${speed.toFixed(2)}</td>`);
         tbody.appendChild(tr);
@@ -2379,6 +2734,24 @@
       return { startTime: startEvent.time, quarters };
     }
 
+    function markTsSummaryQuarterColumns(table) {
+      const quarterCellIndexes = [3, 4, 5, 6, 9, 10, 11, 12, 15, 16, 17, 18];
+      table.querySelectorAll('tr').forEach((row) => {
+        quarterCellIndexes.forEach((cellIndex, quarterIndex) => {
+          const cell = row.cells[cellIndex];
+          if (cell) cell.dataset.quarterIndex = String(quarterIndex);
+        });
+      });
+    }
+
+    function markTsHalfLapColumns(table) {
+      table.querySelectorAll('thead tr, tbody tr').forEach((row) => {
+        Array.from(row.cells).forEach((cell, cellIndex) => {
+          if (cellIndex > 0 && cellIndex <= 6) cell.dataset.halfLapIndex = String(cellIndex - 1);
+        });
+      });
+    }
+
     function renderTeamSprintReport(session) {
       const { startTime, quarters } = getTeamSprintQuarters(session);
       const rawTotal = quarters.length > 0 ? quarters.reduce((acc, q) => acc + q.quarterTime, 0) : null;
@@ -2476,6 +2849,7 @@
         `;
         tbody.appendChild(tr);
       });
+      markTsSummaryQuarterColumns(table);
       table.hidden = false;
       $('tsSummaryEmpty').hidden = true;
 
@@ -2491,6 +2865,7 @@
       const anyVisible = ['tsGapChartCard', 'tsCadencePlotCard', 'tsPowerPlotCard', 'tsHalfLapTimesCard', 'tsHalfLapSplitsCard', 'tsStandardizedHalfLapSplitsCard', 'tsFitStatsCard', 'tsHalfLapCadenceCard', 'tsHalfLapSpeedCard']
         .some((id) => !$(id).hidden);
       grid.style.display = anyVisible ? 'flex' : 'none';
+      updateActiveLapHighlight();
     }
 
     function renderTsFitStats(rows, names, startTime, quarters, session) {
@@ -2616,6 +2991,8 @@
       };
       renderRows(cadenceBody, false);
       renderRows(speedBody, true);
+      markTsHalfLapColumns(cadenceBody.closest('table'));
+      markTsHalfLapColumns(speedBody.closest('table'));
       $('tsHalfLapCadenceCard').hidden = !hasCadence;
       $('tsHalfLapSpeedCard').hidden = !hasSpeed;
     }
@@ -2971,6 +3348,9 @@
       $('tsHalfLapTimesCard').hidden = !hasTimes;
       $('tsHalfLapSplitsCard').hidden = !hasSplits;
       $('tsStandardizedHalfLapSplitsCard').hidden = !hasStandardized;
+      markTsHalfLapColumns(timesBody.closest('table'));
+      markTsHalfLapColumns(splitsBody.closest('table'));
+      markTsHalfLapColumns(standardizedBody.closest('table'));
     }
 
     // ===================== Individual Pursuit =====================
@@ -2990,25 +3370,50 @@
     function renderIndividualPursuitReport(session) {
       const rows = session.rows;
       const rawTotal = rows.length > 0 ? rows.reduce((acc, row) => acc + row.quarterTime, 0) : null;
-      const totalText = Number.isFinite(rawTotal) ? ` ${formatClockTime(rawTotal)}` : '';
-      reportDashboardTitle.textContent = `${session.title} — ${session.riderName || 'Rider'}${totalText}`;
+      const hasAirDensity = Number.isFinite(session.airDensity) && session.airDensity > 0;
+      const standardizationEnabled = hasAirDensity && Math.abs(session.airDensity - 1.169) > 0.0000001;
+      const factor = standardizationEnabled ? Math.pow(1.169 / session.airDensity, 0.3277) : 1;
+      const standardizedTotal = standardizationEnabled
+        ? rows.reduce((total, row, index) => total + (($('ipFlyToggle').checked || index >= 4) ? row.quarterTime * factor : row.quarterTime), 0)
+        : null;
+      const totalText = Number.isFinite(rawTotal)
+        ? (standardizationEnabled
+          ? ` (Raw/Std): ${formatClockTime(rawTotal)} / ${formatClockTime(standardizedTotal)} (ρ=${session.airDensity.toFixed(3)} kg/m³)`
+          : ` ${formatClockTime(rawTotal)}`)
+        : '';
+      const gearText = session.gear ? ` (Gear: ${session.gear} in)` : '';
+      const riderText = session.riderName ? ` — ${session.riderName}` : '';
+      reportDashboardTitle.textContent = `${session.title}${riderText}${totalText}${gearText}`;
 
       renderIpChart(rows);
       renderIpMergedLapTable(rows);
       renderIpFitAveragesTable(rows);
-      renderFirstLapAndAveragesTables(rows, $('ipFirstLapTable'), $('ipFirstLapEmpty'), $('ipLapAveragesTable'));
+      renderFirstLapAndAveragesTables(rows, $('ipFirstLapTable'), $('ipFirstLapEmpty'), $('ipLapAveragesTable'), session.airDensity, $('ipFlyToggle'));
       renderIpKiloSplitsTable(rows);
+      updateActiveIpHighlight();
     }
 
     function renderIpChart(sourceRows) {
       const canvas = $('ipChart');
       const wrapper = $('ipChartWrapper');
       const ctx = canvas.getContext('2d');
+      ipChartHitTargets = [];
+      const powerToggle = $('ipPowerToggle');
+      const hasPower = sourceRows.some((row) => Number.isFinite(row.metrics?.power));
+      powerToggle.closest('label').hidden = !hasPower;
+      if (!hasPower) powerToggle.checked = false;
+      const powerMode = powerToggle.checked;
       const flyingMode = $('ipFlyToggle').checked;
       const globalStartIndex = flyingMode ? 0 : 4;
       const hlMode = $('ipHlToggle').checked;
-      $('ipSpeedProfileTitle').textContent = hlMode ? 'Half Lap Speed Profile' : 'Quarter Split Speed Profile';
-      const quarterRows = flyingMode ? sourceRows : sourceRows.slice(4);
+      $('ipSpeedProfileTitle').textContent = `${hlMode ? 'Half Lap' : 'Quarter Split'} ${powerMode ? 'Power' : 'Speed'} Profile`;
+      let elapsedTime = 0;
+      const timedRows = sourceRows.map((row) => {
+        const startTime = elapsedTime;
+        elapsedTime += row.quarterTime;
+        return { ...row, _startTime: startTime, _endTime: elapsedTime };
+      });
+      const quarterRows = flyingMode ? timedRows : timedRows.slice(4);
 
       let rows;
       if (hlMode && quarterRows.length >= 3) {
@@ -3018,6 +3423,12 @@
           const combinedTime = (inner[p].quarterTime || 0) + (inner[p + 1].quarterTime || 0);
           rows.push({
             speed: combinedTime > 0 ? (125 / combinedTime) * 3.6 : 0,
+            power: weightedAverageMetric([inner[p], inner[p + 1]].map((row) => ({
+              power: row.metrics?.power,
+              quarterTime: row.quarterTime
+            })), 'power'),
+            _startTime: inner[p]._startTime,
+            _endTime: inner[p + 1]._endTime,
             _hlEndQuarterIndex: globalStartIndex + 1 + p + 1
           });
         }
@@ -3026,33 +3437,38 @@
       }
 
       const hasRows = rows.length > 0;
+      const plotValues = rows.map((row) => powerMode ? (row.power ?? row.metrics?.power) : row.speed);
+      const hasPlotValues = plotValues.some(Number.isFinite);
       const postFirstLapAverage = getAverageLapSplitAfterFirstLap(getLapTotalsFromRows(sourceRows, false));
       const postFirstLapAverageSpeed = Number.isFinite(postFirstLapAverage)
         ? speedFromDistanceTime(LAP_DISTANCE_METERS, postFirstLapAverage)
         : null;
-      wrapper.hidden = !hasRows;
-      $('ipChartEmpty').hidden = hasRows;
+      wrapper.hidden = !hasRows || !hasPlotValues;
+      $('ipChartEmpty').hidden = hasRows && hasPlotValues;
+      $('ipChartEmpty').textContent = hasRows && powerMode && !hasPlotValues
+        ? 'No power data for these splits.'
+        : 'No quarter splits for this race.';
 
       const legendEl = $('ipChartLegend');
-      legendEl.innerHTML = `<span class="legend-item"><span class="legend-swatch" style="background:${IP_BAR_COLOR}"></span>Speed</span>`
-        + (Number.isFinite(postFirstLapAverageSpeed) ? '<span class="legend-item"><span class="legend-line"></span>Post-lap-1 average</span>' : '');
+      legendEl.innerHTML = `<span class="legend-item"><span class="legend-swatch" style="background:${IP_BAR_COLOR}"></span>${powerMode ? 'Power' : 'Speed'}</span>`
+        + (!powerMode && Number.isFinite(postFirstLapAverageSpeed) ? '<span class="legend-item"><span class="legend-line"></span>Post-lap-1 average</span>' : '');
 
       const { width, height } = resizeChartCanvas(canvas, wrapper);
       ctx.clearRect(0, 0, width, height);
-      if (!hasRows) return;
+      if (!hasRows || !hasPlotValues) return;
 
       const padding = { top: 22, right: 18, bottom: 80, left: 68 };
       const chartWidth = width - padding.left - padding.right;
       const chartHeight = height - padding.top - padding.bottom;
-      const speeds = rows.map((row) => row.speed);
-      const minSpeed = Math.min(...speeds);
-      const maxSpeed = Math.max(...speeds);
+      const minValue = Math.min(...plotValues.filter(Number.isFinite));
+      const maxValue = Math.max(...plotValues.filter(Number.isFinite));
       const requestedYMin = parseFloat($('ipChartYMinInput').value);
       const requestedYMax = parseFloat($('ipChartYMaxInput').value);
-      const axisMin = Number.isFinite(requestedYMin) ? requestedYMin : minSpeed - 1;
+      const autoAxisPadding = powerMode ? 10 : 1;
+      const axisMin = Number.isFinite(requestedYMin) ? requestedYMin : minValue - autoAxisPadding;
       const axisMax = Number.isFinite(requestedYMax)
         ? Math.max(requestedYMax, axisMin + 1)
-        : Math.max(maxSpeed + 1, axisMin + 1);
+        : Math.max(maxValue + autoAxisPadding, axisMin + 1);
       const axisRange = Math.max(0.001, axisMax - axisMin);
       const tickCount = 5;
       const baseY = padding.top + chartHeight;
@@ -3088,27 +3504,39 @@
       ctx.rotate(-Math.PI / 2);
       ctx.textAlign = 'center';
       ctx.fillStyle = '#0f172a';
-      ctx.fillText('Speed (km/h)', 0, 0);
+      ctx.fillText(powerMode ? 'Power (W)' : 'Speed (km/h)', 0, 0);
       ctx.restore();
-
-      if (Number.isFinite(postFirstLapAverageSpeed)) {
-        const avgY = baseY - ((postFirstLapAverageSpeed - axisMin) / axisRange) * chartHeight;
-        ctx.save();
-        ctx.strokeStyle = averageLineColor;
-        ctx.lineWidth = 2;
-        ctx.setLineDash([6, 6]);
-        ctx.beginPath();
-        ctx.moveTo(padding.left, avgY);
-        ctx.lineTo(width - padding.right, avgY);
-        ctx.stroke();
-        ctx.restore();
-      }
 
       rows.forEach((row, index) => {
         const centerX = padding.left + barSlot * index + barSlot / 2;
-        const barHeight = ((row.speed - axisMin) / axisRange) * chartHeight;
-        ctx.fillStyle = IP_BAR_COLOR;
-        ctx.fillRect(centerX - barWidth / 2, baseY - barHeight, barWidth, barHeight);
+        const plotValue = plotValues[index];
+        if (Number.isFinite(plotValue)) {
+          const barHeight = ((plotValue - axisMin) / axisRange) * chartHeight;
+          const barTop = baseY - barHeight;
+          const barLeft = centerX - barWidth / 2;
+          if (Number.isFinite(row._startTime) && Number.isFinite(row._endTime)) {
+            ipChartHitTargets.push({
+              left: barLeft - 4,
+              right: barLeft + barWidth + 4,
+              top: Math.min(barTop, baseY) - 4,
+              bottom: Math.max(barTop, baseY) + 4,
+              startTime: row._startTime,
+              endTime: row._endTime,
+              index
+            });
+          }
+          if (index === activeIpBarIndex) {
+            ctx.fillStyle = 'rgba(15,118,110,0.12)';
+            ctx.fillRect(padding.left + barSlot * index, padding.top, barSlot, chartHeight);
+          }
+          ctx.fillStyle = IP_BAR_COLOR;
+          ctx.fillRect(barLeft, barTop, barWidth, barHeight);
+          if (index === activeIpBarIndex) {
+            ctx.strokeStyle = '#0f766e';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(barLeft - 2, Math.min(barTop, baseY) - 2, barWidth + 4, Math.abs(barHeight) + 4);
+          }
+        }
 
         ctx.save();
         ctx.translate(centerX, baseY + 8);
@@ -3122,6 +3550,19 @@
         ctx.fillText(xLabel, 0, 0);
         ctx.restore();
       });
+
+      if (!powerMode && Number.isFinite(postFirstLapAverageSpeed)) {
+        const avgY = baseY - ((postFirstLapAverageSpeed - axisMin) / axisRange) * chartHeight;
+        ctx.save();
+        ctx.strokeStyle = averageLineColor;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 6]);
+        ctx.beginPath();
+        ctx.moveTo(padding.left, avgY);
+        ctx.lineTo(width - padding.right, avgY);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
 
     function renderIpMergedLapTable(rows) {
@@ -3163,7 +3604,9 @@
         return maxAbs === 0 ? '' : heatColor(diff / maxAbs);
       };
 
-      headRow.innerHTML = '<th></th>' + lapStarts.map((_, i) => `<th>Lap ${i + 1}</th>`).join('');
+      const lapStartTimes = lapStarts.map((lapStart) => rows.slice(0, lapStart).reduce((total, row) => total + row.quarterTime, 0));
+      headRow.innerHTML = '<th></th>' + lapStarts.map((_, i) =>
+        `<th data-lap-index="${i}" data-start-time="${lapStartTimes[i]}" data-end-time="${lapStartTimes[i] + totals[i]}">Lap ${i + 1}</th>`).join('');
 
       const makeRow = (label, values, bgFn) => {
         const tr = document.createElement('tr');
@@ -3172,6 +3615,8 @@
         tr.appendChild(th);
         values.forEach((val, i) => {
           const td = document.createElement('td');
+          td.dataset.lapIndex = String(i);
+          td.dataset.startTime = String(lapStartTimes[i]);
           td.textContent = val !== null && val !== undefined ? val : '--';
           if (i > 0 && val !== null && val !== undefined) {
             const bg = bgFn(i);
@@ -3324,6 +3769,111 @@
       showVideoMode('local');
       setStatus(`Local video loaded: ${file.name}.`);
     });
+    $('setRaceStartBtn').addEventListener('click', () => {
+      const videoTime = getCurrentVideoTime();
+      if (!state.session || videoTime === null) return;
+      state.session.videoRaceStartOffset = videoTime;
+      try {
+        localStorage.setItem(getVideoRaceStartStorageKey(state.session), String(videoTime));
+      } catch (_) {}
+      updateVideoRaceStartLabel();
+      updateActiveLapHighlight();
+    });
+    $('resetRaceStartBtn').addEventListener('click', () => {
+      if (!state.session) return;
+      state.session.videoRaceStartOffset = getMasterVideoRaceStartOffset(state.session);
+      try {
+        localStorage.removeItem(getVideoRaceStartStorageKey(state.session));
+      } catch (_) {}
+      updateVideoRaceStartLabel();
+      updateActiveLapHighlight();
+    });
+    $('tpLapSummaryTable').addEventListener('click', (event) => {
+      const row = event.target.closest('tbody tr[data-start-time]');
+      if (row) seekToRaceTime(Number(row.dataset.startTime));
+    });
+    $('tpCadenceTable').addEventListener('click', (event) => {
+      const cell = event.target.closest('tbody td[data-lap-index]');
+      if (!cell) return;
+      const row = $('tpLapSummaryTable').querySelectorAll('tbody tr')[Number(cell.dataset.lapIndex)];
+      if (row) seekToRaceTime(Number(row.dataset.startTime));
+    });
+    $('tpChart').addEventListener('click', (event) => {
+      const canvas = event.currentTarget;
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const x = (event.clientX - rect.left) * canvas.width / rect.width;
+      const y = (event.clientY - rect.top) * canvas.height / rect.height;
+      const hit = speedProfileHitTargets.find((target) =>
+        (x >= target.left && x <= target.right && y >= target.top && y <= target.bottom) ||
+        (!$('tpDeliveryBarsToggle').checked && Math.hypot(x - target.dotX, y - target.dotY) <= 9));
+      if (hit) seekToRaceTime(hit.startTime);
+    });
+    $('tpChart').addEventListener('mousemove', (event) => {
+      const canvas = event.currentTarget;
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const x = (event.clientX - rect.left) * canvas.width / rect.width;
+      const y = (event.clientY - rect.top) * canvas.height / rect.height;
+      const overTarget = hasVideoRaceStartOffset() && speedProfileHitTargets.some((target) =>
+        (x >= target.left && x <= target.right && y >= target.top && y <= target.bottom) ||
+        (!$('tpDeliveryBarsToggle').checked && Math.hypot(x - target.dotX, y - target.dotY) <= 9));
+      canvas.style.cursor = overTarget ? 'pointer' : 'default';
+    });
+    $('ipChart').addEventListener('click', (event) => {
+      const canvas = event.currentTarget;
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const x = (event.clientX - rect.left) * canvas.width / rect.width;
+      const y = (event.clientY - rect.top) * canvas.height / rect.height;
+      const hit = ipChartHitTargets.find((target) =>
+        x >= target.left && x <= target.right && y >= target.top && y <= target.bottom);
+      if (hit) seekToRaceTime(hit.startTime);
+    });
+    $('ipChart').addEventListener('mousemove', (event) => {
+      const canvas = event.currentTarget;
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const x = (event.clientX - rect.left) * canvas.width / rect.width;
+      const y = (event.clientY - rect.top) * canvas.height / rect.height;
+      const overTarget = hasVideoRaceStartOffset() && ipChartHitTargets.some((target) =>
+        x >= target.left && x <= target.right && y >= target.top && y <= target.bottom);
+      canvas.style.cursor = overTarget ? 'pointer' : 'default';
+    });
+    $('ipChart').addEventListener('mouseleave', (event) => { event.currentTarget.style.cursor = 'default'; });
+    $('ipLapMergedTable').addEventListener('click', (event) => {
+      const table = $('ipLapMergedTable');
+      const cell = event.target.closest('th, td');
+      if (!cell || cell.closest('table') !== table || cell.cellIndex === 0) return;
+      const header = table.tHead?.rows[0]?.cells[cell.cellIndex];
+      const startTime = Number(header?.dataset.startTime);
+      if (Number.isFinite(startTime)) seekToRaceTime(startTime);
+    });
+    video.addEventListener('timeupdate', updateActiveLapHighlight);
+    video.addEventListener('seeked', updateActiveLapHighlight);
+    window.setInterval(updateActiveLapHighlight, 250);
+
+    document.addEventListener('keydown', (event) => {
+      const activeElement = document.activeElement;
+      if (activeElement && activeElement.matches('input, select, textarea, button, a, [contenteditable="true"], [role="button"]')) return;
+      if (video.hidden && youtubePlayerWrap.hidden) return;
+
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        event.preventDefault();
+        event.stopPropagation();
+        stepVideoFrame(event.key === 'ArrowRight' ? 1 : -1);
+      } else if (event.code === 'Space') {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!video.hidden && hasLocalVideo) {
+          if (video.paused) video.play().catch(() => {});
+          else video.pause();
+        } else if (youtubePlayer && typeof youtubePlayer.getPlayerState === 'function') {
+          if (youtubePlayer.getPlayerState() === window.YT?.PlayerState?.PLAYING) youtubePlayer.pauseVideo();
+          else youtubePlayer.playVideo();
+        }
+      }
+    });
 
     fullscreenBtn.addEventListener('click', () => {
       if (document.fullscreenElement) document.exitFullscreen();
@@ -3331,9 +3881,13 @@
     });
     $('tpExportReportBtn').addEventListener('click', exportTpReport);
     $('ipExportReportBtn').addEventListener('click', exportIpReport);
-    ['ipFlyToggle', 'ipHlToggle'].forEach((id) => {
+    ['ipFlyToggle', 'ipHlToggle', 'ipPowerToggle'].forEach((id) => {
       $(id).addEventListener('change', () => {
-        if (state.session?.raceType === 'IP') renderIpChart(state.session.rows);
+        if (id === 'ipPowerToggle') {
+          $('ipChartYMinInput').value = '';
+          $('ipChartYMaxInput').value = '';
+        }
+        if (state.session?.raceType === 'IP') renderIndividualPursuitReport(state.session);
       });
     });
     ['ipChartYMinInput', 'ipChartYMaxInput'].forEach((id) => {
@@ -3341,8 +3895,14 @@
         if (state.session?.raceType === 'IP') renderIpChart(state.session.rows);
       });
     });
-    ['tpFlyToggle', 'tpHlToggle', 'tpDeliveryBarsToggle'].forEach((id) => {
-      $(id).addEventListener('change', () => { if (state.session?.raceType === 'TP') renderReport(); });
+    ['tpFlyToggle', 'tpHlToggle', 'tpDeliveryBarsToggle', 'tpPowerToggle'].forEach((id) => {
+      $(id).addEventListener('change', () => {
+        if (id === 'tpPowerToggle') {
+          $('tpChartYMinInput').value = '';
+          $('tpChartYMaxInput').value = '';
+        }
+        if (state.session?.raceType === 'TP') renderReport();
+      });
     });
     ['tpIncludeL1PowerToggle', 'tpRecovOnlyToggle'].forEach((id) => {
       $(id).addEventListener('change', () => {

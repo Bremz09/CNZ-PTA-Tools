@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <script src="auth-gate.js"></script>
+  <script src="youtube-video-adapter.js"></script>
   <meta charset="UTF-8">
   <title>Team Pursuit Video Timing</title>
   <style>
@@ -50,6 +51,18 @@
       background: #000;
       margin-bottom: 10px;
     }
+    .youtube-player-container {
+      width: 100%;
+      max-width: 960px;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      margin-bottom: 10px;
+    }
+    .youtube-player-container iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
     .controls {
       display: flex;
       flex-wrap: wrap;
@@ -94,6 +107,16 @@
       color: #333;
       margin-top: 4px;
     }
+    .video-start-time-status {
+      margin: 6px 0 10px;
+      padding: 6px 8px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .video-start-time-status.is-set { color: #166534; background: #dcfce7; }
+    .video-start-time-status.is-not-set { color: #b91c1c; background: #fee2e2; }
+    .video-start-time-status.is-checking { color: #475569; background: #f1f5f9; }
     [hidden] { display: none !important; }
     .flying-toggle {
       display: inline-flex;
@@ -769,6 +792,9 @@
   <div class="container">
     <div class="video-section">
       <video id="video" controls style="display:none;"></video>
+      <div id="youtubePlayerContainer" class="youtube-player-container" style="display:none;"></div>
+      <p id="reportVideoStartTimeStatus" class="video-start-time-status is-checking" role="status" aria-live="polite">Video start time: Select a master race to check.</p>
+      <p id="reportFitMetricsStatus" class="video-start-time-status is-checking" role="status" aria-live="polite">FIT file metrics: Select a master race to check.</p>
 
       <div class="controls">
         <label for="fpsInput">FPS:</label>
@@ -943,6 +969,7 @@
           </select>
           <button id="fitAppendToFileBtn" type="button" disabled title="Write average power, cadence and torque per quarter for each rider to the master file">Append to file</button>
           <button id="fitUpdateMasterBtn" type="button" disabled title="Update the matching race in the selected master file">Update Master</button>
+          <button id="fitUpdateVideoStartTimeBtn" type="button" hidden>Update Video Start Time</button>
         </div>
       </div>
       <div class="fit-field">
@@ -1129,11 +1156,53 @@
     const LAP_DISTANCE_METERS = SPLIT_DISTANCE_METERS * 4;
     const QUARTERS_PER_KILO = 16; // 4 laps × 4 quarters = 1000 m
 
-    const video = document.getElementById('video');
+    const localVideo = document.getElementById('video');
+    const youtubePlayerContainer = document.getElementById('youtubePlayerContainer');
+    const youtubeVideoAdapter = window.createYouTubeVideoAdapter(localVideo, youtubePlayerContainer);
+    const video = youtubeVideoAdapter.video;
     const videoInput = document.getElementById('videoInput');
     const currentTimeDisplay = document.getElementById('currentTime');
     const statusDisplay = document.getElementById('status');
 
+    function hasActiveVideoSource() {
+      return hasVideoLoaded || youtubeVideoAdapter.active;
+    }
+    function clearYouTubeVideo() {
+      youtubeVideoAdapter.clear();
+    }
+    function getMasterVideoUrl(sheet, XLSX, rowIndexes, column) {
+      if (column < 0) return '';
+      for (const row of rowIndexes) {
+        const cell = sheet[XLSX.utils.encode_cell({ r: row, c: column })];
+        const formulaUrl = String(cell?.f || '').match(/HYPERLINK\(\s*"([^"]+)"/i)?.[1];
+        const url = String(cell?.l?.Target || formulaUrl || cell?.v || '').trim();
+        if (url) return url;
+      }
+      return '';
+    }
+    function findMasterVideoColumn(sheet, XLSX, range) {
+      for (let column = 0; column <= range.e.c; column++) {
+        const header = String(getMasterCell(sheet, XLSX, 0, column)).trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (header === 'video' || header === 'videourl') return column;
+      }
+      return -1;
+    }
+    function loadMasterRaceVideo(sheet, XLSX, range, race, column) {
+      if (hasVideoLoaded) return;
+      const url = getMasterVideoUrl(sheet, XLSX, race.rowIndexes, column >= 0 ? column : findMasterVideoColumn(sheet, XLSX, range));
+      if (url) {
+        localVideo.style.display = 'none';
+        youtubeVideoAdapter.load(url, {
+          onReady: updateFitAppendAvailability,
+          onError: () => setStatus('The selected race YouTube video could not be loaded.'),
+          onLoadError: (error) => setStatus(`YouTube video load failed: ${error.message || error}`)
+        });
+      }
+      else {
+        clearYouTubeVideo();
+        localVideo.style.display = 'none';
+      }
+    }
     const fpsInput = document.getElementById('fpsInput');
     const jumpFramesInput = document.getElementById('jumpFramesInput');
     const fixedJumpFramesInput = document.getElementById('fixedJumpFramesInput');
@@ -1239,6 +1308,7 @@
     const fitMasterRaceSelect = document.getElementById('fitMasterRaceSelect');
     const fitAppendToFileBtn = document.getElementById('fitAppendToFileBtn');
     const fitUpdateMasterBtn = document.getElementById('fitUpdateMasterBtn');
+    const fitUpdateVideoStartTimeBtn = document.getElementById('fitUpdateVideoStartTimeBtn');
     const fitSamplingHz = document.getElementById('fitSamplingHz');
     const fitVideoFps = document.getElementById('fitVideoFps');
     const fitTraceOffset = document.getElementById('fitTraceOffset');
@@ -1268,6 +1338,7 @@
 
     // Session state
     let startTime = null;
+    let pendingVideoStartTime = null;
     let lastMarkerTime = null;
     let teamFinished = false;
     let pendingDeliveryAdjustment = false; // used only by Rider Finish (R)
@@ -1393,7 +1464,7 @@
       fitStatusDisplay.classList.toggle('ok', level === 'ok');
     }
     function updateSnapToStartAvailability() {
-      snapToStartBtn.disabled = !(hasVideoLoaded && hasUploadedTimingData && Number.isFinite(uploadedCsvStartTime));
+      snapToStartBtn.disabled = !(hasActiveVideoSource() && hasUploadedTimingData && Number.isFinite(uploadedCsvStartTime));
     }
     function updateFitControlLabels() {
       fitScaleValue.textContent = `${Math.round(fitSyncState.viewScale * 100)}%`;
@@ -3125,6 +3196,7 @@
     function openReportModal() {
       reportModal.classList.add('open');
       reportModal.setAttribute('aria-hidden', 'false');
+      void updateReportVideoStartTimeStatus();
       updateFitAppendAvailability();
       renderReportChart();
       renderLapSummaryTable();
@@ -3132,6 +3204,73 @@
       renderRiderCadenceLapTable();
       renderKiloSplitsTable();
       renderLeadLapsTable();
+    }
+
+    let reportVideoStartTimeCheck = 0;
+    async function updateReportVideoStartTimeStatus() {
+      const status = document.getElementById('reportVideoStartTimeStatus');
+      const metricsStatus = document.getElementById('reportFitMetricsStatus');
+      const check = ++reportVideoStartTimeCheck;
+      const selectedRace = fitMasterState.race;
+      const setStatus = (message, state) => {
+        status.textContent = message;
+        status.classList.remove('is-set', 'is-not-set', 'is-checking');
+        status.classList.add(`is-${state}`);
+      };
+      if (!fitMasterState.fileHandle || !selectedRace) {
+        setStatus('Video start time: Select a master race to check.', 'checking');
+        metricsStatus.textContent = 'FIT file metrics: Select a master race to check.';
+        metricsStatus.className = 'video-start-time-status is-checking';
+        return;
+      }
+      setStatus('Video start time: Checking master file...', 'checking');
+      metricsStatus.textContent = 'FIT file metrics: Checking master file...';
+      metricsStatus.className = 'video-start-time-status is-checking';
+      try {
+        const { sheets, XLSX } = await readMasterWorkbook();
+        const masterSheet = sheets.find((item) => item.name === selectedRace.sheetName);
+        if (!masterSheet) throw new Error('Selected worksheet no longer exists.');
+        const race = getMasterRaces(masterSheet.sheet, XLSX, masterSheet.range, masterSheet.name)
+          .find((item) => item.key === selectedRace.key);
+        if (!race) throw new Error('Selected race no longer exists.');
+        const field = MASTER_METADATA_FIELDS.find((item) => item.key === 'videoStartTime');
+        const column = findMasterMetadataColumn(masterSheet.sheet, XLSX, masterSheet.range, field);
+        const hasValue = column >= 0 && race.rowIndexes.some((row) =>
+          String(getMasterCell(masterSheet.sheet, XLSX, row, column) ?? '').trim() !== ''
+        );
+        const headers = Array.from({ length: masterSheet.range.e.c + 1 }, (_, col) =>
+          String(getMasterCell(masterSheet.sheet, XLSX, 0, col) ?? '').trim().toLowerCase().replace(/[^a-z0-9]/g, '')
+        );
+        const metricFields = [
+          { label: 'Power', key: 'avgpower' },
+          { label: 'Cadence', key: 'avgcadence' },
+          { label: 'Torque', key: 'avgtorque' }
+        ];
+        const missingByRider = [];
+        for (let riderIndex = 0; riderIndex < 4; riderIndex++) {
+          const prefix = `r${riderIndex + 1}`;
+          const missing = metricFields.filter((metric) => {
+            const metricColumn = headers.findIndex((header) => header.startsWith(prefix) && header.includes(metric.key));
+            return metricColumn < 0 || !race.rowIndexes.some((row) =>
+              String(getMasterCell(masterSheet.sheet, XLSX, row, metricColumn) ?? '').trim() !== ''
+            );
+          });
+          if (missing.length) missingByRider.push(`${prefix.toUpperCase()} missing ${missing.map((metric) => metric.label).join(', ')}`);
+        }
+        if (check === reportVideoStartTimeCheck) {
+          setStatus(`Video start time: ${hasValue ? 'Set' : 'Not set'}`, hasValue ? 'set' : 'not-set');
+          metricsStatus.textContent = missingByRider.length
+            ? `FIT file metrics: ${missingByRider.join('; ')}`
+            : 'FIT file metrics: Added for all 4 riders (Power, Cadence, Torque).';
+          metricsStatus.className = `video-start-time-status is-${missingByRider.length ? 'not-set' : 'set'}`;
+        }
+      } catch (error) {
+        if (check === reportVideoStartTimeCheck) {
+          setStatus('Video start time: Could not check master file.', 'checking');
+          metricsStatus.textContent = 'FIT file metrics: Could not check master file.';
+          metricsStatus.className = 'video-start-time-status is-checking';
+        }
+      }
     }
 
     function closeReportModal() {
@@ -3241,21 +3380,31 @@
     // Master layout (A:J): Title, DateTime, Distance, Cumulative, Quarter Time, Delivery Speed, Team Speed, Event, Rider, Video URL. Row 1 = headers.
     const MASTER_DATA_LAST_COL = 9;
     const MASTER_METADATA_FIELDS = [
-      { key: 'airDensity', header: 'Air Density', label: 'Air Density', getValue: () => getProvidedAirDensity() },
+      { key: 'airDensity', header: 'Air Density', aliases: ['Air Density (kg/m3)', 'Air Density (kg/m^3)'], label: 'Air Density', getValue: () => getProvidedAirDensity() },
       ...riderGearInputs.map((input, index) => ({
         key: `rider${index + 1}Gear`,
         header: `R${index + 1} Gear (in)`,
+        aliases: [`R${index + 1} Gear`, `R${index + 1} Gears`, `R${index + 1} Gear Inches`],
         label: `Rider ${index + 1} Gear`,
         getValue: () => getProvidedGear(input)
-      }))
+      })),
+      {
+        key: 'videoStartTime',
+        header: 'Video Start Time',
+        label: 'Video Start Time',
+        getValue: () => Number.isFinite(pendingVideoStartTime) ? pendingVideoStartTime : null
+      }
     ];
     const fitMasterState = { fileHandle: null, races: [], race: null };
 
     function updateFitAppendAvailability() {
       const hasFit = fitSyncState.parsedFiles.length > 0;
       const hasMaster = Boolean(fitMasterState.fileHandle);
+      const hasReadyVideo = hasActiveVideoSource() && video.readyState >= HTMLMediaElement.HAVE_METADATA;
       fitMasterFileBtn.disabled = false;
       fitMasterRaceSelect.disabled = !hasMaster || fitMasterState.races.length === 0;
+      fitUpdateVideoStartTimeBtn.hidden = !hasReadyVideo || !hasMaster || !fitMasterState.race;
+      fitUpdateVideoStartTimeBtn.disabled = false;
       fitAppendToFileBtn.disabled = !hasFit || !fitMasterState.race;
       const title = countryInput.value.trim().toLowerCase();
       const canUpdateMaster = hasMaster && title
@@ -3296,10 +3445,11 @@
     }
 
     function findMasterMetadataColumn(sheet, XLSX, range, field) {
-      const expected = field.header.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const expected = [field.header, ...(field.aliases || [])]
+        .map((header) => header.toLowerCase().replace(/[^a-z0-9]/g, ''));
       for (let c = 0; c <= range.e.c; c++) {
         const header = String(getMasterCell(sheet, XLSX, 0, c)).trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (header === expected) return c;
+        if (expected.includes(header)) return c;
       }
       return -1;
     }
@@ -3339,6 +3489,7 @@
     function writeMasterMetadata(sheet, XLSX, range, rowIndexes, metadata, fields) {
       const columns = ensureMasterMetadataColumns(sheet, XLSX, range, metadata);
       for (const field of fields) {
+        if (metadata[field.key] == null || metadata[field.key] === '') continue;
         for (const row of rowIndexes) {
           setMasterCell(sheet, XLSX, range, row, columns[field.key], metadata[field.key]);
         }
@@ -3346,37 +3497,81 @@
       sheet['!ref'] = XLSX.utils.encode_range(range);
     }
 
+    function getMasterWorksheets(workbook, XLSX) {
+      return workbook.SheetNames.map((name) => {
+        const sheet = workbook.Sheets[name];
+        if (!sheet || !sheet['!ref']) return null;
+        const range = XLSX.utils.decode_range(sheet['!ref']);
+        const headers = new Set(Array.from({ length: range.e.c + 1 }, (_, column) =>
+          String(getMasterCell(sheet, XLSX, 0, column)).trim().toLowerCase().replace(/[^a-z0-9]/g, '')
+        ));
+        const isTeamPursuitSheet = headers.has('title')
+          && (headers.has('split') || headers.has('splittime') || headers.has('quartertime'))
+          && (headers.has('avg_speed') || headers.has('avgspeed') || headers.has('teamspeed'))
+          && (headers.has('action') || headers.has('event'))
+          && (headers.has('front') || headers.has('athleteinfront') || headers.has('lead'));
+        return isTeamPursuitSheet ? { name, sheet, range } : null;
+      }).filter(Boolean);
+    }
+
     async function readMasterWorkbook() {
       const XLSX = await ensureXLSXLoaded();
       const file = await fitMasterState.fileHandle.getFile();
       const workbook = XLSX.read(new Uint8Array(await file.arrayBuffer()), { type: 'array' });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      if (!sheet || !sheet['!ref']) throw new Error('Master file has no data.');
-      return { XLSX, file, workbook, sheet, range: XLSX.utils.decode_range(sheet['!ref']) };
+      const sheets = getMasterWorksheets(workbook, XLSX);
+      if (sheets.length === 0) throw new Error('No team pursuit timing sheet found in the master file.');
+      return { XLSX, file, workbook, sheets };
     }
 
-    function getMasterRaces(sheet, XLSX, range) {
+    function getMasterRaceDateValue(race) {
+      for (const value of [race.dateText, race.title]) {
+        const text = String(value ?? '').trim();
+        const excelSerial = Number(text);
+        if (excelSerial >= 20000 && excelSerial <= 100000) {
+          return Date.UTC(1899, 11, 30) + excelSerial * 86400000;
+        }
+        const match = text.match(/(?:^|\D)(\d{2,4})[-/.](\d{1,2})[-/.](\d{1,2})(?:\D|$)/);
+        if (match) {
+          let year = Number(match[1]);
+          if (year < 100) year += year < 70 ? 2000 : 1900;
+          return Date.UTC(year, Number(match[2]) - 1, Number(match[3]));
+        }
+        const parsed = Date.parse(text);
+        if (Number.isFinite(parsed)) return parsed;
+      }
+      return Number.NEGATIVE_INFINITY;
+    }
+
+    function getMasterRaces(sheet, XLSX, range, sheetName) {
       const races = new Map();
       for (let r = 1; r <= range.e.r; r++) {
         const title = String(getMasterCell(sheet, XLSX, r, 0)).trim();
         if (!title) continue;
         const dateCell = sheet[XLSX.utils.encode_cell({ r, c: 1 })];
         const dateText = dateCell ? String(dateCell.w ?? dateCell.v ?? '').trim() : '';
-        const key = `${title}\u0000${dateText}`;
-        if (!races.has(key)) races.set(key, { key, title, dateText, rowIndexes: [] });
+        const key = `${sheetName}\u0000${title}\u0000${dateText}`;
+        if (!races.has(key)) races.set(key, { key, title, dateText, sheetName, rowIndexes: [] });
         races.get(key).rowIndexes.push(r);
       }
-      return [...races.values()];
+      return [...races.values()].sort((a, b) => getMasterRaceDateValue(b) - getMasterRaceDateValue(a));
     }
 
     function populateMasterRaceSelect() {
       const titleCounts = {};
       fitMasterState.races.forEach((race) => { titleCounts[race.title] = (titleCounts[race.title] || 0) + 1; });
+      const sheetCounts = {};
+      fitMasterState.races.forEach((race) => {
+        const key = `${race.title}\u0000${race.dateText}`;
+        sheetCounts[key] = (sheetCounts[key] || 0) + 1;
+      });
       fitMasterRaceSelect.innerHTML = '<option value="">Select race</option>';
       for (const race of fitMasterState.races) {
         const option = document.createElement('option');
         option.value = race.key;
-        option.textContent = titleCounts[race.title] > 1 && race.dateText ? `${race.title} (${race.dateText})` : race.title;
+        const suffix = titleCounts[race.title] > 1
+          ? `${race.dateText || race.sheetName}${sheetCounts[`${race.title}\u0000${race.dateText}`] > 1 ? `, ${race.sheetName}` : ''}`
+          : '';
+        option.textContent = suffix ? `${race.title} (${suffix})` : race.title;
         fitMasterRaceSelect.appendChild(option);
       }
     }
@@ -3397,6 +3592,18 @@
 
     function loadMasterRaceIntoSession(sheet, XLSX, race) {
       const playhead = Number.isFinite(startTime) ? startTime : (Number.isFinite(video.currentTime) ? video.currentTime : 0);
+      const metadataValues = Object.fromEntries(MASTER_METADATA_FIELDS.map((field) => {
+        const column = findMasterMetadataColumn(sheet, XLSX, XLSX.utils.decode_range(sheet['!ref']), field);
+        if (column < 0) return [field.key, null];
+        for (const rowIndex of race.rowIndexes) {
+          const value = toNumeric(getMasterCell(sheet, XLSX, rowIndex, column));
+          const valid = field.key === 'videoStartTime'
+            ? Number.isFinite(value) && value >= 0
+            : Number.isFinite(value) && value > 0;
+          if (valid) return [field.key, value];
+        }
+        return [field.key, null];
+      }));
       const masterRows = race.rowIndexes.map((r) => ({
         quarterTime: toNumeric(getMasterCell(sheet, XLSX, r, 4)),
         deliverySpeed: toNumeric(getMasterCell(sheet, XLSX, r, 5)),
@@ -3418,6 +3625,12 @@
       resetSession();
       countryInput.value = race.title;
       applyRiderNamesKeepingFitAssignments(riderNames);
+      airDensityInput.value = String(metadataValues.airDensity ?? 1.169);
+      riderGearInputs.forEach((input, index) => {
+        const value = metadataValues[`rider${index + 1}Gear`];
+        input.value = value == null ? '' : String(value);
+      });
+      pendingVideoStartTime = metadataValues.videoStartTime;
       brokenQuarterAutoDetected = true;
       startTime = playhead;
       let endTime = playhead;
@@ -3519,8 +3732,10 @@
       try {
         fitMasterState.fileHandle = fileHandle;
         fitMasterState.race = null;
-        const { file, sheet, XLSX, range } = await readMasterWorkbook();
-        fitMasterState.races = getMasterRaces(sheet, XLSX, range);
+        void updateReportVideoStartTimeStatus();
+        if (!hasVideoLoaded) clearYouTubeVideo();
+        const { file, sheets, XLSX } = await readMasterWorkbook();
+        fitMasterState.races = sheets.flatMap(({ name, sheet, range }) => getMasterRaces(sheet, XLSX, range, name));
         populateMasterRaceSelect();
         setFitStatus(fitMasterState.races.length > 0
           ? `Master file ${file.name} loaded with ${fitMasterState.races.length} race(s). Select a race.`
@@ -3536,22 +3751,59 @@
 
     fitMasterRaceSelect.addEventListener('change', async () => {
       fitMasterState.race = null;
+      void updateReportVideoStartTimeStatus();
       const key = fitMasterRaceSelect.value;
       if (key) {
         try {
-          const { sheet, XLSX, range } = await readMasterWorkbook();
-          fitMasterState.races = getMasterRaces(sheet, XLSX, range);
+          const { sheets, XLSX } = await readMasterWorkbook();
+          fitMasterState.races = sheets.flatMap(({ name, sheet, range }) => getMasterRaces(sheet, XLSX, range, name));
           const race = fitMasterState.races.find((item) => item.key === key);
           if (!race) throw new Error('Race no longer found in master file.');
-          loadMasterRaceIntoSession(sheet, XLSX, race);
+          const masterSheet = sheets.find((item) => item.name === race.sheetName);
+          if (!masterSheet) throw new Error(`Worksheet "${race.sheetName}" no longer found in master file.`);
+          if (!hasVideoLoaded) clearYouTubeVideo();
+          loadMasterRaceIntoSession(masterSheet.sheet, XLSX, race);
           fitMasterState.race = race;
+          void updateReportVideoStartTimeStatus();
+          loadMasterRaceVideo(masterSheet.sheet, XLSX, masterSheet.range, race, findMasterVideoColumn(masterSheet.sheet, XLSX, masterSheet.range));
           setFitStatus(`Loaded ${race.rowIndexes.length} quarters for "${race.title}". Align the FIT traces to the quarters, then Append to file.`, 'ok');
         } catch (error) {
           console.error(error);
           setFitStatus(`Race load error: ${error.message || error}`);
         }
+      } else if (!hasVideoLoaded) {
+        clearYouTubeVideo();
+        localVideo.style.display = 'none';
       }
       updateFitAppendAvailability();
+    });
+
+    fitUpdateVideoStartTimeBtn.addEventListener('click', async () => {
+      if (!hasActiveVideoSource() || video.readyState < HTMLMediaElement.HAVE_METADATA || !fitMasterState.fileHandle || !fitMasterState.race || !Number.isFinite(video.currentTime)) return;
+      const videoStartTime = video.currentTime;
+      pendingVideoStartTime = videoStartTime;
+      fitUpdateVideoStartTimeBtn.disabled = true;
+      try {
+        const { file, workbook, sheets, XLSX } = await readMasterWorkbook();
+        const masterSheet = sheets.find((item) => item.name === fitMasterState.race.sheetName);
+        if (!masterSheet) throw new Error(`Worksheet "${fitMasterState.race.sheetName}" no longer found in master file.`);
+        const { sheet, range } = masterSheet;
+        const race = getMasterRaces(sheet, XLSX, range, masterSheet.name).find((item) => item.key === fitMasterState.race.key);
+        if (!race) throw new Error('Race no longer found in master file.');
+        const metadata = { videoStartTime };
+        const field = MASTER_METADATA_FIELDS.find((item) => item.key === 'videoStartTime');
+        writeMasterMetadata(sheet, XLSX, range, race.rowIndexes, metadata, [field]);
+        const wbArray = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
+        const writable = await fitMasterState.fileHandle.createWritable();
+        await writable.write(new Blob([wbArray], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+        await writable.close();
+        setFitStatus(`Video start time ${videoStartTime.toFixed(2)}s stored for "${race.title}" in ${file.name}.`, 'ok');
+      } catch (error) {
+        console.error(error);
+        setFitStatus(`Video start time update error: ${error.message || error}`);
+      } finally {
+        updateFitAppendAvailability();
+      }
     });
 
     fitAppendToFileBtn.addEventListener('click', async () => {
@@ -3560,8 +3812,11 @@
       fitAppendToFileBtn.disabled = true;
       fitAppendToFileBtn.textContent = 'Appending...';
       try {
-        const { file, workbook, sheet, XLSX, range } = await readMasterWorkbook();
-        const race = getMasterRaces(sheet, XLSX, range).find((item) => item.key === fitMasterState.race.key);
+        const { file, workbook, sheets, XLSX } = await readMasterWorkbook();
+        const masterSheet = sheets.find((item) => item.name === fitMasterState.race.sheetName);
+        if (!masterSheet) throw new Error(`Worksheet "${fitMasterState.race.sheetName}" no longer found in master file.`);
+        const { sheet, range } = masterSheet;
+        const race = getMasterRaces(sheet, XLSX, range, masterSheet.name).find((item) => item.key === fitMasterState.race.key);
         if (!race) throw new Error('Race no longer found in master file.');
         if (race.rowIndexes.length !== splitRows.length) {
           throw new Error(`Race has ${race.rowIndexes.length} rows in the file but ${splitRows.length} quarters are loaded. Reselect the race.`);
@@ -3569,7 +3824,9 @@
         const ridersWritten = writeFitColumnsToMaster(sheet, XLSX, range, race.rowIndexes);
         if (ridersWritten === 0) throw new Error('No rider FIT files are assigned.');
         const metadata = getMasterMetadata();
-        const metadataDifferences = getMasterMetadataDifferences(sheet, XLSX, range, race.rowIndexes, metadata);
+        const videoStartTimeFields = MASTER_METADATA_FIELDS.filter((field) => field.key === 'videoStartTime' && metadata[field.key] != null);
+        const metadataDifferences = getMasterMetadataDifferences(sheet, XLSX, range, race.rowIndexes, metadata)
+          .filter((field) => field.key !== 'videoStartTime');
         let metadataUpdated = false;
         if (metadataDifferences.length > 0) {
           const labels = metadataDifferences.map((field) => field.label).join(', ');
@@ -3577,6 +3834,9 @@
             writeMasterMetadata(sheet, XLSX, range, race.rowIndexes, metadata, metadataDifferences);
             metadataUpdated = true;
           }
+        }
+        if (videoStartTimeFields.length > 0) {
+          writeMasterMetadata(sheet, XLSX, range, race.rowIndexes, metadata, videoStartTimeFields);
         }
         const wbArray = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
         const writable = await fitMasterState.fileHandle.createWritable();
@@ -3615,6 +3875,7 @@
 
     function resetSession() {
       startTime = null;
+      pendingVideoStartTime = null;
       lastMarkerTime = null;
       teamFinished = false;
       pendingDeliveryAdjustment = false;
@@ -3676,6 +3937,7 @@
     function startTiming() {
       resetSession();
       startTime = video.currentTime;
+      pendingVideoStartTime = startTime;
       lastMarkerTime = startTime;
       reportTable.style.display = 'table';
       setStatus(`Started at ${startTime.toFixed(2)}s.`);
@@ -4021,8 +4283,8 @@
       fitUpdateMasterBtn.disabled = true;
       button.textContent = 'Updating...';
       try {
-        const { file, workbook, sheet, XLSX, range } = await readMasterWorkbook();
-        const matchingRaces = getMasterRaces(sheet, XLSX, range)
+        const { file, workbook, sheets, XLSX } = await readMasterWorkbook();
+        const matchingRaces = sheets.flatMap(({ name, sheet, range }) => getMasterRaces(sheet, XLSX, range, name))
           .filter((race) => race.title.trim().toLowerCase() === title.toLowerCase());
         if (matchingRaces.length === 0) throw new Error(`No race titled "${title}" was found in the selected master file.`);
 
@@ -4031,6 +4293,9 @@
           race = matchingRaces.find((item) => item.key === fitMasterState.race?.key);
           if (!race) throw new Error(`Multiple races are titled "${title}". Select the matching race in the Master File list, then try again.`);
         }
+        const masterSheet = sheets.find((item) => item.name === race.sheetName);
+        if (!masterSheet) throw new Error(`Worksheet "${race.sheetName}" no longer found in master file.`);
+        const { sheet, range } = masterSheet;
 
         const reportRows = buildReportRows();
         if (reportRows.length !== race.rowIndexes.length) {
@@ -4222,6 +4487,7 @@
           // Restore splitRows
           resetSession();
           startTime = uploadedStartTime;
+          pendingVideoStartTime = Number.isFinite(uploadedStartTime) ? uploadedStartTime : null;
           uploadedCsvStartTime = uploadedStartTime;
           hasUploadedTimingData = true;
           updateSnapToStartAvailability();
@@ -4286,10 +4552,12 @@
       video.style.display = '';
       hasVideoLoaded = true;
       updateSnapToStartAvailability();
+      updateFitAppendAvailability();
 
       video.addEventListener('focus', () => video.blur());
       setStatus('Video loaded. Press S to start timing.');
     });
+    video.addEventListener('loadedmetadata', updateFitAppendAvailability);
 
     countryInput.addEventListener('input', () => {
       updateTitle();
@@ -4378,6 +4646,7 @@
         video.style.display = '';
         hasVideoLoaded = true;
         updateSnapToStartAvailability();
+        updateFitAppendAvailability();
         video.addEventListener('focus', () => video.blur());
         tasks.push(videoReady);
       }

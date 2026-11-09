@@ -55,6 +55,17 @@
       </div>
       <label for="fpsInput">FPS:</label>
       <input type="number" id="fpsInput" min="1" max="240" value="50" style="width:60px;">
+      <label for="playbackRateSelect">Speed:</label>
+      <select id="playbackRateSelect" aria-label="Playback speed">
+        <option value="0.25">0.25×</option>
+        <option value="0.5">0.5×</option>
+        <option value="0.75">0.75×</option>
+        <option value="1" selected>1×</option>
+        <option value="1.25">1.25×</option>
+        <option value="1.5">1.5×</option>
+        <option value="1.75">1.75×</option>
+        <option value="2">2×</option>
+      </select>
       <label for="skipFramesInput">Skip Frames:</label>
       <input type="number" id="skipFramesInput" min="1" max="1000" value="180" style="width:70px;">
       <label for="fixedSkipFramesInput">Fixed Skip:</label>
@@ -104,6 +115,7 @@
   const measurementStatus = document.getElementById('measurementStatus');
   const currentTimeDisplay = document.getElementById('currentTime');
   const fpsInput = document.getElementById('fpsInput');
+  const playbackRateSelect = document.getElementById('playbackRateSelect');
   const skipFramesInput = document.getElementById('skipFramesInput');
   const fixedSkipFramesInput = document.getElementById('fixedSkipFramesInput');
   const startBtn = document.getElementById('startBtn');
@@ -524,6 +536,30 @@
     return youtubeApiPromise;
   }
 
+  function updatePlaybackRateOptions(availableRates = null) {
+    const options = Array.from(playbackRateSelect.options);
+    for (const option of options) {
+      option.disabled = Array.isArray(availableRates) && !availableRates.includes(Number(option.value));
+    }
+    if (playbackRateSelect.selectedOptions[0]?.disabled) {
+      const fallback = options.find(option => Number(option.value) === 1 && !option.disabled)
+        || options.find(option => !option.disabled);
+      if (fallback) playbackRateSelect.value = fallback.value;
+    }
+  }
+
+  function applyPlaybackRate() {
+    const playbackRate = Number(playbackRateSelect.value);
+    if (!Number.isFinite(playbackRate) || playbackRate <= 0) return;
+    if (activeSource === 'youtube') {
+      if (youtubeReady && youtubePlayer) youtubePlayer.setPlaybackRate(playbackRate);
+    } else {
+      video.playbackRate = playbackRate;
+    }
+  }
+
+  playbackRateSelect.addEventListener('change', applyPlaybackRate);
+
   function showYouTubePlayer(videoId) {
     return loadYouTubeApi().then(() => {
       if (youtubePlayer) youtubePlayer.destroy();
@@ -549,6 +585,8 @@
         events: {
           onReady: () => {
             youtubeReady = true;
+            updatePlaybackRateOptions(youtubePlayer.getAvailablePlaybackRates());
+            applyPlaybackRate();
             drawingAvailable = true;
             updateDrawingControls();
           },
@@ -637,6 +675,8 @@
       if (file) {
         if (youtubePlayer && youtubeReady) youtubePlayer.pauseVideo();
         activeSource = 'local';
+        updatePlaybackRateOptions();
+        applyPlaybackRate();
         drawingAvailable = true;
         mediaStage.style.display = 'block';
         resetDrawingState();
@@ -662,6 +702,7 @@
     video.addEventListener('loadedmetadata', () => {
       // Reset to user-set FPS on new video
       video.frameRate = parseInt(fpsInput.value, 10) || 50;
+      applyPlaybackRate();
       resizeAngleCanvas();
     });
 
