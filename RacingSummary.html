@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="auth-gate.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Racing Summary</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      margin: 0;
+      color: #17212b;
+      background: #f7f9fb;
+    }
+    h2 { margin: 0 0 14px; }
+    [hidden] { display: none !important; }
+    .selector-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+    .selector-row label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+      color: #334155;
+    }
+    .selector-row select {
+      min-width: 180px;
+      padding: 7px 9px;
+      box-sizing: border-box;
+    }
+    .nz-only-filter { padding-top: 23px; }
+    .selector-row .nz-only-filter label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0;
+      white-space: nowrap;
+    }
+    .nz-only-filter input { margin: 0; }
+    #athleteSelect { min-width: 240px; max-width: 420px; }
+    .date-filter input {
+      min-width: 150px;
+      padding: 6px 8px;
+      box-sizing: border-box;
+    }
+    .race-filter { width: min(360px, 100%); }
+    .race-filter legend { padding: 0; font-size: 13px; color: #334155; }
+    .race-filter-count { color: #64748b; font-size: 12px; margin: 0 0 5px; }
+    .race-options {
+      max-height: 150px;
+      overflow-y: auto;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      background: #fff;
+      padding: 4px 8px;
+    }
+    .race-option {
+      display: flex;
+      align-items: flex-start;
+      gap: 7px;
+      padding: 4px 0;
+      font-size: 13px;
+    }
+    .race-option input { margin: 2px 0 0; }
+    .race-option span { overflow-wrap: anywhere; }
+    .race-options-empty { color: #64748b; font-size: 13px; padding: 5px 0; }
+    #status { font-size: 13px; color: #475569; margin-bottom: 14px; }
+    .summary-section {
+      background: #fff;
+      border: 1px solid #dbe2ea;
+      border-radius: 8px;
+      padding: 14px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .summary-section h3 { margin: 0 0 12px; }
+    .summary-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      margin-bottom: 16px;
+    }
+    .summary-stat span { display: block; color: #64748b; font-size: 12px; }
+    .summary-stat strong { display: block; font-size: 22px; margin-top: 2px; }
+    .table-wrap { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; text-align: left; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; }
+    th { font-size: 12px; color: #475569; background: #f8fafc; }
+    th button {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    th button:hover { color: #0f766e; }
+    .sort-indicator { min-width: 10px; color: #0f766e; }
+    td { font-size: 14px; }
+    .empty { color: #64748b; padding: 10px 0; }
+    .trend-section { margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 14px; }
+    .trend-header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px; }
+    .trend-header h3 { margin: 0; }
+    .trend-metric label { display: block; font-size: 13px; margin-bottom: 4px; color: #334155; }
+    .trend-metric select { min-width: 190px; padding: 6px 8px; }
+    #trendChart { display: block; width: 100%; height: auto; min-height: 220px; margin-top: 8px; overflow: visible; }
+    .trend-grid { stroke: #e2e8f0; stroke-width: 1; }
+    .trend-axis { stroke: #64748b; stroke-width: 1; }
+    .trend-label { fill: #475569; font-size: 12px; font-family: sans-serif; }
+    .trend-line { fill: none; stroke: #147d78; stroke-width: 2.5; }
+    .trend-point { fill: #147d78; stroke: #fff; stroke-width: 2; }
+    .trend-empty { color: #64748b; padding: 24px 0; text-align: center; }
+  </style>
+</head>
+<body>
+  <h2>Racing Summary</h2>
+
+  <div class="selector-row">
+    <div>
+      <label id="genderLabel" for="genderSelect">Gender</label>
+      <select id="genderSelect">
+        <option value="women" selected>Women</option>
+        <option value="men">Men</option>
+      </select>
+    </div>
+    <div>
+      <label for="raceTypeSelect">Race Type</label>
+      <select id="raceTypeSelect">
+        <option value="TP" selected>TP</option>
+        <option value="TS">TS</option>
+        <option value="IP">IP</option>
+      </select>
+    </div>
+    <div class="nz-only-filter">
+      <label for="nzOnlyCheckbox"><input id="nzOnlyCheckbox" type="checkbox" checked> NZ only</label>
+    </div>
+    <div>
+      <label for="athleteSelect">Athlete</label>
+      <select id="athleteSelect" disabled>
+        <option value="">Loading athletes...</option>
+      </select>
+    </div>
+    <div class="date-filter">
+      <label for="startDate">Start date</label>
+      <input id="startDate" type="date" value="2026-01-01">
+    </div>
+    <div class="date-filter">
+      <label for="endDate">End date</label>
+      <input id="endDate" type="date">
+    </div>
+    <fieldset class="race-filter">
+      <legend>Included races</legend>
+      <div id="raceFilterCount" class="race-filter-count">0 races selected</div>
+      <div id="raceOptions" class="race-options">
+        <div class="race-options-empty">Select an athlete to see races.</div>
+      </div>
+    </fieldset>
+  </div>
+  <div id="status" role="status">Loading workbook...</div>
+
+  <section class="summary-section" aria-live="polite">
+    <div id="summaryEmpty" class="empty">Select an athlete to view their racing data.</div>
+    <div id="summaryContent" hidden>
+      <h3 id="athleteName"></h3>
+      <div class="summary-stats">
+        <div class="summary-stat"><span>Events</span><strong id="eventCount">0</strong></div>
+        <div class="summary-stat"><span>Source rows</span><strong id="sourceRowCount">0</strong></div>
+      </div>
+      <div id="tpOnlyNotice" class="empty" hidden>Race metrics are available for TP and TS races only.</div>
+      <div id="summaryTableWrap" class="table-wrap">
+        <table id="summaryTable">
+          <thead><tr>
+            <th aria-sort="none"><button type="button" data-sort-key="race">Race<span class="sort-indicator" aria-hidden="true"></span></button></th>
+            <th aria-sort="none"><button type="button" data-sort-key="gear">Gear<span class="sort-indicator" aria-hidden="true"></span></button></th>
+            <th aria-sort="none"><button type="button" data-sort-key="position">Position<span class="sort-indicator" aria-hidden="true"></span></button></th>
+            <th aria-sort="none"><button type="button" data-sort-key="turn1">Turn 1<span class="sort-indicator" aria-hidden="true"></span></button></th>
+            <th aria-sort="none"><button type="button" data-sort-key="turn2">Turn 2<span class="sort-indicator" aria-hidden="true"></span></button></th>
+            <th aria-sort="none"><button type="button" data-sort-key="turn1Power">Turn 1 Power (W)<span class="sort-indicator" aria-hidden="true"></span></button></th>
+            <th aria-sort="none"><button type="button" data-sort-key="turn2Power">Turn 2 Power (W)<span class="sort-indicator" aria-hidden="true"></span></button></th>
+            <th aria-sort="none"><button type="button" data-sort-key="turnPowerDropoff">Power Dropoff (%)<span class="sort-indicator" aria-hidden="true"></span></button></th>
+            <th aria-sort="none"><button type="button" data-sort-key="turn1Delivery">Turn 1 Delivery (s)<span class="sort-indicator" aria-hidden="true"></span></button></th>
+            <th aria-sort="none"><button type="button" data-sort-key="turn2Delivery">Turn 2 Delivery (s)<span class="sort-indicator" aria-hidden="true"></span></button></th>
+            <th aria-sort="none"><button type="button" data-sort-key="turnDeliveryDropoff">Delivery Dropoff (%)<span class="sort-indicator" aria-hidden="true"></span></button></th>
+            <th id="turn3Header" hidden aria-sort="none"><button type="button" data-sort-key="turn3">Turn 3<span class="sort-indicator" aria-hidden="true"></span></button></th>
+            <th aria-sort="none"><button type="button" data-sort-key="delivery">Delivery<span class="sort-indicator" aria-hidden="true"></span></button></th>
+            <th aria-sort="none"><button type="button" data-sort-key="averagePower">Average Power (W)<span class="sort-indicator" aria-hidden="true"></span></button></th>
+            <th aria-sort="none"><button type="button" data-sort-key="leadPower">Lead Power (W)<span class="sort-indicator" aria-hidden="true"></span></button></th>
+            <th aria-sort="none"><button type="button" data-sort-key="recoveryPower">Recovery Power (W)<span class="sort-indicator" aria-hidden="true"></span></button></th>
+            <th aria-sort="none"><button type="button" data-sort-key="recoveryLeadRatio">Recovery/Lead Ratio<span class="sort-indicator" aria-hidden="true"></span></button></th>
+          </tr></thead>
+          <tbody id="eventRows"></tbody>
+        </table>
+      </div>
+      <section id="trendSection" class="trend-section" aria-labelledby="trendHeading">
+        <div class="trend-header">
+          <h3 id="trendHeading">Progress over time</h3>
+          <div class="trend-metric">
+            <label for="trendMetric">Metric</label>
+            <select id="trendMetric"></select>
+          </div>
+        </div>
+        <div id="trendEmpty" class="trend-empty" hidden>No numeric metric values in the included races.</div>
+        <svg id="trendChart" viewBox="0 0 900 330" role="img" aria-label="Selected metric by race date"></svg>
+      </section>
+    </div>
+  </section>
+
+  <script>
+    const isLocalServer = ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
+    const WORKBOOK_URLS = isLocalServer
+      ? {
+        TP: { women: './TP_Master_Women.xlsx', men: './TP_Master_Men.xlsx' },
+        TS: { women: './WTS_Master_Women.xlsx' },
+        IP: { women: './IP_Master_Women.xlsx', men: './IP_Master_Men.xlsx' }
+      }
+      : {
+        TP: {
+          women: 'https://raw.githubusercontent.com/Bremz09/CNZ-PTA-Tools/main/TP_Master_Women.xlsx',
+          men: 'https://raw.githubusercontent.com/Bremz09/CNZ-PTA-Tools/main/TP_Master_Men.xlsx'
+        },
+        TS: { women: 'https://raw.githubusercontent.com/Bremz09/CNZ-PTA-Tools/main/WTS_Master_Women.xlsx' },
+        IP: {
+          women: 'https://raw.githubusercontent.com/Bremz09/CNZ-PTA-Tools/main/IP_Master_Women.xlsx',
+          men: 'https://raw.githubusercontent.com/Bremz09/CNZ-PTA-Tools/main/IP_Master_Men.xlsx'
+        }
+      };
+    const PREFERRED_SHEET_NAMES = { TP: ['TP'], TS: ['TS', 'WTS'], IP: ['IP'] };
+    const $ = (id) => document.getElementById(id);
+    const genderSelect = $('genderSelect');
+    const genderLabel = $('genderLabel');
+    const raceTypeSelect = $('raceTypeSelect');
+    const nzOnlyCheckbox = $('nzOnlyCheckbox');
+    const athleteSelect = $('athleteSelect');
+    const startDateInput = $('startDate');
+    const endDateInput = $('endDate');
+    const raceOptions = $('raceOptions');
+    const raceFilterCount = $('raceFilterCount');
+    const trendMetricSelect = $('trendMetric');
+    const statusDisplay = $('status');
+    const TP_TABLE_HEADER_HTML = $('summaryTable').querySelector('thead').innerHTML;
+    const state = {
+      dataset: 'women', raceType: 'TP', workbooks: {}, athletes: [],
+      eligibleEvents: [], selectedRaceKeys: new Set(), sortKey: null, sortDirection: 1,
+      trendMetricKey: 'delivery'
+    };
+
+    function setStatus(message) { statusDisplay.textContent = message; }
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[character]));
+    }
+    function normalize(value) { return String(value ?? '').trim().toLowerCase().replace(/[^a-z0-9]/g, ''); }
+    function toISODate(value) {
+      const raw = String(value ?? '').trim();
+      const isoMatch = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+      if (isoMatch) return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`;
+      const shortYearMatch = raw.match(/^(\d{2})-(\d{1,2})-(\d{1,2})$/);
+      if (shortYearMatch) return `20${shortYearMatch[1]}-${shortYearMatch[2].padStart(2, '0')}-${shortYearMatch[3].padStart(2, '0')}`;
+      if (/^\d+(\.\d+)?$/.test(raw)) {
+        const serial = Number(raw);
+        if (serial >= 20000 && serial <= 80000) {
+          return new Date(Date.UTC(1899, 11, 30) + serial * 86400000).toISOString().slice(0, 10);
+        }
+      }
+      const timestamp = Date.parse(raw);
+      return Number.isFinite(timestamp) ? new Date(timestamp).toISOString().slice(0, 10) : '';
+    }
+    function findColumn(headers, ...names) {
+      const candidates = new Set(names.map(normalize));
+      return headers.findIndex((header) => candidates.has(normalize(header)));
+    }
+    function isHeaderForType(headers, raceType) {
+      const has = (...names) => findColumn(headers, ...names) >= 0;
+      if (!has('Title')) return false;
+      if (raceType === 'TS') return has('Start time', 'Time') && has('Row') && has('Riders');
+      if (!has('Time', 'Start time') || !has('Split')) return false;
+      return raceType === 'TP' ? has('Front', 'Athlete in front') : !has('Front', 'Athlete in front');
+    }
+    function preferredSheetOrder(names, raceType) {
+      const preferred = (PREFERRED_SHEET_NAMES[raceType] || []).map((name) => name.toLowerCase());
+      return [
+        ...names.filter((name) => preferred.includes(name.toLowerCase())),
+        ...names.filter((name) => !preferred.includes(name.toLowerCase()))
+      ];
+    }
+    function collectSessions(rows, raceType) {
+      const headerIndex = rows.findIndex((row) => isHeaderForType(row, raceType));
+      if (headerIndex < 0) return [];
+      const headers = rows[headerIndex];
+      const titleIndex = findColumn(headers, 'Title');
+      const timeIndex = findColumn(headers, 'Time', 'Start time');
+      const saveDateIndex = findColumn(headers, 'Save_Date');
+      const dateIndex = saveDateIndex >= 0 ? saveDateIndex : findColumn(headers, 'Save date', 'DateTime');
+      const riderIndex = findColumn(headers, 'Rider', 'Athlete', 'Name');
+      const frontIndex = findColumn(headers, 'Front', 'Athlete in front');
+      const ridersIndex = findColumn(headers, 'Riders');
+      const actionIndex = findColumn(headers, 'Action', 'Event');
+      const tsRowLabelIndex = findColumn(headers, 'Row');
+      const tsGearIndex = findColumn(headers, 'Gears');
+      const tsAirDensityIndex = findColumn(headers, 'Air Density (kg/m³)', 'Air Density (kg/m3)', 'Air Density');
+      const distanceIndex = findColumn(headers, 'Distance');
+      const deliverySpeedIndex = findColumn(headers, 'Del_speed', 'Delivery Speed');
+      const riderColumns = Array.from({ length: 4 }, (_, riderIndex) => {
+        const prefix = `R${riderIndex + 1}`;
+        return {
+          name: findColumn(headers, `${prefix} Name`),
+          gear: findColumn(headers, `${prefix} Gear`, `${prefix} Gears`, `${prefix} Gear (in)`, `${prefix} Gear Inches`),
+          power: findColumn(headers, `${prefix} Avg Power (W)`),
+          peakPower: findColumn(headers, `${prefix} Peak Power (W)`),
+          peakCadence: findColumn(headers, `${prefix} Peak Cadence (rpm)`),
+          peakTorque: findColumn(headers, `${prefix} Peak Torque (Nm)`),
+          cadenceH2: findColumn(headers, `${prefix} Cadence H2 (rpm)`)
+        };
+      });
+      const sessions = [];
+      let current = null;
+
+      for (const cells of rows.slice(headerIndex + 1)) {
+        const title = String(cells[titleIndex] ?? '').trim();
+        if (!title) continue;
+        const time = Number.parseFloat(String(cells[timeIndex] ?? ''));
+        if (!Number.isFinite(time)) continue;
+        if (!current || current.title !== title) {
+          if (current && current.rowCount) sessions.push(current);
+          current = {
+            title, date: '', rowCount: 0, athletes: new Set(),
+            riderNames: Array(raceType === 'TS' ? 3 : 4).fill(''),
+            riderGears: Array(raceType === 'TS' ? 3 : 4).fill(''),
+            riderMetrics: Array.from({ length: raceType === 'TS' ? 3 : 4 }, () => ({ peakPower: null, peakCadence: null, peakTorque: null, cadenceH2: null })),
+            rows: [], tsEvents: [], airDensity: null
+          };
+        }
+        current.rowCount += 1;
+        const date = dateIndex >= 0 ? String(cells[dateIndex] ?? '').trim() : '';
+        if (!current.date && date) current.date = date;
+        for (let riderIndex = 0; riderIndex < riderColumns.length; riderIndex++) {
+          const columns = riderColumns[riderIndex];
+          const name = columns.name >= 0 ? String(cells[columns.name] ?? '').trim() : '';
+          if (name) current.athletes.add(name);
+          if (name && !current.riderNames[riderIndex]) current.riderNames[riderIndex] = name;
+          const gear = columns.gear >= 0 ? String(cells[columns.gear] ?? '').trim() : '';
+          if (gear && !current.riderGears[riderIndex]) current.riderGears[riderIndex] = gear;
+          if (riderIndex < current.riderMetrics.length) {
+            for (const metric of ['peakPower', 'peakCadence', 'peakTorque']) {
+              const column = columns[metric];
+              const value = column >= 0 ? Number.parseFloat(String(cells[column] ?? '')) : NaN;
+              const previous = current.riderMetrics[riderIndex][metric];
+              if (Number.isFinite(value) && (!Number.isFinite(previous) || value > previous)) {
+                current.riderMetrics[riderIndex][metric] = value;
+              }
+            }
+            if (riderIndex === 0 && !Number.isFinite(current.riderMetrics[0].cadenceH2)) {
+              const value = columns.cadenceH2 >= 0 ? Number.parseFloat(String(cells[columns.cadenceH2] ?? '')) : NaN;
+              if (Number.isFinite(value)) current.riderMetrics[0].cadenceH2 = value;
+            }
+          }
+        }
+        for (const index of [riderIndex, frontIndex, ridersIndex]) {
+          const name = index >= 0 ? String(cells[index] ?? '').trim() : '';
+          if (name) current.athletes.add(name);
+        }
+        const frontName = frontIndex >= 0 ? String(cells[frontIndex] ?? '').trim() : '';
+        const tsRider = ridersIndex >= 0 ? String(cells[ridersIndex] ?? '').trim() : '';
+        const tsGear = tsGearIndex >= 0 ? String(cells[tsGearIndex] ?? '').trim() : '';
+        const tsLabel = tsRowLabelIndex >= 0 ? String(cells[tsRowLabelIndex] ?? '').trim() : '';
+        if (raceType === 'TS') {
+          if (tsRider) {
+            let riderIndex = current.riderNames.findIndex((name) => name.toLocaleLowerCase() === tsRider.toLocaleLowerCase());
+            if (riderIndex < 0) riderIndex = current.riderNames.findIndex((name) => !name);
+            if (riderIndex >= 0) {
+              current.riderNames[riderIndex] = tsRider;
+              if (tsGear && tsGear !== '0') current.riderGears[riderIndex] = tsGear;
+            }
+          }
+          current.tsEvents.push({ time, label: tsLabel, rider: tsRider, gear: tsGear });
+          const airDensity = tsAirDensityIndex >= 0 ? Number.parseFloat(String(cells[tsAirDensityIndex] ?? '')) : NaN;
+          if (Number.isFinite(airDensity) && airDensity > 0) current.airDensity = airDensity;
+        }
+        const actionText = actionIndex >= 0 ? String(cells[actionIndex] ?? '').trim().toLowerCase() : '';
+        const action = actionText === 'change' ? 'Change'
+          : actionText === 'drop' ? 'Drop'
+            : actionText === 'rider finish' ? 'Rider Finish' : '';
+        const powers = riderColumns.map((columns) => {
+          if (columns.power < 0) return null;
+          const value = Number.parseFloat(String(cells[columns.power] ?? ''));
+          return Number.isFinite(value) ? value : null;
+        });
+        const distance = distanceIndex >= 0 ? Number.parseFloat(String(cells[distanceIndex] ?? '')) : NaN;
+        const deliverySpeed = deliverySpeedIndex >= 0 ? Number.parseFloat(String(cells[deliverySpeedIndex] ?? '')) : NaN;
+        current.rows.push({
+          frontName,
+          action,
+          powers,
+          distance: Number.isFinite(distance) ? distance : null,
+          deliverySpeed: Number.isFinite(deliverySpeed) ? deliverySpeed : null
+        });
+      }
+      if (current && current.rowCount) sessions.push(current);
+      return sessions;
+    }
+    function buildAthletes(sessions) {
+      const byName = new Map();
+      sessions.forEach((session, sessionIndex) => {
+        const athleteNames = state.raceType === 'TP'
+          ? new Set(session.rows.map((row) => row.frontName).filter(Boolean))
+          : session.athletes;
+        for (const name of athleteNames) {
+          const key = name.toLocaleLowerCase();
+          if (!byName.has(key)) byName.set(key, { name, events: [] });
+          byName.get(key).events.push({
+            key: `${state.raceType}:${sessionIndex}`,
+            title: session.title,
+            date: session.date,
+            dateISO: toISODate(session.date),
+            raceType: state.raceType,
+            rowCount: session.rowCount,
+            summary: state.raceType === 'TP'
+              ? buildTpAthleteSummary(session, name)
+              : state.raceType === 'TS' ? buildTsAthleteSummary(session, name) : null
+          });
+        }
+      });
+      return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+    }
+    function isNzAthlete(name) {
+      return !/\p{Lu}{2}/u.test(name);
+    }
+    function updateAthleteOptions(preferredIndex = Number.parseInt(athleteSelect.value, 10)) {
+      const availableAthletes = state.athletes
+        .map((athlete, index) => ({ athlete, index }))
+        .filter(({ athlete }) => !nzOnlyCheckbox.checked || isNzAthlete(athlete.name));
+      if (!availableAthletes.length) {
+        athleteSelect.innerHTML = '<option value="">No matching athletes</option>';
+        athleteSelect.disabled = true;
+        return -1;
+      }
+      athleteSelect.innerHTML = availableAthletes.map(({ athlete, index }) =>
+        `<option value="${index}">${escapeHtml(athlete.name)}</option>`).join('');
+      const selectedIndex = availableAthletes.some(({ index }) => index === preferredIndex)
+        ? preferredIndex
+        : availableAthletes[0].index;
+      athleteSelect.disabled = false;
+      athleteSelect.value = String(selectedIndex);
+      return selectedIndex;
+    }
+    function replayQueueOrders(rows, useP1toP3Mode) {
+      let order = [0, 1, 2, 3];
+      let position = 0;
+      let p1SpecialMoveUsed = false;
+      const queues = [];
+      for (const row of rows) {
+        queues.push(order.length > 0
+          ? Array.from({ length: order.length }, (_, offset) => order[(position + offset) % order.length])
+          : []);
+        if (row.action === 'Change') {
+          if (order.length >= 2) {
+            if (useP1toP3Mode && !p1SpecialMoveUsed && order[position] === 0 && order.length >= 4) {
+              const rider = order.splice(position, 1)[0];
+              const insertPosition = (position + 2) % (order.length + 1);
+              order.splice(insertPosition, 0, rider);
+              p1SpecialMoveUsed = true;
+              if (position >= order.length) position = 0;
+            } else {
+              position = (position + 1) % order.length;
+            }
+          }
+        } else if (row.action === 'Drop' || row.action === 'Rider Finish') {
+          if (order.length > 0) {
+            order.splice(position, 1);
+            if (position >= order.length) position = 0;
+          }
+        }
+      }
+      return queues;
+    }
+    function getTpQueueOrders(session) {
+      for (const useP1toP3Mode of [false, true]) {
+        const queues = replayQueueOrders(session.rows, useP1toP3Mode);
+        const matchesFront = session.rows.every((row, index) => {
+          if (!row.frontName) return true;
+          return (session.riderNames[queues[index][0]] || '').toLocaleLowerCase() === row.frontName.toLocaleLowerCase();
+        });
+        if (matchesFront) return queues;
+      }
+      return replayQueueOrders(session.rows, false);
+    }
+    function average(values) {
+      return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+    }
+    function buildTpAthleteSummary(session, athleteName) {
+      const athleteKey = athleteName.toLocaleLowerCase();
+      const riderIndex = session.riderNames.findIndex((name) => name.toLocaleLowerCase() === athleteKey);
+      const turns = [];
+      const turnPowerSamples = [];
+      const turnDeliverySamples = [];
+      let previousFront = '';
+      for (const row of session.rows) {
+        const frontKey = row.frontName.toLocaleLowerCase();
+        const power = riderIndex >= 0 ? row.powers[riderIndex] : null;
+        const deliverySplit = row.distance != null && row.distance !== 4000 && row.distance > 250
+          && Number.isFinite(row.deliverySpeed) && row.deliverySpeed > 0
+          ? (62.5 * 3.6) / row.deliverySpeed : null;
+        if (frontKey === athleteKey) {
+          if (previousFront === athleteKey) {
+            turns[turns.length - 1] += 1;
+            if (Number.isFinite(power)) turnPowerSamples[turnPowerSamples.length - 1].push(power);
+            if (Number.isFinite(deliverySplit)) turnDeliverySamples[turnDeliverySamples.length - 1].push(deliverySplit);
+          } else {
+            turns.push(1);
+            turnPowerSamples.push(Number.isFinite(power) ? [power] : []);
+            turnDeliverySamples.push(Number.isFinite(deliverySplit) ? [deliverySplit] : []);
+          }
+        }
+        previousFront = frontKey;
+      }
+
+      const leadPowers = [];
+      const recoveryPowers = [];
+      const allPowers = [];
+      if (riderIndex >= 0) {
+        const queues = getTpQueueOrders(session);
+        session.rows.forEach((row, rowIndex) => {
+          const power = row.powers[riderIndex];
+          const position = queues[rowIndex].indexOf(riderIndex);
+          if (Number.isFinite(power)) {
+            allPowers.push(power);
+            if (position === 0) leadPowers.push(power);
+            else if (position > 0) recoveryPowers.push(power);
+          }
+        });
+      }
+      const averageDeliverySplit = average(turnDeliverySamples.flat());
+      const turnPowers = turnPowerSamples.map(average);
+      const turnDeliveries = turnDeliverySamples.map((samples) => {
+        const split = average(samples);
+        return split != null ? split * 4 : null;
+      });
+      const leadPower = average(leadPowers);
+      const recoveryPower = average(recoveryPowers);
+      return {
+        gear: riderIndex >= 0 ? session.riderGears[riderIndex] : '',
+        position: riderIndex >= 0 ? riderIndex + 1 : null,
+        turns: turns.map((quarters) => quarters / 4),
+        turnPowers,
+        turnPowerDropoff: Number.isFinite(turnPowers[0]) && turnPowers[0] !== 0 && Number.isFinite(turnPowers[1])
+          ? ((turnPowers[0] - turnPowers[1]) / turnPowers[0]) * 100 : null,
+        turnDeliveries,
+        turnDeliveryDropoff: Number.isFinite(turnDeliveries[0]) && turnDeliveries[0] !== 0 && Number.isFinite(turnDeliveries[1])
+          ? ((turnDeliveries[1] - turnDeliveries[0]) / turnDeliveries[0]) * 100 : null,
+        delivery: averageDeliverySplit != null ? averageDeliverySplit * 4 : null,
+        averagePower: average(allPowers),
+        leadPower,
+        recoveryPower,
+        recoveryLeadRatio: Number.isFinite(leadPower) && leadPower !== 0 && Number.isFinite(recoveryPower)
+          ? recoveryPower / leadPower : null
+      };
+    }
+    function buildTsAthleteSummary(session, athleteName) {
+      const athleteKey = athleteName.toLocaleLowerCase();
+      const riderIndex = session.riderNames.findIndex((name) => name.toLocaleLowerCase() === athleteKey);
+      if (riderIndex < 0) return { gear: '', position: null, time: null, stdTime: null, lap1: null, lap2: null, lap3: null };
+
+      const events = session.tsEvents || [];
+      const start = events.find((event) => event.label === 'Start') || null;
+      const markers = events.filter((event) => event.label === 'Marker');
+      const getLap1 = (index) => {
+        const quarterTimes = [];
+        let previousTime = start?.time ?? null;
+        let lastMarkerTime = null;
+        for (let quarterIndex = 0; quarterIndex < 4; quarterIndex++) {
+          const marker = markers[(quarterIndex * session.riderNames.length) + index] || null;
+          if (marker && Number.isFinite(previousTime)) {
+            quarterTimes.push(marker.time - previousTime);
+            previousTime = marker.time;
+            lastMarkerTime = marker.time;
+          } else {
+            quarterTimes.push(null);
+            if (marker) {
+              previousTime = marker.time;
+              lastMarkerTime = marker.time;
+            }
+          }
+        }
+        return {
+          time: quarterTimes.every(Number.isFinite) ? quarterTimes.reduce((sum, value) => sum + value, 0) : null,
+          lastMarkerTime,
+          finalQuarterTime: quarterTimes[3]
+        };
+      };
+      const lap1Data = getLap1(riderIndex);
+      const lap1 = lap1Data.time;
+      const delivery = speedFromCadence(session.riderMetrics[0]?.cadenceH2, session.riderGears[0]);
+
+      let lap2 = null;
+      if (riderIndex > 0) {
+        const quarterTimes = [];
+        let previousTime = lap1Data.lastMarkerTime;
+        for (let quarterIndex = 0; quarterIndex < 4; quarterIndex++) {
+          const marker = markers[12 + (quarterIndex * 2) + (riderIndex - 1)] || null;
+          if (marker && Number.isFinite(previousTime)) {
+            quarterTimes.push(marker.time - previousTime);
+            previousTime = marker.time;
+          } else {
+            quarterTimes.push(null);
+            if (marker) previousTime = marker.time;
+          }
+        }
+        if (quarterTimes.every(Number.isFinite)) lap2 = quarterTimes.reduce((sum, value) => sum + value, 0);
+      }
+
+      let lap3 = null;
+      if (riderIndex === 2) {
+        const quarterTimes = [];
+        let previousTime = markers[19]?.time ?? null;
+        for (let quarterIndex = 0; quarterIndex < 4; quarterIndex++) {
+          const marker = markers[20 + quarterIndex] || null;
+          if (marker && Number.isFinite(previousTime)) {
+            quarterTimes.push(marker.time - previousTime);
+            previousTime = marker.time;
+          } else {
+            quarterTimes.push(null);
+            if (marker) previousTime = marker.time;
+          }
+        }
+        if (quarterTimes.every(Number.isFinite)) lap3 = quarterTimes.reduce((sum, value) => sum + value, 0);
+      }
+
+      const finalMarker = markers[markers.length - 1] || null;
+      const time = start && finalMarker ? finalMarker.time - start.time : null;
+      const airDensity = session.airDensity;
+      const stdTime = Number.isFinite(time) && Number.isFinite(airDensity) && airDensity > 0 ? markers.reduce((total, marker, index) => {
+        const previousTime = index === 0 ? start.time : markers[index - 1].time;
+        const exponent = index < 4 ? 0.0717 : 0.3277;
+        return total + (marker.time - previousTime) * Math.pow(1.169 / airDensity, exponent);
+      }, 0) : null;
+
+      return {
+        gear: session.riderGears[riderIndex] || '',
+        position: riderIndex + 1,
+        time,
+        stdTime,
+        lap1,
+        delivery,
+        lap2,
+        lap3,
+        ...session.riderMetrics[riderIndex]
+      };
+    }
+    async function ensureXLSXLoaded() {
+      if (window.XLSX) return window.XLSX;
+      if (window.__xlsxLoadingPromise) return window.__xlsxLoadingPromise;
+      window.__xlsxLoadingPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+        script.onload = () => resolve(window.XLSX);
+        script.onerror = () => reject(new Error('Failed to load XLSX library.'));
+        document.head.appendChild(script);
+      });
+      return window.__xlsxLoadingPromise;
+    }
+    async function loadWorkbook(raceType, dataset) {
+      const key = `${raceType}:${dataset}`;
+      if (state.workbooks[key]) return state.workbooks[key];
+      const url = WORKBOOK_URLS[raceType]?.[dataset];
+      if (!url) throw new Error(`No ${raceType} workbook is configured for ${dataset}.`);
+      const XLSX = await ensureXLSXLoaded();
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Failed to fetch workbook (${response.status}).`);
+      const workbook = XLSX.read(new Uint8Array(await response.arrayBuffer()), { type: 'array' });
+      state.workbooks[key] = workbook;
+      return workbook;
+    }
+    function renderAthlete(index) {
+      const athlete = state.athletes[index] || null;
+      $('summaryEmpty').hidden = !!athlete;
+      $('summaryContent').hidden = !athlete;
+      if (!athlete) {
+        state.eligibleEvents = [];
+        state.selectedRaceKeys.clear();
+        raceFilterCount.textContent = '0 of 0 races selected';
+        raceOptions.innerHTML = '<div class="race-options-empty">Select an athlete to see races.</div>';
+        return;
+      }
+      $('athleteName').textContent = athlete.name;
+      updateIncludedRaces(athlete);
+    }
+    function updateIncludedRaces(athlete = state.athletes[Number.parseInt(athleteSelect.value, 10)]) {
+      const startDate = startDateInput.value;
+      const endDate = endDateInput.value;
+      state.eligibleEvents = athlete
+        ? athlete.events.filter((event) => event.dateISO
+          && (!startDate || event.dateISO >= startDate)
+          && (!endDate || event.dateISO <= endDate))
+        : [];
+      state.selectedRaceKeys = new Set(state.eligibleEvents.map((event) => event.key));
+      updateRaceFilterCount();
+      raceOptions.innerHTML = state.eligibleEvents.length
+        ? state.eligibleEvents.map((event, index) => `<label class="race-option">
+          <input type="checkbox" data-event-index="${index}" checked>
+          <span>${escapeHtml(event.title)}${event.dateISO ? ` (${escapeHtml(event.dateISO)})` : ''}</span>
+        </label>`).join('')
+        : '<div class="race-options-empty">No dated races in this range.</div>';
+      renderSummary(athlete);
+    }
+    function updateRaceFilterCount() {
+      raceFilterCount.textContent = `${state.selectedRaceKeys.size} of ${state.eligibleEvents.length} races selected`;
+    }
+    function renderSummary(athlete = state.athletes[Number.parseInt(athleteSelect.value, 10)]) {
+      if (!athlete) return;
+      const events = state.eligibleEvents.filter((event) => state.selectedRaceKeys.has(event.key));
+      $('eventCount').textContent = String(events.length);
+      $('sourceRowCount').textContent = String(events.reduce((sum, event) => sum + event.rowCount, 0));
+      const tpOnly = state.raceType !== 'TP';
+      const unsupportedType = state.raceType === 'IP';
+      $('tpOnlyNotice').hidden = !unsupportedType;
+      $('summaryTableWrap').hidden = unsupportedType;
+      $('trendSection').hidden = unsupportedType;
+      if (state.raceType === 'TS') {
+        renderTsSummaryTable(events);
+        renderTrendChart(events);
+        return;
+      }
+      if (state.raceType === 'TP') $('summaryTable').querySelector('thead').innerHTML = TP_TABLE_HEADER_HTML;
+      const showTurn3 = events.some((event) => event.summary?.turns.length > 2);
+      $('turn3Header').hidden = !showTurn3;
+      const sortValues = {
+        race: (event) => event.title,
+        gear: (event) => numericValue(event.summary?.gear),
+        position: (event) => event.summary?.position,
+        turn1: (event) => event.summary?.turns[0],
+        turn2: (event) => event.summary?.turns[1],
+        turn1Power: (event) => event.summary?.turnPowers?.[0],
+        turn2Power: (event) => event.summary?.turnPowers?.[1],
+        turnPowerDropoff: (event) => event.summary?.turnPowerDropoff,
+        turn1Delivery: (event) => event.summary?.turnDeliveries?.[0],
+        turn2Delivery: (event) => event.summary?.turnDeliveries?.[1],
+        turnDeliveryDropoff: (event) => event.summary?.turnDeliveryDropoff,
+        turn3: (event) => event.summary?.turns[2],
+        delivery: (event) => event.summary?.delivery,
+        averagePower: (event) => event.summary?.averagePower,
+        leadPower: (event) => event.summary?.leadPower,
+        recoveryPower: (event) => event.summary?.recoveryPower,
+        recoveryLeadRatio: (event) => event.summary?.recoveryLeadRatio
+      };
+      const sortedEvents = events.slice();
+      if (state.sortKey && sortValues[state.sortKey]) {
+        sortedEvents.sort((left, right) => {
+          const leftValue = sortValues[state.sortKey](left);
+          const rightValue = sortValues[state.sortKey](right);
+          const leftMissing = leftValue == null || (typeof leftValue === 'number' && !Number.isFinite(leftValue));
+          const rightMissing = rightValue == null || (typeof rightValue === 'number' && !Number.isFinite(rightValue));
+          if (leftMissing || rightMissing) return leftMissing === rightMissing ? 0 : (leftMissing ? 1 : -1);
+          const comparison = typeof leftValue === 'string'
+            ? leftValue.localeCompare(rightValue, undefined, { sensitivity: 'base', numeric: true })
+            : leftValue - rightValue;
+          return comparison * state.sortDirection;
+        });
+      }
+      for (const header of $('summaryTable').querySelectorAll('thead th')) {
+        const button = header.querySelector('button[data-sort-key]');
+        if (!button) continue;
+        const active = button.dataset.sortKey === state.sortKey;
+        header.setAttribute('aria-sort', active ? (state.sortDirection > 0 ? 'ascending' : 'descending') : 'none');
+        button.querySelector('.sort-indicator').textContent = active ? (state.sortDirection > 0 ? '\u25B2' : '\u25BC') : '';
+      }
+      $('eventRows').innerHTML = sortedEvents.map((event) => {
+        const summary = event.summary || {};
+        const turnText = (index) => Number.isFinite(summary.turns?.[index]) ? summary.turns[index].toFixed(2) : '--';
+        const powerText = (value) => Number.isFinite(value) ? value.toFixed(0) : '--';
+        const percentText = (value) => Number.isFinite(value) ? `${value.toFixed(1)}%` : '--';
+        const deliveryText = (value) => Number.isFinite(value) ? value.toFixed(2) : '--';
+        return `<tr>
+          <td>${escapeHtml(event.title)}<br><small>${escapeHtml(event.dateISO || '--')}</small></td>
+          <td data-color-key="gear">${escapeHtml(summary.gear || '--')}</td>
+          <td data-color-key="position">${Number.isFinite(summary.position) ? 'P' + summary.position : '--'}</td>
+          <td data-color-key="turn1">${turnText(0)}</td><td data-color-key="turn2">${turnText(1)}</td>
+          <td data-color-key="turn1Power">${powerText(summary.turnPowers?.[0])}</td>
+          <td data-color-key="turn2Power">${powerText(summary.turnPowers?.[1])}</td>
+          <td data-color-key="turnPowerDropoff">${percentText(summary.turnPowerDropoff)}</td>
+          <td data-color-key="turn1Delivery">${deliveryText(summary.turnDeliveries?.[0])}</td>
+          <td data-color-key="turn2Delivery">${deliveryText(summary.turnDeliveries?.[1])}</td>
+          <td data-color-key="turnDeliveryDropoff">${percentText(summary.turnDeliveryDropoff)}</td>
+          ${showTurn3 ? `<td data-color-key="turn3">${turnText(2)}</td>` : ''}
+          <td data-color-key="delivery">${deliveryText(summary.delivery)}</td>
+          <td data-color-key="averagePower">${powerText(summary.averagePower)}</td>
+          <td data-color-key="leadPower">${powerText(summary.leadPower)}</td>
+          <td data-color-key="recoveryPower">${powerText(summary.recoveryPower)}</td>
+          <td data-color-key="recoveryLeadRatio">${Number.isFinite(summary.recoveryLeadRatio) ? summary.recoveryLeadRatio.toFixed(2) : '--'}</td>
+        </tr>`;
+      }).join('');
+      applyConditionalFormatting(sortedEvents);
+      renderTrendChart(events);
+    }
+    function renderTsSummaryTable(events) {
+      const columns = [
+        { key: 'race', label: 'Race', value: (event) => event.title },
+        { key: 'gear', label: 'Gear', value: (event) => numericValue(event.summary?.gear) },
+        { key: 'peakPower', label: 'Max Power (W)', value: (event) => event.summary?.peakPower },
+        { key: 'peakCadence', label: 'Max Cadence (rpm)', value: (event) => event.summary?.peakCadence },
+        { key: 'peakTorque', label: 'Max Torque (Nm)', value: (event) => event.summary?.peakTorque },
+        { key: 'position', label: 'Position', value: (event) => event.summary?.position },
+        { key: 'time', label: 'Time', value: (event) => event.summary?.time },
+        { key: 'stdTime', label: 'STD Time', value: (event) => event.summary?.stdTime },
+        { key: 'lap1', label: 'Lap 1', value: (event) => event.summary?.lap1 },
+        { key: 'delivery', label: 'Delivery (km/h)', value: (event) => event.summary?.delivery },
+        { key: 'lap2', label: 'Lap 2', value: (event) => event.summary?.lap2 },
+        { key: 'lap3', label: 'Lap 3', value: (event) => event.summary?.lap3 }
+      ];
+      const headerRow = $('summaryTable').querySelector('thead tr');
+      headerRow.innerHTML = columns.map((column) =>
+        `<th aria-sort="none"><button type="button" data-sort-key="${column.key}">${escapeHtml(column.label)}<span class="sort-indicator" aria-hidden="true"></span></button></th>`
+      ).join('');
+
+      const sortedEvents = events.slice();
+      if (columns.some((column) => column.key === state.sortKey)) {
+        const sortValue = columns.find((column) => column.key === state.sortKey).value;
+        sortedEvents.sort((left, right) => {
+          const leftValue = sortValue(left);
+          const rightValue = sortValue(right);
+          const leftMissing = leftValue == null || (typeof leftValue === 'number' && !Number.isFinite(leftValue));
+          const rightMissing = rightValue == null || (typeof rightValue === 'number' && !Number.isFinite(rightValue));
+          if (leftMissing || rightMissing) return leftMissing === rightMissing ? 0 : (leftMissing ? 1 : -1);
+          const comparison = typeof leftValue === 'string'
+            ? leftValue.localeCompare(rightValue, undefined, { sensitivity: 'base', numeric: true })
+            : leftValue - rightValue;
+          return comparison * state.sortDirection;
+        });
+      }
+      for (const header of $('summaryTable').querySelectorAll('thead th')) {
+        const button = header.querySelector('button[data-sort-key]');
+        const active = button.dataset.sortKey === state.sortKey;
+        header.setAttribute('aria-sort', active ? (state.sortDirection > 0 ? 'ascending' : 'descending') : 'none');
+        button.querySelector('.sort-indicator').textContent = active ? (state.sortDirection > 0 ? '\u25B2' : '\u25BC') : '';
+      }
+
+      $('eventRows').innerHTML = sortedEvents.map((event) => {
+        const summary = event.summary || {};
+        const timeText = (value) => Number.isFinite(value) ? value.toFixed(2) : '--';
+        const metricText = (value, digits = 0) => Number.isFinite(value) ? value.toFixed(digits) : '--';
+        return `<tr>
+          <td>${escapeHtml(event.title)}<br><small>${escapeHtml(event.dateISO || '--')}</small></td>
+          <td data-color-key="gear">${escapeHtml(summary.gear || '--')}</td>
+          <td data-color-key="peakPower">${metricText(summary.peakPower)}</td>
+          <td data-color-key="peakCadence">${metricText(summary.peakCadence)}</td>
+          <td data-color-key="peakTorque">${metricText(summary.peakTorque, 1)}</td>
+          <td data-color-key="position">${Number.isFinite(summary.position) ? summary.position : '--'}</td>
+          <td data-color-key="time">${timeText(summary.time)}</td>
+          <td data-color-key="stdTime">${timeText(summary.stdTime)}</td>
+          <td data-color-key="lap1">${timeText(summary.lap1)}</td>
+          <td data-color-key="delivery">${Number.isFinite(summary.delivery) ? summary.delivery.toFixed(1) : '--'}</td>
+          <td data-color-key="lap2">${timeText(summary.lap2)}</td>
+          <td data-color-key="lap3">${timeText(summary.lap3)}</td>
+        </tr>`;
+      }).join('');
+      applyConditionalFormatting(sortedEvents);
+    }
+    const TREND_METRICS = [
+      { key: 'gear', label: 'Gear', value: (event) => numericValue(event.summary?.gear), higherIsBetter: true },
+      { key: 'position', label: 'Position', value: (event) => event.summary?.position, higherIsBetter: false },
+      { key: 'turn1', label: 'Turn 1', value: (event) => event.summary?.turns?.[0], higherIsBetter: true },
+      { key: 'turn2', label: 'Turn 2', value: (event) => event.summary?.turns?.[1], higherIsBetter: true },
+      { key: 'turn1Power', label: 'Turn 1 Power (W)', value: (event) => event.summary?.turnPowers?.[0], higherIsBetter: true },
+      { key: 'turn2Power', label: 'Turn 2 Power (W)', value: (event) => event.summary?.turnPowers?.[1], higherIsBetter: true },
+      { key: 'turnPowerDropoff', label: 'Power Dropoff (%)', value: (event) => event.summary?.turnPowerDropoff, higherIsBetter: false },
+      { key: 'turn1Delivery', label: 'Turn 1 Delivery (s)', value: (event) => event.summary?.turnDeliveries?.[0], higherIsBetter: false },
+      { key: 'turn2Delivery', label: 'Turn 2 Delivery (s)', value: (event) => event.summary?.turnDeliveries?.[1], higherIsBetter: false },
+      { key: 'turnDeliveryDropoff', label: 'Delivery Dropoff (%)', value: (event) => event.summary?.turnDeliveryDropoff, higherIsBetter: false },
+      { key: 'turn3', label: 'Turn 3', value: (event) => event.summary?.turns?.[2], higherIsBetter: true },
+      { key: 'delivery', label: 'Delivery', value: (event) => event.summary?.delivery, higherIsBetter: false },
+      { key: 'averagePower', label: 'Average Power (W)', value: (event) => event.summary?.averagePower, higherIsBetter: true },
+      { key: 'leadPower', label: 'Lead Power (W)', value: (event) => event.summary?.leadPower, higherIsBetter: true },
+      { key: 'recoveryPower', label: 'Recovery Power (W)', value: (event) => event.summary?.recoveryPower, higherIsBetter: false },
+      { key: 'recoveryLeadRatio', label: 'Recovery/Lead Ratio', value: (event) => event.summary?.recoveryLeadRatio, higherIsBetter: false },
+      { key: 'time', label: 'Time', value: (event) => event.summary?.time, higherIsBetter: false },
+      { key: 'stdTime', label: 'STD Time', value: (event) => event.summary?.stdTime, higherIsBetter: false },
+      { key: 'lap1', label: 'Lap 1', value: (event) => event.summary?.lap1, higherIsBetter: false },
+      { key: 'lap2', label: 'Lap 2', value: (event) => event.summary?.lap2, higherIsBetter: false },
+      { key: 'lap3', label: 'Lap 3', value: (event) => event.summary?.lap3, higherIsBetter: false }
+    ];
+    function renderTrendChart(events) {
+      const svg = $('trendChart');
+      svg.replaceChildren();
+      const availableMetrics = TREND_METRICS.filter((metric) => events.some((event) => Number.isFinite(metric.value(event))));
+      trendMetricSelect.innerHTML = availableMetrics.map((metric) =>
+        `<option value="${metric.key}">${escapeHtml(metric.label)}</option>`).join('');
+      trendMetricSelect.disabled = availableMetrics.length === 0;
+      $('trendEmpty').hidden = availableMetrics.length > 0;
+      svg.hidden = availableMetrics.length === 0;
+      if (!availableMetrics.length) return;
+
+      const selectedMetric = availableMetrics.find((metric) => metric.key === state.trendMetricKey) || availableMetrics[0];
+      state.trendMetricKey = selectedMetric.key;
+      trendMetricSelect.value = selectedMetric.key;
+      const points = events
+        .map((event) => ({
+          event,
+          value: selectedMetric.value(event),
+          day: event.dateISO ? Date.parse(`${event.dateISO}T00:00:00Z`) : NaN
+        }))
+        .filter((point) => Number.isFinite(point.value) && Number.isFinite(point.day))
+        .sort((left, right) => left.day - right.day || left.event.title.localeCompare(right.event.title));
+      if (!points.length) {
+        $('trendEmpty').hidden = false;
+        svg.hidden = true;
+        return;
+      }
+
+      const namespace = 'http://www.w3.org/2000/svg';
+      const createElement = (name, attributes = {}, text = '') => {
+        const element = document.createElementNS(namespace, name);
+        Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, String(value)));
+        if (text) element.textContent = text;
+        return element;
+      };
+      const width = 900;
+      const height = 330;
+      const margin = { top: 20, right: 24, bottom: 56, left: 68 };
+      const plotWidth = width - margin.left - margin.right;
+      const plotHeight = height - margin.top - margin.bottom;
+      const title = createElement('title', { id: 'trendChartTitle' }, `${selectedMetric.label} by race date`);
+      svg.setAttribute('aria-labelledby', 'trendChartTitle');
+      svg.appendChild(title);
+
+      const values = points.map((point) => point.value);
+      let minValue = Math.min(...values);
+      let maxValue = Math.max(...values);
+      if (minValue === maxValue) {
+        const padding = Math.abs(minValue) * 0.1 || 1;
+        minValue -= padding;
+        maxValue += padding;
+      } else {
+        const padding = (maxValue - minValue) * 0.08;
+        minValue -= padding;
+        maxValue += padding;
+      }
+      let minDay = points[0].day;
+      let maxDay = points[points.length - 1].day;
+      if (minDay === maxDay) {
+        minDay -= 86400000;
+        maxDay += 86400000;
+      }
+      const x = (day) => margin.left + ((day - minDay) / (maxDay - minDay)) * plotWidth;
+      const y = (value) => margin.top + (1 - (value - minValue) / (maxValue - minValue)) * plotHeight;
+      const numberLabel = (value) => Number.isInteger(value) ? String(value) : value.toFixed(2);
+
+      for (let tick = 0; tick <= 4; tick++) {
+        const fraction = tick / 4;
+        const tickValue = maxValue - fraction * (maxValue - minValue);
+        const tickY = margin.top + fraction * plotHeight;
+        svg.appendChild(createElement('line', { x1: margin.left, y1: tickY, x2: width - margin.right, y2: tickY, class: 'trend-grid' }));
+        svg.appendChild(createElement('text', { x: margin.left - 10, y: tickY + 4, 'text-anchor': 'end', class: 'trend-label' }, numberLabel(tickValue)));
+      }
+      svg.appendChild(createElement('line', { x1: margin.left, y1: margin.top, x2: margin.left, y2: height - margin.bottom, class: 'trend-axis' }));
+      svg.appendChild(createElement('line', { x1: margin.left, y1: height - margin.bottom, x2: width - margin.right, y2: height - margin.bottom, class: 'trend-axis' }));
+
+      const dateTickCount = Math.min(5, Math.max(2, points.length));
+      for (let tick = 0; tick < dateTickCount; tick++) {
+        const day = minDay + ((maxDay - minDay) * tick) / (dateTickCount - 1);
+        const tickX = x(day);
+        const dateLabel = new Date(day).toISOString().slice(0, 10);
+        svg.appendChild(createElement('line', { x1: tickX, y1: margin.top, x2: tickX, y2: height - margin.bottom, class: 'trend-grid' }));
+        svg.appendChild(createElement('text', { x: tickX, y: height - margin.bottom + 22, 'text-anchor': 'middle', class: 'trend-label' }, dateLabel));
+      }
+      svg.appendChild(createElement('text', {
+        x: margin.left + plotWidth / 2,
+        y: height - 8,
+        'text-anchor': 'middle',
+        class: 'trend-label'
+      }, 'Race date'));
+
+      const sameDayOffsets = new Map();
+      const coordinates = points.map((point) => {
+        const key = String(point.day);
+        const offsetIndex = sameDayOffsets.get(key) || 0;
+        sameDayOffsets.set(key, offsetIndex + 1);
+        const dayCount = points.filter((candidate) => candidate.day === point.day).length;
+        const offset = (offsetIndex - (dayCount - 1) / 2) * 7;
+        return { ...point, x: x(point.day) + offset, y: y(point.value) };
+      });
+      svg.appendChild(createElement('polyline', {
+        points: coordinates.map((point) => `${point.x},${point.y}`).join(' '),
+        class: 'trend-line'
+      }));
+      for (const point of coordinates) {
+        const circle = createElement('circle', { cx: point.x, cy: point.y, r: 5, class: 'trend-point' });
+        circle.appendChild(createElement('title', {}, `${point.event.title} (${point.event.dateISO}): ${numberLabel(point.value)}`));
+        svg.appendChild(circle);
+      }
+    }
+    function speedFromCadence(cadence, gearText) {
+      const text = String(gearText ?? '').trim();
+      const gearMatch = text.match(/^(\d+(?:\.\d+)?)\s*[xX/]\s*(\d+(?:\.\d+)?)$/);
+      let gearInches = Number(text);
+      if (gearMatch) {
+        const chainring = Number(gearMatch[1]);
+        const sprocket = Number(gearMatch[2]);
+        if (!(chainring > 0) || !(sprocket > 0)) return null;
+        gearInches = (chainring / sprocket) * 27;
+      }
+      if (!Number.isFinite(cadence) || cadence <= 0 || !(gearInches > 0)) return null;
+      const rolloutMeters = (gearInches / 27) * 2.096;
+      return cadence * rolloutMeters * 0.06;
+    }
+    function numericValue(value) {
+      const number = Number.parseFloat(String(value ?? ''));
+      return Number.isFinite(number) ? number : null;
+    }
+    function conditionalColor(value, min, max, higherIsBetter) {
+      let level = (value - min) / (max - min);
+      if (!higherIsBetter) level = 1 - level;
+      const low = [254, 202, 202];
+      const middle = [254, 243, 199];
+      const high = [187, 247, 208];
+      const start = level < 0.5 ? low : middle;
+      const end = level < 0.5 ? middle : high;
+      const fraction = level < 0.5 ? level * 2 : (level - 0.5) * 2;
+      const rgb = start.map((channel, index) => Math.round(channel + (end[index] - channel) * fraction));
+      return `rgb(${rgb.join(', ')})`;
+    }
+    function applyConditionalFormatting(events) {
+      const fields = [
+        { key: 'gear', value: (event) => numericValue(event.summary?.gear), higherIsBetter: true },
+        { key: 'position', value: (event) => event.summary?.position, higherIsBetter: false },
+        { key: 'turn1', value: (event) => event.summary?.turns?.[0], higherIsBetter: true },
+        { key: 'turn2', value: (event) => event.summary?.turns?.[1], higherIsBetter: true },
+        { key: 'turn1Power', value: (event) => event.summary?.turnPowers?.[0], higherIsBetter: true },
+        { key: 'turn2Power', value: (event) => event.summary?.turnPowers?.[1], higherIsBetter: true },
+        { key: 'turnPowerDropoff', value: (event) => event.summary?.turnPowerDropoff, higherIsBetter: false },
+        { key: 'turn1Delivery', value: (event) => event.summary?.turnDeliveries?.[0], higherIsBetter: false },
+        { key: 'turn2Delivery', value: (event) => event.summary?.turnDeliveries?.[1], higherIsBetter: false },
+        { key: 'turnDeliveryDropoff', value: (event) => event.summary?.turnDeliveryDropoff, higherIsBetter: false },
+        { key: 'turn3', value: (event) => event.summary?.turns?.[2], higherIsBetter: true },
+        { key: 'delivery', value: (event) => event.summary?.delivery, higherIsBetter: false },
+        { key: 'averagePower', value: (event) => event.summary?.averagePower, higherIsBetter: true },
+        { key: 'leadPower', value: (event) => event.summary?.leadPower, higherIsBetter: true },
+        { key: 'recoveryPower', value: (event) => event.summary?.recoveryPower, higherIsBetter: false },
+        { key: 'recoveryLeadRatio', value: (event) => event.summary?.recoveryLeadRatio, higherIsBetter: false },
+        { key: 'time', value: (event) => event.summary?.time, higherIsBetter: false },
+        { key: 'stdTime', value: (event) => event.summary?.stdTime, higherIsBetter: false },
+        { key: 'lap1', value: (event) => event.summary?.lap1, higherIsBetter: false },
+        { key: 'lap2', value: (event) => event.summary?.lap2, higherIsBetter: false },
+        { key: 'lap3', value: (event) => event.summary?.lap3, higherIsBetter: false }
+      ];
+      for (const field of fields) {
+        const values = events.map(field.value).filter(Number.isFinite);
+        if (values.length < 2) continue;
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        if (min === max) continue;
+        $('eventRows').querySelectorAll(`[data-color-key="${field.key}"]`).forEach((cell, index) => {
+          const value = field.value(events[index]);
+          if (Number.isFinite(value)) cell.style.backgroundColor = conditionalColor(value, min, max, field.higherIsBetter);
+        });
+      }
+    }
+    $('summaryTable').querySelector('thead').addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-sort-key]');
+      if (!button) return;
+      if (state.sortKey === button.dataset.sortKey) state.sortDirection *= -1;
+      else {
+        state.sortKey = button.dataset.sortKey;
+        state.sortDirection = 1;
+      }
+      renderSummary();
+    });
+    trendMetricSelect.addEventListener('change', () => {
+      state.trendMetricKey = trendMetricSelect.value;
+      const events = state.eligibleEvents.filter((event) => state.selectedRaceKeys.has(event.key));
+      renderTrendChart(events);
+    });
+    async function loadSelectedWorkbook() {
+      const raceType = state.raceType;
+      const dataset = raceType === 'TS' ? 'women' : state.dataset;
+      athleteSelect.disabled = true;
+      athleteSelect.innerHTML = '<option value="">Loading athletes...</option>';
+      state.athletes = [];
+      renderAthlete(-1);
+      setStatus(`Loading ${raceType} ${dataset === 'men' ? 'Men' : 'Women'} workbook...`);
+      try {
+        const workbook = await loadWorkbook(raceType, dataset);
+        const XLSX = await ensureXLSXLoaded();
+        let sessions = [];
+        for (const name of preferredSheetOrder(workbook.SheetNames || [], raceType)) {
+          const rows = XLSX.utils.sheet_to_json(workbook.Sheets[name], { header: 1, raw: false, defval: '' });
+          sessions = collectSessions(rows, raceType);
+          if (sessions.length) break;
+        }
+        state.athletes = buildAthletes(sessions);
+        if (!state.athletes.length) throw new Error(`No athletes found in this ${raceType} workbook.`);
+        const selectedIndex = updateAthleteOptions(0);
+        renderAthlete(selectedIndex);
+        setStatus(`Loaded ${athleteSelect.options.length} athletes from ${raceType} ${dataset === 'men' ? 'Men' : 'Women'}.`);
+      } catch (error) {
+        console.error(error);
+        athleteSelect.innerHTML = '<option value="">No athletes loaded</option>';
+        renderAthlete(-1);
+        setStatus(`Workbook load failed: ${error.message || error}`);
+      }
+    }
+    function selectDataset(dataset) {
+      state.dataset = dataset === 'men' ? 'men' : 'women';
+      loadSelectedWorkbook();
+    }
+    function selectRaceType(raceType) {
+      state.raceType = Object.hasOwn(WORKBOOK_URLS, raceType) ? raceType : 'TP';
+      const womenOnly = state.raceType === 'TS';
+      genderSelect.disabled = womenOnly;
+      genderSelect.value = womenOnly ? 'women' : state.dataset;
+      genderLabel.textContent = womenOnly ? 'Gender (women only)' : 'Gender';
+      loadSelectedWorkbook();
+    }
+
+    genderSelect.addEventListener('change', (event) => selectDataset(event.target.value));
+    raceTypeSelect.addEventListener('change', (event) => selectRaceType(event.target.value));
+    nzOnlyCheckbox.addEventListener('change', () => renderAthlete(updateAthleteOptions()));
+    athleteSelect.addEventListener('change', (event) => renderAthlete(Number.parseInt(event.target.value, 10)));
+    startDateInput.addEventListener('change', () => updateIncludedRaces());
+    endDateInput.addEventListener('change', () => updateIncludedRaces());
+    raceOptions.addEventListener('change', (event) => {
+      const checkbox = event.target.closest('input[data-event-index]');
+      if (!checkbox) return;
+      const race = state.eligibleEvents[Number.parseInt(checkbox.dataset.eventIndex, 10)];
+      if (!race) return;
+      if (checkbox.checked) state.selectedRaceKeys.add(race.key);
+      else state.selectedRaceKeys.delete(race.key);
+      updateRaceFilterCount();
+      renderSummary();
+    });
+    loadSelectedWorkbook();
+  </script>
+</body>
+</html>
