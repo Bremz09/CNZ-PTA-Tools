@@ -92,6 +92,7 @@
     .status-line[data-tone="success"] { color: #c9efbf; }
 
     .chart-grid {
+      position: relative;
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
       gap: 16px;
@@ -118,9 +119,14 @@
       margin-bottom: 4px;
     }
 
-    .chart-heading h2 {
+    .chart-title h2 {
       margin: 0;
       font-size: 18px;
+    }
+
+    .chart-title h3 {
+      margin: 2px 0 0;
+      font-size: 13px;
     }
 
     .correlation {
@@ -175,7 +181,7 @@
                 <option value="">All events</option>
               </select>
             </div>
-            <p id="status" class="status-line" role="status" aria-live="polite">Upload the race-result Excel to begin.</p>
+            <p id="status" class="status-line" role="status" aria-live="polite">Loading WomensRaceResults.xlsm...</p>
           </div>
           <div class="page-actions">
             <a class="button-secondary" href="index.html">Back to tools</a>
@@ -187,7 +193,10 @@
         <section id="results-section" class="chart-grid hidden" aria-label="Entry speed correlation charts">
           <article class="chart-panel" data-series="pre200">
             <div class="chart-heading">
-              <h2>Approach</h2>
+              <div class="chart-title">
+                <h2>Approach</h2>
+                <h3>(200m - End of turn 4)</h3>
+              </div>
               <strong id="pre200-correlation" class="correlation">r = --</strong>
             </div>
             <p id="pre200-count" class="chart-count">0 valid pairs</p>
@@ -195,7 +204,10 @@
           </article>
           <article class="chart-panel" data-series="straight">
             <div class="chart-heading">
-              <h2>Straight</h2>
+              <div class="chart-title">
+                <h2>Straight</h2>
+                <h3>(End of turn 4 - Finish line)</h3>
+              </div>
               <strong id="straight-correlation" class="correlation">r = --</strong>
             </div>
             <p id="straight-count" class="chart-count">0 valid pairs</p>
@@ -203,7 +215,10 @@
           </article>
           <article class="chart-panel" data-series="banking">
             <div class="chart-heading">
-              <h2>Banking</h2>
+              <div class="chart-title">
+                <h2>Banking</h2>
+                <h3>(Finish line - 200m)</h3>
+              </div>
               <strong id="banking-correlation" class="correlation">r = --</strong>
             </div>
             <p id="banking-count" class="chart-count">0 valid pairs</p>
@@ -228,10 +243,18 @@
     const statusEl = document.getElementById('status');
     const resultsSection = document.getElementById('results-section');
     const chartInstances = { pre200: null, straight: null, banking: null };
+    const chartKinds = ['pre200', 'straight', 'banking'];
+    const medalColors = [
+      { fill: '#d4af37', border: '#987b1f' },
+      { fill: '#a7a9ac', border: '#73767a' },
+      { fill: '#b87333', border: '#805022' }
+    ];
     let workbook = null;
     let currentRows = [];
     let currentSheetName = '';
     let columnIndexes = {};
+    let topPerformers = [];
+    let availableEvents = new Map();
 
     function setStatus(message, tone = '') {
       statusEl.textContent = message;
@@ -302,6 +325,31 @@
       return Number.isFinite(timestamp) ? timestamp : Number.NEGATIVE_INFINITY;
     }
 
+    function eventYear(value) {
+      if (value instanceof Date && !Number.isNaN(value.valueOf())) return value.getFullYear();
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        const date = window.XLSX.SSF.parse_date_code(value);
+        return date ? date.y : null;
+      }
+      const text = cellText(value);
+      const yearMatch = text.match(/\b(?:19|20)\d{2}\b/);
+      if (yearMatch) return Number(yearMatch[0]);
+      const timestamp = Date.parse(text);
+      return Number.isFinite(timestamp) ? new Date(timestamp).getFullYear() : null;
+    }
+
+    function rowHasChartData(row) {
+      const time = parseTimeSeconds(row[columnIndexes.time]);
+      return time !== null && chartKinds.some((kind) => parseNumber(row[columnIndexes[kind]]) !== null);
+    }
+
+    function rowMatchesSelectedEvent(row) {
+      const selectedEvent = availableEvents.get(eventSelect.value);
+      if (!selectedEvent) return true;
+      return cellText(row[columnIndexes.location]) === selectedEvent.location
+        && eventYear(row[columnIndexes.date]) === selectedEvent.year;
+    }
+
     function configureWorksheet() {
       if (!workbook) return;
       currentSheetName = findSprintWorksheet(workbook.SheetNames);
@@ -324,31 +372,34 @@
         throw new Error(`Row 1 is missing required columns: ${missingHeaders.join(', ')}.`);
       }
 
-      const latestEventDates = new Map();
+      const eventsByKey = new Map();
       currentRows.slice(1).forEach((row) => {
         const eventName = cellText(row[columnIndexes.location]);
-        if (!eventName) return;
+        const year = eventYear(row[columnIndexes.date]);
+        if (!eventName || year === null || !rowHasChartData(row)) return;
         const eventDate = dateOrderValue(row[columnIndexes.date]);
-        if (!latestEventDates.has(eventName) || eventDate > latestEventDates.get(eventName)) {
-          latestEventDates.set(eventName, eventDate);
+        const key = JSON.stringify([eventName, year]);
+        const existingEvent = eventsByKey.get(key);
+        if (!existingEvent || eventDate > existingEvent.latestDate) {
+          eventsByKey.set(key, { location: eventName, year, latestDate: eventDate });
         }
       });
-      const eventNames = [...latestEventDates.keys()].sort((left, right) => {
-        const dateDifference = latestEventDates.get(right) - latestEventDates.get(left);
-        return dateDifference || left.localeCompare(right);
-      });
+      availableEvents = new Map([...eventsByKey.entries()].sort(([, left], [, right]) => {
+        const dateDifference = right.latestDate - left.latestDate;
+        return dateDifference || left.location.localeCompare(right.location);
+      }));
       eventSelect.replaceChildren();
       const allEventsOption = document.createElement('option');
       allEventsOption.value = '';
       allEventsOption.textContent = 'All events';
       eventSelect.appendChild(allEventsOption);
-      eventNames.forEach((eventName) => {
+      availableEvents.forEach((event, key) => {
         const option = document.createElement('option');
-        option.value = eventName;
-        option.textContent = eventName;
+        option.value = key;
+        option.textContent = `${event.location} (${event.year})`;
         eventSelect.appendChild(option);
       });
-      eventSelect.disabled = eventNames.length === 0;
+      eventSelect.disabled = availableEvents.size === 0;
       setStatus(`Loaded "${currentSheetName}" using row 1 headers.`, 'success');
       updateCharts();
     }
@@ -397,12 +448,25 @@
       const pairs = [];
       for (let rowIndex = 1; rowIndex < currentRows.length; rowIndex += 1) {
         const row = currentRows[rowIndex] || [];
-        if (eventSelect.value && cellText(row[columnIndexes.location]) !== eventSelect.value) continue;
+        if (!rowMatchesSelectedEvent(row)) continue;
         const speed = parseNumber(row[speedColumn]);
         const time = parseTimeSeconds(row[timeColumn]);
         if (speed !== null && time !== null) pairs.push({ x: speed, y: time, row: rowIndex + 1 });
       }
       return pairs;
+    }
+
+    function getTopPerformers() {
+      const candidates = [];
+      for (let rowIndex = 1; rowIndex < currentRows.length; rowIndex += 1) {
+        const row = currentRows[rowIndex] || [];
+        if (!rowMatchesSelectedEvent(row)) continue;
+        const speeds = Object.fromEntries(chartKinds.map((kind) => [kind, parseNumber(row[columnIndexes[kind]])]));
+        const time = parseTimeSeconds(row[columnIndexes.time]);
+        if (time === null || chartKinds.some((kind) => speeds[kind] === null)) continue;
+        candidates.push({ row: rowIndex + 1, time, speeds });
+      }
+      return candidates.sort((left, right) => left.time - right.time).slice(0, 3);
     }
 
     function pearsonCorrelation(pairs) {
@@ -437,8 +501,9 @@
       const colors = {
         pre200: { point: '#508542', border: '#345b2b' },
         straight: { point: '#007d8e', border: '#005c68' },
-        banking: { point: '#c85820', border: '#873a16' }
+        banking: { point: '#ed6a00', border: '#a94b00' }
       }[kind];
+      const leaderRows = new Map(topPerformers.map(({ row }, index) => [row, index]));
       chartInstances[kind] = new window.Chart(canvas, {
         type: 'scatter',
         data: {
@@ -446,8 +511,14 @@
             data: pairs,
             pointRadius: 5,
             pointHoverRadius: 7,
-            pointBackgroundColor: colors.point,
-            pointBorderColor: colors.border,
+            pointBackgroundColor: (context) => {
+              const medalIndex = leaderRows.get(context.raw.row);
+              return medalIndex === undefined ? colors.point : medalColors[medalIndex].fill;
+            },
+            pointBorderColor: (context) => {
+              const medalIndex = leaderRows.get(context.raw.row);
+              return medalIndex === undefined ? colors.border : medalColors[medalIndex].border;
+            },
             pointBorderWidth: 1
           }]
         },
@@ -483,6 +554,7 @@
     async function updateCharts() {
       if (!workbook || !currentSheetName) return;
       resultsSection.classList.remove('hidden');
+      topPerformers = getTopPerformers();
       const pre200Pairs = getPairedValues('pre200');
       const straightPairs = getPairedValues('straight');
       const bankingPairs = getPairedValues('banking');
@@ -510,12 +582,11 @@
       }
     }
 
-    fileInput.addEventListener('change', async (event) => {
-      const file = event.target.files && event.target.files[0];
-      if (!file) return;
+    async function loadWorkbook(getArrayBuffer) {
       setStatus('Reading workbook...');
       eventSelect.disabled = true;
       eventSelect.replaceChildren();
+      availableEvents = new Map();
       const defaultEventOption = document.createElement('option');
       defaultEventOption.value = '';
       defaultEventOption.textContent = 'All events';
@@ -523,7 +594,7 @@
       resultsSection.classList.add('hidden');
       try {
         const XLSX = await ensureXLSXLoaded();
-        workbook = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: false });
+        workbook = XLSX.read(await getArrayBuffer(), { type: 'array', cellDates: false });
         if (!workbook.SheetNames || workbook.SheetNames.length === 0) throw new Error('This workbook has no worksheets.');
         configureWorksheet();
       } catch (error) {
@@ -534,9 +605,26 @@
         resultsSection.classList.add('hidden');
         setStatus(`Unable to read this workbook: ${error.message}`, 'error');
       }
+    }
+
+    async function loadDefaultWorkbook() {
+      try {
+        const response = await fetch('WomensRaceResults.xlsm');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        await loadWorkbook(() => response.arrayBuffer());
+      } catch (error) {
+        setStatus(`Unable to load "WomensRaceResults.xlsm": ${error.message}. Choose a workbook below.`, 'error');
+      }
+    }
+
+    fileInput.addEventListener('change', async (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      await loadWorkbook(() => file.arrayBuffer());
     });
 
     eventSelect.addEventListener('change', updateCharts);
+    loadDefaultWorkbook();
   </script>
 </body>
 </html>

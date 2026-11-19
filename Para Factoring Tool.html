@@ -52,9 +52,173 @@
       letter-spacing: 0.02em;
     }
 
+    .tool-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .tool-header h1 {
+      margin: 0;
+    }
+
+    .dataset-control {
+      display: flex;
+      gap: 8px;
+      margin-left: auto;
+    }
+
+    .category-toggle {
+      min-width: 130px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #f2f8fb;
+      color: var(--accent);
+      padding: 10px 14px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .category-toggle[aria-pressed="true"] {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .category-toggle:hover {
+      border-color: var(--accent-2);
+      background: var(--selected);
+      color: var(--accent);
+    }
+
+    .category-toggle[aria-pressed="true"]:hover {
+      background: var(--accent-2);
+      color: #fff;
+    }
+
+    @media (max-width: 520px) {
+      .tool-header {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .dataset-control {
+        margin-left: 0;
+      }
+    }
+
     .sub {
       margin: 0;
       color: var(--muted);
+    }
+
+    .race-tabs {
+      display: grid;
+      grid-template-columns: repeat(var(--race-tab-count, 3), minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .race-tab {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      min-width: 0;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-bottom: 0;
+      border-radius: 8px 8px 0 0;
+      background: #f2f7f9;
+      color: var(--muted);
+      font: inherit;
+      font-weight: 600;
+      padding: 10px 34px 10px 12px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .race-tab[aria-current="true"] {
+      background: #fff;
+      border-color: var(--accent-2);
+      color: var(--accent);
+      box-shadow: inset 0 3px 0 var(--accent-2);
+    }
+
+    .race-tab-add {
+      display: block;
+      padding-right: 12px;
+      border-style: dashed;
+      color: var(--accent);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .race-tab-add:hover {
+      background: var(--selected);
+      border-color: var(--accent-2);
+    }
+
+    .race-tab-label {
+      display: block;
+      flex: 1 1 0;
+      width: 0;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      direction: ltr;
+      text-align: left;
+      margin-left: 0;
+      cursor: text;
+      outline: none;
+    }
+
+    .race-tab-label:empty::before {
+      content: attr(data-placeholder);
+      color: var(--muted);
+      pointer-events: none;
+    }
+
+    .race-tab-label:focus-visible,
+    .race-tab-delete:focus-visible,
+    .race-tab-add:focus-visible {
+      outline: 2px solid var(--accent-2);
+      outline-offset: 2px;
+    }
+
+    .race-tab-delete {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      display: grid;
+      place-items: center;
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      border: 0;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .race-tab-delete:hover {
+      background: #fce8e6;
+      color: var(--danger);
+    }
+
+    @media (max-width: 520px) {
+      .race-tabs { gap: 4px; }
+      .race-tab { padding: 9px 32px 9px 8px; font-size: 0.88rem; }
+      .race-tab-add { padding-right: 8px; }
     }
 
     .grid {
@@ -107,14 +271,39 @@
       margin-top: 6px;
     }
 
+    .classification-columns {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .classification-column {
+      min-width: 0;
+    }
+
+    .classification-heading {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .classification-options {
+      display: grid;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
     .chip {
+      width: 100%;
       border: 1px solid var(--border);
       background: #fff;
       color: var(--text);
-      border-radius: 999px;
-      padding: 8px 12px;
+      border-radius: 6px;
+      padding: 7px 5px;
       cursor: pointer;
       font-size: 0.9rem;
+      line-height: 1.2;
       transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease;
     }
 
@@ -151,6 +340,7 @@
 
     .btn.secondary {
       background: #e6edf2;
+      border: 1px solid transparent;
       color: var(--text);
     }
 
@@ -160,8 +350,22 @@
       color: var(--accent);
     }
 
+    .btn.ghost:hover:not(:disabled) {
+      background: var(--selected);
+      border-color: var(--accent-2);
+      color: var(--accent);
+    }
+
+    .rider-top .btn.secondary:hover:not(:disabled),
+    #resetBtn:hover:not(:disabled) {
+      background: #ed6d69;
+      border-color: #ae1c17;
+      color: #fff;
+    }
+
     .riders {
       display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 10px;
       margin-top: 8px;
     }
@@ -180,6 +384,10 @@
       gap: 8px;
       grid-template-columns: 1fr 1fr auto;
       align-items: end;
+    }
+
+    @media (max-width: 600px) {
+      .riders { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 760px) {
@@ -202,6 +410,10 @@
       background: #fbfdff;
       display: grid;
       gap: 6px;
+    }
+
+    .result-actions {
+      justify-content: space-between;
     }
 
     .result strong {
@@ -268,53 +480,40 @@
 <body>
   <main class="wrap">
     <section class="card">
-      <h1>Para Factoring Time Tool</h1>
-      <p class="sub">Add riders, enter each rider's time and class, then compare all riders with factors from the most abled class.</p>
-
-      <div class="grid">
-        <div class="field half">
-          <label for="dataset">Classification Set</label>
-          <select id="dataset">
-            <option value="c" selected>C Classes</option>
-            <option value="b">B Classes</option>
-          </select>
-          <div class="hint">Use C or B table depending on your event set.</div>
+      <header class="tool-header">
+        <h1>Para Factoring Time Tool</h1>
+        <div class="dataset-control">
+          <button id="datasetCBtn" class="category-toggle" type="button" aria-pressed="true">C Category</button>
+          <button id="datasetBBtn" class="category-toggle" type="button" aria-pressed="false">B Category</button>
         </div>
-
-        <div class="field half">
-          <label>Riders</label>
-          <button id="addRiderBtn" class="btn ghost" type="button">+ New Rider</button>
-          <div class="hint">Add as many riders as needed and compare them together.</div>
-        </div>
-
+      </header>
+      <div id="raceTabs" class="race-tabs" role="group" aria-label="Race calculations"></div>
+      <div id="race-panel" role="region">
+        <div class="grid">
         <div class="field">
+          <label>Riders</label>
           <div id="ridersList" class="riders" aria-label="Rider inputs"></div>
-          <div class="hint">Time format: ss.ss, mm:ss.ss, or hh:mm:ss.ss</div>
+          <button id="addRiderBtn" class="btn ghost" type="button">+ New Rider</button>
         </div>
-      </div>
+        </div>
 
-      <div class="actions">
-        <button id="calcBtn" class="btn primary" type="button">Calculate Factored Time</button>
-        <button id="resetBtn" class="btn secondary" type="button">Reset</button>
-      </div>
+        <div id="error" class="error"></div>
 
-      <div id="error" class="error"></div>
-
-      <div id="result" class="result" hidden>
-        <div><strong id="outputSummary">--</strong></div>
-        <div id="outputBaseClass">Base Class: --</div>
-        <div id="outputDetail" class="muted"></div>
-        <div class="actions">
+        <div id="result" class="result">
+        <div id="resultsTable">
+          <table><thead><tr><th>Rank</th><th>Rider</th><th>Class</th><th>Raw Time</th><th>Factor</th><th>Factored Time</th></tr></thead><tbody></tbody></table>
+        </div>
+        <div class="actions result-actions">
           <button id="exportCsvBtn" class="btn ghost" type="button">Export Results as CSV</button>
+          <button id="resetBtn" class="btn secondary" type="button">Reset</button>
         </div>
-        <div id="resultsTable"></div>
+        </div>
       </div>
     </section>
 
     <section class="card">
       <label for="tableView">Reference Matrix</label>
       <div id="tableView"></div>
-      <p class="muted">Each cell is the factor to convert from the column class to the row class. Values over 100% are blocked out, and active rider conversions are highlighted.</p>
     </section>
   </main>
 
@@ -349,29 +548,275 @@
       }
     };
 
-    const datasetSelect = document.getElementById("dataset");
+    const datasetButtons = {
+      c: document.getElementById("datasetCBtn"),
+      b: document.getElementById("datasetBBtn")
+    };
     const addRiderBtn = document.getElementById("addRiderBtn");
     const ridersListEl = document.getElementById("ridersList");
-    const calcBtn = document.getElementById("calcBtn");
     const resetBtn = document.getElementById("resetBtn");
     const errorEl = document.getElementById("error");
-    const resultEl = document.getElementById("result");
-    const outputSummaryEl = document.getElementById("outputSummary");
-    const outputBaseClassEl = document.getElementById("outputBaseClass");
-    const outputDetailEl = document.getElementById("outputDetail");
     const exportCsvBtn = document.getElementById("exportCsvBtn");
     const resultsTableEl = document.getElementById("resultsTable");
     const tableViewEl = document.getElementById("tableView");
+    const raceTabsEl = document.getElementById("raceTabs");
+    const racePanelEl = document.getElementById("race-panel");
 
-    let state = {
-      datasetKey: "c",
-      riders: [
-        { id: 1, name: "Rider 1", time: "", riderClass: "C5 MEN" },
-        { id: 2, name: "Rider 2", time: "", riderClass: "C4 MEN" }
-      ],
-      nextRiderId: 3,
-      lastResults: []
-    };
+    const maxRaceCount = 6;
+    const storageKey = "paraFactoringToolStateV1";
+    const savedState = loadSavedState();
+    const raceStates = savedState?.raceStates ?? Array.from({ length: 2 }, createRaceState);
+    if (savedState && raceStates.length === 3 && isUnusedStarterRace(raceStates[2])) {
+      raceStates.pop();
+    }
+    let activeRaceIndex = Math.min(savedState?.activeRaceIndex ?? 0, raceStates.length - 1);
+    let state = raceStates[activeRaceIndex];
+
+    function createRaceState() {
+      return {
+        raceName: "",
+        datasetKey: "c",
+        riders: [
+          { id: 1, name: "", time: "", riderClass: "C5 MEN" },
+          { id: 2, name: "", time: "", riderClass: "C5 MEN" }
+        ],
+        nextRiderId: 3,
+        lastResults: [],
+        resultBaseClass: ""
+      };
+    }
+
+    function isUnusedStarterRace(race) {
+      return race.raceName.trim() === ""
+        && race.datasetKey === "c"
+        && race.nextRiderId === 3
+        && race.lastResults.length === 0
+        && race.resultBaseClass === ""
+        && race.riders.length === 2
+        && race.riders.every((rider, index) => (
+          rider.id === index + 1
+          && rider.name === ""
+          && rider.time === ""
+          && (rider.riderClass === "C5 MEN" || (index === 1 && rider.riderClass === "C4 MEN"))
+        ));
+    }
+
+    function loadSavedState() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
+        if (!Array.isArray(saved?.raceStates) || saved.raceStates.length < 1) return null;
+
+        const restoredRaces = saved.raceStates.slice(0, maxRaceCount).map((savedRace) => {
+          const race = createRaceState();
+          if (!savedRace || typeof savedRace !== "object") return race;
+
+          race.raceName = typeof savedRace.raceName === "string" ? savedRace.raceName : "";
+          race.datasetKey = Object.prototype.hasOwnProperty.call(datasets, savedRace.datasetKey)
+            ? savedRace.datasetKey
+            : "c";
+          const classes = datasets[race.datasetKey].classes;
+
+          if (Array.isArray(savedRace.riders)) {
+            const riders = savedRace.riders
+              .filter((rider) => rider && typeof rider === "object")
+              .map((rider, index) => ({
+                id: Number.isInteger(rider.id) && rider.id > 0 ? rider.id : index + 1,
+                name: typeof rider.name === "string" && !/^Rider \d+$/.test(rider.name) ? rider.name : "",
+                time: typeof rider.time === "string" ? rider.time : "",
+                riderClass: classes.includes(rider.riderClass)
+                  ? rider.riderClass
+                  : classes[Math.min(index, classes.length - 1)]
+              }));
+            if (riders.length >= 2) race.riders = riders;
+          }
+
+          const minimumNextId = race.riders.reduce((nextId, rider) => Math.max(nextId, rider.id + 1), 3);
+          race.nextRiderId = Number.isInteger(savedRace.nextRiderId)
+            ? Math.max(savedRace.nextRiderId, minimumNextId)
+            : minimumNextId;
+
+          if (classes.includes(savedRace.resultBaseClass) && Array.isArray(savedRace.lastResults)) {
+            race.lastResults = savedRace.lastResults
+              .filter((row) => row && typeof row.name === "string"
+                && classes.includes(row.riderClass)
+                && Number.isFinite(row.rawSeconds) && row.rawSeconds > 0
+                && Number.isFinite(row.factor) && row.factor > 0
+                && Number.isFinite(row.factoredSeconds))
+              .map((row, index) => ({ ...row, id: Number.isInteger(row.id) ? row.id : index + 1 }));
+            race.resultBaseClass = race.lastResults.length ? savedRace.resultBaseClass : "";
+          }
+
+          return race;
+        });
+        const requestedIndex = Number.isInteger(saved.activeRaceIndex) ? saved.activeRaceIndex : 0;
+        return {
+          raceStates: restoredRaces,
+          activeRaceIndex: Math.max(0, Math.min(requestedIndex, restoredRaces.length - 1))
+        };
+      } catch {
+        return null;
+      }
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify({ raceStates, activeRaceIndex }));
+      } catch {
+        // Storage may be unavailable in private or restricted browsing modes.
+      }
+    }
+
+    function renderRaceTabs() {
+      raceTabsEl.innerHTML = "";
+      const visibleTabCount = raceStates.length + (raceStates.length < maxRaceCount ? 1 : 0);
+      raceTabsEl.style.setProperty("--race-tab-count", visibleTabCount);
+      raceStates.forEach((race, index) => {
+        const tab = document.createElement("div");
+        tab.className = "race-tab";
+        tab.id = `race-tab-${index}`;
+        tab.setAttribute("role", "group");
+        tab.setAttribute("aria-label", `Race ${index + 1}`);
+        tab.tabIndex = index === activeRaceIndex ? 0 : -1;
+
+        const label = document.createElement("span");
+        label.className = "race-tab-label";
+        label.contentEditable = "true";
+        label.setAttribute("role", "textbox");
+        label.setAttribute("aria-label", `Race ${index + 1} name`);
+        label.dataset.placeholder = `Race ${index + 1}`;
+        label.textContent = race.raceName;
+        label.spellcheck = false;
+        label.addEventListener("input", () => {
+          race.raceName = label.textContent;
+          tab.setAttribute("aria-label", race.raceName.trim() || `Race ${index + 1}`);
+          const deleteButton = tab.querySelector(".race-tab-delete");
+          if (deleteButton) {
+            const raceLabel = race.raceName.trim() || `Race ${index + 1}`;
+            deleteButton.title = `Delete ${raceLabel}`;
+            deleteButton.setAttribute("aria-label", `Delete ${raceLabel}`);
+          }
+          saveState();
+        });
+        label.addEventListener("focus", () => activateRace(index));
+        label.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") event.preventDefault();
+        });
+
+        tab.appendChild(label);
+        tab.addEventListener("click", (event) => {
+          if (!event.target.closest(".race-tab-delete")) activateRace(index);
+        });
+        tab.addEventListener("keydown", (event) => {
+          if (event.target !== tab || (event.key !== "Enter" && event.key !== " ")) return;
+          event.preventDefault();
+          activateRace(index);
+        });
+
+        if (raceStates.length > 1) {
+          const deleteButton = document.createElement("button");
+          deleteButton.type = "button";
+          deleteButton.className = "race-tab-delete";
+          deleteButton.textContent = "x";
+          deleteButton.title = `Delete ${race.raceName.trim() || `Race ${index + 1}`}`;
+          deleteButton.setAttribute("aria-label", `Delete ${race.raceName.trim() || `Race ${index + 1}`}`);
+          deleteButton.addEventListener("focus", () => activateRace(index));
+          deleteButton.addEventListener("click", (event) => {
+            event.stopPropagation();
+            deleteRace(index);
+          });
+          tab.appendChild(deleteButton);
+        }
+        raceTabsEl.appendChild(tab);
+      });
+      if (raceStates.length < maxRaceCount) {
+        const addTab = document.createElement("button");
+        addTab.type = "button";
+        addTab.className = "race-tab race-tab-add";
+        addTab.textContent = "+ New Race";
+        addTab.setAttribute("aria-label", "Add new race");
+        addTab.title = "Add new race";
+        addTab.addEventListener("click", addRace);
+        raceTabsEl.appendChild(addTab);
+      }
+      updateRaceTabSelection();
+    }
+
+    function updateRaceTabSelection() {
+      raceStates.forEach((_, index) => {
+        const tab = document.getElementById(`race-tab-${index}`);
+        if (tab) {
+          tab.setAttribute("aria-current", String(index === activeRaceIndex));
+          tab.tabIndex = index === activeRaceIndex ? 0 : -1;
+        }
+      });
+    }
+
+    function deleteRace(index) {
+      if (raceStates.length <= 1) return;
+      raceStates.splice(index, 1);
+      if (activeRaceIndex === index) {
+        activeRaceIndex = Math.min(index, raceStates.length - 1);
+      } else if (index < activeRaceIndex) {
+        activeRaceIndex -= 1;
+      }
+      state = raceStates[activeRaceIndex];
+      renderRaceTabs();
+      saveState();
+      renderActiveRace();
+    }
+
+    function addRace() {
+      if (raceStates.length >= maxRaceCount) return;
+      raceStates.push(createRaceState());
+      activeRaceIndex = raceStates.length - 1;
+      state = raceStates[activeRaceIndex];
+      renderRaceTabs();
+      saveState();
+      renderActiveRace();
+    }
+
+    function activateRace(index) {
+      if (activeRaceIndex === index) return;
+      activeRaceIndex = index;
+      state = raceStates[activeRaceIndex];
+      saveState();
+      renderActiveRace();
+    }
+
+    function renderActiveRace() {
+      updateDatasetButtons();
+      racePanelEl.setAttribute("aria-labelledby", `race-tab-${activeRaceIndex}`);
+      clearMessages();
+      updateRaceTabSelection();
+      renderRiders();
+      renderIncompleteResults();
+      renderTable();
+      if (state.lastResults.length) {
+        renderResults(state.lastResults, state.resultBaseClass);
+      }
+    }
+
+    function updateDatasetButtons() {
+      for (const [datasetKey, button] of Object.entries(datasetButtons)) {
+        button.setAttribute("aria-pressed", String(state.datasetKey === datasetKey));
+      }
+    }
+
+    function selectDataset(datasetKey) {
+      if (state.datasetKey === datasetKey) return;
+      state.datasetKey = datasetKey;
+      updateDatasetButtons();
+      const classes = datasets[state.datasetKey].classes;
+      state.riders = state.riders.map((rider, index) => ({
+        ...rider,
+        riderClass: classes.includes(rider.riderClass)
+          ? rider.riderClass
+          : classes[Math.min(index, classes.length - 1)]
+      }));
+      renderRiders();
+      renderTable();
+      updateComparison();
+    }
 
     function escapeCsvValue(value) {
       const text = String(value ?? "");
@@ -426,21 +871,30 @@
       return seconds;
     }
 
-    function formatSeconds(seconds) {
+    function getTimePrecision(input) {
+      const fraction = String(input ?? "").match(/\.(\d+)/)?.[1];
+      return Math.min(fraction?.length ?? 2, 10);
+    }
+
+    function formatSeconds(seconds, decimalPlaces = 2) {
       if (!Number.isFinite(seconds) || seconds < 0) return "--";
 
-      const hundredths = Math.round(seconds * 100);
-      const whole = Math.floor(hundredths / 100);
-      const frac = String(hundredths % 100).padStart(2, "0");
+      const precision = Math.max(0, Math.min(decimalPlaces, 10));
+      const scale = 10 ** precision;
+      const rounded = Math.round(seconds * scale);
+      const whole = Math.floor(rounded / scale);
+      const fraction = precision
+        ? `.${String(rounded % scale).padStart(precision, "0")}`
+        : "";
 
       const hrs = Math.floor(whole / 3600);
       const mins = Math.floor((whole % 3600) / 60);
       const secs = whole % 60;
 
       if (hrs > 0) {
-        return `${hrs}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}.${frac}`;
+        return `${hrs}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}${fraction}`;
       }
-      return `${mins}:${String(secs).padStart(2, "0")}.${frac}`;
+      return `${mins}:${String(secs).padStart(2, "0")}${fraction}`;
     }
 
     function factorFor(datasetKey, sourceClass, targetClass) {
@@ -463,16 +917,30 @@
 
     function makeClassChips(selectedValue, clickHandler) {
       const wrap = document.createElement("div");
-      wrap.className = "group";
+      wrap.className = "classification-columns";
 
       const classes = datasets[state.datasetKey].classes;
-      for (const cls of classes) {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = `chip${cls === selectedValue ? " selected" : ""}`;
-        btn.textContent = cls;
-        btn.addEventListener("click", () => clickHandler(cls));
-        wrap.appendChild(btn);
+      const groups = [
+        classes.filter((cls) => cls.endsWith(" MEN")),
+        classes.filter((cls) => cls.endsWith(" WOMEN"))
+      ];
+
+      for (const groupClasses of groups) {
+        const column = document.createElement("div");
+        column.className = "classification-column";
+
+        const options = document.createElement("div");
+        options.className = "classification-options";
+        for (const cls of groupClasses) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = `chip${cls === selectedValue ? " selected" : ""}`;
+          btn.textContent = cls;
+          btn.addEventListener("click", () => clickHandler(cls));
+          options.appendChild(btn);
+        }
+        column.appendChild(options);
+        wrap.appendChild(column);
       }
 
       return wrap;
@@ -544,29 +1012,28 @@
 
         const nameWrap = document.createElement("div");
         const nameLabel = document.createElement("label");
-        nameLabel.textContent = `Rider ${index + 1} Name`;
+        nameLabel.textContent = "Name";
         const nameInput = document.createElement("input");
         nameInput.type = "text";
         nameInput.value = rider.name;
         nameInput.placeholder = `Rider ${index + 1}`;
         nameInput.addEventListener("input", (e) => {
           rider.name = e.target.value;
+          updateComparison();
         });
         nameWrap.appendChild(nameLabel);
         nameWrap.appendChild(nameInput);
 
         const timeWrap = document.createElement("div");
         const timeLabel = document.createElement("label");
-        timeLabel.textContent = "Input Time";
+        timeLabel.textContent = "Time";
         const timeInput = document.createElement("input");
         timeInput.type = "text";
         timeInput.value = rider.time;
-        timeInput.placeholder = "e.g. 1:08.45 or 68.45";
+        timeInput.placeholder = "1:08.45 or 68.45";
         timeInput.addEventListener("input", (e) => {
           rider.time = e.target.value;
-        });
-        timeInput.addEventListener("keydown", (e) => {
-          if (e.key === "Enter") calculate();
+          updateComparison();
         });
         timeWrap.appendChild(timeLabel);
         timeWrap.appendChild(timeInput);
@@ -579,9 +1046,9 @@
         removeBtn.addEventListener("click", () => {
           if (state.riders.length <= 2) return;
           state.riders = state.riders.filter((x) => x.id !== rider.id);
-          clearMessages();
           renderRiders();
           renderTable();
+          updateComparison();
         });
 
         top.appendChild(nameWrap);
@@ -590,14 +1057,11 @@
 
         card.appendChild(top);
 
-        const classLabel = document.createElement("label");
-        classLabel.textContent = "Classification";
-        card.appendChild(classLabel);
-
         const chips = makeClassChips(rider.riderClass, (cls) => {
           rider.riderClass = cls;
           renderRiders();
           renderTable();
+          updateComparison();
         });
         card.appendChild(chips);
 
@@ -607,27 +1071,83 @@
 
     function renderResults(rows, moreAbledClass) {
       state.lastResults = rows;
-      outputSummaryEl.textContent = `Compared ${rows.length} riders`;
-      outputBaseClassEl.textContent = `Base Class (100%): ${moreAbledClass}`;
-      outputDetailEl.textContent = "All riders are factored using the most abled class as the starting point.";
+      state.resultBaseClass = moreAbledClass;
 
       let html = "<table><thead><tr><th>Rank</th><th>Rider</th><th>Class</th><th>Raw Time</th><th>Factor</th><th>Factored Time</th></tr></thead><tbody>";
       rows.forEach((row, i) => {
-        html += `<tr><td>${i + 1}</td><td>${row.name}</td><td>${row.riderClass}</td><td>${formatSeconds(row.rawSeconds)}</td><td>${(row.factor * 100).toFixed(2)}%</td><td>${formatSeconds(row.factoredSeconds)}</td></tr>`;
+        const rider = state.riders.find((item) => item.id === row.id);
+        const precision = getTimePrecision(rider?.time);
+        html += `<tr><td>${i + 1}</td><td>${escapeHtml(row.name)}</td><td>${escapeHtml(row.riderClass)}</td><td>${formatSeconds(row.rawSeconds, precision)}</td><td>${(row.factor * 100).toFixed(2)}%</td><td>${formatSeconds(row.factoredSeconds, precision)}</td></tr>`;
       });
       html += "</tbody></table>";
       resultsTableEl.innerHTML = html;
 
       renderTable();
+      saveState();
+    }
+
+    function renderIncompleteResults() {
+      const classes = datasets[state.datasetKey].classes;
+      const riderClasses = state.riders
+        .map((rider) => rider.riderClass)
+        .filter((riderClass) => classes.includes(riderClass));
+      const moreAbledClass = riderClasses.length
+        ? getMostAbledClass(state.datasetKey, riderClasses)
+        : "";
+      const previewRows = state.riders.map((rider, index) => {
+        const seconds = parseTimeToSeconds(rider.time || "");
+        const hasValidTime = Number.isFinite(seconds) && seconds > 0;
+        const factor = moreAbledClass && classes.includes(rider.riderClass)
+          ? factorFor(state.datasetKey, moreAbledClass, rider.riderClass)
+          : NaN;
+        return {
+          rider,
+          index,
+          seconds,
+          precision: getTimePrecision(rider.time),
+          factor,
+          factoredSeconds: hasValidTime ? seconds * factor : NaN,
+          hasValidTime
+        };
+      });
+      const rankedRows = previewRows
+        .filter((row) => row.hasValidTime)
+        .sort((a, b) => a.factoredSeconds - b.factoredSeconds);
+      const ranks = new Map(rankedRows.map((row, index) => [row.rider.id, index + 1]));
+      const orderedRows = [...rankedRows, ...previewRows.filter((row) => !row.hasValidTime)];
+      let html = "<table><thead><tr><th>Rank</th><th>Rider</th><th>Class</th><th>Raw Time</th><th>Factor</th><th>Factored Time</th></tr></thead><tbody>";
+
+      orderedRows.forEach(({ rider, index, seconds, precision, factor, factoredSeconds, hasValidTime }) => {
+        const rawTime = hasValidTime ? formatSeconds(seconds, precision) : rider.time || "";
+        const factorText = Number.isFinite(factor) ? `${(factor * 100).toFixed(2)}%` : "";
+        const rank = ranks.get(rider.id) ?? "";
+        const factoredTime = hasValidTime ? formatSeconds(factoredSeconds, precision) : "";
+        html += `<tr><td>${rank}</td><td>${escapeHtml(rider.name?.trim() || `Rider ${index + 1}`)}</td><td>${escapeHtml(rider.riderClass)}</td><td>${escapeHtml(rawTime)}</td><td>${factorText}</td><td>${factoredTime}</td></tr>`;
+      });
+
+      html += "</tbody></table>";
+      resultsTableEl.innerHTML = html;
+    }
+
+    function escapeHtml(value) {
+      const characters = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+      return String(value ?? "").replace(/[&<>"']/g, (character) => characters[character]);
     }
 
     function clearMessages() {
       errorEl.textContent = "";
-      resultEl.hidden = true;
+    }
+
+    function invalidateResults() {
+      state.lastResults = [];
+      state.resultBaseClass = "";
+      clearMessages();
+      renderIncompleteResults();
+      saveState();
     }
 
     function calculate() {
-      clearMessages();
+      invalidateResults();
 
       if (state.riders.length < 2) {
         errorEl.textContent = "Please keep at least two riders to compare.";
@@ -667,55 +1187,54 @@
       scored.sort((a, b) => a.factoredSeconds - b.factoredSeconds);
 
       renderResults(scored, moreAbledClass);
-      resultEl.hidden = false;
       renderTable();
     }
 
-    datasetSelect.addEventListener("change", () => {
-      state.datasetKey = datasetSelect.value;
-      const classes = datasets[state.datasetKey].classes;
-      state.riders = state.riders.map((r, i) => ({
-        ...r,
-        riderClass: classes.includes(r.riderClass) ? r.riderClass : classes[Math.min(i, classes.length - 1)]
-      }));
-      clearMessages();
-      renderRiders();
-      renderTable();
-    });
+    function updateComparison() {
+      const allTimesValid = state.riders.length >= 2 && state.riders.every((rider) => {
+        const seconds = parseTimeToSeconds(rider.time || "");
+        return Number.isFinite(seconds) && seconds > 0;
+      });
+
+      if (allTimesValid) {
+        calculate();
+      } else {
+        invalidateResults();
+      }
+    }
+
+    datasetButtons.c.addEventListener("click", () => selectDataset("c"));
+    datasetButtons.b.addEventListener("click", () => selectDataset("b"));
 
     addRiderBtn.addEventListener("click", () => {
       const classes = datasets[state.datasetKey].classes;
-      const idx = state.riders.length % classes.length;
       state.riders.push({
         id: state.nextRiderId,
-        name: `Rider ${state.nextRiderId}`,
+        name: "",
         time: "",
-        riderClass: classes[idx]
+        riderClass: state.riders[state.riders.length - 1].riderClass
       });
       state.nextRiderId += 1;
-      clearMessages();
       renderRiders();
       renderTable();
+      updateComparison();
     });
-
-    calcBtn.addEventListener("click", calculate);
 
     resetBtn.addEventListener("click", () => {
       const classes = datasets[state.datasetKey].classes;
       state.riders = [
-        { id: 1, name: "Rider 1", time: "", riderClass: classes[0] },
-        { id: 2, name: "Rider 2", time: "", riderClass: classes[Math.min(1, classes.length - 1)] }
+        { id: 1, name: "", time: "", riderClass: classes[0] },
+        { id: 2, name: "", time: "", riderClass: classes[0] }
       ];
       state.nextRiderId = 3;
-      state.lastResults = [];
-      clearMessages();
+      invalidateResults();
       renderRiders();
       renderTable();
     });
 
     exportCsvBtn.addEventListener("click", () => {
       if (!state.lastResults.length) {
-        errorEl.textContent = "Run Calculate Factored Time first, then export the table.";
+        errorEl.textContent = "A comparison will appear once every rider has a valid time.";
         return;
       }
 
@@ -740,11 +1259,16 @@
       const y = now.getFullYear();
       const m = String(now.getMonth() + 1).padStart(2, "0");
       const d = String(now.getDate()).padStart(2, "0");
-      downloadCsv(`para-factored-riders-${y}${m}${d}.csv`, rows);
+      const raceSlug = state.raceName.trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+      const racePrefix = raceSlug ? `${raceSlug}-` : "";
+      downloadCsv(`para-${racePrefix}factored-riders-${y}${m}${d}.csv`, rows);
     });
 
-    renderRiders();
-    renderTable();
+    renderRaceTabs();
+    renderActiveRace();
   </script>
 </body>
 </html>

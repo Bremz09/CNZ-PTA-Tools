@@ -46,8 +46,16 @@
       border-bottom: 1px solid var(--line);
     }
 
+    .page-brand { min-width: 0; }
+    .title-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin-bottom: 4px; }
+    .title-row h1 { margin: 0; }
+    .view-tabs { display: flex; flex-wrap: wrap; gap: 4px; }
+    .view-tab { min-height: 34px; padding: 6px 10px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); font-weight: 700; }
+    .view-tab[aria-selected="true"] { border-bottom-color: var(--green); color: var(--green-dark); }
+    .view-tab:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
     .page-header p { margin-bottom: 0; color: var(--muted); font-size: 14px; }
-    .header-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .race-name-display { max-width: min(320px, 42vw); overflow: hidden; color: var(--green-dark); font-size: 14px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
     .upload-bar { display: flex; flex-wrap: wrap; gap: 14px 22px; padding: 16px 0; }
     .field { display: grid; gap: 5px; min-width: 210px; }
     .field label, .field-label { color: var(--muted); font-size: 13px; font-weight: 700; }
@@ -141,6 +149,47 @@
     .section-heading h2 { margin: 0; }
     .tag-count { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
     .status { min-height: 20px; margin: 10px 0 0; color: var(--muted); font-size: 13px; }
+    .quick-stats { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+    .quick-stats h4 { margin: 0 0 10px; font-size: 14px; }
+    .quick-stats-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 10px; }
+    .quick-stats-controls .field { min-width: 0; }
+    .quick-stats-controls select { width: 100%; }
+    .quick-stats table { font-size: 13px; }
+    .quick-stats th:last-child, .quick-stats td:last-child { width: auto; text-align: right; }
+    .quick-stats th:not(:first-child), .quick-stats td:not(:first-child) { text-align: right; }
+    .quick-stats-empty { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+    .knowledge-positions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    .knowledge-position { min-width: 0; container-type: inline-size; }
+    .knowledge-position h3 { margin: 10px 0 4px; font-size: 15px; }
+    .knowledge-image-slot { position: relative; display: grid; place-items: center; overflow: hidden; width: 100%; height: max(100px, calc(100cqw - 100px)); border: 1px dashed #91a39a; border-radius: 4px; background: #e3ebe5; color: var(--muted); cursor: pointer; }
+    .knowledge-image-slot:hover { border-color: var(--green); color: var(--green-dark); }
+    .knowledge-image-slot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .knowledge-image-slot img[hidden] { display: none; }
+    .knowledge-image-input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; clip-path: inset(50%); }
+    .knowledge-image-input:focus-visible + .knowledge-image-slot { outline: 2px solid var(--green); outline-offset: 2px; }
+    .knowledge-chart { margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--line); }
+    .knowledge-chart h2 { margin-bottom: 12px; }
+    .knowledge-rider-strip { display: grid; grid-template-columns: minmax(90px, 175px) minmax(0, 1fr); gap: 8px; align-items: center; margin: 8px 0; font-size: 12px; }
+    .knowledge-rider-name { color: var(--muted); overflow-wrap: anywhere; }
+    .knowledge-strip-axis { position: relative; height: 14px; color: var(--muted); font-size: 10px; }
+    .knowledge-strip-axis span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+    .knowledge-strip-wrap { position: relative; min-width: 0; }
+    .knowledge-strip { position: relative; display: flex; width: 100%; height: 13px; overflow: hidden; background: #e6ece8; }
+    .knowledge-strip-segment { position: relative; z-index: 1; display: block; min-width: 0; height: 100%; overflow: hidden; }
+    .knowledge-strip-segment .bar-fill { transition: filter 120ms ease; }
+    .knowledge-strip-segment:hover .bar-fill, .knowledge-strip-segment:focus-visible .bar-fill { filter: brightness(1.16); }
+    .knowledge-strip-segment:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+    .knowledge-strip-markers { position: absolute; z-index: 2; inset: 0; pointer-events: none; }
+    .knowledge-strip-markers span { position: absolute; top: 0; bottom: 0; border-left: 1px solid rgba(255, 255, 255, .9); }
+    .knowledge-strip-tooltip { position: fixed; z-index: 1000; max-width: 260px; padding: 9px 11px; border: 1px solid rgba(255, 255, 255, .16); border-radius: 6px; background: #183f32; box-shadow: 0 6px 18px rgba(18, 34, 26, .24); color: #f5fbf7; font-size: 12px; line-height: 1.4; pointer-events: none; }
+    .knowledge-strip-tooltip[hidden] { display: none; }
+    .knowledge-strip-tooltip strong, .knowledge-strip-tooltip span { display: block; }
+    .knowledge-strip-tooltip span { margin-top: 3px; color: #d3e2d9; font-variant-numeric: tabular-nums; }
+    .subject-expert-race-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start; }
+    .subject-expert-video-wrap { width: min(var(--subject-expert-video-width, 720px), 100%); margin-inline: auto; }
+    .subject-expert-video-controls { display: flex; justify-content: center; gap: 5px; margin-top: 6px; }
+    .subject-expert-video-controls .button { width: 34px; min-height: 30px; padding: 3px; font-size: 17px; line-height: 1; }
+    .subject-expert-video { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: #101613; }
 
     .table-wrap { max-height: 310px; overflow: auto; border-top: 1px solid var(--line); }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -195,19 +244,41 @@
     .rider-bars:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
     .rider-bars h4, .gantt-rider h4 { margin: 0 0 8px; font-size: 13px; }
     .bar-row { display: grid; grid-template-columns: minmax(125px, 175px) minmax(40px, 1fr) 68px; gap: 8px; align-items: center; margin: 5px 0; font-size: 12px; }
+    .subject-expert-graphs .bar-row { grid-template-columns: minmax(40px, 1fr) 68px; }
+    .subject-expert-graphs .gantt-axis, .subject-expert-graphs .gantt-row { grid-template-columns: minmax(0, 1fr); }
+    .subject-expert-graphs .bar-label, .subject-expert-graphs .gantt-axis > span { display: none; }
+    .subject-expert-graphs .category-legend { display: none; }
+    .subject-category-group { margin: 0 0 16px; }
+    .subject-category-group:last-child { margin-bottom: 0; }
+    .subject-category-group h4 { margin: 0 0 7px; font-size: 13px; }
+    .subject-category-rider-row { display: grid; grid-template-columns: minmax(70px, 145px) 68px minmax(50px, 1fr); gap: 8px; align-items: center; margin: 5px 0; font-size: 12px; }
+    .subject-category-rider { color: var(--muted); overflow-wrap: anywhere; }
+    .subject-category-time { color: var(--ink); text-align: left; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    #subjectExpertPanel .position-analysis { margin-top: 0; padding-top: 0; border-top: 0; }
+    #subjectExpertLegend { margin-top: 14px; }
     .bar-label { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
     .bar-track { position: relative; height: 13px; overflow: hidden; background: #e6ece8; }
     .bar-fill { height: 100%; min-width: 0; }
     .bar-front-hatch { position: absolute; top: 0; bottom: 0; left: 0; pointer-events: none; background: repeating-linear-gradient(135deg, transparent 0 3px, rgba(17, 24, 20, .8) 3px 5px); }
     .bar-value { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .gantt-rider { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+    .gantt-rider { position: relative; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+    .gantt-rider h4 { display: flex; align-items: center; gap: 6px; }
+    .gantt-collapse-button { display: grid; flex: 0 0 18px; place-items: center; width: 18px; height: 18px; padding: 0; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+    .gantt-collapse-button::before { width: 0; height: 0; border-top: 5px solid currentColor; border-right: 4px solid transparent; border-left: 4px solid transparent; content: ""; transition: transform 120ms ease; }
+    .gantt-collapse-button:hover { color: var(--ink); }
+    .gantt-collapse-button:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
+    .gantt-rider.is-collapsed .gantt-collapse-button::before { transform: rotate(-90deg); }
+    .gantt-rider.is-collapsed .gantt-axis, .gantt-rider.is-collapsed .gantt-row { display: none; }
     .gantt-axis, .gantt-row { display: grid; grid-template-columns: minmax(125px, 175px) minmax(0, 1fr); gap: 8px; align-items: center; }
     .gantt-axis { margin: 0 0 5px; color: var(--muted); font-size: 10px; }
-    .gantt-ticks { display: flex; justify-content: space-between; gap: 4px; }
+    .gantt-ticks { position: relative; height: 12px; }
+    .gantt-half-label { position: absolute; left: 50%; transform: translateX(-50%); color: #acb4af; font-size: 10px; white-space: nowrap; }
     .gantt-row { margin: 4px 0; }
-    .gantt-lane { position: relative; height: 19px; overflow: hidden; background: repeating-linear-gradient(to right, #f0f3f1 0, #f0f3f1 calc(25% - 1px), #dce4df calc(25% - 1px), #dce4df 25%); }
-    .gantt-segment { position: absolute; top: 2px; height: 15px; min-width: 2px; padding: 0; border: 0; border-radius: 2px; cursor: pointer; }
+    .gantt-lane { position: relative; height: 19px; overflow: hidden; background: #f0f3f1; }
+    .gantt-lane::after { position: absolute; z-index: 0; top: 0; bottom: 0; left: 50%; border-left: 1px solid #d2d8d5; content: ""; pointer-events: none; }
+    .gantt-segment { position: absolute; z-index: 1; top: 2px; height: 15px; min-width: 2px; padding: 0; border: 0; border-radius: 2px; cursor: pointer; }
     .gantt-segment:hover { filter: brightness(.82); }
+    .gantt-playhead { position: absolute; z-index: 3; width: 2px; background: #17241e; outline: 1px solid rgba(255, 255, 255, .95); pointer-events: none; }
     .gantt-front-hatch { position: absolute; top: 0; height: 100%; background: repeating-linear-gradient(135deg, transparent 0 3px, rgba(17, 24, 20, .8) 3px 5px); pointer-events: none; }
 
     @media (max-width: 900px) {
@@ -216,10 +287,16 @@
     }
     @media (max-width: 700px) {
       .page-header { align-items: start; flex-direction: column; }
+      .title-row { align-items: start; flex-direction: column; gap: 10px; }
+      .view-tabs { max-width: 100%; }
       .work-area { grid-template-columns: 1fr; }
       .tag-column { border-top: 1px solid var(--line); padding-top: 16px; }
       video { max-height: 52vh; }
       #fitPlot { height: 210px; }
+      .quick-stats-controls { grid-template-columns: 1fr; }
+      .knowledge-positions { gap: 10px; }
+      .knowledge-position h3 { font-size: 13px; }
+      .knowledge-image-slot { font-size: 12px; text-align: center; }
       .bar-row, .gantt-axis, .gantt-row { grid-template-columns: minmax(90px, 115px) minmax(0, 1fr); }
       .bar-value { grid-column: 2; margin-top: -5px; text-align: left; }
       .bar-row { row-gap: 5px; }
@@ -232,28 +309,32 @@
 <body>
   <main>
     <header class="page-header">
-      <div>
-        <h1>Race Position Tagger</h1>
+      <div class="page-brand">
+        <div class="title-row">
+          <h1>Race Position Tagger</h1>
+          <nav class="view-tabs" role="tablist" aria-label="Race position views">
+            <button id="analyseTab" class="view-tab" type="button" role="tab" aria-selected="true" aria-controls="analysePanel" data-tab-target="analysePanel">Analyse</button>
+            <button id="subjectExpertTab" class="view-tab" type="button" role="tab" aria-selected="false" aria-controls="subjectExpertPanel" data-tab-target="subjectExpertPanel" tabindex="-1">Subject Expert</button>
+            <button id="knowledgeSeekerTab" class="view-tab" type="button" role="tab" aria-selected="false" aria-controls="knowledgeSeekerPanel" data-tab-target="knowledgeSeekerPanel" tabindex="-1">Knowledge Seeker</button>
+          </nav>
+        </div>
         <p>Tag a rider's position against the video playhead.</p>
       </div>
       <div class="header-actions">
+        <span id="raceNameDisplay" class="race-name-display" aria-live="polite"></span>
         <button id="importCsvBtn" class="button" type="button">Load CSV</button>
         <input id="importCsvInput" type="file" accept=".csv,text/csv" hidden>
         <button id="exportCsvBtn" class="button" type="button" disabled>Export CSV</button>
+        <button id="loadVideoBtn" class="button" type="button">Load Video</button>
+        <input id="videoInput" type="file" accept="video/*" hidden>
       </div>
     </header>
 
-    <section class="upload-bar" aria-label="Video and FIT files">
-      <div class="field">
-        <label for="videoInput">Race video</label>
-        <input id="videoInput" type="file" accept="video/*">
-      </div>
-    </section>
-
+    <section id="analysePanel" class="tab-panel" role="tabpanel" aria-labelledby="analyseTab">
     <div class="work-area">
       <section class="video-column" aria-label="Race video">
         <div class="video-wrap">
-          <video id="video" controls preload="metadata" playsinline></video>
+          <video id="video" class="subject-expert-video" controls preload="metadata" playsinline aria-label="Race video playback"></video>
         </div>
         <div class="timebar">
           <span>Video time <strong id="videoTime">0:00.000</strong></span>
@@ -378,11 +459,72 @@
       <div class="analysis-block">
         <h3>Time by category</h3>
         <div id="positionBarGraph"></div>
+        <section class="quick-stats" aria-labelledby="quickStatsHeading">
+          <h4 id="quickStatsHeading">Quick stats</h4>
+          <div class="quick-stats-controls">
+            <div class="field">
+              <label for="quickStatsRider1">Rider 1</label>
+              <select id="quickStatsRider1"></select>
+            </div>
+            <div class="field">
+              <label for="quickStatsRider2">Rider 2</label>
+              <select id="quickStatsRider2"></select>
+            </div>
+          </div>
+          <div id="quickStatsResults" aria-live="polite"></div>
+        </section>
       </div>
       <div class="analysis-block">
-        <h3>Position timeline</h3>
+        <h3>Position throughout the race</h3>
         <div id="positionGanttGraph"></div>
       </div>
+    </section>
+    </section>
+    <section id="subjectExpertPanel" class="tab-panel" role="tabpanel" aria-labelledby="subjectExpertTab" hidden>
+      <div id="subjectExpertLegend" aria-label="Position category colour key"></div>
+      <section class="position-analysis" aria-label="Subject Expert graphs">
+        <div class="analysis-block subject-expert-graphs">
+          <h3>Time in each category</h3>
+          <div id="subjectExpertBarGraph"></div>
+        </div>
+        <div class="analysis-block subject-expert-graphs">
+          <h3>Position throughout the race</h3>
+          <div class="subject-expert-race-layout">
+            <div id="subjectExpertGanttGraph"></div>
+            <div id="subjectExpertVideoSlot" class="subject-expert-video-wrap">
+              <div id="subjectExpertVideoStage"></div>
+              <div class="subject-expert-video-controls" role="group" aria-label="Subject Expert video size">
+                <button id="subjectExpertVideoSmaller" class="button" type="button" aria-label="Make video smaller" title="Make video smaller">-</button>
+                <button id="subjectExpertVideoLarger" class="button" type="button" aria-label="Make video larger" title="Make video larger">+</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+    <section id="knowledgeSeekerPanel" class="tab-panel" role="tabpanel" aria-labelledby="knowledgeSeekerTab" hidden>
+      <div class="knowledge-positions">
+        <article class="knowledge-position">
+          <input id="straightArmsImageInput" class="knowledge-image-input" type="file" accept="image/*" data-preview-target="straightArmsImage">
+          <label class="knowledge-image-slot" for="straightArmsImageInput"><span>Upload image</span><img id="straightArmsImage" alt="Straight arms position example" hidden></label>
+          <h3>Straight arms</h3>
+        </article>
+        <article class="knowledge-position">
+          <input id="slightlyBentImageInput" class="knowledge-image-input" type="file" accept="image/*" data-preview-target="slightlyBentImage">
+          <label class="knowledge-image-slot" for="slightlyBentImageInput"><span>Upload image</span><img id="slightlyBentImage" alt="Slightly bent position example" hidden></label>
+          <h3>Slightly bent</h3>
+        </article>
+        <article class="knowledge-position">
+          <input id="inPositionImageInput" class="knowledge-image-input" type="file" accept="image/*" data-preview-target="inPositionImage">
+          <label class="knowledge-image-slot" for="inPositionImageInput"><span>Upload image</span><img id="inPositionImage" alt="In position example" hidden></label>
+          <h3>In position</h3>
+        </article>
+      </div>
+      <section class="knowledge-chart" aria-labelledby="knowledgeChartHeading">
+        <h2 id="knowledgeChartHeading">Time in each category</h2>
+        <div id="knowledgePositionGraph"></div>
+        <div id="knowledgeStripTooltip" class="knowledge-strip-tooltip" role="tooltip" hidden></div>
+      </section>
     </section>
   </main>
 
@@ -393,6 +535,7 @@
     const fitSyncInput = document.getElementById('fitSyncInput');
     const videoTimeDisplay = document.getElementById('videoTime');
     const videoNameDisplay = document.getElementById('videoName');
+    const raceNameDisplay = document.getElementById('raceNameDisplay');
     const activeRiderSelect = document.getElementById('activeRider');
     const riderNameInput = document.getElementById('riderNameInput');
     const riderPlacingInput = document.getElementById('riderPlacingInput');
@@ -415,6 +558,20 @@
     const loadFitSyncBtn = document.getElementById('loadFitSyncBtn');
     const positionBarGraph = document.getElementById('positionBarGraph');
     const positionGanttGraph = document.getElementById('positionGanttGraph');
+    const subjectExpertLegend = document.getElementById('subjectExpertLegend');
+    const subjectExpertBarGraph = document.getElementById('subjectExpertBarGraph');
+    const subjectExpertGanttGraph = document.getElementById('subjectExpertGanttGraph');
+    const videoHome = document.querySelector('.video-wrap');
+    const subjectExpertVideoSlot = document.getElementById('subjectExpertVideoSlot');
+    const subjectExpertVideoStage = document.getElementById('subjectExpertVideoStage');
+    const subjectExpertVideoSmaller = document.getElementById('subjectExpertVideoSmaller');
+    const subjectExpertVideoLarger = document.getElementById('subjectExpertVideoLarger');
+    const knowledgePositionGraph = document.getElementById('knowledgePositionGraph');
+    const knowledgeStripTooltip = document.getElementById('knowledgeStripTooltip');
+    const quickStatsRider1 = document.getElementById('quickStatsRider1');
+    const quickStatsRider2 = document.getElementById('quickStatsRider2');
+    const quickStatsResults = document.getElementById('quickStatsResults');
+    const viewTabs = [...document.querySelectorAll('.view-tab')];
     const importCsvInput = document.getElementById('importCsvInput');
     const fitStreams = [];
     const fitSyncStorageKey = 'race-position-tagger.fit-sync.v1';
@@ -423,6 +580,7 @@
     const frontEvents = [];
     const raceBoundaries = { start: null, end: null };
     const pendingFitSyncs = [];
+    const collapsedGanttRiderIds = new Set();
     const riderPalette = ['#0f766e', '#c24132', '#2563a6', '#a45b0a', '#7c3f72', '#4d7c0f', '#475569', '#b83280'];
     const positionCategories = [
       { label: 'Straight arms', color: '#FF5F4D' },
@@ -439,10 +597,42 @@
     let nextFrontEventId = 1;
     let fitParserClass = null;
     let videoObjectUrl = null;
+    let activeKnowledgeStripSegment = null;
     let pointerMode = null;
     let dragLastX = 0;
     let fitDrawingData = null;
     let estimatedSamplingHz = null;
+
+    function activateView(panelId) {
+      for (const tab of viewTabs) {
+        const isSelected = tab.dataset.tabTarget === panelId;
+        tab.setAttribute('aria-selected', String(isSelected));
+        tab.tabIndex = isSelected ? 0 : -1;
+      }
+      for (const panel of document.querySelectorAll('.tab-panel')) panel.hidden = panel.id !== panelId;
+      if (panelId === 'subjectExpertPanel') subjectExpertVideoStage.appendChild(video);
+      else videoHome.appendChild(video);
+      if (panelId === 'analysePanel') drawFitPlot();
+      layoutGanttPlayheads();
+      updateGanttPlayheads(currentVideoTime());
+    }
+
+    function setSubjectExpertVideoWidth(width) {
+      const minimumWidth = 360;
+      const maximumWidth = 1080;
+      const videoWidth = Math.max(minimumWidth, Math.min(maximumWidth, width));
+      subjectExpertVideoSlot.style.setProperty('--subject-expert-video-width', `${videoWidth}px`);
+      subjectExpertVideoSmaller.disabled = videoWidth === minimumWidth;
+      subjectExpertVideoLarger.disabled = videoWidth === maximumWidth;
+    }
+
+    subjectExpertVideoSmaller.addEventListener('click', () => {
+      setSubjectExpertVideoWidth(Number.parseFloat(subjectExpertVideoSlot.style.getPropertyValue('--subject-expert-video-width') || '720') - 120);
+    });
+    subjectExpertVideoLarger.addEventListener('click', () => {
+      setSubjectExpertVideoWidth(Number.parseFloat(subjectExpertVideoSlot.style.getPropertyValue('--subject-expert-video-width') || '720') + 120);
+    });
+    setSubjectExpertVideoWidth(720);
 
     function setTagStatus(message) { tagStatus.textContent = message; }
     function setFitStatus(message, level = 'warn') {
@@ -530,6 +720,7 @@
       const column = (...names) => names.map((name) => headers.indexOf(name)).find((index) => index >= 0) ?? -1;
       const secondsColumn = column('video_seconds', 'seconds', 'time_seconds');
       const timeColumn = column('video_time', 'timestamp', 'time');
+      const videoNameColumn = column('video_name', 'video_title');
       const riderColumn = column('rider', 'rider_name', 'athlete');
       const placingColumn = column('placing', 'place', 'rank');
       const positionColumn = column('position');
@@ -547,9 +738,11 @@
       const importedTags = [];
       const importedFrontEvents = [];
       const importedRaceBoundaries = { start: null, end: null };
+      let importedVideoName = '';
       for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
         const values = rows[rowIndex];
         const getValue = (index) => index >= 0 ? String(values[index] ?? '').trim() : '';
+        importedVideoName ||= getValue(videoNameColumn);
         const rawSeconds = secondsColumn >= 0 ? getValue(secondsColumn) : '';
         const videoSeconds = rawSeconds ? parseCsvVideoTime(rawSeconds) : parseCsvVideoTime(getValue(timeColumn));
         if (videoSeconds === null) throw new Error(`Row ${rowIndex + 1} has an invalid video time.`);
@@ -632,7 +825,7 @@
         throw new Error('CSV contains no tag rows.');
       }
       if (!importedRiders.length) importedRiders.push({ id: 1, name: 'Rider 1', placing: null, eliminationSeconds: null });
-      return { riders: importedRiders, tags: importedTags, frontEvents: importedFrontEvents, raceBoundaries: importedRaceBoundaries };
+      return { riders: importedRiders, tags: importedTags, frontEvents: importedFrontEvents, raceBoundaries: importedRaceBoundaries, videoName: importedVideoName };
     }
     function getTagLabel(tag) {
       return tag.category || `${tag.position} - ${tag.state === 'In' ? 'In position' : 'Out of position'}`;
@@ -959,6 +1152,228 @@
       return legend;
     }
 
+    function renderQuickStats(positionRiders, categories, totalsByRider) {
+      const selectedIds = [Number(quickStatsRider1.value), Number(quickStatsRider2.value)];
+      for (const [index, select] of [quickStatsRider1, quickStatsRider2].entries()) {
+        select.replaceChildren();
+        for (const rider of positionRiders) select.add(new Option(formatRiderHeading(rider), String(rider.id)));
+        const preferredId = selectedIds[index] || positionRiders[index]?.id || positionRiders[0]?.id;
+        if (positionRiders.some((rider) => rider.id === preferredId)) select.value = String(preferredId);
+        select.disabled = positionRiders.length < 2;
+      }
+      quickStatsResults.replaceChildren();
+      const rider1 = positionRiders.find((rider) => rider.id === Number(quickStatsRider1.value));
+      const rider2 = positionRiders.find((rider) => rider.id === Number(quickStatsRider2.value));
+      if (!rider1 || !rider2) {
+        const empty = document.createElement('p');
+        empty.className = 'quick-stats-empty';
+        empty.textContent = 'Add at least two riders to compare category time.';
+        quickStatsResults.appendChild(empty);
+        return;
+      }
+
+      const totals = [totalsByRider.get(rider1.id), totalsByRider.get(rider2.id)];
+      const taggedSeconds = totals.map((riderTotals) => [...riderTotals.values()].reduce((sum, seconds) => sum + seconds, 0));
+      if (taggedSeconds.every((seconds) => seconds <= 0)) {
+        const empty = document.createElement('p');
+        empty.className = 'quick-stats-empty';
+        empty.textContent = 'Add position tags for these riders to compare category time.';
+        quickStatsResults.appendChild(empty);
+        return;
+      }
+
+      const table = document.createElement('table');
+      const head = document.createElement('thead');
+      const headingRow = document.createElement('tr');
+      for (const label of ['Category', rider1.name, rider2.name]) {
+        const cell = document.createElement('th');
+        cell.scope = 'col';
+        cell.textContent = label;
+        headingRow.appendChild(cell);
+      }
+      head.appendChild(headingRow);
+      table.appendChild(head);
+
+      const body = document.createElement('tbody');
+      for (const category of categories) {
+        const row = document.createElement('tr');
+        const label = document.createElement('th');
+        label.scope = 'row';
+        label.textContent = category.label;
+        row.appendChild(label);
+        for (let index = 0; index < totals.length; index += 1) {
+          const cell = document.createElement('td');
+          const categorySeconds = totals[index].get(category.label) || 0;
+          cell.textContent = taggedSeconds[index] > 0
+            ? `${Math.round((categorySeconds / taggedSeconds[index]) * 100)}%`
+            : '\u2014';
+          row.appendChild(cell);
+        }
+        body.appendChild(row);
+      }
+      table.appendChild(body);
+      quickStatsResults.appendChild(table);
+    }
+
+    function syncKnowledgePositionGraph() {
+      const riderBlocks = [...positionBarGraph.querySelectorAll('.rider-bars')];
+      const categoryLegend = positionBarGraph.querySelector('.category-legend');
+      const emptyMessage = positionBarGraph.querySelector('.analysis-empty');
+      const graphChildren = [];
+      if (categoryLegend) {
+        const knowledgeLegend = categoryLegend.cloneNode(true);
+        knowledgeLegend.querySelector('.front-hatch-key')?.parentElement.remove();
+        graphChildren.push(knowledgeLegend);
+      }
+      if (riderBlocks.length) {
+        const getCategoryRows = (riderBlock) => [...riderBlock.querySelectorAll('.bar-row')].map((row) => {
+          return {
+            row,
+            color: row.querySelector('.bar-fill')?.style.backgroundColor || '',
+            seconds: Number(row.querySelector('.bar-value')?.dataset.totalSeconds) || 0
+          };
+        });
+        const categoryRowsByRider = riderBlocks.map((riderBlock) => ({
+          riderBlock,
+          categoryRows: getCategoryRows(riderBlock)
+        }));
+
+        const axisRow = document.createElement('div');
+        axisRow.className = 'knowledge-rider-strip';
+        const axis = document.createElement('div');
+        axis.className = 'knowledge-strip-axis';
+        for (const percentage of [25, 50, 75]) {
+          const label = document.createElement('span');
+          label.textContent = `${percentage}%`;
+          label.style.left = `${percentage}%`;
+          axis.appendChild(label);
+        }
+        axisRow.append(document.createElement('span'), axis);
+        graphChildren.push(axisRow);
+
+        for (const { riderBlock, categoryRows } of categoryRowsByRider) {
+          const riderName = riderBlock.querySelector('h4')?.textContent || '';
+          const taggedSeconds = categoryRows.reduce((total, category) => total + category.seconds, 0);
+          const riderRow = document.createElement('div');
+          riderRow.className = 'knowledge-rider-strip';
+          const name = document.createElement('span');
+          name.className = 'knowledge-rider-name';
+          name.textContent = riderName;
+          const stripWrap = document.createElement('div');
+          stripWrap.className = 'knowledge-strip-wrap';
+          const strip = document.createElement('div');
+          strip.className = 'knowledge-strip';
+          strip.setAttribute('role', 'group');
+          strip.setAttribute('aria-label', `${riderName}: ${categoryRows.map(({ row, seconds }) => {
+            const categoryName = row.querySelector('.bar-label')?.textContent || '';
+            const percentage = taggedSeconds > 0 ? Math.round((seconds / taggedSeconds) * 100) : 0;
+            return `${categoryName}, ${(seconds / 60).toFixed(2)} minutes, ${percentage}%`;
+          }).join('; ')}`);
+
+          for (const { row, color, seconds } of categoryRows) {
+            const categoryName = row.querySelector('.bar-label')?.textContent || '';
+            const percentage = taggedSeconds > 0 ? (seconds / taggedSeconds) * 100 : 0;
+            const minutes = (seconds / 60).toFixed(2);
+            const segment = document.createElement('span');
+            segment.className = 'knowledge-strip-segment';
+            segment.setAttribute('role', 'img');
+            segment.tabIndex = 0;
+            segment.dataset.rider = riderName;
+            segment.dataset.category = categoryName;
+            segment.dataset.minutes = minutes;
+            segment.dataset.percentage = percentage.toFixed(1);
+            segment.setAttribute('aria-describedby', knowledgeStripTooltip.id);
+            segment.setAttribute('aria-label', `${riderName}, ${categoryName}: ${minutes} minutes, ${percentage.toFixed(1)}%`);
+            segment.style.flexBasis = `${percentage}%`;
+            const segmentFill = document.createElement('div');
+            segmentFill.className = 'bar-fill';
+            segmentFill.style.width = '100%';
+            segmentFill.style.backgroundColor = color;
+            segment.appendChild(segmentFill);
+            strip.appendChild(segment);
+          }
+
+          const markers = document.createElement('div');
+          markers.className = 'knowledge-strip-markers';
+          for (const percentage of [25, 50, 75]) {
+            const marker = document.createElement('span');
+            marker.style.left = `${percentage}%`;
+            markers.appendChild(marker);
+          }
+          stripWrap.append(strip, markers);
+          riderRow.append(name, stripWrap);
+          graphChildren.push(riderRow);
+        }
+      } else if (emptyMessage) graphChildren.push(emptyMessage.cloneNode(true));
+      knowledgePositionGraph.replaceChildren(...graphChildren);
+    }
+
+    function showKnowledgeStripTooltip(segment, clientX, clientY) {
+      if (activeKnowledgeStripSegment !== segment) {
+        const rider = document.createElement('strong');
+        rider.textContent = segment.dataset.rider || '';
+        const details = document.createElement('span');
+        details.textContent = `${segment.dataset.category || ''} | ${segment.dataset.minutes || '0.00'} min | ${segment.dataset.percentage || '0.0'}%`;
+        knowledgeStripTooltip.replaceChildren(rider, details);
+        activeKnowledgeStripSegment = segment;
+      }
+      knowledgeStripTooltip.hidden = false;
+      const tooltipRect = knowledgeStripTooltip.getBoundingClientRect();
+      const left = Math.max(8, Math.min(clientX + 12, window.innerWidth - tooltipRect.width - 8));
+      let top = clientY - tooltipRect.height - 12;
+      if (top < 8) top = Math.min(clientY + 16, window.innerHeight - tooltipRect.height - 8);
+      knowledgeStripTooltip.style.left = `${left}px`;
+      knowledgeStripTooltip.style.top = `${top}px`;
+    }
+
+    function hideKnowledgeStripTooltip() {
+      knowledgeStripTooltip.hidden = true;
+      activeKnowledgeStripSegment = null;
+    }
+
+    function syncSubjectExpertGraphs() {
+      const barLegend = positionBarGraph.querySelector('.category-legend');
+      subjectExpertLegend.replaceChildren((barLegend || renderCategoryLegend()).cloneNode(true));
+      const riderBlocks = [...positionBarGraph.querySelectorAll('.rider-bars')];
+      if (riderBlocks.length === 0) {
+        const emptyMessage = positionBarGraph.querySelector('.analysis-empty');
+        subjectExpertBarGraph.replaceChildren(...(emptyMessage ? [emptyMessage.cloneNode(true)] : []));
+      } else {
+        const categories = [...riderBlocks[0].querySelectorAll('.bar-row')].map((row) => row.querySelector('.bar-label')?.textContent || '');
+        const groups = categories.map((category) => {
+          const group = document.createElement('section');
+          group.className = 'subject-category-group';
+          const heading = document.createElement('h4');
+          heading.textContent = category;
+          group.appendChild(heading);
+
+          for (const riderBlock of riderBlocks) {
+            const categoryRow = [...riderBlock.querySelectorAll('.bar-row')]
+              .find((row) => row.querySelector('.bar-label')?.textContent === category);
+            if (!categoryRow) continue;
+            const row = document.createElement('div');
+            row.className = 'subject-category-rider-row';
+            const riderName = document.createElement('span');
+            riderName.className = 'subject-category-rider';
+            riderName.textContent = riderBlock.querySelector('h4')?.textContent || '';
+            const time = document.createElement('span');
+            time.className = 'subject-category-time';
+            time.textContent = categoryRow.querySelector('.bar-value')?.textContent || '0:00.000';
+            const track = categoryRow.querySelector('.bar-track');
+            row.append(riderName, time);
+            if (track) row.appendChild(track.cloneNode(true));
+            group.appendChild(row);
+          }
+          return group;
+        });
+        subjectExpertBarGraph.replaceChildren(...groups);
+      }
+
+      const ganttClone = positionGanttGraph.cloneNode(true);
+      ganttClone.querySelectorAll('.category-legend, .bar-label, .gantt-axis > span').forEach((label) => label.remove());
+      subjectExpertGanttGraph.replaceChildren(...ganttClone.childNodes);
+    }
+
     function getAnalysisCategories() {
       const categories = [...positionCategories];
       const knownLabels = new Set(categories.map((category) => category.label.toLowerCase()));
@@ -992,6 +1407,7 @@
         riderFrontTotals.set(categoryKey, (riderFrontTotals.get(categoryKey) || 0) + frontSeconds);
       }
 
+      renderQuickStats(positionRiders, categories, totalsByRider);
       positionBarGraph.replaceChildren();
       positionGanttGraph.replaceChildren();
       if (sortedTags.length === 0 && frontEvents.length === 0) {
@@ -1001,6 +1417,8 @@
           empty.textContent = 'Add position tags to build this chart.';
           graph.appendChild(empty);
         }
+        syncKnowledgePositionGraph();
+        syncSubjectExpertGraphs();
         return;
       }
 
@@ -1009,6 +1427,7 @@
       for (const rider of positionRiders) {
         const riderBlock = document.createElement('section');
         riderBlock.className = 'rider-bars';
+        riderBlock.dataset.riderId = String(rider.id);
         const heading = document.createElement('h4');
         heading.textContent = formatRiderHeading(rider);
         riderBlock.appendChild(heading);
@@ -1041,49 +1460,74 @@
           const value = document.createElement('span');
           value.className = 'bar-value';
           value.textContent = formatVideoTime(total);
+          value.dataset.totalSeconds = String(total);
           row.append(label, track, value);
           riderBlock.appendChild(row);
         }
         positionBarGraph.appendChild(riderBlock);
       }
+      syncKnowledgePositionGraph();
 
-      const videoDuration = Number.isFinite(video.duration) ? video.duration : 0;
-      if (videoDuration <= 0) {
+      const hasVideoDuration = Number.isFinite(video.duration) && video.duration > 0;
+      const hasImportedRaceBounds = Number.isFinite(raceBoundaries.start)
+        && Number.isFinite(raceBoundaries.end)
+        && raceBoundaries.end > raceBoundaries.start;
+      if (!hasVideoDuration && !hasImportedRaceBounds) {
         const empty = document.createElement('p');
         empty.className = 'analysis-empty';
-        empty.textContent = 'Video duration is not available for the timeline yet.';
+        empty.textContent = 'Load a video or import race start and end times to build the timeline.';
         positionGanttGraph.appendChild(empty);
+        syncSubjectExpertGraphs();
         return;
       }
       const { start: raceStart, end: raceEnd } = getRaceBounds();
-      const timelineStart = Math.max(0, Math.min(raceStart, videoDuration));
-      const timelineEnd = Math.max(timelineStart, Math.min(raceEnd, videoDuration));
+      const timelineStart = hasVideoDuration
+        ? Math.max(0, Math.min(raceStart, video.duration))
+        : raceBoundaries.start;
+      const timelineEnd = hasVideoDuration
+        ? Math.max(timelineStart, Math.min(raceEnd, video.duration))
+        : raceBoundaries.end;
       const timelineSpan = timelineEnd - timelineStart;
       if (timelineSpan <= 0) {
         const empty = document.createElement('p');
         empty.className = 'analysis-empty';
         empty.textContent = 'The race window has no duration.';
         positionGanttGraph.appendChild(empty);
+        syncSubjectExpertGraphs();
         return;
       }
 
       positionGanttGraph.appendChild(renderCategoryLegend());
+      let hasShownHalfLabel = false;
       for (const rider of positionRiders) {
         const block = document.createElement('section');
         block.className = 'gantt-rider';
+        block.dataset.riderId = String(rider.id);
+        block.dataset.riderName = formatRiderHeading(rider);
+        block.dataset.timelineStart = String(timelineStart);
+        block.dataset.timelineEnd = String(timelineEnd);
+        const isCollapsed = collapsedGanttRiderIds.has(rider.id);
+        block.classList.toggle('is-collapsed', isCollapsed);
         const heading = document.createElement('h4');
-        heading.textContent = formatRiderHeading(rider);
+        const collapseButton = document.createElement('button');
+        collapseButton.type = 'button';
+        collapseButton.className = 'gantt-collapse-button';
+        collapseButton.setAttribute('aria-expanded', String(!isCollapsed));
+        collapseButton.setAttribute('aria-label', `${isCollapsed ? 'Expand' : 'Collapse'} ${block.dataset.riderName} Gantt rows`);
+        heading.append(collapseButton, document.createTextNode(block.dataset.riderName));
         block.appendChild(heading);
         const axis = document.createElement('div');
         axis.className = 'gantt-axis';
         const axisLabel = document.createElement('span');
-        axisLabel.textContent = 'Video time';
+        axisLabel.setAttribute('aria-hidden', 'true');
         const ticks = document.createElement('div');
         ticks.className = 'gantt-ticks';
-        for (let tick = 0; tick <= 4; tick += 1) {
-          const tickLabel = document.createElement('span');
-          tickLabel.textContent = formatVideoTime(timelineStart + (timelineSpan * tick) / 4);
-          ticks.appendChild(tickLabel);
+        if (!hasShownHalfLabel) {
+          const halfLabel = document.createElement('span');
+          halfLabel.className = 'gantt-half-label';
+          halfLabel.textContent = 'Half';
+          ticks.appendChild(halfLabel);
+          hasShownHalfLabel = true;
         }
         axis.append(axisLabel, ticks);
         block.appendChild(axis);
@@ -1096,6 +1540,8 @@
           label.textContent = category.label;
           const lane = document.createElement('div');
           lane.className = 'gantt-lane';
+          lane.dataset.timelineStart = String(timelineStart);
+          lane.dataset.timelineEnd = String(timelineEnd);
           for (const tag of sortedTags) {
             if (tag.riderId !== rider.id || getTagLabel(tag) !== category.label || !Number.isFinite(tag.durationSeconds)) continue;
             const start = Math.max(timelineStart, Math.min(tag.positionStartSeconds, timelineEnd));
@@ -1107,6 +1553,7 @@
             segment.style.left = `${((start - timelineStart) / timelineSpan) * 100}%`;
             segment.style.width = `${((end - start) / timelineSpan) * 100}%`;
             segment.style.backgroundColor = category.color;
+            segment.dataset.seekSeconds = String(start);
             segment.title = `${rider.name}: ${category.label}, ${formatVideoTime(start)} to ${formatVideoTime(end)}`;
             segment.setAttribute('aria-label', segment.title);
             segment.addEventListener('click', () => seekVideo(start));
@@ -1125,8 +1572,78 @@
           row.append(label, lane);
           block.appendChild(row);
         }
+        const playhead = document.createElement('span');
+        playhead.className = 'gantt-playhead';
+        playhead.hidden = true;
+        playhead.setAttribute('aria-hidden', 'true');
+        block.appendChild(playhead);
         positionGanttGraph.appendChild(block);
       }
+      syncSubjectExpertGraphs();
+      layoutGanttPlayheads();
+      updateGanttPlayheads(currentVideoTime());
+    }
+
+    function layoutGanttPlayheads() {
+      for (const graph of [positionGanttGraph, subjectExpertGanttGraph]) {
+        for (const block of graph.querySelectorAll('.gantt-rider')) {
+          const playhead = block.querySelector('.gantt-playhead');
+          const lanes = [...block.querySelectorAll('.gantt-lane')];
+          if (!playhead || lanes.length === 0 || block.classList.contains('is-collapsed')) {
+            if (playhead) playhead.hidden = true;
+            continue;
+          }
+          const blockBounds = block.getBoundingClientRect();
+          const firstLaneBounds = lanes[0].getBoundingClientRect();
+          const lastLaneBounds = lanes[lanes.length - 1].getBoundingClientRect();
+          playhead.dataset.plotLeft = String(firstLaneBounds.left - blockBounds.left - block.clientLeft);
+          playhead.dataset.plotWidth = String(firstLaneBounds.width);
+          playhead.style.top = `${firstLaneBounds.top - blockBounds.top - block.clientTop}px`;
+          playhead.style.height = `${lastLaneBounds.bottom - firstLaneBounds.top}px`;
+        }
+      }
+    }
+
+    function updateGanttPlayheads(videoSeconds) {
+      for (const graph of [positionGanttGraph, subjectExpertGanttGraph]) {
+        for (const block of graph.querySelectorAll('.gantt-rider')) {
+          const start = Number(block.dataset.timelineStart);
+          const end = Number(block.dataset.timelineEnd);
+          const playhead = block.querySelector('.gantt-playhead');
+          const plotLeft = Number(playhead?.dataset.plotLeft);
+          const plotWidth = Number(playhead?.dataset.plotWidth);
+          if (!playhead || !Number.isFinite(start) || !Number.isFinite(end) || end <= start
+            || !Number.isFinite(plotLeft) || !Number.isFinite(plotWidth) || plotWidth <= 0
+            || videoSeconds < start || videoSeconds > end || block.classList.contains('is-collapsed')) {
+            if (playhead) playhead.hidden = true;
+            continue;
+          }
+          const progress = (videoSeconds - start) / (end - start);
+          playhead.style.left = `${plotLeft + plotWidth * progress}px`;
+          playhead.hidden = false;
+        }
+      }
+    }
+
+    function toggleGanttRider(event) {
+      const button = event.target.closest('.gantt-collapse-button');
+      const sourceBlock = button?.closest('.gantt-rider');
+      if (!sourceBlock) return;
+      const riderId = Number(sourceBlock.dataset.riderId);
+      const isCollapsed = !collapsedGanttRiderIds.has(riderId);
+      if (isCollapsed) collapsedGanttRiderIds.add(riderId);
+      else collapsedGanttRiderIds.delete(riderId);
+      for (const graph of [positionGanttGraph, subjectExpertGanttGraph]) {
+        for (const block of graph.querySelectorAll('.gantt-rider')) {
+          if (Number(block.dataset.riderId) !== riderId) continue;
+          block.classList.toggle('is-collapsed', isCollapsed);
+          const toggle = block.querySelector('.gantt-collapse-button');
+          toggle?.setAttribute('aria-expanded', String(!isCollapsed));
+          toggle?.setAttribute('aria-label', `${isCollapsed ? 'Expand' : 'Collapse'} ${block.dataset.riderName} Gantt rows`);
+        }
+      }
+      layoutGanttPlayheads();
+      updateGanttPlayheads(currentVideoTime());
     }
 
     function addTag(category) {
@@ -1228,6 +1745,78 @@
       drawFitPlot();
     });
 
+    quickStatsRider1.addEventListener('change', renderPositionAnalysis);
+    quickStatsRider2.addEventListener('change', renderPositionAnalysis);
+    positionGanttGraph.addEventListener('click', toggleGanttRider);
+    subjectExpertGanttGraph.addEventListener('click', (event) => {
+      toggleGanttRider(event);
+      const segment = event.target.closest('.gantt-segment[data-seek-seconds]');
+      if (segment && subjectExpertGanttGraph.contains(segment)) {
+        seekVideo(Number(segment.dataset.seekSeconds));
+      }
+    });
+
+    knowledgePositionGraph.addEventListener('pointerover', (event) => {
+      const segment = event.target.closest('.knowledge-strip-segment');
+      if (segment) showKnowledgeStripTooltip(segment, event.clientX, event.clientY);
+    });
+    knowledgePositionGraph.addEventListener('pointermove', (event) => {
+      const segment = event.target.closest('.knowledge-strip-segment');
+      if (segment) showKnowledgeStripTooltip(segment, event.clientX, event.clientY);
+    });
+    knowledgePositionGraph.addEventListener('pointerout', (event) => {
+      const segment = event.target.closest('.knowledge-strip-segment');
+      const nextSegment = event.relatedTarget instanceof Element
+        ? event.relatedTarget.closest('.knowledge-strip-segment')
+        : null;
+      if (segment && segment !== nextSegment) {
+        if (nextSegment) showKnowledgeStripTooltip(nextSegment, event.clientX, event.clientY);
+        else hideKnowledgeStripTooltip();
+      }
+    });
+    knowledgePositionGraph.addEventListener('focusin', (event) => {
+      const segment = event.target.closest('.knowledge-strip-segment');
+      if (!segment) return;
+      const bounds = segment.getBoundingClientRect();
+      showKnowledgeStripTooltip(segment, bounds.left + bounds.width / 2, bounds.top);
+    });
+    knowledgePositionGraph.addEventListener('focusout', (event) => {
+      const nextSegment = event.relatedTarget instanceof Element
+        ? event.relatedTarget.closest('.knowledge-strip-segment')
+        : null;
+      if (!nextSegment) hideKnowledgeStripTooltip();
+    });
+
+    for (const [index, tab] of viewTabs.entries()) {
+      tab.addEventListener('click', () => activateView(tab.dataset.tabTarget));
+      tab.addEventListener('keydown', (event) => {
+        let nextIndex = index;
+        if (event.key === 'ArrowRight') nextIndex = (index + 1) % viewTabs.length;
+        else if (event.key === 'ArrowLeft') nextIndex = (index - 1 + viewTabs.length) % viewTabs.length;
+        else if (event.key === 'Home') nextIndex = 0;
+        else if (event.key === 'End') nextIndex = viewTabs.length - 1;
+        else return;
+        event.preventDefault();
+        const nextTab = viewTabs[nextIndex];
+        activateView(nextTab.dataset.tabTarget);
+        nextTab.focus();
+      });
+    }
+
+    for (const input of document.querySelectorAll('.knowledge-image-input')) {
+      input.addEventListener('change', () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        if (input.dataset.imageUrl) URL.revokeObjectURL(input.dataset.imageUrl);
+        input.dataset.imageUrl = URL.createObjectURL(file);
+        const image = document.getElementById(input.dataset.previewTarget);
+        image.src = input.dataset.imageUrl;
+        image.hidden = false;
+        input.nextElementSibling.querySelector('span').hidden = true;
+        input.value = '';
+      });
+    }
+
     tagButtons.forEach((button) => {
       button.addEventListener('click', () => addTag(button.dataset.category));
     });
@@ -1249,6 +1838,11 @@
         raceBoundaries.start = imported.raceBoundaries.start;
         raceBoundaries.end = imported.raceBoundaries.end;
         riders.splice(0, riders.length, ...imported.riders);
+        const importedTitle = imported.videoName || file.name.replace(/(?:_position_tags)?\.csv$/i, '').replaceAll('_', ' ');
+        if (importedTitle) {
+          videoNameDisplay.textContent = importedTitle;
+          raceNameDisplay.textContent = importedTitle;
+        }
         nextTagId = imported.tags.length + 1;
         nextFrontEventId = imported.frontEvents.length + 1;
         nextRiderId = imported.riders.length + 1;
@@ -1264,7 +1858,10 @@
 
     document.getElementById('exportCsvBtn').addEventListener('click', () => {
       if (!tags.length && !frontEvents.length && !getRaceBoundaryEvents().length && !getRiderEliminationEvents().length) return;
-      const headers = ['video_seconds', 'video_time', 'duration_seconds', 'duration', 'rider', 'placing', 'tag', 'event_type'];
+      const videoName = videoNameDisplay.textContent === 'No video loaded'
+        ? ''
+        : videoNameDisplay.textContent.replace(/\.(?:mp4|mov|m4v|webm|avi|mkv|mpeg|mpg)$/i, '');
+      const headers = ['video_seconds', 'video_time', 'duration_seconds', 'duration', 'rider', 'placing', 'tag', 'event_type', 'video_name'];
       const allEvents = [
         ...getSortedTagsWithDurations().map((tag) => ({ ...tag, eventType: 'position', label: getTagLabel(tag) })),
         ...getSortedFrontEventsWithDurations().map((event) => ({
@@ -1286,7 +1883,8 @@
         event.rider,
         riders.find((rider) => rider.id === event.riderId)?.placing ?? '',
         event.label,
-        event.eventType
+        event.eventType,
+        videoName
       ]);
       const csv = [headers, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\r\n');
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
@@ -1299,6 +1897,8 @@
       URL.revokeObjectURL(url);
     });
 
+    document.getElementById('loadVideoBtn').addEventListener('click', () => videoInput.click());
+
     videoInput.addEventListener('change', () => {
       const file = videoInput.files?.[0];
       if (!file) return;
@@ -1308,6 +1908,7 @@
       video.src = videoObjectUrl;
       video.load();
       videoNameDisplay.textContent = file.name;
+      raceNameDisplay.textContent = file.name;
       tagButtons.forEach((button) => { button.disabled = false; });
       document.getElementById('raceStartBtn').disabled = false;
       document.getElementById('raceEndBtn').disabled = false;
@@ -1322,10 +1923,13 @@
       videoTimeDisplay.textContent = formatVideoTime(currentVideoTime());
       document.getElementById('fitVideoTimeValue').textContent = `${currentVideoTime().toFixed(3)}s`;
       document.getElementById('fitVideoFpsValue').textContent = `${Math.max(1, Number(videoFpsInput.value) || 50)} fps`;
-      drawFitPlot();
+      if (!document.getElementById('analysePanel').hidden) drawFitPlot();
       updateFrontStateDisplay();
+      updateGanttPlayheads(currentVideoTime());
     }
-    video.addEventListener('timeupdate', updateVideoTime);
+    video.addEventListener('timeupdate', () => {
+      updateVideoTime();
+    });
     video.addEventListener('seeked', () => {
       updateVideoTime();
       video.blur();
@@ -1335,6 +1939,10 @@
       renderTags();
     });
     video.addEventListener('durationchange', renderTags);
+    window.addEventListener('resize', () => {
+      layoutGanttPlayheads();
+      updateGanttPlayheads(currentVideoTime());
+    });
 
     function toNumber(value) {
       if (typeof value === 'string' && value.trim() === '') return null;
