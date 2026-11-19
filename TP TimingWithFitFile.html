@@ -3507,13 +3507,20 @@
     fitMasterFileBtn.addEventListener('click', async () => {
       let fileHandle;
       try {
+        if (typeof window.showOpenFilePicker !== 'function') {
+          throw new Error('File access requires Edge or Chrome in a secure context (HTTPS or localhost).');
+        }
         [fileHandle] = await window.showOpenFilePicker({
           types: [{
             description: 'Excel Files',
             accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] }
           }]
         });
-      } catch {
+      } catch (error) {
+        if (error?.name !== 'AbortError') {
+          console.error(error);
+          setFitStatus(`Master file error: ${error.message || error}`);
+        }
         return;
       }
       try {
@@ -3943,14 +3950,21 @@
 
       let fileHandle;
       try {
+        if (typeof window.showOpenFilePicker !== 'function') {
+          throw new Error('File access requires Edge or Chrome in a secure context (HTTPS or localhost).');
+        }
         [fileHandle] = await window.showOpenFilePicker({
           types: [{
             description: 'Excel Files',
             accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] }
           }]
         });
-      } catch {
-        return; // User cancelled
+      } catch (error) {
+        if (error?.name !== 'AbortError') {
+          console.error(error);
+          setStatus(`Append error: ${error.message || error}`);
+        }
+        return;
       }
 
       const originalText = appendToFileBtn.textContent;

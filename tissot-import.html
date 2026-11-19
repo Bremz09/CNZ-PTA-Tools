@@ -1,0 +1,1690 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tissot PDF to Excel</title>
+  <style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
+
+* { box-sizing: border-box; }
+body { margin: 0; color: #242824; background: #fafbfa; font: 14px 'DM Sans', sans-serif; letter-spacing: 0; }
+main { max-width: 1400px; margin: 32px auto; padding: 0 24px; }
+h1 { margin: 0 0 26px; font-size: 25px; font-weight: 600; }
+.files { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start; }
+label { display: flex; flex-direction: column; gap: 8px; font-size: 13px; min-width: 0; }
+input, select, button { font: inherit; }
+input[type=file] { max-width: 100%; width: 290px; font-size: 12px; }
+input:not([type=file]):not([type=checkbox]) { max-width: 100%; width: 190px; padding: 5px; border: 1px solid #ccd2cc; border-radius: 3px; background: white; }
+select { max-width: 100%; min-width: 170px; padding: 5px; border: 1px solid #ccd2cc; border-radius: 3px; background: white; }
+#status { min-height: 20px; margin: 24px 0; overflow-wrap: anywhere; }
+#status.error { color: #a12424; }
+input[type=checkbox] { width: 15px; height: 15px; accent-color: #21613d; cursor: pointer; }
+.table-scroll { overflow: auto; max-height: 65vh; border: 1px solid #dce1dc; background: white; }
+table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; font-variant-numeric: tabular-nums; }
+th, td { padding: 10px 12px; white-space: nowrap; border-bottom: 1px solid #e7eae7; }
+th { position: sticky; top: 0; background: #eff3ef; font-weight: 600; }
+.sort-button { display: inline-flex; justify-content: flex-start; width: 100%; padding: 0; border: 0; border-radius: 0; background: transparent; color: inherit; font-size: inherit; font-weight: inherit; text-align: left; }
+.sort-button:hover { background: transparent; color: #21613d; }
+.sort-indicator { margin-left: 6px; color: #21613d; }
+tbody tr:last-child td { border-bottom: 0; }
+.tempo-warning { margin: 12px 0 0; padding: 9px 12px; background: #fff2c2; color: #614b00; border-left: 3px solid #d59b00; }
+.missing-sprint-cell { background: #fff2c2; }
+.missing-sprint-input { width: 54px !important; padding: 4px !important; border-color: #d59b00 !important; background: #fffaf0 !important; text-align: center; }
+.export-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; margin-top: 18px; }
+#selection-count { color: #596259; font-size: 13px; }
+button { display: inline-flex; align-items: center; gap: 8px; background: #21613d; color: white; border: 0; border-radius: 4px; padding: 10px 15px; cursor: pointer; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button svg { width: 16px; height: 16px; }
+:focus-visible { outline: 2px solid #21613d; outline-offset: 3px; }
+@media (max-width: 600px) { main { padding: 0 16px; margin: 24px auto; } .files { flex-direction: column; } .files label { width: 100%; } input[type=file], input:not([type=file]):not([type=checkbox]) { width: 100%; } .table-scroll { max-height: 55vh; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Tissot PDF to Excel</h1>
+    <div class="files">
+      <label>Result PDF(s)<input id="pdf-file" type="file" accept=".pdf,application/pdf" multiple></label>
+      <label>Excel column template (optional, .xlsx; never modified)<input id="excel-file" type="file" accept=".xlsx"></label>
+    </div>
+    <div class="files metadata-fields">
+      <label>Location<input id="metadata-location" type="text"></label>
+      <label>Year<input id="metadata-year" type="number" min="1900" max="2200"></label>
+      <label>Date<input id="metadata-date" type="date"></label>
+      <label>Event<input id="metadata-event" type="text"></label>
+    </div>
+    <p id="status" role="status" aria-live="polite">Choose one or more result PDFs.</p>
+    <div class="table-scroll"><table id="results"><thead></thead><tbody></tbody></table></div>
+    <p id="tempo-warning" class="tempo-warning" role="status" hidden></p>
+    <div class="export-row"><span id="selection-count">0 riders selected</span><button id="export" disabled><i data-lucide="download"></i> Download Excel</button></div>
+  </main>
+  <noscript>JavaScript is required.</noscript>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script>
+'use strict';
+
+(() => {
+  const metadataFields = ['Location', 'Year', 'Date', 'Event'];
+  const identityFields = ['Rank', 'Name', 'Team Code'];
+  const distances = Array.from({ length: 32 }, (_, index) => String((index + 1) * 125));
+  const timedSchema = (name, cumulative, intervals, includeStage = false) => ({ name, cumulative, intervals, fields: [...(includeStage ? ['Stage'] : []), ...identityFields, ...cumulative.flatMap(field => [field, `${field} Rank`]), 'Time', ...intervals.flatMap(field => [field, `${field} Rank`]), 'Average Speed', 'Qualified', 'Record', 'Status'] });
+  const schemas = {
+    sprintQualifying: { name: 'Sprint Qualifying', cumulative: ['100m'], intervals: ['100-200m'], fields: ['Athlete', 'Country', 'Age', 'Rank', '100m', '100-200m', 'Diff', '200m', 'Avg Speed'] },
+    timeTrial: timedSchema('Time Trial Qualifying', ['250m', '500m', '750m'], ['250-500', '500-750', '750-1000'], true),
+    timeTrialAnalysis: { name: '1k TT Analysis', fields: ['Stage', 'Athlete', 'Country', 'Age', 'Rank', ...Array.from({ length: 8 }, (_, index) => `${(index + 1) * 125}m`), 'Time', 'Avg Speed', 'Status'] },
+    pursuit: timedSchema('IP Qualifying', ['1000m', '2000m', '3000m'], ['1000-2000', '2000-3000', '3000-4000'], true),
+    sprintSingle: { name: 'Sprint Rounds', runs: ['Result'], fields: ['Stage', 'Heat', 'Athlete', 'Country', 'Age', 'Final_Rank', ...['R1', 'R2', 'R3'].flatMap(run => [`Rank ${run}`, `200m ${run}`, `Gap ${run}`, `Avg Speed ${run}`])] },
+    sprintMatch: { name: 'Sprint Matches', runs: ['Race 1', 'Race 2', 'Decider'], fields: ['Stage', 'Heat', 'Athlete', 'Country', 'Age', 'Final_Rank', ...['R1', 'R2', 'R3'].flatMap(run => [`Rank ${run}`, `200m ${run}`, `Gap ${run}`, `Avg Speed ${run}`])] },
+    keirin: { name: 'Keirin Results', runs: ['Time Behind'], fields: ['Round', 'Heat', 'Rank', 'race_id_name', 'race_id', 'Name', 'Team Code', 'Age', 'Final Rank'] },
+    elimination: { name: 'Elimination Results', fields: ['Stage', 'Heat', 'Athlete', 'Country', 'Age', 'Rank', 'Time', 'Avg Speed', 'Status'] },
+    scratch: { name: 'Scratch Results', fields: ['Athlete', 'Country', 'Age', 'Rank', 'Time', 'Avg Speed'] },
+    scratchWomen: { name: "Women's Scratch Results", fields: ['Athlete', 'Country', 'Age', 'Rank', 'Time', 'Avg Speed'] },
+    omElimination: { name: 'Omnium Elimination Results', fields: ['Athlete', 'Country', 'Age', 'Rank', 'Time', 'Avg Speed', 'Status'] },
+    omScratch: { name: 'Omnium Scratch Results', fields: ['Name', 'Country', 'Age', 'Rank', 'Time', 'Avg Speed'] },
+    teamSprint: { name: 'Team Sprint Qualifying', team: true, fields: ['Stage', 'Heat', 'Rank', 'Team', 'Country', 'Rider1', 'Rider2', 'Rider3', 'Age1', 'Age2', 'Age3', 'Lap 1', 'Lap 1 Rank', 'Lap 2', 'Lap 2 Rank', 'Time', 'Time Rank', 'Lap 1-2', 'Lap 1-2 Rank', 'Lap 2-3', 'Lap 2-3 Rank', 'Average Speed', 'Qualified', ...[1, 2, 3].map(index => `Rider ${index}`)] },
+    teamAnalysis: { name: 'Team Sprint Analysis', team: true, fields: ['Stage', 'Heat', 'Team', 'Country', 'Rank', ...distances.slice(0, 6), 'Time', 'Avg Speed'] },
+    teamSprintRound: { name: 'Team Sprint Round', team: true, fields: ['Stage', 'Heat', 'Rank', 'Team', 'Country', 'Rider 1', 'Rider 2', 'Rider 3'] },
+    teamSprintCombined: { name: 'Team Sprint', team: true, fields: ['Stage', 'Heat', 'Country', 'Rider1', 'Rider2', 'Rider3', 'Age1', 'Age2', 'Age3', 'Rank', ...distances.slice(0, 6), 'Time', 'Avg Speed'] },
+    teamPursuitAnalysis: { name: 'Team Pursuit Analysis', team: true, fields: ['Stage', 'Heat', 'Country', 'Rider1', 'Rider2', 'Rider3', 'Rider4', 'Age1', 'Age2', 'Age3', 'Age4', 'Rank', 'Time', 'Seconds', '1st lap', '1st k', '2nd k', '3rd k', '4th k', ...distances.map(distance => `${distance}m`), 'Avg Speed'] },
+    teamPursuitResults: { name: 'Team Pursuit Results', team: true, fields: ['Stage', 'Heat', 'Country', 'Rider1', 'Rider2', 'Rider3', 'Rider4', 'Age1', 'Age2', 'Age3', 'Age4', 'Rank', 'Time', 'Seconds', '1st lap', '1st k', '2nd k', '3rd k', '4th k', ...distances.map(distance => `${distance}m`), 'Avg Speed', 'Qualified'] },
+    points: { name: 'Points Race Results', sprints: 16, fields: ['Name', 'Team Code', 'Age', 'Rank', ...Array.from({ length: 16 }, (_, index) => `Sprint ${index + 1}`), 'Lap Points Gained', 'Lap Points Lost', 'Total Points', 'Race Elapsed Time', 'Race Average Speed'] },
+    omniumPoints: { name: 'Omnium Points Results', omnium: true, sprints: 10, fields: ['Name', 'Team Code', 'Age', 'Rank', 'Scratch', 'Tempo', 'Elimination', 'Sub Total', ...Array.from({ length: 10 }, (_, index) => `Sprint ${index + 1}`), 'P.Laps', 'M.Laps', 'Total', 'Race Elapsed Time', 'Race Average Speed'] },
+    tempo: { name: 'Omnium Tempo Race', sprints: 36, fields: ['Name', 'Team Code', 'Age', 'Rank', ...Array.from({ length: 36 }, (_, index) => String(index + 1)), 'P.Laps', 'M.Laps', 'Total', 'Time', 'Avg Speed'] },
+    madison: { name: 'Madison Results', team: true, sprints: 20, fields: ['Stage', 'Heat', 'Black Rider', 'Red Rider', 'Country', 'Age1', 'Age2', 'Rank', ...Array.from({ length: 20 }, (_, index) => `Sprint ${index + 1}`), 'Lap Points Gained', 'Lap Points Lost', 'Total Points', 'Race Elapsed Time', 'Race Average Speed'] },
+    madisonWomen: { name: "Women's Madison Results", team: true, sprints: 12, fields: ['Stage', 'Heat', 'Black Rider', 'Red Rider', 'Country', 'Age1', 'Age2', 'Rank', ...Array.from({ length: 12 }, (_, index) => `Sprint ${index + 1}`), 'Lap Points Gained', 'Lap Points Lost', 'Total Points', 'Race Elapsed Time', 'Race Average Speed'] },
+    startList: { name: 'Start List', fields: ['Race Number', 'Name', 'Team Code'] },
+    analysis: { name: 'IP Analysis', fields: ['Stage', 'Heat', 'Athlete', 'Country', 'Age', 'Rank', ...distances, 'Time', 'Avg Speed'] }
+  };
+  const womenSchemaVariant = (schema, name) => ({ ...schema, name, fields: [...schema.fields] });
+  schemas.pointsWomen = womenSchemaVariant(schemas.points, "Women's Points Race Results");
+  schemas.omniumPointsWomen = womenSchemaVariant(schemas.omniumPoints, "Women's Omnium Points Results");
+  schemas.eliminationWomen = womenSchemaVariant(schemas.elimination, "Women's Elimination Results");
+  schemas.omEliminationWomen = womenSchemaVariant(schemas.omElimination, "Women's Omnium Elimination Results");
+  const isMadisonSchema = schema => [schemas.madison, schemas.madisonWomen].includes(schema);
+  const womenDurationSchemas = [schemas.pointsWomen, schemas.omniumPointsWomen, schemas.eliminationWomen, schemas.omEliminationWomen, schemas.scratchWomen];
+  schemas.pursuit.fields.splice(1, 0, 'Heat');
+  for (const schema of Object.values(schemas)) schema.fields = [...metadataFields, ...schema.fields];
+  const teamPursuitTimeSchemas = [schemas.teamPursuitAnalysis, schemas.teamPursuitResults];
+  const sprintBatchSchema = { name: 'Sprint Batch', fields: [...new Set([...schemas.sprintQualifying.fields, ...schemas.sprintMatch.fields])] };
+  let activeSchema = schemas.sprintQualifying;
+  let fields = activeSchema.fields;
+  const defaultFields = schema => schema.fields.filter(field => !/m Rank$|^\d+-\d+ Rank$/.test(field) && !['Qualified', 'Warning', 'Record', 'Status'].includes(field));
+  const aliases = {
+    athlete: 'name', rider: 'name', 'rider name': 'name',
+    nat: 'team code', nation: 'team code', nationality: 'team code', noc: 'team code', country: 'team code',
+    speed: 'average speed', 'avg speed': 'average speed',
+    '100-200m': '100-200', '200m': 'time', 'race elapsed time': 'time', 'race average speed': 'average speed',
+    'p.laps': 'lap points gained', 'lap +': 'lap points gained', 'm.laps': 'lap points lost', 'lap -': 'lap points lost',
+    total: 'total points', final: 'total points',
+    finalrank: 'final rank', final_rank: 'final rank',
+    rider1: 'rider1', rider2: 'rider2', 'rider 1': 'rider1', 'rider 2': 'rider2',
+    'black rider': 'rider1', 'red rider': 'rider2'
+  };
+  const metadataStorageKey = 'tissot-import-metadata-v1';
+  const state = { rows: [], workbook: null, workbookName: '', selectedSheet: '', busy: false, baseMetadata: new WeakMap(), sort: null, exportGroups: [] };
+  const element = id => document.getElementById(id);
+  const normalize = value => {
+    const text = String(value ?? '').trim().toLowerCase();
+    const normalized = aliases[text] || text;
+    return /^\d+m$/.test(normalized) ? normalized.slice(0, -1) : normalized;
+  };
+  const showStatus = (message, error = false) => { element('status').textContent = message; element('status').classList.toggle('error', error); };
+
+  function metadataValues() {
+    const year = element('metadata-year').value;
+    const date = element('metadata-date').value;
+    return {
+      Location: element('metadata-location').value.trim(),
+      Year: year ? Number(year) : '',
+      Date: date ? new Date(`${date}T00:00:00`) : '',
+      Event: element('metadata-event').value.trim()
+    };
+  }
+
+  function restoreMetadata() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(metadataStorageKey) || '{}');
+      element('metadata-location').value = saved.Location || '';
+      element('metadata-year').value = saved.Year || '';
+      element('metadata-date').value = saved.Date || '';
+      element('metadata-event').value = saved.Event || '';
+    } catch {}
+  }
+
+  function saveMetadata() {
+    try {
+      localStorage.setItem(metadataStorageKey, JSON.stringify({
+        Location: element('metadata-location').value,
+        Year: element('metadata-year').value,
+        Date: element('metadata-date').value,
+        Event: element('metadata-event').value
+      }));
+    } catch {}
+  }
+
+  function applyMetadata() {
+    const values = metadataValues();
+    for (const row of state.rows) {
+      const original = state.baseMetadata.get(row) || {};
+      for (const field of metadataFields) row[field] = values[field] === '' ? original[field] ?? '' : values[field];
+    }
+  }
+
+  function roundFromLines(lines) {
+    const text = lines.map(lineText).join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const rounds = [
+      [/\brepechages?\b/i, 'R16'], [/\bfirst round\b/i, 'R16'],
+      [/\b1\s*\/\s*16\s*(?:finals?|de\s+finale)\b/i, 'R16'],
+      [/\b1\s*\/\s*8\s*(?:finals?|de\s+finale)\b/i, 'R8'],
+      [/\bquarterfinals?\b|\b1\s*\/\s*4\s*finals?\b/i, 'QF'],
+      [/\bsemifinals?\b|\b1\s*\/\s*2\s*finals?\b/i, 'SF'],
+      [/\bfinal\b/i, 'F'], [/\bqualifying\b/i, 'Q']
+    ];
+    return rounds.find(([pattern]) => pattern.test(text))?.[1] || '';
+  }
+
+  function qualifyingOrFinalStageFromLines(lines) {
+    const heading = [];
+    for (const line of lines) {
+      const text = lineText(line);
+      if (/\bResults?\s*\/\s*R[eé]sultats\b|\bRace Analysis\b/i.test(text)) break;
+      heading.push(text);
+    }
+    const text = heading.join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (/\bFinals?(?:\s+Classification)?\b|\bFor\s+(?:Gold|Bronze)\b/i.test(text)) return 'F';
+    if (/\bQualifying\b/i.test(text)) return 'Q';
+    return 'Q';
+  }
+
+  function keirinRoundFromLines(lines) {
+    const heading = [];
+    for (const line of lines) {
+      const text = lineText(line);
+      if (/\bResults?\s*\/\s*R[eé]sultats\b/i.test(text)) break;
+      heading.push(text);
+    }
+    const text = heading.join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (/\bfirst round\b.*\brepech(?:age|arge)s?\b|\brepech(?:age|arge)s?\b.*\bfirst round\b/i.test(text)) return 'R1 Rep';
+    if (/\brepech(?:age|arge)s?\b/i.test(text)) return 'R1 Rep';
+    if (/\bquarter\s*finals?\b|\b1\s*\/\s*4\s*finals?\b/i.test(text)) return 'R2';
+    if (/\bsemi\s*finals?\b|\b1\s*\/\s*2\s*finals?\b/i.test(text)) return 'R3';
+    if (/\bfinals?\b/i.test(text)) return 'Final';
+    if (/\bfirst round\b/i.test(text)) return 'R1';
+    return '';
+  }
+
+  function sortSprintRounds(rows) {
+    const order = { R16: 0, R8: 1, QF: 2, SF: 3, F: 4 };
+    return rows.map((row, index) => ({ row, index })).sort((first, second) => {
+      const stageDifference = (order[first.row.Stage] ?? 99) - (order[second.row.Stage] ?? 99);
+      if (stageDifference) return stageDifference;
+      const firstHeat = String(first.row.Heat ?? ''); const secondHeat = String(second.row.Heat ?? '');
+      const firstNumber = Number(firstHeat); const secondNumber = Number(secondHeat);
+      if (Number.isFinite(firstNumber) && Number.isFinite(secondNumber) && firstHeat && secondHeat) return firstNumber - secondNumber || first.index - second.index;
+      if (firstHeat !== secondHeat) return firstHeat.localeCompare(secondHeat, undefined, { numeric: true });
+      return first.index - second.index;
+    }).map(item => item.row);
+  }
+
+  function sortKeirinRounds(rows) {
+    const order = { R1: 0, 'R1 Rep': 1, R2: 2, R3: 3, Final: 4 };
+    return rows.map((row, index) => ({ row, index })).sort((first, second) => {
+      const roundDifference = (order[first.row.Round] ?? 99) - (order[second.row.Round] ?? 99);
+      if (roundDifference) return roundDifference;
+      const firstHeat = String(first.row.Heat ?? ''); const secondHeat = String(second.row.Heat ?? '');
+      const firstNumber = Number(firstHeat); const secondNumber = Number(secondHeat);
+      if (firstHeat && secondHeat && Number.isFinite(firstNumber) && Number.isFinite(secondNumber)) return firstNumber - secondNumber || first.index - second.index;
+      if (firstHeat !== secondHeat) return firstHeat.localeCompare(secondHeat, undefined, { numeric: true });
+      return first.index - second.index;
+    }).map(item => item.row);
+  }
+
+  function sortTimeTrialStages(rows) {
+    const stageOrder = { Q: 0, F: 1 };
+    return rows.filter(row => {
+      if (String(row.Stage).toUpperCase() !== 'F') return true;
+      const rank = Number(row.Rank);
+      return Number.isFinite(rank) && rank >= 1 && rank <= 8;
+    }).map((row, index) => ({ row, index })).sort((first, second) => {
+      const stageDifference = (stageOrder[first.row.Stage] ?? 99) - (stageOrder[second.row.Stage] ?? 99);
+      if (stageDifference) return stageDifference;
+      const firstRank = Number(first.row.Rank); const secondRank = Number(second.row.Rank);
+      const firstHasRank = Number.isFinite(firstRank) && first.row.Rank !== '' && first.row.Rank !== null;
+      const secondHasRank = Number.isFinite(secondRank) && second.row.Rank !== '' && second.row.Rank !== null;
+      if (firstHasRank !== secondHasRank) return firstHasRank ? -1 : 1;
+      return firstHasRank ? firstRank - secondRank || first.index - second.index : first.index - second.index;
+    }).map(item => item.row);
+  }
+
+  function sortPursuitStages(rows) {
+    const stageOrder = { Q: 0, F: 1 };
+    return rows.map((row, index) => ({ row, index })).sort((first, second) => {
+      const stageDifference = (stageOrder[first.row.Stage] ?? 99) - (stageOrder[second.row.Stage] ?? 99);
+      if (stageDifference) return stageDifference;
+      const firstRank = Number(first.row.Rank); const secondRank = Number(second.row.Rank);
+      const firstHasRank = Number.isFinite(firstRank) && first.row.Rank !== '' && first.row.Rank !== null;
+      const secondHasRank = Number.isFinite(secondRank) && second.row.Rank !== '' && second.row.Rank !== null;
+      if (firstHasRank !== secondHasRank) return firstHasRank ? -1 : 1;
+      return firstHasRank ? firstRank - secondRank || first.index - second.index : first.index - second.index;
+    }).map(item => item.row);
+  }
+
+  function headersFor(sheet) {
+    if (!sheet || !sheet['!ref']) return [];
+    const range = XLSX.utils.decode_range(sheet['!ref']);
+    const headers = [];
+    for (let column = 0; column <= range.e.c; column++) {
+      const cell = sheet[XLSX.utils.encode_cell({ r: 0, c: column })];
+      headers.push(String(cell?.v ?? '').trim());
+    }
+    while (headers.length && !headers[headers.length - 1]) headers.pop();
+    return headers;
+  }
+
+  function activeFields(schema = activeSchema, sheetOverride = null) {
+    if (state.exportGroups.length > 1 && schema === sprintBatchSchema) return defaultFields(sprintBatchSchema);
+    const defaults = defaultFields(schema);
+    if (state.rows.some(row => row.Status) && schema.fields.includes('Status')) defaults.push('Status');
+    const sheetName = sheetOverride ?? state.selectedSheet;
+    const headers = state.workbook && sheetName ? headersFor(state.workbook.Sheets[sheetName]) : [];
+    if (!headers.length) return defaults;
+    const used = new Set();
+    return headers.map(header => {
+      const field = sourceFieldForHeader(header, schema, defaults);
+      if (used.has(field)) return '';
+      if (field) used.add(field);
+      return field;
+    }).filter(Boolean);
+  }
+
+  function sourceFieldForHeader(header, schema, candidates = schema.fields) {
+    const target = String(header ?? '').trim().toLowerCase();
+    const schemaName = schema.name;
+    if (schema === schemas.tempo) {
+      const sprint = target.match(/^(?:sprint\s*)?(\d+)$/i);
+      if (sprint && candidates.includes(String(Number(sprint[1])))) return String(Number(sprint[1]));
+      const tempoFields = { 'p.laps': 'P.Laps', 'm.laps': 'M.Laps', total: 'Total', final: 'Total', balance: 'Lap Points Balance' };
+      if (tempoFields[target] && candidates.includes(tempoFields[target])) return tempoFields[target];
+    }
+    const special = {
+      'Sprint Qualifying': { athlete: 'Athlete', country: 'Country', age: '', '100-200m': '100-200m', '200m': '200m', 'avg speed': 'Avg Speed', diff: '' },
+      'Sprint Rounds': { athlete: 'Name', country: 'Team Code' },
+      'Sprint Matches': { athlete: 'Name', country: 'Team Code' },
+      'Elimination Results': { time: 'Race Elapsed Time', 'avg speed': 'Race Average Speed', country: 'Team Code', nat: 'Team Code', athlete: 'Name', age: '' },
+      'Omnium Elimination Results': { time: 'Race Elapsed Time', 'avg speed': 'Race Average Speed', country: 'Team Code', nat: 'Team Code', athlete: 'Name', age: '' },
+      'Scratch Results': { time: 'Race Elapsed Time', 'avg speed': 'Race Average Speed', country: 'Team Code', nat: 'Team Code', athlete: 'Name', age: '' },
+      'Omnium Scratch Results': { time: 'Race Elapsed Time', 'avg speed': 'Race Average Speed', country: 'Team Code', nat: 'Team Code', age: '' },
+      'Points Race Results': { 'p.laps': 'Lap Points Gained', 'lap +': 'Lap Points Gained', 'm.laps': 'Lap Points Lost', 'lap -': 'Lap Points Lost', total: 'Total Points', final: 'Total Points', nat: 'Team Code' },
+      'Omnium Points Results': { scratch: 'Scratch', tempo: 'Tempo', elimination: 'Elimination', 'sub total': 'Sub Total', 'p.laps': 'P.Laps', 'lap points gained': 'P.Laps', 'lap +': 'P.Laps', 'm.laps': 'M.Laps', 'lap points lost': 'M.Laps', 'lap -': 'M.Laps', total: 'Total', final: 'Total', 'total points': 'Total', nat: 'Team Code' },
+      'Madison Results': { rider1: 'Black Rider', rider2: 'Red Rider', 'age1': '', 'age2': '', 'p.laps': 'Lap Points Gained', 'lap +': 'Lap Points Gained', 'm.laps': 'Lap Points Lost', 'lap -': 'Lap Points Lost', total: 'Total Points', nat: 'Country' },
+      'Team Sprint Qualifying': { rider1: 'Rider 1', rider2: 'Rider 2', rider3: 'Rider 3', age1: '', age2: '', age3: '' },
+      'Team Sprint Analysis': { rider1: '', rider2: '', rider3: '', age1: '', age2: '', age3: '' }
+    }[schemaName] || {};
+    if (Object.hasOwn(special, target)) return special[target];
+    const normalized = normalize(header);
+    return candidates.find(field => normalize(field) === normalized) || '';
+  }
+
+  function selectWorksheetForSchema() {
+    if (!state.workbook) { state.selectedSheet = ''; return; }
+    const expected = {
+      'Sprint Qualifying': ['Sprint Qual'], 'Sprint Rounds': ['Sprint'], 'Sprint Matches': ['Sprint'], 'Sprint Batch': ['Sprint'],
+      'Keirin Results': ['Keirin'], 'Elimination Results': ['Elimination Race', 'OM-Elimination'],
+      'Scratch Results': ['Scratch', 'OM-Scratch'], 'Team Sprint Qualifying': ['Team Sprint'],
+      'Team Sprint Analysis': ['Team Sprint'], 'Team Sprint': ['Team Sprint'], 'Points Race Results': ['Points', 'OM-Points'],
+      'Madison Results': ['Madison'], 'IP Qualifying': ['Individual Pursuit', '3k Individual Pursuit'],
+      'IP Analysis': ['Individual Pursuit', '3k Individual Pursuit'], 'Time Trial Qualifying': ['1k TT', '500m Time Trial'],
+      '1k TT Analysis': ['1k TT'], 'Team Pursuit Analysis': ['Team Pursuit'], 'Team Pursuit Results': ['Team Pursuit'], 
+      'Omnium Tempo Race': ['OM-Tempo'], 'Omnium Points Results': ['OM-Points'], 'Omnium Elimination Results': ['OM-Elimination'], 'Omnium Scratch Results': ['OM-Scratch']
+    }[activeSchema.name] || [];
+    const preferred = expected.find(name => state.workbook.SheetNames.includes(name));
+    state.selectedSheet = preferred || '';
+    renderTable();
+  }
+
+  function groupLines(items) {
+    const lines = [];
+    const textItems = items.filter(item => typeof item.str === 'string' && item.str.trim());
+    textItems.sort((first, second) => second.transform[5] - first.transform[5] || first.transform[4] - second.transform[4]);
+    for (const item of textItems) {
+      const y = item.transform[5];
+      let line = lines.find(candidate => Math.abs(candidate.y - y) < 2.7);
+      if (!line) { line = { y, items: [] }; lines.push(line); }
+      line.items.push({ text: item.str.trim(), x: item.transform[4], width: item.width || 0 });
+    }
+    return lines.sort((first, second) => second.y - first.y).map(line => {
+      line.items.sort((first, second) => first.x - second.x);
+      return { ...line, text: line.items.map(item => item.text).join(' ') };
+    });
+  }
+
+  const lineText = line => (typeof line === 'string' ? line : line.text).replace(/\s+/g, ' ').trim();
+  const timePattern = '(?:\\d+:)?\\d{1,3}\\.\\d{3}';
+  function milliseconds(value) {
+    if (!new RegExp(`^${timePattern}$`).test(value)) throw new Error(`Invalid time: ${value}`);
+    const parts = value.split(':');
+    const seconds = parts.pop().split('.');
+    if (parts.length && Number(seconds[0]) >= 60) throw new Error(`Invalid time: ${value}`);
+    return (Number(parts[0] || 0) * 60 + Number(seconds[0])) * 1000 + Number(seconds[1]);
+  }
+  const seconds = value => milliseconds(value) / 1000;
+  const rankedTimes = text => [...text.matchAll(new RegExp(`(${timePattern})\\s*\\(\\s*(\\d+)\\s*\\)`, 'g'))];
+
+  function parseTimed(lines, schema) {
+    const rows = [];
+    let pending = null; let finalHeat = '';
+    for (const line of lines) {
+      let text = lineText(line);
+      if (!text) continue;
+      const pursuitGroup = schema === schemas.pursuit ? text.match(/^For (Gold|Bronze)(?:\s+(.*))?$/i) : null;
+      if (pursuitGroup) {
+        finalHeat = pursuitGroup[1].toLowerCase() === 'gold' ? 'G' : 'B';
+        if (!pursuitGroup[2]) continue;
+        text = pursuitGroup[2];
+      }
+      const identity = text.match(/^(?:(\d+)\s+)?(\d+)\s+(?:(\(w\)|w)\s+)?(.+?)\s+([A-Z]{3})\s+(.+)$/);
+      if (!identity && schema === schemas.timeTrial) {
+        const unranked = text.match(/^(\d+)\s+(?:(\(w\)|w)\s+)?(.+?)\s+([A-Z]{3})(?:\s+(DNS|DNF|DSQ|DQ|OTL))?$/);
+        if (unranked) {
+          const row = Object.fromEntries(schema.fields.map(field => [field, '']));
+          Object.assign(row, {
+            Stage: roundFromLines(lines) || 'Q', Rank: '', 'Race Number': Number(unranked[1]),
+            Name: unranked[3], 'Team Code': unranked[4], Age: '', Warning: unranked[2] || '',
+            Status: unranked[5] || 'DNS', selected: true
+          });
+          rows.push(row);
+          pending = null;
+          continue;
+        }
+      }
+      if (identity) {
+        pending = null;
+        const row = Object.fromEntries(schema.fields.map(field => [field, '']));
+        const nameField = schema === schemas.sprintQualifying ? 'Athlete' : 'Name';
+        const countryField = schema === schemas.sprintQualifying ? 'Country' : 'Team Code';
+        Object.assign(row, { Rank: identity[1] ? Number(identity[1]) : '', 'Race Number': Number(identity[2]), [nameField]: identity[4], [countryField]: identity[5], Age: '', Warning: identity[3] || '', selected: true });
+        if ([schemas.timeTrial, schemas.pursuit].includes(schema)) row.Stage = schema === schemas.pursuit && /^[GB]$/.test(finalHeat) ? 'F' : qualifyingOrFinalStageFromLines(lines);
+        if (schema === schemas.pursuit) row.Heat = row.Stage === 'Q' ? 'Q' : finalHeat || (row.Rank !== '' && Number.isFinite(Number(row.Rank)) ? Number(row.Rank) <= 2 ? 'G' : 'B' : '');
+        const tail = identity[6];
+        if (/^(DNS|DNF|DSQ|DQ|OTL)$/.test(tail)) { row.Status = tail; rows.push(row); continue; }
+        const matches = rankedTimes(tail);
+        if (schema === schemas.pursuit && identity[1] && !matches.length) {
+          const classification = tail.match(new RegExp(`^(${timePattern})\\s+(${timePattern})\\s+(${timePattern})\\s+(${timePattern})\\s+(\\d+\\.\\d{3})(?:\\s+((?:WR|QG|QB|Q)(?:\\s+(?:WR|QG|QB|Q))*))?$`));
+          if (!classification) continue;
+          schema.cumulative.forEach((field, index) => { row[field] = seconds(classification[index + 1]); });
+          row.Time = seconds(classification[4]); row['Average Speed'] = Number(classification[5]);
+          schema.intervals.forEach((field, index) => { row[field] = seconds(classification[index + 2]) - seconds(classification[index + 1]); });
+          const flags = (classification[6] || '').split(' ');
+          row.Qualified = flags.find(flag => /^Q/.test(flag)) || ''; row.Record = flags.includes('WR') ? 'WR' : '';
+          rows.push(row); pending = null;
+          continue;
+        }
+        const remainder = tail.replace(new RegExp(`${timePattern}\\s*\\(\\s*\\d+\\s*\\)`, 'g'), '').trim();
+        const final = remainder.match(new RegExp(`^(${timePattern})\\s+(\\d+\\.\\d{3})(?:\\s+((?:WR|QG|QB|Q)(?:\\s+(?:WR|QG|QB|Q))*))?$`));
+        if (!identity[1] || matches.length !== schema.cumulative.length || !final) continue;
+        schema.cumulative.forEach((field, index) => { row[field] = seconds(matches[index][1]); row[`${field} Rank`] = Number(matches[index][2]); });
+        row.Time = seconds(final[1]); row['Average Speed'] = Number(final[2]);
+        if (schema === schemas.sprintQualifying) { row['200m'] = row.Time; row['Avg Speed'] = row['Average Speed']; }
+        const flags = (final[3] || '').split(' ');
+        row.Qualified = flags.find(flag => /^Q/.test(flag)) || ''; row.Record = flags.includes('WR') ? 'WR' : '';
+        rows.push(row); pending = row;
+        continue;
+      }
+      const splits = rankedTimes(text);
+      if (pending && splits.length === schema.intervals.length && !text.replace(new RegExp(`${timePattern}\\s*\\(\\s*\\d+\\s*\\)`, 'g'), '').trim()) {
+        schema.intervals.forEach((field, index) => { pending[field] = seconds(splits[index][1]); pending[`${field} Rank`] = Number(splits[index][2]); });
+      }
+      pending = null;
+    }
+    return rows;
+  }
+
+  function parseLines(lines) { return parseTimed(lines, schemas.sprintQualifying); }
+
+  function detectSchema(lines) {
+    const text = lines.map(lineText).join('\n');
+    if (/Start\s*List|Starting List|Liste de départ/i.test(text)) return schemas.startList;
+    if (/Team Sprint/i.test(text) && /Race Analysis/i.test(text)) return schemas.teamAnalysis;
+    if (/Team Sprint/i.test(text) && /Qualifying/i.test(text)) return schemas.teamSprint;
+    if (/Team Sprint/i.test(text) && /First Round|Final Classification/i.test(text)) return schemas.teamSprintRound;
+    if (/Team Sprint/i.test(text)) throw new Error('This team sprint round is not supported yet.');
+    if (/Team Pursuit/i.test(text) && /Race Analysis/i.test(text)) return schemas.teamPursuitAnalysis;
+    if (/Team Pursuit/i.test(text) && /(?:Results|Final Classification)/i.test(text)) return schemas.teamPursuitResults;
+    if (/Team Pursuit/i.test(text)) throw new Error('This team pursuit results layout is not supported yet.');
+    if (/Individual Pursuit/i.test(text) && /Race Analysis/i.test(text)) return schemas.analysis;
+    if (/Individual Pursuit/i.test(text) && /(?:Results|Final Classification)/i.test(text)) return schemas.pursuit;
+    if (/Tempo Race/i.test(text) && /Omnium/i.test(text)) return schemas.tempo;
+    if (/Points Race/i.test(text) && /Omnium/i.test(text)) return /\bWomen(?:['’]?s)?\b/i.test(text) ? schemas.omniumPointsWomen : schemas.omniumPoints;
+    if (/Time Trial/i.test(text) && /Race Analysis/i.test(text)) return schemas.timeTrialAnalysis;
+    if (/Time Trial/i.test(text) && /Final Classification/i.test(text)) return schemas.timeTrial;
+    if (/Omnium/i.test(text) && /Elimination Race/i.test(text)) return /\bWomen(?:['’]?s)?\b/i.test(text) ? schemas.omEliminationWomen : schemas.omElimination;
+    if (/Omnium/i.test(text) && /Scratch Race/i.test(text)) return schemas.omScratch;
+    if (/Points Race/i.test(text)) return /\bWomen(?:['’]?s)?\b/i.test(text) ? schemas.pointsWomen : schemas.points;
+    if (/\bMadison\b/i.test(text)) return /\bWomen(?:['’]?s)?\b/i.test(text) ? schemas.madisonWomen : schemas.madison;
+    if (/Elimination Race/i.test(text)) return /\bWomen(?:['’]?s)?\b/i.test(text) ? schemas.eliminationWomen : schemas.elimination;
+    if (/Scratch Race/i.test(text)) return /\bWomen(?:['’]?s)?\b/i.test(text) ? schemas.scratchWomen : schemas.scratch;
+    if (/\bKeirin\b/i.test(text) && /Results/i.test(text)) return schemas.keirin;
+    if (/Individual Pursuit/i.test(text) && /Qualifying/i.test(text)) return /Race Analysis/i.test(text) ? schemas.analysis : schemas.pursuit;
+    if (/Time Trial/i.test(text) && /Qualifying/i.test(text)) return schemas.timeTrial;
+    if (/\bSprint\b/i.test(text) && /Qualifying/i.test(text)) return schemas.sprintQualifying;
+    if (/\bSprint\b/i.test(text) && /Final Classification/i.test(text)) return schemas.sprintMatch;
+    if (/\bSprint\b/i.test(text) && /1\s*\/\s*(?:16|8) Finals|Quarterfinals|Semifinals/i.test(text)) return /Race\s+1/.test(text) ? schemas.sprintMatch : schemas.sprintSingle;
+    throw new Error('This result layout is not supported yet.');
+  }
+
+  function runColumns(lines) {
+    for (const line of lines) {
+      if (typeof line === 'string') continue;
+      const anchors = [];
+      for (let index = 0; index < line.items.length; index++) {
+        const item = line.items[index];
+        const combined = `${item.text} ${line.items[index + 1]?.text || ''}`;
+        const run = /^(Race\s+[12]|Decider)$/.test(item.text) ? item.text : /^Race\s+[12]$/.test(combined) ? combined : '';
+        if (run) anchors.push({ field: run.replace(/\s+/g, ' '), x: item.x });
+      }
+      if (anchors.some(anchor => anchor.field === 'Race 1')) return anchors;
+    }
+    return [];
+  }
+
+  function assignRuns(line, tokens, anchors, schema) {
+    const values = Object.fromEntries(schema.runs.map(run => [run, '']));
+    if (typeof line !== 'string' && anchors.length && tokens.length) {
+      const items = line.items.filter(item => item.x >= anchors[0].x - 18);
+      for (const item of items) {
+        const found = item.text.match(/Winner|\+\d+\.\d{3}|\d+\.\d{3}|DNS|DNF|DSQ|REL/g) || [];
+        if (!found.length) continue;
+        if (found.length > 1) { found.forEach((value, index) => { if (schema.runs[index]) values[schema.runs[index]] = value; }); continue; }
+        const nearest = anchors.reduce((best, anchor) => Math.abs(item.x - anchor.x) < Math.abs(item.x - best.x) ? anchor : best);
+        values[nearest.field] = found[0];
+      }
+    } else tokens.forEach((token, index) => { if (schema.runs[index]) values[schema.runs[index]] = token; });
+    for (const run of schema.runs) values[run] = values[run].replace(/^\+(?=\d)/, '');
+    return values;
+  }
+
+  function parseSprint(lines, schema) {
+    const anchors = runColumns(lines);
+    const rows = [];
+    const finalRanks = [];
+    const finalClassification = lines.some(line => /Final Classification/i.test(lineText(line)));
+    const keirinRound = schema === schemas.keirin ? keirinRoundFromLines(lines) : '';
+    const stage = finalClassification ? 'F' : schema === schemas.keirin ? keirinRound : roundFromLines(lines);
+    let heat = ''; let pendingClassificationGroup = ''; let times = {}; let speeds = {};
+    for (const line of lines) {
+      const text = lineText(line);
+      if (/^200m Time:/.test(text)) {
+        times = assignRuns(line, text.match(/\d+\.\d{3}/g) || [], anchors, schema); speeds = {}; heat = '';
+        continue;
+      }
+      if (/^Average Speed km\/h:/.test(text)) { speeds = assignRuns(line, text.match(/\d+\.\d{3}/g) || [], anchors, schema); continue; }
+      let riderText = text;
+      if (finalClassification) {
+        const group = text.match(/^(For Gold|For Bronze|For Places\s+\d+-\d+|Did not qualify for(?:\s+(?:Semifinals|Quarterfinals|1\/8 Finals|1\/16 Finals))?)\s*/i);
+        if (group) {
+          heat = /^For Gold$/i.test(group[1]) ? 'A' : /^For (?:Bronze|Places)/i.test(group[1]) ? 'B' : group[1].replace(/\s+/g, ' ').trim();
+          if (!/^[AB]$/.test(heat)) { times = {}; speeds = {}; }
+          if (/^Did not qualify for$/i.test(heat)) pendingClassificationGroup = heat;
+          else pendingClassificationGroup = '';
+          riderText = text.slice(group[0].length);
+        } else {
+          const qualifier = text.match(/^(Semifinals|Quarterfinals|1\/8 Finals|1\/16 Finals)\s*/i);
+          if (qualifier && pendingClassificationGroup) {
+            heat = `${pendingClassificationGroup} ${qualifier[1]}`;
+            riderText = text.slice(qualifier[0].length);
+          }
+        }
+      } else {
+        const heatMatch = text.match(/^(?:Heat|Final)\s+([A-Z]|\d+)\s*/i);
+        if (heatMatch) heat = /^\d+$/.test(heatMatch[1]) ? Number(heatMatch[1]) : heatMatch[1].toUpperCase();
+        riderText = text.replace(/^(?:Heat|Final)\s+(?:[A-Z]|\d+)\s*/i, '');
+      }
+      const rider = riderText.match(/^(\d+)\s+(\d+)\s+(?:(\(w\)|w)\s+)?(.+?)\s+([A-Z]{3})(?:\s+((?:Winner|\+\d+\.\d{3}|DNS|DNF|DSQ|REL)(?:\s+(?:Winner|\+\d+\.\d{3}|DNS|DNF|DSQ|REL))*))?(?:\s+(Q))?$/);
+      if (!rider || (!heat && !finalClassification)) continue;
+      if (finalClassification) finalRanks.push({ Rank: Number(rider[1]), Name: rider[4], Country: rider[5] });
+      const classifiedKeirin = finalClassification && schema === schemas.keirin;
+      if (finalClassification && !rider[6] && !classifiedKeirin) continue;
+      if (!rider[6] && schema !== schemas.keirin && !finalClassification) continue;
+      const results = assignRuns(line, rider[6] ? rider[6].split(' ') : [], anchors, schema);
+      let rowRound = keirinRound; let rowHeat = heat;
+      if (classifiedKeirin) {
+        if (/^[AB]$/.test(String(heat))) rowRound = 'Final';
+        else {
+          const eliminated = String(heat).match(/(Semifinals|Quarterfinals)$/i)?.[1]?.toLowerCase();
+          rowRound = eliminated === 'semifinals' ? 'R3' : eliminated === 'quarterfinals' ? 'R2' : 'R1';
+          rowHeat = '';
+        }
+        if (rowRound !== 'Final') continue;
+      }
+      const row = { Stage: stage, Round: rowRound, Classified: classifiedKeirin, Heat: rowHeat, Athlete: rider[4], Country: rider[5], Age: '', Rank: Number(rider[1]), 'Race Number': Number(rider[2]), Name: rider[4], 'Team Code': rider[5], Qualified: rider[7] || '', Warning: rider[3] || '', selected: true, ...results };
+      if (classifiedKeirin) row['Final Rank'] = Number(rider[1]);
+      else if (schema === schemas.keirin && keirinRound === 'Final' && /^[AB]$/.test(String(heat))) row['Final Rank'] = Number(rider[1]) + (heat === 'B' ? 6 : 0);
+      if (finalClassification) row.Final_Rank = Number(rider[1]);
+      for (const run of schema.runs) {
+        if (schema === schemas.keirin) {
+          row['Heat 200m Time'] = times[run] ? Number(times[run]) : '';
+          row['Heat Average Speed'] = speeds[run] ? Number(speeds[run]) : '';
+          continue;
+        }
+        const resultField = schema === schemas.sprintSingle ? 'Result' : run;
+        const resultValue = String(row[resultField] || '');
+        const outputRun = schema === schemas.sprintSingle ? 'R1' : `R${schema.runs.indexOf(run) + 1}`;
+        row[`Rank ${outputRun}`] = resultValue === 'Winner' ? 1 : /^\d/.test(resultValue) ? 2 : '';
+        row[`200m ${outputRun}`] = resultValue && times[run] ? Number(times[run]) : '';
+        row[`Gap ${outputRun}`] = resultValue === 'Winner' ? 0 : /^\d/.test(resultValue) ? Number(resultValue) : '';
+        row[`Avg Speed ${outputRun}`] = resultValue && speeds[run] ? Number(speeds[run]) : '';
+      }
+      rows.push(row);
+    }
+    rows.finalRanks = finalRanks;
+    return rows;
+  }
+
+  function reportDate(lines) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const text = lines.map(lineText).join('\n');
+    const match = text.match(/^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(\d{1,2})\s+([A-Z][a-z]{2})\s+(\d{4})\b/m);
+    const year = match ? Number(match[3]) : Number(text.match(/^\d{1,2}-\d{1,2}\s+\w+\s+(\d{4})\b/m)?.[1]) || '';
+    return { Year: year, Date: match ? `${Number(match[1])}/${String(months.indexOf(match[2]) + 1).padStart(2, '0')}/${match[3]}` : '' };
+  }
+
+  function raceContext(lines) {
+    const text = lines.map(lineText).join('\n');
+    const elapsed = text.match(/Elapsed time:\s*(\d+):(\d{2})\b/i);
+    const speed = text.match(/Average Speed:\s*(\d+\.\d+)\s*km\/h/i);
+    return { 'Race Elapsed Time': elapsed ? Number(elapsed[1]) * 60 + Number(elapsed[2]) : '', 'Race Average Speed': speed ? Number(speed[1]) : '' };
+  }
+
+  function parseBunch(lines, schema) {
+    const context = raceContext(lines);
+    const rows = [];
+    const eliminationMode = [schemas.elimination, schemas.eliminationWomen].includes(schema);
+    for (const line of lines) {
+      const text = lineText(line);
+      const match = text.match(/^(?:(\d+)\s+)?(\d+)\s+(?:(\(w\)|w)\s+)?(.+?)\s+([A-Z]{3})(?:\s+(.+))?$/);
+      if (!match || (!match[1] && !/^(DNS|DNF|DSQ|ABD)$/.test(match[6] || ''))) continue;
+      const comment = match[6] || '';
+      const row = {
+        Stage: eliminationMode ? 'F' : roundFromLines(lines),
+        Heat: eliminationMode ? 'F' : '',
+        Rank: match[1] ? Number(match[1]) : '', 'Race Number': Number(match[2]),
+        Warning: match[3] || '', Status: /^(DNS|DNF|DSQ|ABD)$/.test(comment) ? comment : '', selected: true
+      };
+      const nameField = schema.fields.includes('Athlete') ? 'Athlete' : 'Name';
+      const countryField = schema.fields.includes('Country') ? 'Country' : 'Team Code';
+      row[nameField] = match[4];
+      row[countryField] = match[5];
+      if (schema.fields.includes('Comments')) row.Comments = comment;
+      if (schema.fields.includes('Time')) row.Time = context['Race Elapsed Time'];
+      if (schema.fields.includes('Avg Speed')) row['Avg Speed'] = context['Race Average Speed'];
+      rows.push(row);
+    }
+    return rows;
+  }
+
+  function parseStartList(lines) {
+    const entries = [];
+    let currentTeam = null;
+    let pendingTeamRole = '';
+    for (const line of lines) {
+      const text = lineText(line);
+      const team = text.match(/^(?:(\d+)\s+)?(\d+)\s+([A-Z]{3})\s+-\s+(.+)$/);
+      if (team) {
+        const inlineRider = team[4].match(/^(.+?)\s+(?:\(w\)\s*)?(Black|Red)\s+(?:(?:\(w\)|w)\s+)?(.+)$/i);
+        currentTeam = {
+          'Race Number': team[2], 'Team Code': team[3], Team: (inlineRider ? inlineRider[1] : team[4]).trim(),
+          'Black Rider': '', 'Red Rider': ''
+        };
+        entries.push(currentTeam);
+        if (inlineRider) {
+          const role = inlineRider[2].toLowerCase() === 'black' ? 'Black' : 'Red';
+          currentTeam[`${role} Rider`] = inlineRider[3].replace(/^(?:\(w\)|w)\s+/i, '').replace(/\s+\(w\)$/i, '').trim();
+        }
+        pendingTeamRole = '';
+        continue;
+      }
+      const teamRider = text.match(/\b(Black|Red)\b\s+(?:(?:\(w\)|w)\s+)?(.+)$/i);
+      if (currentTeam && teamRider) {
+        const role = teamRider[1].toLowerCase() === 'black' ? 'Black' : 'Red';
+        currentTeam[`${role} Rider`] = teamRider[2].replace(/^(?:\(w\)|w)\s+/i, '').replace(/\s+\(w\)$/i, '').trim();
+        pendingTeamRole = '';
+        continue;
+      }
+      const roleOnly = text.match(/\b(Black|Red)\b\s*(?:\(w\))?$/i);
+      if (currentTeam && roleOnly) {
+        pendingTeamRole = roleOnly[1].toLowerCase() === 'black' ? 'Black' : 'Red';
+        continue;
+      }
+      if (currentTeam && pendingTeamRole && text && !/^\(?w\)?$/i.test(text)) {
+        currentTeam[`${pendingTeamRole} Rider`] = text.replace(/^(?:\(w\)|w)\s+/i, '').replace(/\s+\(w\)$/i, '').trim();
+        pendingTeamRole = '';
+        continue;
+      }
+      if (/^(?:No\.?|Bib|Race Number|Name|NOC|Nation|Country)\b/i.test(text)) continue;
+      const countryMatch = [...text.matchAll(/\b([A-Z]{3})\b/g)].at(-1);
+      const prefix = (countryMatch ? text.slice(0, countryMatch.index) : text).trim().replace(/^(\d+)[.)]\s+/, '$1 ');
+      const ranked = prefix.match(/^(\d+)\s+(\d+)\s+(.+)$/);
+      const simple = ranked ? null : prefix.match(/^(\d+)\s+(.+)$/);
+      const bib = ranked ? ranked[2] : simple?.[1];
+      const name = (ranked ? ranked[3] : simple?.[2])?.replace(/\s+\d{1,4}$/, '').trim();
+      if (!bib || !name) continue;
+      entries.push({ 'Race Number': bib, Name: name, 'Team Code': countryMatch?.[1] || '' });
+    }
+    return entries;
+  }
+
+  function applyStartListNames(rows, entries) {
+    const normalizeBib = value => {
+      const digits = String(value ?? '').match(/\d+/g)?.join('') || '';
+      return digits ? String(Number(digits)) : '';
+    };
+    const byBibAndCountry = new Map();
+    const teamByBibAndCountry = new Map();
+    const byBib = new Map();
+    const ambiguousBibs = new Set();
+    for (const entry of entries) {
+      const bib = normalizeBib(entry['Race Number']);
+      if (!bib) continue;
+      const country = String(entry['Team Code']).trim().toUpperCase();
+      if (entry['Black Rider'] || entry['Red Rider']) {
+        teamByBibAndCountry.set(`${bib}|${country}`, entry);
+        continue;
+      }
+      byBibAndCountry.set(`${bib}|${country}`, entry.Name);
+      if (byBib.has(bib) && byBib.get(bib) !== entry.Name) ambiguousBibs.add(bib);
+      else byBib.set(bib, entry.Name);
+    }
+    let matched = 0;
+    for (const row of rows) {
+      const bib = normalizeBib(row['Race Number'] ?? row.race_id);
+      if (!bib) continue;
+      const country = String(row.Country || row['Team Code'] || '').trim().toUpperCase().match(/[A-Z]{3}/)?.[0] || '';
+      const teamEntry = teamByBibAndCountry.get(`${bib}|${country}`);
+      if (teamEntry) {
+        let changedNames = 0;
+        for (const field of ['Black Rider', 'Red Rider']) {
+          if (teamEntry[field] && Object.hasOwn(row, field) && row[field] !== teamEntry[field]) {
+            row[field] = teamEntry[field]; changedNames++;
+          }
+        }
+        matched += changedNames;
+        continue;
+      }
+      const fullName = byBibAndCountry.get(`${bib}|${country}`) || (!ambiguousBibs.has(bib) ? byBib.get(bib) : '');
+      if (!fullName) continue;
+      let changed = false;
+      if (Object.hasOwn(row, 'Name') && row.Name !== fullName) { row.Name = fullName; changed = true; }
+      if (Object.hasOwn(row, 'Athlete') && row.Athlete !== fullName) { row.Athlete = fullName; changed = true; }
+      if (changed) matched++;
+    }
+    return matched;
+  }
+
+  function parseTeamSprint(pages) {
+    const rows = []; const issues = [];
+    for (const lines of pages) {
+      let current = null; let riderIndex = 0;
+      for (const line of lines) {
+        const text = lineText(line);
+        const team = text.match(/^(\d+)\s+([A-Z]{3})\s+-\s+(.+?)\s+((?:\d+:)?\d+\.\d{3}\s*\(.+)$/);
+        if (team) {
+          current = null; riderIndex = 0;
+          const times = rankedTimes(team[4]);
+          const tail = team[4].replace(new RegExp(`${timePattern}\\s*\\(\\s*\\d+\\s*\\)`, 'g'), '').trim().match(/^(\d+\.\d{3})(?:\s+(Q))?$/);
+          if (times.length !== 3 || !tail) continue;
+          current = Object.fromEntries(schemas.teamSprint.fields.map(field => [field, '']));
+          Object.assign(current, { Stage: 'Q', Rank: Number(team[1]), Country: team[2], Team: team[3], 'Average Speed': Number(tail[1]), Qualified: tail[2] || '', selected: true });
+          ['Lap 1', 'Lap 2', 'Time'].forEach((field, index) => { current[field] = seconds(times[index][1]); current[`${field} Rank`] = Number(times[index][2]); });
+          rows.push(current); continue;
+        }
+        if (/^(Progression rule|LEGEND|No\.|www\.|Report Created|Note:)/i.test(text)) current = null;
+        if (!current) continue;
+        const splits = rankedTimes(text);
+        if (splits.length === 2) ['Lap 1-2', 'Lap 2-3'].forEach((field, index) => { current[field] = seconds(splits[index][1]); current[`${field} Rank`] = Number(splits[index][2]); });
+        const riderText = text.replace(new RegExp(`${timePattern}\\s*\\(\\s*\\d+\\s*\\)`, 'g'), '').trim();
+        const rider = riderText.match(/^(?:(\(w\)|w)\s+)?(\d+)\s+(?:(\(w\)|w)\s+)?(.+)$/);
+        if (!rider || riderIndex >= 3) continue;
+        riderIndex++;
+        current[`Rider ${riderIndex} Race Number`] = Number(rider[2]);
+        current[`Rider ${riderIndex}`] = rider[4];
+        current[`Rider ${riderIndex} Warning`] = rider[1] || rider[3] || '';
+      }
+    }
+    for (const row of rows) if (!row['Rider 3'] || row['Lap 1-2'] === '' || row['Lap 2-3'] === '') issues.push(`${row.Team}: incomplete team result`);
+    return { rows, issues };
+  }
+
+  function teamSprintStage(lines) {
+    const text = lines.map(lineText).join('\n');
+    if (/Final Classification|\bFinals\b/i.test(text)) return 'F';
+    return /First Round/i.test(text) ? 'R1' : 'Q';
+  }
+
+  function parseTeamSprintRound(pages) {
+    const lines = pages.flat(); const stage = teamSprintStage(lines);
+    const rows = []; const issues = [];
+    let current = null; let heat = '';
+    for (const line of lines) {
+      const text = lineText(line);
+      if (/^(Progression rule|LEGEND|Note:|No\.|www\.|Report Created)/i.test(text)) { current = null; continue; }
+      const team = text.match(/(?:^|\s)(?:(\d+)\s+)?(\d+)\s+([A-Z]{3})\s+-\s+(.+?)(?=\s+\d+\.\d{3}|\s*$)/);
+      if (team) {
+        if (team[1]) heat = team[1];
+        const rank = Number(team[2]);
+        current = stage === 'F' && rank > 4 ? null : Object.fromEntries(schemas.teamSprintRound.fields.map(field => [field, '']));
+        if (!current) continue;
+        Object.assign(current, { Stage: stage, Heat: stage === 'R1' ? Number(heat) : '', Rank: rank, Country: team[3], Team: team[4], selected: true });
+        rows.push(current); continue;
+      }
+      if (!current) continue;
+      const riderText = text.replace(/(?:\s+\d+\.\d{3})+(?:\s+(?:QG|QB|Q))?$/, '');
+      const rider = riderText.match(/^(?:(?:\(w\)|w)\s+)?(\d+)\s+(?:(?:\(w\)|w)\s+)?([^\d].*)$/);
+      if (!rider) continue;
+      const slot = [1, 2, 3].find(index => !current[`Rider ${index}`]);
+      if (slot) current[`Rider ${slot}`] = rider[2];
+    }
+    for (const row of rows) if (!row['Rider 3']) issues.push(`${row.Team}: incomplete rider list`);
+    return { rows, issues };
+  }
+
+  function combineTeamSprint(documents) {
+    const analysisRows = documents.filter(document => document.schema === schemas.teamAnalysis).flatMap(document => document.rows);
+    const resultRows = documents.filter(document => document.schema !== schemas.teamAnalysis).flatMap(document => document.rows);
+    const resultByKey = new Map(resultRows.map(row => [`${row.Stage}|${row.Country}`, row]));
+    const issues = documents.flatMap(document => document.issues);
+    const rows = analysisRows.map(source => {
+      const row = Object.fromEntries(schemas.teamSprintCombined.fields.map(field => [field, '']));
+      const result = resultByKey.get(`${source.Stage}|${source.Country}`);
+      if (!result) issues.push(`${source.Country} (${source.Stage}): no matching results PDF for riders and rank`);
+      Object.assign(row, { Year: source.Year, Date: source.Date, Stage: source.Stage, Heat: source.Stage === 'Q' ? 'Q' : source.Heat, Country: source.Country, Rank: result?.Rank ?? source.Rank, Time: source.Time, 'Avg Speed': source['Avg Speed'], selected: true });
+      [1, 2, 3].forEach(index => { row[`Rider${index}`] = result?.[`Rider ${index}`] ?? ''; });
+      distances.slice(0, 6).forEach(distance => { row[distance] = source[distance]; });
+      return row;
+    });
+    const stageOrder = { Q: 0, R1: 1, F: 2 };
+    rows.sort((first, second) => (stageOrder[first.Stage] - stageOrder[second.Stage])
+      || (first.Stage === 'R1' ? Number(first.Heat) - Number(second.Heat) : 0) || first.Rank - second.Rank);
+    return { rows, issues };
+  }
+
+  function teamPursuitStageFromLines(lines) {
+    for (const line of lines) {
+      const text = lineText(line);
+      if (/\bFirst\s+Round\b|\b1st\s+Round\b/i.test(text)) return 'R1';
+      if (/\bQualifying\b|\bQualifications\b/i.test(text)) return 'Q';
+      if (/\bFinals?\b/i.test(text)) return 'F';
+      if (/\bResults?\b|\bRace Analysis\b/i.test(text)) break;
+    }
+    return 'Q';
+  }
+
+  function parseTeamPursuitResults(pages) {
+    const rows = []; const issues = [];
+    const stage = teamPursuitStageFromLines(pages.flat());
+    for (const lines of pages) {
+      let current = null; let riderIndex = 0;
+      for (const line of lines) {
+        const text = lineText(line).replace(/^(?:For Gold|For Bronze)\s+/, '').trim();
+        const ranked = [...text.matchAll(new RegExp(`(${timePattern})\\s*\\(\\s*(\\d+)\\s*\\)`, 'g'))];
+        if (ranked.length === 3) {
+          const identityText = text.slice(0, ranked[0].index).trim();
+          const identity = identityText.match(/^(?:(\d+)\s+)?(\d+)\s+([A-Z]{3})\s+-\s+(.+)$/);
+          const remainder = text.replace(new RegExp(`${timePattern}\\s*\\(\\s*\\d+\\s*\\)`, 'g'), '').trim();
+          const finish = remainder.match(new RegExp(`(${timePattern})\\s+(\\d+\\.\\d{3})(?:\\s+(QG|QB|Q))?$`));
+          if (identity && finish) {
+            const cumulative = ranked.map(match => milliseconds(match[1]));
+            const finishMs = milliseconds(finish[1]);
+            current = Object.fromEntries(schemas.teamPursuitResults.fields.map(field => [field, '']));
+            Object.assign(current, {
+              Stage: stage, Heat: stage === 'Q' ? 'Q' : stage === 'R1' ? Number(identity[1]) : '',
+              Rank: Number(identity[2]), Country: identity[3],
+              '1st k': cumulative[0] / 1000, '2nd k': (cumulative[1] - cumulative[0]) / 1000,
+              '3rd k': (cumulative[2] - cumulative[1]) / 1000, '4th k': (finishMs - cumulative[2]) / 1000,
+              Time: finishMs / 1000, Seconds: finishMs / 1000, 'Avg Speed': Number(finish[2]),
+              Qualified: finish[3] || '', selected: true, teamCode: identity[3]
+            });
+            rows.push(current); riderIndex = 0; current._pulledOutSlot = 0; continue;
+          }
+        }
+        const team = text.match(new RegExp(`^(?:(\\d+)\\s+)?(\\d+)\\s+([A-Z]{3})\\s+-\\s+(.+?)\\s+(${timePattern})\\s+(${timePattern})\\s+(${timePattern})\\s+(${timePattern})\\s+(\\d+\\.\\d{3})(?:\\s+(QG|QB|Q))?$`));
+        if (team) {
+          const cumulative = team.slice(5, 8).map(milliseconds);
+          const finishMs = milliseconds(team[8]);
+          current = Object.fromEntries(schemas.teamPursuitResults.fields.map(field => [field, '']));
+          Object.assign(current, {
+            Stage: stage, Heat: stage === 'R1' ? Number(team[1]) : stage === 'Q' ? 'Q' : '', Rank: Number(team[2]), Country: team[3],
+            '1st k': cumulative[0] / 1000, '2nd k': (cumulative[1] - cumulative[0]) / 1000,
+            '3rd k': (cumulative[2] - cumulative[1]) / 1000, '4th k': (finishMs - cumulative[2]) / 1000,
+            Time: finishMs / 1000, Seconds: finishMs / 1000, 'Avg Speed': Number(team[9]),
+            Qualified: team[10] || '', selected: true, teamCode: team[3]
+          });
+          rows.push(current); riderIndex = 0; current._pulledOutSlot = 0; continue;
+        }
+        if (/^(?:(?:Placed after First Round|Did not qualify for First Round)\s+)?(?:\d+\s+)?\d+\s+[A-Z]{3}\s+-\s+/.test(text)) { current = null; continue; }
+        if (/^(Progression rule|LEGEND|No\.|www\.|Report Created)/i.test(text)) { current = null; continue; }
+        if (!current) continue;
+        const riderText = text.replace(new RegExp(`\\s+${timePattern}\\b.*$`), '').trim();
+        const rider = riderText.match(/^\d+\s+(.+?)(?:\s+\((X|R)\))?$/);
+        if (!rider || /^[A-Z]{3}\s+-\s+/.test(text)) continue;
+        if (rider[2] === 'R') {
+          if (current._pulledOutSlot) current[`Rider${current._pulledOutSlot}`] = rider[1].trim();
+          continue;
+        }
+        if (riderIndex >= 4) continue;
+        riderIndex++;
+        current[`Rider${riderIndex}`] = rider[1].trim();
+        if (rider[2] === 'X') current._pulledOutSlot = riderIndex;
+      }
+    }
+    for (const row of rows) {
+      delete row._pulledOutSlot;
+      if ([1, 2, 3, 4].some(index => !row[`Rider${index}`])) issues.push(`${row.Country}: incomplete rider list`);
+    }
+    return { rows, issues };
+  }
+
+  function scoringColumns(lines, schema) {
+    const firstRow = lines.findIndex(line => schema.team ? /^\d+\s+\d+\s+[A-Z]{3}\s+-\s+/.test(lineText(line)) : schema.omnium ? /^\d+\s+\d+\s+.+\s+[A-Z]{3}(?:\s|$)/.test(lineText(line)) : /^(?:\d+\s+)?\d+\s+(?:(?:\(w\)|w)\s+)?(.+?)\s+[A-Z]{3}\s+(?:[+-]?\d|DNF|ABD|DNS|DSQ)/.test(lineText(line)));
+    if (firstRow < 0) return null;
+    const headers = lines.slice(0, firstRow).filter(line => typeof line !== 'string');
+    const center = item => item.x + (item.width || 0) / 2;
+    let sprints = null;
+    for (const line of headers) {
+      const numbers = line.items.filter(item => /^\d+$/.test(item.text.trim()));
+      if (numbers.length >= 8 && numbers.every((item, index) => Number(item.text.trim()) === index + 1)) { sprints = numbers.map((item, index) => ({ field: `Sprint ${index + 1}`, x: center(item) })); break; }
+    }
+    if (!sprints) throw new Error('Cannot locate the sprint score columns in this PDF.');
+    const headerItems = headers.flatMap(line => line.items);
+    const ageHeader = schema.omnium || [schemas.points, schemas.pointsWomen].includes(schema) ? headerItems.find(item => /^Age$/i.test(item.text.trim())) : null;
+    const prefixColumns = schema.omnium ? [
+      ['Scratch', /^Scratch$/i], ['Tempo', /^Tempo$/i], ['Elimination', /^Elimination$/i], ['Sub Total', /^(Sub(?:\s+Total)?|Sub Total Points)$/i]
+    ].map(([field, pattern]) => {
+      const item = headerItems.find(candidate => center(candidate) < sprints[0].x && pattern.test(candidate.text));
+      return item ? { field, x: center(item) } : null;
+    }).filter(Boolean) : [];
+    const afterSprints = headerItems.filter(item => center(item) > sprints.at(-1).x);
+    const labels = [
+      ['Finish Order', /^(Finish(?: Order)?|Order)$/i], ['Lap Points Gained', /^\+$/],
+      ['Lap Points Lost', /^[-\u2212]$/], ['Lap Points Balance', /^(Balance|Lap\s+Points\s+Balance)$/i], ['Total Points', /^(Total(?: Points)?|Final|Points)$/i]
+    ];
+    const tail = labels.map(([field, pattern]) => {
+      const matches = afterSprints.filter(item => pattern.test(item.text));
+      if (!matches.length) {
+        if (field === 'Lap Points Balance') return null;
+        throw new Error(`Cannot locate ${field} in the PDF table.`);
+      }
+      const item = field === 'Total Points' ? matches.reduce((best, candidate) => center(candidate) > center(best) ? candidate : best) : matches[0];
+      return { field, x: center(item) };
+    }).filter(Boolean);
+    const spacing = sprints[1].x - sprints[0].x;
+    const left = prefixColumns.length ? Math.min(...prefixColumns.map(column => column.x)) - spacing / 2 : sprints[0].x - spacing / 2;
+    return { anchors: [...prefixColumns, ...sprints, ...tail].sort((first, second) => first.x - second.x), left, ageX: ageHeader ? center(ageHeader) : null };
+  }
+
+  function parseScoring(pages, schema) {
+    const rows = []; const issues = []; const context = raceContext(pages.flat());
+    const reportText = pages.flat().map(lineText).join(' ');
+    const sprintCount = Number(reportText.match(/\bwith\s+(\d+)\s+sprints?\b/i)?.[1]) || schema.sprints;
+    const scoringSchema = { ...schema, sprints: sprintCount };
+    const outputField = field => scoringSchema.omnium
+      ? ({ 'Lap Points Gained': 'P.Laps', 'Lap Points Lost': 'M.Laps', 'Total Points': 'Total' }[field] || field)
+      : field;
+    const setScoreValue = (row, field, value) => {
+      const targetField = outputField(field);
+      const score = Number(value);
+      row[targetField] = isMadisonSchema(schema) && targetField === 'Lap Points Lost' ? -Math.abs(score) : score;
+    };
+    for (const lines of pages) {
+      const columns = scoringColumns(lines, scoringSchema);
+      if (!columns) continue;
+      let current = null;
+      for (const line of lines) {
+        const text = lineText(line);
+        if (/^(LEGEND|No\.|www\.|Report Created)/i.test(text)) current = null;
+        if (scoringSchema.team && current) {
+          const rider = text.match(/^(?:(\(w\)|w)\s+)?(Black|Red)\s+(.+)$/);
+          if (rider) { current[`${rider[2]} Rider`] = rider[3]; current[`${rider[2]} Rider Warning`] = rider[1] || ''; continue; }
+        }
+        if (typeof line === 'string') continue;
+        const prefix = line.items.filter(item => item.x + (item.width || 0) / 2 < columns.left).map(item => item.text).join(' ').trim();
+        const identity = scoringSchema.team ? prefix.match(/^(\d+)\s+(\d+)\s+([A-Z]{3})\s+-\s+(.+)$/) : prefix.match(/^(?:(\d+)\s+)?(\d+)\s+(?:(\(w\)|w)\s+)?(.+?)\s+([A-Z]{3})$/);
+        if (!identity) continue;
+        const row = Object.fromEntries(schema.fields.map(field => [field, '']));
+        Object.assign(row, context, {
+          Stage: isMadisonSchema(schema) ? 'F' : '', Heat: isMadisonSchema(schema) ? 'F' : '',
+          Rank: identity[1] ? Number(identity[1]) : '', 'Race Number': Number(identity[2]), selected: true
+        });
+        if (schema === schemas.madisonWomen && typeof row['Race Elapsed Time'] === 'number') row['Race Elapsed Time'] /= 60;
+        if (scoringSchema.team) { row.Country = identity[3]; row.Team = identity[4]; }
+        else {
+          row.Warning = identity[3] || ''; row.Name = identity[4]; row['Team Code'] = identity[5];
+          if (scoringSchema.omnium || [schemas.points, schemas.pointsWomen].includes(schema)) {
+            const prefixItems = line.items.filter(item => item.x + (item.width || 0) / 2 < columns.left);
+            const countryIndex = prefixItems.findIndex(item => item.text.trim().split(/\s+/).includes(identity[5]));
+            const ageCandidates = prefixItems.slice(countryIndex + 1).filter(item => /^\d{1,2}$/.test(item.text.trim()));
+            const ageItem = columns.ageX === null ? null
+              : ageCandidates.reduce((best, item) => !best || Math.abs((item.x + (item.width || 0) / 2) - columns.ageX) < Math.abs((best.x + (best.width || 0) / 2) - columns.ageX) ? item : best, null);
+            row.Age = ageItem ? Number(ageItem.text.trim()) : '';
+          }
+        }
+        for (const item of line.items.filter(item => item.x + (item.width || 0) / 2 >= columns.left)) {
+          const value = item.text.replace(/\u2212/g, '-').trim();
+          if (!/^(?:[+-]?\d+|DNF|ABD|DNS|DSQ)$/.test(value)) {
+            if (/\d/.test(value)) {
+              const match = value.match(/[+-]?\d+/);
+              if (match) {
+                const x = item.x + (item.width || 0) / 2;
+                const nearest = columns.anchors.reduce((best, anchor) => Math.abs(x - anchor.x) < Math.abs(x - best.x) ? anchor : best);
+                setScoreValue(row, nearest.field, match[0]);
+              }
+              continue;
+            }
+            continue;
+          }
+          const x = item.x + (item.width || 0) / 2;
+          const nearest = columns.anchors.reduce((best, anchor) => Math.abs(x - anchor.x) < Math.abs(x - best.x) ? anchor : best);
+          if (/^(DNF|ABD|DNS|DSQ)$/.test(value)) { row.Status = value; continue; }
+          setScoreValue(row, nearest.field, value);
+        }
+        const totalField = scoringSchema.omnium ? 'Total' : 'Total Points';
+        if (isMadisonSchema(schema)) {
+          const sprintPoints = Array.from({ length: scoringSchema.sprints }, (_, index) => row[`Sprint ${index + 1}`] || 0).reduce((sum, value) => sum + value, 0);
+          row[totalField] = sprintPoints + (Number(row['Lap Points Gained']) || 0) + (Number(row['Lap Points Lost']) || 0);
+        } else {
+          if (row[totalField] === '' && !row.Status) issues.push(`${row.Team || row.Name}: missing total points`);
+          if (typeof row[totalField] === 'number') {
+            const total = Array.from({ length: scoringSchema.sprints }, (_, index) => row[`Sprint ${index + 1}`] || 0).reduce((sum, value) => sum + value, 0) + (Number(row['Lap Points Balance']) || 0) + (scoringSchema.omnium ? row['Sub Total'] || 0 : 0);
+            if (total !== row[totalField]) issues.push(`${row.Team || row.Name}: points do not reconcile`);
+          }
+        }
+        rows.push(row); current = row;
+      }
+    }
+    if (scoringSchema.team) for (const row of rows) if (!row['Black Rider'] || !row['Red Rider']) issues.push(`${row.Team}: incomplete rider names`);
+    return { rows, issues };
+  }
+
+  function parseTempo(pages, schema = schemas.tempo) {
+    const rows = []; const issues = []; const context = raceContext(pages.flat());
+    const reportText = pages.flat().map(lineText).join(' ');
+    const declaredSprintCount = Number(reportText.match(/\bwith\s+(\d+)\s+sprints?\b/i)?.[1]) || 0;
+    let maxObservedSprint = 0;
+    const center = item => item.x + (item.width || 0) / 2;
+    const findColumn = (lines, pattern) => {
+      for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+        const items = lines[lineIndex]?.items;
+        if (!items) continue;
+        for (let start = 0; start < items.length; start++) {
+          for (let end = start; end < Math.min(items.length, start + 4); end++) {
+            const label = items.slice(start, end + 1).map(item => item.text).join(' ').replace(/\s+/g, ' ').trim();
+            if (pattern.test(label)) return { x: (items[start].x + center(items[end])) / 2, left: items[start].x, lineIndex };
+          }
+        }
+      }
+      return null;
+    };
+    let layout = null;
+    for (const lines of pages) {
+      const sprintHeader = findColumn(lines, /^sprints?\s+won$/i);
+      const pageHasHeader = Boolean(sprintHeader);
+      if (sprintHeader) {
+        const ageHeader = findColumn(lines, /^age$/i);
+        const columns = [
+          { field: 'P.Laps', pattern: /^(?:p\.?\s*laps?|lap\s*points?\s*(?:gained|\+)|\+)$/i },
+          { field: 'M.Laps', pattern: /^(?:m\.?\s*laps?|lap\s*points?\s*(?:lost|-)|-)$/i },
+          { field: 'Lap Points Balance', pattern: /^(?:balance|lap\s*points?\s*balance)$/i },
+          { field: 'Total', pattern: /^(?:total(?:\s*points?)?|final)$/i }
+        ].map(column => ({ ...column, header: findColumn(lines, column.pattern) })).filter(column => column.header);
+        layout = { sprintHeader, ageHeader, columns, headerLine: Math.max(sprintHeader.lineIndex, ...columns.map(column => column.header.lineIndex)) };
+      }
+      if (!layout) continue;
+      const firstScoreX = Math.min(...layout.columns.map(column => column.header.x));
+      const firstDataLine = pageHasHeader ? layout.headerLine + 1 : 0;
+      for (const line of lines.slice(firstDataLine)) {
+        if (!line.items || /^(LEGEND|No\.|www\.|Report Created|Notes?)/i.test(lineText(line))) continue;
+        const prefixItems = line.items.filter(item => center(item) < layout.sprintHeader.x);
+        const identity = prefixItems.map(item => item.text).join(' ').replace(/\s+/g, ' ').trim()
+          .match(/^(\d+)\s+(\d+)\s+(?:(\(w\)|w)\s+)?(.+?)\s+([A-Z]{3})(?:\s|$)/);
+        if (!identity) continue;
+        const countryItem = [...prefixItems].reverse().find(item => item.text.trim().split(/\s+/).includes(identity[5]));
+        if (!countryItem) continue;
+        const ageCandidates = prefixItems.filter(item => center(item) > center(countryItem) && /^\d{1,2}$/.test(item.text.trim()));
+        const ageItem = layout.ageHeader
+          ? ageCandidates.reduce((best, item) => !best || Math.abs(center(item) - layout.ageHeader.x) < Math.abs(center(best) - layout.ageHeader.x) ? item : best, null)
+          : null;
+        const row = Object.fromEntries(schema.fields.map(field => [field, '']));
+        Object.assign(row, context, {
+          'Race Number': Number(identity[2]), Name: identity[4], 'Team Code': identity[5], Age: ageItem ? Number(ageItem.text.trim()) : '', Rank: Number(identity[1]),
+          Warning: identity[3] || '', Time: context['Race Elapsed Time'], 'Avg Speed': context['Race Average Speed'], selected: true
+        });
+        for (let sprint = 1; sprint <= schema.sprints; sprint++) row[String(sprint)] = 0;
+        const winningItems = line.items.filter(item => center(item) > center(ageItem || countryItem) && center(item) < firstScoreX);
+        for (const item of winningItems) {
+          for (const token of item.text.match(/\d+/g) || []) {
+            const sprint = Number(token);
+            if (sprint >= 1 && sprint <= schema.sprints) {
+              row[String(sprint)] = 1;
+              maxObservedSprint = Math.max(maxObservedSprint, sprint);
+            }
+          }
+        }
+        for (const item of line.items) {
+          const value = item.text.replace(/\u2212/g, '-').trim();
+          if (!/^(?:[+-]?\d+|DNS|DNF|ABD|DSQ)$/i.test(value)) continue;
+          const x = center(item);
+          if (x < firstScoreX - 1) continue;
+          if (/^(DNS|DNF|ABD|DSQ)$/i.test(value)) { row.Status = value.toUpperCase(); continue; }
+          const nearest = layout.columns.reduce((best, column) => Math.abs(x - column.header.x) < Math.abs(x - best.header.x) ? column : best);
+          row[nearest.field] = Number(value);
+        }
+        rows.push(row);
+      }
+    }
+    const expectedSprintCount = Math.min(schema.sprints, declaredSprintCount || maxObservedSprint);
+    for (const row of rows) row._tempoSprintCount = expectedSprintCount;
+    return { rows, issues, sprintCount: expectedSprintCount };
+  }
+
+  function parseAnalysis(pages, schema = schemas.analysis) {
+    const riders = new Map(); const issues = [];
+    const teamSprintMode = schema === schemas.teamAnalysis;
+    const teamPursuitMode = schema === schemas.teamPursuitAnalysis;
+    const individualPursuitMode = schema === schemas.analysis;
+    const teamMode = teamSprintMode || teamPursuitMode;
+    const timeTrialMode = schema === schemas.timeTrialAnalysis;
+    const checkpointsExpected = teamSprintMode ? distances.slice(0, 6) : timeTrialMode ? distances.slice(0, 8) : distances;
+    const finishDistance = teamSprintMode ? 750 : 4000;
+    const metadata = reportDate(pages.flat());
+    for (const lines of pages) {
+      let pair = []; let heat = ''; let heatNumbers = []; let rightColumnStart = null;
+      for (const line of lines) {
+        const text = lineText(line);
+        const pursuitFinal = (teamPursuitMode || individualPursuitMode) && text.match(/^For (Gold|Bronze)$/i);
+        if (pursuitFinal) { heat = pursuitFinal[1][0].toUpperCase(); heatNumbers = [heat]; pair = []; rightColumnStart = null; continue; }
+        const heatMatch = teamSprintMode
+          ? (/^(?:(?:Heat\s+\d+|For Gold|For Bronze)(?:\s+|$))+$/.test(text) ? [...text.matchAll(/Heat\s+(\d+)|For (Gold)|For (Bronze)/g)].map(match => match[1] || (match[2] ? 'G' : 'B')) : null)
+          : text.match(/^Heat\s+(\d+)(?:\s+Heat\s+(\d+))?$/)?.slice(1).filter(Boolean);
+        if (heatMatch?.length) { heat = heatMatch[0]; heatNumbers = heatMatch; pair = []; rightColumnStart = null; continue; }
+        if (typeof line !== 'string') {
+          const headers = line.items.filter(item => /^Distance\b/.test(item.text));
+          if (headers.length === 2) rightColumnStart = headers[1].x - 5;
+        }
+        const identities = [...text.matchAll(teamMode ? /(?:^|\s)([A-Z]{3})\s+-\s+(.+?)(?=\s+[A-Z]{3}\s+-\s+|$)/g : /(?:^|\s)(\d+)\s+(.+?)\s+-\s+([A-Z]{3})(?=\s+\d+\s+|$)/g)];
+        if (identities.length === (teamMode ? heatNumbers.length : 2) || (teamMode && heatNumbers.length === 1 && identities.length === 2)) {
+          if (!heat) continue;
+          pair = identities.map((match, index) => {
+            const sourceHeat = teamMode || individualPursuitMode ? heatNumbers[index] ?? heatNumbers[0] ?? heat : heat;
+            const key = `${sourceHeat}/${match[1]}`;
+            if (!riders.has(key)) riders.set(key, { name: match[2], country: teamMode ? match[1] : match[3], raceNumber: teamMode ? '' : match[1], heat: /^\d+$/.test(sourceHeat) ? Number(sourceHeat) : sourceHeat, checkpoints: new Map(), laps: new Map() });
+            return riders.get(key);
+          });
+          continue;
+        }
+        if (!pair.length) continue;
+        const checkpointPattern = `(?:^|\\s)(\\d+)m\\s+(${timePattern})\\s+(\\d+)(?:\\s+(${timePattern}))?(?:\\s+(\\d+)(?=\\s+\\d+m|$))?`;
+        let checkpoints;
+        if (typeof line !== 'string' && rightColumnStart !== null) {
+          checkpoints = pair.map((rider, index) => line.items.filter(item => (item.x >= rightColumnStart) === (index === 1)).map(item => item.text).join(' ').match(new RegExp(checkpointPattern)));
+        } else {
+          checkpoints = [...text.matchAll(new RegExp(checkpointPattern, 'g'))];
+          if (checkpoints.length !== pair.length) continue;
+        }
+        checkpoints.forEach((match, index) => {
+          if (!match) return;
+          const distance = Number(match[1]);
+          if (distance < 125 || distance > finishDistance || distance % 125) return;
+          pair[index].checkpoints.set(distance, { time: milliseconds(match[2]), rank: Number(match[3]) });
+          if (match[4]) pair[index].laps.set(distance, milliseconds(match[4]));
+        });
+      }
+    }
+    const rows = [...riders.values()].map(rider => {
+      const row = Object.fromEntries(schema.fields.map(field => [field, '']));
+      const stage = teamPursuitMode ? teamPursuitStageFromLines(pages.flat()) : individualPursuitMode && /^[GB]$/.test(String(rider.heat)) ? 'F' : timeTrialMode || individualPursuitMode ? qualifyingOrFinalStageFromLines(pages.flat()) : teamSprintMode ? teamSprintStage(pages.flat()) : 'Q';
+      const rowHeat = individualPursuitMode ? stage === 'F' && /^[GB]$/.test(String(rider.heat)) ? rider.heat : 'Q' : teamMode ? rider.heat : 'Q';
+      Object.assign(row, metadata, { Stage: stage, Heat: rowHeat, [teamMode ? 'Team' : 'Athlete']: rider.name, Country: rider.country, ...(timeTrialMode || individualPursuitMode ? { _raceNumber: rider.raceNumber } : {}), selected: true });
+      for (const label of checkpointsExpected) {
+        const distance = Number(label); const current = rider.checkpoints.get(distance); const previous = distance === 125 ? { time: 0 } : rider.checkpoints.get(distance - 125);
+        const outputField = timeTrialMode || teamPursuitMode ? `${label}m` : label;
+        if (current && previous && current.time >= previous.time) row[outputField] = (current.time - previous.time) / 1000;
+      }
+      if (teamPursuitMode) {
+        const checkpoint = distance => rider.checkpoints.get(distance);
+        const segment = (start, end) => checkpoint(end) && (start === 0 || checkpoint(start)) ? (checkpoint(end).time - (start ? checkpoint(start).time : 0)) / 1000 : '';
+        row['1st lap'] = segment(0, 250);
+        row['1st k'] = segment(0, 1000); row['2nd k'] = segment(1000, 2000);
+        row['3rd k'] = segment(2000, 3000); row['4th k'] = segment(3000, 4000);
+      }
+      const finish = rider.checkpoints.get(finishDistance);
+      if (finish) {
+        row.Time = finish.time / 1000; row.Rank = finish.rank; row['Avg Speed'] = Number((finishDistance * 3.6 / row.Time).toFixed(2));
+        if (teamPursuitMode) row.Seconds = row.Time;
+      }
+      if (checkpointsExpected.some(distance => row[timeTrialMode || teamPursuitMode ? `${distance}m` : distance] === '')) issues.push(`${rider.name}: incomplete half-lap times`);
+      for (const [distance, lap] of rider.laps) {
+        const current = rider.checkpoints.get(distance); const previous = distance === 250 ? { time: 0 } : rider.checkpoints.get(distance - 250);
+        if (current && previous && Math.abs(current.time - previous.time - lap) > 1) issues.push(`${rider.name}: lap time mismatch at ${distance}m`);
+      }
+      return row;
+    });
+    return { rows, issues };
+  }
+
+  function parseDocument(pages) {
+    const lines = pages.flat(); const schema = detectSchema(lines);
+    let result;
+    if (schema === schemas.startList) result = { rows: parseStartList(lines), issues: [] };
+    else if ([schemas.analysis, schemas.teamAnalysis, schemas.teamPursuitAnalysis, schemas.timeTrialAnalysis].includes(schema)) result = parseAnalysis(pages, schema);
+    else if (schema === schemas.teamSprint) result = parseTeamSprint(pages);
+    else if (schema === schemas.teamSprintRound) result = parseTeamSprintRound(pages);
+    else if (schema === schemas.teamPursuitResults) result = parseTeamPursuitResults(pages);
+    else if (schema === schemas.tempo) result = parseTempo(pages, schema);
+    else if (schema.sprints) result = parseScoring(pages, schema);
+    else if (schema.runs) {
+      const parsedPages = pages.map(page => parseSprint(page, schema));
+      result = { rows: parsedPages.flat(), finalRanks: parsedPages.flatMap(pageRows => pageRows.finalRanks || []), issues: [] };
+    } else result = { rows: [schemas.elimination, schemas.eliminationWomen, schemas.scratch, schemas.scratchWomen, schemas.omElimination, schemas.omEliminationWomen, schemas.omScratch].includes(schema) ? parseBunch(lines, schema) : pages.flatMap(page => parseTimed(page, schema)), issues: [] };
+    if (schema.intervals) for (const row of result.rows) {
+      if (!row.Status && schema.intervals.some(field => row[field] === '')) result.issues.push(`${row.Name}: missing interval times`);
+    }
+    return { schema, ...result };
+  }
+
+  function schemaFamily(schema) {
+    if ([schemas.omScratch, schemas.omElimination, schemas.omEliminationWomen, schemas.tempo, schemas.omniumPoints, schemas.omniumPointsWomen].includes(schema)) return 'omnium';
+    if (isMadisonSchema(schema)) return 'madison';
+    if ([schemas.pursuit, schemas.analysis].includes(schema)) return 'individual-pursuit';
+    if ([schemas.timeTrial, schemas.timeTrialAnalysis].includes(schema)) return 'time-trial';
+    if ([schemas.teamPursuitResults, schemas.teamPursuitAnalysis].includes(schema)) return 'team-pursuit';
+    if ([schemas.sprintQualifying, schemas.sprintSingle, schemas.sprintMatch].includes(schema)) return 'sprint';
+    if (schema === schemas.keirin) return 'keirin';
+    if ([schemas.teamSprint, schemas.teamAnalysis, schemas.teamSprintRound].includes(schema)) return 'team-sprint';
+    return schema;
+  }
+
+  function mergeResultAndAnalysis(documents, targetSchema) {
+    const summarySchemas = new Set([schemas.pursuit, schemas.timeTrial, schemas.teamPursuitResults]);
+    const detailSchemas = new Set([schemas.analysis, schemas.timeTrialAnalysis, schemas.teamPursuitAnalysis]);
+    if (!documents.some(document => summarySchemas.has(document.schema)) || !documents.some(document => detailSchemas.has(document.schema))) {
+      return { rows: documents.flatMap(document => document.rows), issues: documents.flatMap(document => document.issues) };
+    }
+    const summaryRows = documents.filter(document => summarySchemas.has(document.schema)).flatMap(document => document.rows);
+    const detailRows = documents.filter(document => detailSchemas.has(document.schema)).flatMap(document => document.rows);
+    const keyFor = row => {
+      const country = String(row.teamCode || row.Country || row['Team Code'] || '').trim().toUpperCase().match(/^[A-Z]{3}/)?.[0] || '';
+      if (row.Team || row.teamCode) return targetSchema === schemas.teamPursuitAnalysis || targetSchema === schemas.teamPursuitResults
+        ? `team|${country}|${row.Stage || 'Q'}` : `team|${country}`;
+      const raceNumber = String(row['Race Number'] ?? row._raceNumber ?? row.race_id ?? '').trim();
+      if (raceNumber) return `rider|${raceNumber}|${country}|${String(row.Stage || '').toUpperCase()}`;
+      const name = String(row.Athlete || row.Name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+      return `${name}|${country}|${String(row.Stage || '').toUpperCase()}`;
+    };
+    const summaryByKey = new Map(summaryRows.map(row => [keyFor(row), row]));
+    const matched = new Set();
+    const rows = detailRows.map(row => {
+      const summary = summaryByKey.get(keyFor(row));
+      if (!summary) return row;
+      matched.add(keyFor(row));
+      for (const field of ['Country', 'Rider1', 'Rider2', 'Rider3', 'Rider4', 'Age1', 'Age2', 'Age3', 'Age4', 'Rank', 'Time', 'Seconds', '1st lap', '1st k', '2nd k', '3rd k', '4th k', 'Qualified', 'Status']) {
+        if (summary[field] !== '' && summary[field] !== undefined) row[field] = summary[field];
+      }
+      const speed = summary['Average Speed'] ?? summary['Avg Speed'];
+      if (speed !== '' && speed !== undefined) row['Avg Speed'] = Number(speed);
+      return row;
+    });
+    for (const summary of summaryRows) {
+      const key = keyFor(summary);
+      if (matched.has(key)) continue;
+      const row = Object.fromEntries(targetSchema.fields.map(field => [field, '']));
+      Object.assign(row, {
+        Location: summary.Location ?? '', Year: summary.Year ?? '', Date: summary.Date ?? '', Event: summary.Event ?? '',
+        Stage: summary.Stage || 'Q', Heat: summary.Heat || (targetSchema.team ? '' : 'Q'), Athlete: summary.Athlete || summary.Name || '',
+        Team: targetSchema.team ? summary.Country || '' : '', Country: summary.Country || summary['Team Code'] || '', Age: '', Rank: summary.Rank ?? '',
+        Rider1: summary.Rider1 || '', Rider2: summary.Rider2 || '', Rider3: summary.Rider3 || '', Rider4: summary.Rider4 || '',
+        ...(targetSchema === schemas.teamPursuitAnalysis || targetSchema === schemas.teamPursuitResults ? { Seconds: summary.Seconds ?? '' } : {}),
+        '1st lap': summary['1st lap'] ?? '', '1st k': summary['1st k'] ?? '',
+        '2nd k': summary['2nd k'] ?? '', '3rd k': summary['3rd k'] ?? '', '4th k': summary['4th k'] ?? '',
+        Time: summary.Time ?? '', 'Avg Speed': summary['Average Speed'] ?? summary['Avg Speed'] ?? '', selected: true
+      });
+      rows.push(row);
+    }
+    const issues = documents.flatMap(document => document.issues);
+    if (summaryRows.length !== detailRows.length) issues.push('Result and analysis PDFs contain different rider counts; check unmatched rows.');
+    return { rows, issues };
+  }
+
+  const core = { groupLines, parseLines, parseDocument, parseAnalysis, milliseconds, schemas, buildExport };
+  if (typeof module !== 'undefined' && module.exports) { module.exports = core; return; }
+
+  function numberFormat(field, schema = activeSchema) {
+    if (womenDurationSchemas.includes(schema) && ['Time', 'Race Elapsed Time'].includes(field)) return 'mm:ss';
+    if (field === 'Time' && teamPursuitTimeSchemas.includes(schema)) return 'mm:ss.000';
+    if (field === 'Seconds') return '0.000';
+    if (field === 'Avg Speed') return '0.00';
+    if (field === 'Date') return 'dd/mm/yyyy';
+    if (/^Time$|Elapsed Time|^Race Elapsed Time$/.test(field)) return '0.000';
+    if (/^\d+(?:m|-\d+m?)?$/.test(field) || /(?:^| )Time$|Average Speed$|^Lap [12](?:-[23])?$|^(?:200m R[123]|Gap R[123]|Avg Speed R[123]|1st lap|[1-4](?:st|nd|rd|th) k)$/.test(field)) return '0.000';
+    return '0';
+  }
+
+  function displayTime(value, schema = activeSchema) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return value ?? '';
+    const duration = Math.max(0, value);
+    if (womenDurationSchemas.includes(schema)) {
+      const minutes = Math.floor(duration / 60);
+      const seconds = Math.floor(duration - minutes * 60);
+      return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+    if (teamPursuitTimeSchemas.includes(schema)) {
+      const minutes = Math.floor(duration / 60);
+      const seconds = (duration - minutes * 60).toFixed(3).padStart(6, '0');
+      return `${String(minutes).padStart(2, '0')}:${seconds}`;
+    }
+    return duration.toFixed(3);
+  }
+
+  function isDurationField(field) {
+    return /(?:^| )Time$|Elapsed Time$/.test(field);
+  }
+
+  function isNumericField(field) {
+    if (/^Age\d*$/i.test(field)) return false;
+    return /^\d+$/.test(field) || /^Sprint\s+\d+$/i.test(field) ||
+      /^\d+(?:m|-\d+m?)?$/i.test(field) ||
+      /(?:Rank|Number|Order|Time|Speed|Points|Laps|Balance|Seconds|Lap|Diff|Gap|Total|^P\.Laps$|^M\.Laps$)/i.test(field) ||
+      /^(?:200m R[123]|Gap R[123]|Avg Speed R[123]|1st lap|[1-4](?:st|nd|rd|th) k)$/i.test(field);
+  }
+
+  function buildExport(sheet, selected, rows, schema = activeSchema) {
+    const output = sheet ? structuredClone(sheet) : XLSX.utils.aoa_to_sheet([]);
+    let headers = headersFor(output);
+    const hasExistingHeaders = headers.length > 0;
+    if (!hasExistingHeaders) headers = selected;
+    const sourceFields = hasExistingHeaders
+      ? headers.map(header => sourceFieldForHeader(header, schema, selected))
+      : selected.slice(0, headers.length);
+    const matching = sourceFields.filter(Boolean);
+    if (hasExistingHeaders && !matching.length) throw new Error('No parsed fields match this worksheet’s headers. Choose the event worksheet.');
+    const duplicates = headers.filter(Boolean).map(normalize);
+    if (new Set(duplicates).size !== duplicates.length) throw new Error('The worksheet has duplicate column headers.');
+    const start = output['!ref'] ? XLSX.utils.decode_range(output['!ref']).e.r + 1 : 1;
+    if (!hasExistingHeaders) XLSX.utils.sheet_add_aoa(output, [headers], { origin: 'A1' });
+    const values = rows.map(row => headers.map((header, index) => {
+      if (!sourceFields[index]) return '';
+      const rawValue = row[sourceFields[index]];
+      const value = (rawValue === '' || rawValue === null || rawValue === undefined) && isNumericField(sourceFields[index]) ? 0 : rawValue;
+      if (sourceFields[index] === 'Date' && value instanceof Date) {
+        return `${String(value.getDate()).padStart(2, '0')}/${String(value.getMonth() + 1).padStart(2, '0')}/${value.getFullYear()}`;
+      }
+      if (['Time', 'Race Elapsed Time'].includes(sourceFields[index]) && typeof value === 'number' && womenDurationSchemas.includes(schema)) return value / 86400;
+      if (sourceFields[index] === 'Time' && typeof value === 'number' && teamPursuitTimeSchemas.includes(schema)) return value / 86400;
+      return value ?? '';
+    }));
+    XLSX.utils.sheet_add_aoa(output, values, { origin: { r: start, c: 0 } });
+    for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+      sourceFields.forEach((field, index) => {
+        const cell = output[XLSX.utils.encode_cell({ r: start + rowIndex, c: index })];
+        if (field && cell) {
+          cell.z = numberFormat(field, schema);
+        }
+      });
+    }
+    return output;
+  }
+
+  function updateSelection() {
+    const count = state.rows.filter(row => row.selected).length;
+    element('selection-count').textContent = `${count} ${activeSchema.team ? 'teams' : 'riders'} selected`;
+    element('export').disabled = state.busy || !count || !activeFields().length;
+  }
+
+  function sortDirectionFor(field) {
+    return /speed/i.test(field) ? 'desc' : 'asc';
+  }
+
+  function compareValues(first, second, field) {
+    const firstValue = first[field]; const secondValue = second[field];
+    const firstBlank = firstValue === '' || firstValue === null || firstValue === undefined;
+    const secondBlank = secondValue === '' || secondValue === null || secondValue === undefined;
+    if (firstBlank || secondBlank) return firstBlank === secondBlank ? 0 : firstBlank ? 1 : -1;
+    if (firstValue instanceof Date && secondValue instanceof Date) return firstValue - secondValue;
+    if (typeof firstValue === 'number' && typeof secondValue === 'number') return firstValue - secondValue;
+    const numericFirst = Number(String(firstValue).replace(/^\+/, ''));
+    const numericSecond = Number(String(secondValue).replace(/^\+/, ''));
+    if (String(firstValue).trim() !== '' && String(secondValue).trim() !== '' && Number.isFinite(numericFirst) && Number.isFinite(numericSecond)) return numericFirst - numericSecond;
+    return new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' }).compare(String(firstValue), String(secondValue));
+  }
+
+  function sortedRows() {
+    if (!state.sort) return state.rows;
+    const direction = state.sort.direction === 'asc' ? 1 : -1;
+    return state.rows.map((row, index) => ({ row, index })).sort((first, second) => {
+      const comparison = compareValues(first.row, second.row, state.sort.field);
+      return comparison === 0 ? first.index - second.index : comparison * direction;
+    }).map(item => item.row);
+  }
+
+  function renderTable() {
+    const selected = activeFields();
+    const expectedSprintCount = activeSchema === schemas.tempo
+      ? state.rows.reduce((max, row) => Math.max(max, Number(row._tempoSprintCount) || 0), 0)
+      : 0;
+    const missingSprints = new Set(selected
+      .filter(field => /^\d+$/.test(field) && Number(field) <= expectedSprintCount)
+      .filter(field => !state.rows.some(row => Number(row[field]) === 1)));
+    const tempoWarning = element('tempo-warning');
+    tempoWarning.hidden = missingSprints.size === 0;
+    tempoWarning.textContent = missingSprints.size
+      ? `No winner was detected for sprint${missingSprints.size === 1 ? '' : 's'} ${[...missingSprints].join(', ')}. Enter 1 in the winning rider's highlighted cell.`
+      : '';
+    const head = element('results').querySelector('thead');
+    const body = element('results').querySelector('tbody');
+    head.replaceChildren(); body.replaceChildren();
+    const heading = document.createElement('tr');
+    const selectionCell = document.createElement('th');
+    const selectAll = document.createElement('input');
+    selectAll.type = 'checkbox'; selectAll.setAttribute('aria-label', activeSchema.team ? 'Select all teams' : 'Select all riders');
+    const syncSelectAll = () => {
+      selectAll.checked = state.rows.length > 0 && state.rows.every(row => row.selected);
+      selectAll.indeterminate = state.rows.some(row => row.selected) && !selectAll.checked;
+    };
+    syncSelectAll();
+    selectAll.addEventListener('change', () => { state.rows.forEach(row => { row.selected = selectAll.checked; }); renderTable(); });
+    selectionCell.append(selectAll); heading.append(selectionCell);
+    for (const field of selected) {
+      const cell = document.createElement('th'); cell.scope = 'col';
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'sort-button';
+      button.textContent = field;
+      const activeSort = state.sort?.field === field;
+      cell.setAttribute('aria-sort', activeSort ? state.sort.direction === 'asc' ? 'ascending' : 'descending' : 'none');
+      if (activeSort) {
+        const indicator = document.createElement('span'); indicator.className = 'sort-indicator'; indicator.textContent = state.sort.direction === 'asc' ? '▲' : '▼'; indicator.setAttribute('aria-hidden', 'true'); button.append(indicator);
+      }
+      button.setAttribute('aria-label', `Sort by ${field}${activeSort ? state.sort.direction === 'asc' ? ', ascending' : ', descending' : ''}`);
+      button.addEventListener('click', () => {
+        state.sort = { field, direction: activeSort ? state.sort.direction === 'asc' ? 'desc' : 'asc' : sortDirectionFor(field) };
+        renderTable();
+      });
+      cell.append(button); heading.append(cell);
+    }
+    head.append(heading);
+    for (const row of sortedRows()) {
+      const tableRow = document.createElement('tr');
+      const cell = document.createElement('td'); const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox'; checkbox.checked = row.selected; checkbox.setAttribute('aria-label', `Select ${row.Team || row.Athlete || row.Name}`);
+      checkbox.addEventListener('change', () => { row.selected = checkbox.checked; syncSelectAll(); updateSelection(); });
+      cell.append(checkbox); tableRow.append(cell);
+      for (const field of selected) {
+        const valueCell = document.createElement('td');
+        const rawValue = row[field];
+        const value = (rawValue === '' || rawValue === null || rawValue === undefined) && isNumericField(field) ? 0 : rawValue;
+        const format = numberFormat(field, activeSchema);
+        if (activeSchema === schemas.tempo && missingSprints.has(field)) {
+          valueCell.classList.add('missing-sprint-cell');
+          const input = document.createElement('input');
+          input.type = 'number'; input.min = '0'; input.max = '1'; input.step = '1';
+          input.className = 'missing-sprint-input'; input.value = String(value ?? 0);
+          input.setAttribute('aria-label', `Sprint ${field} winner flag for ${row.Name}; enter 1 for the winner`);
+          input.addEventListener('change', () => {
+            const entered = Number(input.value);
+            if (!['0', '1'].includes(input.value)) { input.value = String(row[field] ?? 0); return; }
+            row[field] = entered;
+            renderTable();
+          });
+          valueCell.append(input);
+        } else {
+          valueCell.textContent = value instanceof Date && field === 'Date'
+            ? `${String(value.getDate()).padStart(2, '0')}/${String(value.getMonth() + 1).padStart(2, '0')}/${value.getFullYear()}`
+            : isDurationField(field) && typeof value === 'number' ? displayTime(value, activeSchema)
+            : typeof value === 'number' ? value.toFixed(format.includes('.') ? format.split('.')[1].length : 0) : value ?? '';
+        }
+        tableRow.append(valueCell);
+      }
+      body.append(tableRow);
+    }
+    updateSelection();
+  }
+
+  function setBusy(busy) {
+    state.busy = busy;
+    element('pdf-file').disabled = busy; element('excel-file').disabled = busy;
+    updateSelection();
+  }
+
+  async function importPdfs(fileList) {
+    const files = Array.from(fileList || []);
+    if (!files.length || state.busy) return;
+    if (!window.pdfjsLib) { showStatus('PDF library unavailable. Connect to the internet and reload.', true); return; }
+    if (files.some(file => !/\.pdf$/i.test(file.name))) { showStatus('Choose PDF files only.', true); return; }
+    setBusy(true);
+    let family = null;
+    let familyDocument = null;
+    const documents = [];
+    const startListEntries = [];
+    let startListFiles = 0;
+    try {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
+        const file = files[fileIndex];
+        showStatus(`Reading PDF ${fileIndex + 1} of ${files.length}: ${file.name}`);
+        let pdf;
+        try {
+          pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer(), isEvalSupported: false }).promise;
+          const pages = [];
+          for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+            const page = await pdf.getPage(pageNumber);
+            pages.push(groupLines((await page.getTextContent()).items));
+            page.cleanup();
+          }
+          const result = parseDocument(pages);
+          if (result.schema === schemas.startList) {
+            startListFiles++;
+            startListEntries.push(...result.rows);
+            continue;
+          }
+          const nextFamily = schemaFamily(result.schema);
+          if (family && family !== nextFamily) {
+            throw new Error(`${file.name} was detected as ${result.schema.name}, but ${familyDocument.fileName} was detected as ${familyDocument.schema.name}. Select PDFs from one event type, or a matching result and analysis pair.`);
+          }
+          family = nextFamily;
+          familyDocument = { fileName: file.name, schema: result.schema };
+          const round = roundFromLines(pages.flat());
+          for (const row of result.rows) {
+            state.baseMetadata.set(row, Object.fromEntries(metadataFields.map(field => [field, row[field] ?? ''])));
+            if (result.schema === schemas.keirin && !row.Classified) row.Round = keirinRoundFromLines(pages.flat());
+          }
+          documents.push({ ...result, rows: result.rows });
+        } finally {
+          if (pdf) await pdf.destroy();
+        }
+      }
+      if (!documents.length) throw new Error('No result PDFs were selected.');
+      const documentSchemas = documents.map(document => document.schema);
+      let rows; let issues;
+      if (family === 'sprint') {
+        const qualifyingRows = documents.filter(document => document.schema === schemas.sprintQualifying).flatMap(document => document.rows);
+        const finalDocuments = documents.filter(document => document.finalRanks?.length);
+        const roundRows = documents.filter(document => [schemas.sprintSingle, schemas.sprintMatch].includes(document.schema)).flatMap(document => document.rows);
+        if (finalDocuments.length && roundRows.length) {
+          const finalRankByRider = new Map(finalDocuments.flatMap(document => document.finalRanks).map(item => [
+            `${String(item.Name).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()}|${String(item.Country).trim().toUpperCase()}`,
+            item.Rank
+          ]));
+          for (const row of roundRows) {
+            const key = `${String(row.Athlete || row.Name).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()}|${String(row.Country || row['Team Code']).trim().toUpperCase()}`;
+            if (finalRankByRider.has(key)) row.Final_Rank = finalRankByRider.get(key);
+          }
+        }
+        const orderedRoundRows = sortSprintRounds(roundRows);
+        state.exportGroups = [
+          ...(qualifyingRows.length ? [{ schema: schemas.sprintQualifying, rows: qualifyingRows }] : []),
+          ...(orderedRoundRows.length ? [{ schema: schemas.sprintMatch, rows: orderedRoundRows }] : [])
+        ];
+        rows = state.exportGroups.flatMap(group => group.rows);
+        state.sort = null;
+        issues = documents.flatMap(document => document.issues);
+        activeSchema = state.exportGroups.length > 1 ? sprintBatchSchema : state.exportGroups[0].schema;
+      } else if (family === 'team-sprint') {
+        state.exportGroups = [];
+        activeSchema = schemas.teamSprintCombined;
+        ({ rows, issues } = combineTeamSprint(documents));
+        state.sort = null;
+      } else if (family === 'keirin') {
+        state.exportGroups = [];
+        activeSchema = schemas.keirin;
+        rows = sortKeirinRounds(documents.flatMap(document => document.rows));
+        const riderKey = (name, country) => `${String(name).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()}|${String(country).trim().toUpperCase()}`;
+        const keirinFinalRanks = new Map(documents.flatMap(document => document.finalRanks || []).map(item => [riderKey(item.Name, item.Country), item.Rank]));
+        for (const row of rows) {
+          const rank = keirinFinalRanks.get(riderKey(row.Name, row['Team Code']));
+          if (rank !== undefined) row['Final Rank'] = rank;
+        }
+        issues = documents.flatMap(document => document.issues);
+        state.sort = null;
+      } else if (family === 'omnium') {
+        state.exportGroups = documents.map(document => ({ schema: document.schema, rows: document.rows }));
+        activeSchema = state.exportGroups[0].schema;
+        rows = state.exportGroups.flatMap(group => group.rows);
+        issues = documents.flatMap(document => document.issues);
+        state.sort = null;
+      } else {
+        state.exportGroups = [];
+        activeSchema = documentSchemas.includes(schemas.teamPursuitAnalysis) ? schemas.teamPursuitAnalysis
+          : documentSchemas.includes(schemas.analysis) ? schemas.analysis
+          : documentSchemas.includes(schemas.timeTrialAnalysis) ? schemas.timeTrialAnalysis
+          : documentSchemas.includes(schemas.sprintMatch) ? schemas.sprintMatch
+          : documents[0].schema;
+        const combined = mergeResultAndAnalysis(documents, activeSchema);
+        rows = combined.rows; issues = combined.issues;
+      }
+      if (family === 'time-trial') {
+        rows = sortTimeTrialStages(rows);
+        state.sort = null;
+      }
+      if (family === 'individual-pursuit') {
+        rows = sortPursuitStages(rows);
+        state.sort = null;
+      }
+      if (family === 'team-pursuit') {
+        const qualifying = rows.filter(row => row.Stage === 'Q');
+        qualifying.sort((first, second) => (Number(first.Time) > 0 ? Number(first.Time) : Infinity) - (Number(second.Time) > 0 ? Number(second.Time) : Infinity));
+        let rank = 0;
+        for (const row of qualifying) {
+          row.Stage = 'Q'; row.Heat = 'Q';
+          if (Number(row.Time) > 0) row.Rank = ++rank;
+        }
+        const stageOrder = { Q: 0, R1: 1, F: 2 };
+        rows.sort((first, second) => {
+          const stageDifference = (stageOrder[first.Stage] ?? 99) - (stageOrder[second.Stage] ?? 99);
+          if (stageDifference) return stageDifference;
+          if (first.Stage === 'R1') {
+            const heatDifference = (Number(first.Heat) || Infinity) - (Number(second.Heat) || Infinity);
+            if (heatDifference) return heatDifference;
+          }
+          return (Number(first.Rank) || Infinity) - (Number(second.Rank) || Infinity);
+        });
+        state.sort = null;
+      }
+      const startListMatches = startListEntries.length ? applyStartListNames(rows, startListEntries) : 0;
+      for (const row of rows) if (!state.baseMetadata.has(row)) state.baseMetadata.set(row, Object.fromEntries(metadataFields.map(field => [field, row[field] ?? ''])));
+      fields = activeSchema.fields; state.rows = rows;
+      applyMetadata();
+      selectWorksheetForSchema(); renderTable();
+      const startListStatus = startListFiles
+        ? startListEntries.length ? `${startListMatches} rider names updated from start list.` : 'Start list PDF detected, but no entries could be read.'
+        : '';
+      showStatus(rows.length ? `${files.length} PDF${files.length === 1 ? '' : 's'} combined: ${rows.length} ${activeSchema.team ? 'teams' : 'riders'} read.${startListStatus ? ` ${startListStatus}` : ''}${issues.length ? ` ${issues.length} missing or inconsistent values; check the source.` : ''}` : 'No results found. Scanned PDFs are not supported.', !rows.length || issues.length > 0);
+    } catch (error) { showStatus(`Could not read PDF: ${error.message}`, true); }
+    finally { setBusy(false); element('pdf-file').value = ''; }
+  }
+
+  async function importWorkbook(file) {
+    if (!file || state.busy) return;
+    if (!window.XLSX) { showStatus('Excel library unavailable. Connect to the internet and reload.', true); return; }
+    if (!/\.xlsx$/i.test(file.name)) { showStatus('Choose an .xlsx file. Macro-enabled .xlsm files are not supported.', true); return; }
+    setBusy(true);
+    try {
+      const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array', cellStyles: true, cellDates: true });
+      if (!workbook.SheetNames.length) throw new Error('No worksheets found');
+      state.workbook = workbook; state.workbookName = file.name;
+      selectWorksheetForSchema();
+      showStatus(state.selectedSheet ? `Workbook loaded. ${state.selectedSheet} will be selected automatically for this event.` : 'Workbook loaded. Import a supported event PDF to select its worksheet automatically.');
+    } catch (error) { showStatus(`Could not read workbook: ${error.message}`, true); }
+    finally { setBusy(false); element('excel-file').value = ''; }
+  }
+
+  function exportWorkbook() {
+    if (!window.XLSX) { showStatus('Excel library unavailable. Connect to the internet and reload.', true); return; }
+    try {
+      applyMetadata();
+      if (state.exportGroups.length) {
+        exportSprintGroups();
+        return;
+      }
+      const selected = activeFields(); const rows = state.rows.filter(row => row.selected);
+      if (!selected.length || !rows.length) return;
+      const workbook = XLSX.utils.book_new();
+      const sheet = buildExport(null, selected, rows);
+      XLSX.utils.book_append_sheet(workbook, sheet, activeSchema.name.slice(0, 31));
+      XLSX.writeFile(workbook, `${activeSchema.name.replace(/ /g, '-')}.xlsx`, { bookType: 'xlsx', compression: true });
+      showStatus(`${rows.length} ${activeSchema.team ? 'teams' : 'riders'} downloaded in a new Excel workbook.`);
+    } catch (error) { showStatus(`Could not export: ${error.message}`, true); }
+  }
+
+  function exportSprintGroups() {
+    const workbook = XLSX.utils.book_new();
+    let exported = 0;
+    const exportedSheets = [];
+    const isOmnium = state.exportGroups.length > 0 && [schemas.omScratch, schemas.omElimination, schemas.omEliminationWomen, schemas.tempo, schemas.omniumPoints, schemas.omniumPointsWomen].includes(state.exportGroups[0].schema);
+    for (const group of state.exportGroups) {
+      let sheetName;
+      if (isOmnium) {
+        const candidates = group.schema === schemas.omScratch ? ['Scratch', 'OM-Scratch']
+          : [schemas.omElimination, schemas.omEliminationWomen].includes(group.schema) ? ['Elimination Race', 'OM-Elimination']
+          : group.schema === schemas.tempo ? ['OM-Tempo', group.schema.name]
+          : [schemas.omniumPoints, schemas.omniumPointsWomen].includes(group.schema) ? ['Points', 'OM-Points']
+          : [group.schema.name];
+        sheetName = state.workbook?.SheetNames.find(name => candidates.includes(name)) || candidates.at(-1);
+      } else {
+        sheetName = group.schema === schemas.sprintQualifying ? 'Sprint Qual' : 'Sprint';
+      }
+      const rows = group.rows.filter(row => row.selected);
+      if (!rows.length) continue;
+      const selected = activeFields(group.schema, sheetName);
+      if (!selected.length) throw new Error(`No ${sheetName} fields match its workbook headers.`);
+      const output = buildExport(null, selected, rows, group.schema);
+      XLSX.utils.book_append_sheet(workbook, output, sheetName.slice(0, 31));
+      exported += rows.length;
+      exportedSheets.push(sheetName);
+    }
+    if (!exported) throw new Error(isOmnium ? 'No omnium rows are selected for export.' : 'No sprint rows are selected for export.');
+    const omniumSchemas = new Set(state.exportGroups.map(group => group.schema));
+    const singleOmniumFileNames = new Map([
+      [schemas.omScratch, 'Scratch OM.xlsx'], [schemas.tempo, 'Tempo OM.xlsx'],
+      [schemas.omElimination, 'Elim OM.xlsx'], [schemas.omEliminationWomen, 'Elim OM.xlsx'],
+      [schemas.omniumPoints, 'Points OM.xlsx'], [schemas.omniumPointsWomen, 'Points OM.xlsx']
+    ]);
+    const fileName = isOmnium
+      ? omniumSchemas.size === 1 ? singleOmniumFileNames.get(omniumSchemas.values().next().value) || 'Omnium-Results.xlsx' : 'Omnium-Results.xlsx'
+      : 'Sprint-Results.xlsx';
+    XLSX.writeFile(workbook, fileName, { bookType: 'xlsx', compression: true });
+    showStatus(`${exported} rows downloaded to ${exportedSheets.join(', ')} in a new workbook, ${fileName}.`);
+  }
+
+  element('pdf-file').addEventListener('change', event => importPdfs(event.target.files));
+  element('excel-file').addEventListener('change', event => importWorkbook(event.target.files[0]));
+  element('export').addEventListener('click', exportWorkbook);
+  for (const id of ['metadata-location', 'metadata-year', 'metadata-date', 'metadata-event']) {
+    element(id).addEventListener('input', () => { saveMetadata(); applyMetadata(); renderTable(); });
+  }
+  window.TissotCore = core;
+  restoreMetadata();
+  renderTable();
+  if (window.lucide) window.lucide.createIcons();
+  if (!window.pdfjsLib || !window.XLSX) showStatus('Connect to the internet and reload to load the PDF and Excel libraries.', true);
+})();
+  </script>
+</body>
+</html>

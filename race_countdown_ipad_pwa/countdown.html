@@ -569,7 +569,7 @@
     }
 
     .pinned-race-event {
-      flex: 1 1 auto;
+      flex: 0 1 auto;
       min-width: 0;
       max-width: 100%;
       overflow: hidden;
@@ -602,6 +602,22 @@
     .pinned-race-separator {
       color: #8797a5;
       font-size: 14px;
+      white-space: nowrap
+    }
+
+    .pinned-race-classification {
+      flex: 0 0 auto;
+      color: #64788a;
+      font-size: 14px;
+      font-weight: 500;
+      white-space: nowrap
+    }
+
+    .pinned-race-round {
+      flex: 0 0 auto;
+      color: #64788a;
+      font-size: 14px;
+      font-weight: 500;
       white-space: nowrap
     }
 
@@ -1649,6 +1665,71 @@
       background: #fff
     }
 
+    .programme-modal {
+      align-items: center;
+      justify-content: center
+    }
+
+    .programme-modal-panel {
+      position: relative;
+      width: 380px;
+      max-width: 100%;
+      padding: 20px;
+      border-radius: 10px;
+      background: #fff;
+      box-shadow: 0 16px 48px rgba(16, 39, 60, .28)
+    }
+
+    .programme-modal-panel h2 {
+      margin: 0 40px 6px 0;
+      color: #123e69;
+      font-size: 18px
+    }
+
+    .programme-modal-panel p {
+      margin: 0 0 14px;
+      color: #587086;
+      font-size: 13px
+    }
+
+    .programme-modal-options {
+      display: grid;
+      gap: 8px
+    }
+
+    .programme-option-button {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+      padding: 9px 11px;
+      border: 1px solid #cad7e2;
+      border-radius: 6px;
+      background: #f7f9fb;
+      color: #0d477d;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer
+    }
+
+    .programme-option-button:hover:not(:disabled) {
+      background: #edf3f7
+    }
+
+    .programme-option-button:disabled {
+      color: #708397;
+      cursor: default;
+      opacity: .7
+    }
+
+    .programme-option-action {
+      color: #587086;
+      font-size: 12px;
+      font-weight: 700
+    }
+
     .reset-confirm-modal {
       align-items: center;
       justify-content: center;
@@ -2209,6 +2290,8 @@
 
       .pinned-race-country { font-size: 14px; }
       .pinned-race-event,
+      .pinned-race-classification,
+      .pinned-race-round,
       .pinned-race-start-time,
       .pinned-race-separator { font-size: 13px; }
       .pinned-race-countdown { font-size: 20px; }
@@ -2419,6 +2502,38 @@
         font-size: 11px
       }
     }
+
+    @media (orientation: portrait) {
+      .day-pin-group {
+        align-self: stretch;
+        width: 100%
+      }
+
+      .day-pin-group > .race-navigation {
+        left: 50%;
+        width: 75vw;
+        min-width: 0;
+        max-width: 100%;
+        grid-template-columns: minmax(0, 1.5fr) minmax(0, .8fr) minmax(0, .75fr);
+        justify-content: stretch;
+        overflow: hidden;
+        transform: translateX(-50%)
+      }
+
+      .day-pin-group .race-navigation-side {
+        min-width: 0
+      }
+
+      .day-pin-group .race-navigation-previous {
+        grid-template-columns: minmax(0, 1fr) 28px
+      }
+    }
+
+    @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (min-width: 1101px) and (max-width: 1400px) {
+      .page {
+        zoom: 1
+      }
+    }
   </style>
 </head>
 
@@ -2436,7 +2551,7 @@
     </header>
     <div class="print-banner" id="printBanner">
       <div class="print-title" id="printTitle">Live Race Countdown</div>
-      <div class="print-subtitle" id="printSubtitle">Para Track Cycling — Day 1</div>
+      <div class="print-subtitle" id="printSubtitle">Omnium &amp; Madison — Day 1</div>
     </div>
     <main class="content">
       <div id="programmeView">
@@ -2444,13 +2559,8 @@
           <div class="day-control"><select id="daySelect">
               <option>Day 1</option>
               <option>Day 2</option>
-              <option>Day 3</option>
-              <option>Day 4</option>
             </select></div>
-          <div class="tab-group">
-            <button class="active" data-view="programme">Para Track Cycling</button>
-            <button data-view="track">Track Cycling</button>
-          </div>
+          <div class="tab-group" id="programmeTabs" role="tablist" aria-label="Programme tabs"></div>
           <div class="race-controls">
             <label class="finished-races-control"><input type="checkbox" id="hideFinishedRacesToggle"><span>Hide finished races</span></label>
             <button class="pause" id="pauseDelay">Pause for Delay</button>
@@ -2500,6 +2610,7 @@
           <input type="file" id="pdfScheduleInput" accept=".pdf,application/pdf" style="display:none" onchange="handleSchedulePdfUpload(event)">
             <button type="button" class="schedule-action-button" id="uploadPdfBtn" onclick="triggerPdfUpload()"><span class="toolbar-icon" aria-hidden="true">↑</span>Upload PDF</button>
             <button type="button" class="schedule-action-button" onclick="downloadPdfProgramme()"><span class="toolbar-icon" aria-hidden="true">↓</span>Download PDF</button>
+            <button type="button" class="schedule-action-button" id="manageProgrammesButton" aria-haspopup="dialog" aria-controls="programmeModal" aria-expanded="false">+ Programme</button>
           </div>
         </div>
         <div class="toolbar-group toolbar-reset-group">
@@ -2509,6 +2620,14 @@
     </main>
   </div>
   <div class="pin-limit-toast" id="pinLimitToast" role="status" aria-live="polite" hidden>4/4 pins in use, unpin one to add another</div>
+  <div class="modal programme-modal" id="programmeModal">
+    <section class="programme-modal-panel" role="dialog" aria-modal="true" aria-labelledby="programmeModalTitle" aria-describedby="programmeModalDescription">
+      <button class="close" id="closeProgrammeModal" type="button" aria-label="Close programme options">&times;</button>
+      <h2 id="programmeModalTitle">Programmes</h2>
+      <p id="programmeModalDescription">Add or remove programme tabs. Your current schedule will stay as it is.</p>
+      <div class="programme-modal-options" id="programmeModalOptions"></div>
+    </section>
+  </div>
   <div class="modal" id="uploadModal">
     <div class="modal-panel" style="width: 1000px; max-width: 96vw; max-height: 94vh; display: flex; flex-direction: column; overflow: hidden;">
       <button class="close" id="closeUploadModal">&times;</button>
@@ -2558,7 +2677,7 @@
       elimination: { women: [1, 20], men: [1, 18] },
       pointsRace: { women: [1, 39], men: [1, 52] }
     };
-    const PROGRAMMES = { "Day 1": [["Morning Session", "10:00"], 
+    const PROGRAMMES =  { "Day 1": [["Morning Session", "10:00"], 
     ["MC1", "1 Km Time Trial", "Qualifying", { heats: 4, heatTime: 5 }],
     ["MC5", "1 Km Time Trial", "Qualifying", { heats: 15, heatTime: 3.5, nzlHeat: 8}],
     ["WC1", "Qualifying 200m", "Qualifying", { heats: 4, heatTime: 2 }],
@@ -2684,6 +2803,218 @@
     ["M/WB", "Team Sprint", "Final", { heats: 2, heatTime: 6 }], 
     ["M/WC1-5", "Team Sprint", "Final", { heats: 2, heatTime: 3.5 }], 
     ["", "Award Ceremonies", ""]] }; 
+    // Heat counts and durations are editable estimates where the provisional programme omits timing.
+    const OMNIUM_MADISON_PROGRAMMES = {
+      "Day 1": [
+        ["Session 1", "10:00"],
+        ["All Grades", "Sprint", "Qualifying", { heats: 32, heatTime: 1.5 }],
+        ["W U15", "Omnium", "Scratch - 4 km", { heats: 1, heatTime: 6 }],
+        ["W U17", "Omnium", "Scratch - 5 km", { heats: 1, heatTime: 6.5 }],
+        ["M U19", "Scratch - 7.5 km", "Final", { heats: 1, heatTime: 8 }],
+        ["M Elite", "Scratch - 10 km", "Final", { heats: 1, heatTime: 12 }],
+        ["W U19", "Omnium", "Scratch - 7.5 km", { heats: 1, heatTime: 8 }],
+        ["W Elite", "Omnium", "Scratch - 10 km", { heats: 1, heatTime: 15 }],
+        ["All Grades", "Sprint Groups", "1/8 Finals", { heats: 8, heatTime: 3 }],
+        ["W U15", "Omnium", "Tempo - 4 km", { heats: 1, heatTime: 6 }],
+        ["W U17", "Omnium", "Tempo - 5 km", { heats: 1, heatTime: 6.5 }],
+        ["M U19", "Elimination", "Final", { heats: 1, heatTime: 15 }],
+        ["M Elite", "Elimination", "Final", { heats: 1, heatTime: 18 }],
+        ["W U19", "Omnium", "Tempo - 7.5 km", { heats: 1, heatTime: 9.5 }],
+        ["W Elite", "Omnium", "Tempo - 10 km", { heats: 1, heatTime: 12 }],
+        ["Session 2", "16:00"],
+        ["All Grades", "Sprint Groups", "1/4 Finals", { heats: 4, heatTime: 6 }],
+        ["M U17", "Madison 15 km", "Final", { heats: 1, heatTime: 19 }],
+        ["W U15", "Omnium", "Elimination", { heats: 1, heatTime: 12 }],
+        ["W U17", "Omnium", "Elimination", { heats: 1, heatTime: 12 }],
+        ["W U19", "Omnium", "Elimination", { heats: 1, heatTime: 15 }],
+        ["W Elite", "Omnium", "Elimination", { heats: 1, heatTime: 18 }],
+        ["Para", "Tandem Team Sprint Showcase", "", { heats: 1, heatTime: 15 }],
+        ["M U19", "Madison 20 km", "Final", { heats: 1, heatTime: 26 }],
+        ["All Grades", "Sprint Groups", "1/2 Finals", { heats: 2, heatTime: 6 }],
+        ["W U15", "Omnium", "Points - 7.5 km", { heats: 1, heatTime: 9.5 }],
+        ["W U17", "Omnium", "Points - 10 km", { heats: 1, heatTime: 13 }],
+        ["W U19", "Omnium", "Points - 15 km", { heats: 1, heatTime: 20 }],
+        ["W Elite", "Omnium", "Points - 20 km", { heats: 1, heatTime: 26 }],
+        ["M Elite", "Madison 30 km", "Final", { heats: 1, heatTime: 36 }],
+        ["All Grades", "Sprint Groups", "Final", { heats: 1, heatTime: 9 }],
+        ["M U17", "Awards Presentation", "Madison", { heats: 1, heatTime: 3 }],
+        ["W U15", "Awards Presentation", "Omnium", { heats: 1, heatTime: 3 }],
+        ["W U17", "Awards Presentation", "Omnium", { heats: 1, heatTime: 3 }],
+        ["W U19", "Awards Presentation", "Omnium", { heats: 1, heatTime: 3 }],
+        ["W Elite", "Awards Presentation", "Omnium", { heats: 1, heatTime: 3 }],
+        ["M U19", "Awards Presentation", "Madison", { heats: 1, heatTime: 3 }],
+        ["M Elite", "Awards Presentation", "Madison", { heats: 1, heatTime: 3 }],
+        ["All Grades", "Awards Presentation", "Sprint", { heats: 1, heatTime: 3 }]
+      ],
+      "Day 2": [
+        ["Session 1", "10:00"],
+        ["Keirin", "Keirin", "1st Round", { heats: 4, heatTime: 4.5 }],
+        ["M U15", "Omnium", "Scratch - 4 km", { heats: 1, heatTime: 6 }],
+        ["M U17", "Omnium", "Scratch - 5 km", { heats: 1, heatTime: 6 }],
+        ["W U19", "Scratch - 7.5 km", "Final", { heats: 1, heatTime: 9.5 }],
+        ["W Elite", "Scratch - 10 km", "Final", { heats: 1, heatTime: 12 }],
+        ["M U19", "Omnium", "Scratch - 7.5 km", { heats: 1, heatTime: 9.5 }],
+        ["M Elite", "Omnium", "Scratch - 10 km", { heats: 1, heatTime: 12 }],
+        ["Keirin", "Keirin", "Repechages", { heats: 4, heatTime: 4.5 }],
+        ["M U15", "Omnium", "Tempo - 4 km", { heats: 1, heatTime: 6 }],
+        ["M U17", "Omnium", "Tempo - 5 km", { heats: 1, heatTime: 6 }],
+        ["W U19", "Elimination", "Final", { heats: 1, heatTime: 15 }],
+        ["W Elite", "Elimination", "Final", { heats: 1, heatTime: 18 }],
+        ["M U19", "Omnium", "Tempo - 7.5 km", { heats: 1, heatTime: 9.5 }],
+        ["M Elite", "Omnium", "Tempo - 10 km", { heats: 1, heatTime: 12 }],
+        ["Session 2", "15:00"],
+        ["Keirin", "Keirin", "Semi Final", { heats: 2, heatTime: 5 }],
+        ["W U17", "Madison 10 km", "Final", { heats: 1, heatTime: 15 }],
+        ["M U15", "Omnium", "Elimination", { heats: 1, heatTime: 12 }],
+        ["M U17", "Omnium", "Elimination", { heats: 1, heatTime: 12 }],
+        ["M U19", "Omnium", "Elimination", { heats: 1, heatTime: 15 }],
+        ["M Elite", "Omnium", "Elimination", { heats: 1, heatTime: 18 }],
+        ["Para", "Team Sprint Showcase", "", { heats: 1, heatTime: 15 }],
+        ["W U19", "Madison 15 km", "Final", { heats: 1, heatTime: 20 }],
+        ["W Elite", "Madison 20 km", "Final", { heats: 1, heatTime: 25 }],
+        ["Keirin", "Keirin", "Final A and B", { heats: 2, heatTime: 5 }],
+        ["M U15", "Omnium", "Points - 7.5 km", { heats: 1, heatTime: 9 }],
+        ["M U17", "Omnium", "Points - 10 km", { heats: 1, heatTime: 12 }],
+        ["M U19", "Omnium", "Points - 20 km", { heats: 1, heatTime: 26 }],
+        ["M Elite", "Omnium", "Points - 25 km", { heats: 1, heatTime: 30 }],
+        ["W U17", "Awards Presentation", "Madison", { heats: 1, heatTime: 3 }],
+        ["M U15", "Awards Presentation", "Omnium", { heats: 1, heatTime: 3 }],
+        ["M U17", "Awards Presentation", "Omnium", { heats: 1, heatTime: 3 }],
+        ["M U19", "Awards Presentation", "Omnium", { heats: 1, heatTime: 3 }],
+        ["M Elite", "Awards Presentation", "Omnium", { heats: 1, heatTime: 3 }],
+        ["W U19", "Awards Presentation", "Madison", { heats: 1, heatTime: 3 }],
+        ["W Elite", "Awards Presentation", "Madison", { heats: 1, heatTime: 3 }],
+        ["All Grades", "Awards Presentation", "Keirin", { heats: 1, heatTime: 3 }]
+      ]
+    };
+    // Retained copy of the para schedule data.
+    const PARA_TRACK_PROGRAMMES = {"Day 1": [["Morning Session", "10:00"], 
+    ["MC1", "1 Km Time Trial", "Qualifying", { heats: 4, heatTime: 5 }],
+    ["MC5", "1 Km Time Trial", "Qualifying", { heats: 15, heatTime: 3.5, nzlHeat: 8}],
+    ["WC1", "Qualifying 200m", "Qualifying", { heats: 4, heatTime: 2 }],
+    ["WB", "1 Km Time Trial", "Qualifying", { heats: 8, heatTime: 5, nzlHeat: 8}],
+    ["Afternoon Session", "13:00"],
+    ["WC5", "1 Km Time Trial", "Qualifying", { heats: 7, heatTime: 4, nzlHeat: 7}],
+    ["MC4", "1 Km Time Trial", "Qualifying", { heats: 11, heatTime: 4 }], 
+    ["MC3", "Qualifying 200m", "Qualifying", { heats: 14, heatTime: 2, nzlHeat: 11}], 
+    ["WC2", "1 Km Time Trial", "Qualifying", { heats: 4, heatTime: 4 }], 
+    ["MB", "4 Km Individual Pursuit", "Qualifying", { heats: 11, heatTime: 8 }], 
+    ["Evening Session", "18:00"], 
+    ["MC1", "1 Km Time Trial", "Final", { heats: 6, heatTime: 3 }],
+    ["MC5", "1 Km Time Trial", "Final", { heats: 6, heatTime: 3 }], 
+    ["MC2", "10 Km Scratch Race", "Final", { heats: 1, heatTime: 15 }], 
+    ["MC3", "Sprint", "1/2 Finals (1st)", { heats: 3, heatTime: 3 }], 
+    ["WB", "1 Km Time Trial", "Final", { heats: 6, heatTime: 3.5 }], 
+    ["WC1", "Sprint", "Final", { heats: 1, heatTime: 3 }], 
+    ["WC5", "1 Km Time Trial", "Final", { heats: 6, heatTime: 3.5 }], 
+    ["", "Award Ceremonies", ""], 
+    ["WC4", "10 Km Scratch Race", "Final", { heats: 1, heatTime: 18 }], 
+    ["MC4", "1 Km Time Trial", "Final", { heats: 6, heatTime: 3 }], 
+    ["MC3", "Sprint", "Final", { heats: 1, heatTime: 3 }], 
+    ["WC3", "10 Km Scratch Race", "Final", { heats: 1, heatTime: 18 }], 
+    ["WC2", "1 Km Time Trial", "Final", { heats: 6, heatTime: 3.5 }], 
+    ["MB", "4 Km Individual Pursuit", "Final", { heats: 2, heatTime: 7 }], 
+    ["MC5", "Elimination", "Qualifying", { heats: 2, heatTime: 13, nzlHeat: 1 }],
+    ["", "Award Ceremonies", ""]], 
+    "Day 2": [["Morning Session", "11:00"], 
+    ["WC3", "1 Km Time Trial", "Qualifying", { heats: 4, heatTime: 4.5 }], 
+    ["MC2", "Qualifying 200m", "Qualifying", { heats: 17, heatTime: 2 }],
+    ["MB", "1 Km Time Trial", "Qualifying", { heats: 17, heatTime: 4 }], 
+    ["MC3", "1 Km Time Trial", "Qualifying", { heats: 8, heatTime: 3.5, heatClassifications: { 8: "Devon" } }], 
+    ["Afternoon Session", "14:00"], 
+    ["WC4", "1 Km Time Trial", "Qualifying", { heats: 4, heatTime: 4.5, heatClassifications: { 1: "Anna", 4: "Siobhan" } }], 
+    ["MC4", "Qualifying 200m", "Qualifying", { heats: 22, heatTime: 2.5 }],
+    ["WB", "4 Km Individual Pursuit", "Qualifying", { heats: 6, heatTime: 8.5, heatClassifications: { 6: "Emma and Jessie" } }], 
+    ["Evening Session", "18:00"], 
+    ["WC3", "1 Km Time Trial", "Final", { heats: 6, heatTime: 4 }], 
+    ["MC2", "Sprint - Semi Finals", "1/2 Finals", { heats: 3, heatTime: 3 }], 
+    ["MC1", "10 Km Scratch Race", "Final", { heats: 1, heatTime: 15 }], 
+    ["MC4", "Sprint - Semi Finals", "1/2 Finals", { heats: 3, heatTime: 3 }], 
+    ["WC5", "Elimination", "Final", { heats: 1, heatTime: 15, heatClassifications: { 1: "Nicole" } }], 
+    ["MB", "1 Km Time Trial", "Final", { heats: 6, heatTime: 3 }], 
+    ["WC1/2", "10 Km Scratch Race", "Final", { heats: 1, heatTime: 18 }], 
+    ["", "Award Ceremonies", ""], 
+    ["MC2", "Sprint", "Final", { heats: 1, heatTime: 3 }], 
+    ["MC3", "1 Km Time Trial", "Final", { heats: 6, heatTime: 3 }], 
+    ["MC4", "Sprint", "Final", { heats: 1, heatTime: 3 }], 
+    ["WC4", "1 Km Time Trial", "Final", { heats: 6, heatTime: 4 }], 
+    ["MC5", "Elimination", "Final", { heats: 1, heatTime: 18 }], 
+    ["WB", "4 Km Individual Pursuit", "Final", { heats: 2, heatTime: 7 }],
+    ["MC4", "Elimination", "Qualifying", { heats: 1, heatTime: 18 }],
+    ["", "Award Ceremonies", ""]], 
+    "Day 3": [["Morning Session", "10:00"], 
+    ["WB", "Qualifying 200m", "Qualifying", { heats: 14, heatTime: 2.5 }], 
+    ["MB", "Qualifying 200m", "Qualifying", { heats: 28, heatTime: 2.5 }], 
+    ["WC2", "Qualifying 200m", "Qualifying", { heats: 7, heatTime: 2 }], 
+    ["MC5", "Qualifying 200m", "Qualifying", { heats: 27, heatTime: 2 }], 
+    ["WC4", "Qualifying 200m", "Qualifying", { heats: 8, heatTime: 2 }], 
+    ["WB", "Sprint", "1/4 Finals (1st)", { heats: 4, heatTime: 3.5 }], 
+    ["MB", "Sprint", "1/4 Finals (1st)", { heats: 4, heatTime: 3.5 }], 
+    ["Afternoon Session", "14:00"], 
+    ["WB", "Sprint", "1/4 Finals (2nd)", { heats: 4, heatTime: 3.5 }], 
+    ["MB", "Sprint", "1/4 Finals (2nd)", { heats: 4, heatTime: 3.5 }], 
+    ["WC5", "Sprint", "Qualifying", { heats: 14, heatTime: 2 }], 
+    ["MC2", "1 Km Time Trial", "Qualifying", { heats: 8, heatTime: 4 }],
+    ["MC4", "Scratch", "Qualifying", { heats: 2, heatTime: 12 }], 
+    ["WB", "Sprint", "1/4 Finals (3rd)", { heats: 2, heatTime: 3.5 }], 
+    ["MB", "Sprint", "1/4 Finals (3rd)", { heats: 2, heatTime: 3.5 }], 
+    ["Evening Session", "17:00"], 
+    ["WC2", "Sprint", "1/2 Finals", { heats: 2, heatTime: 3 }], 
+    ["WB", "Sprint", "1/2 Finals (1st)", { heats: 2, heatTime: 3.5 }], 
+    ["MB", "Sprint", "1/2 Finals (1st)", { heats: 2, heatTime: 3.5 }], 
+    ["MC5", "Sprint", "1/2 Finals", { heats: 3, heatTime: 3 }], 
+    ["MC1", "Elimination", "Final", { heats: 1, heatTime: 18 }], 
+    ["WC4", "Sprint", "1/2 Finals", { heats: 3, heatTime: 3 }], 
+    ["WB", "Sprint", "1/2 Finals (2nd)", { heats: 2, heatTime: 3.5 }], 
+    ["MB", "Sprint", "1/2 Finals (2nd)", { heats: 2, heatTime: 3.5 }], 
+    ["WC3", "Elimination", "Final", { heats: 1, heatTime: 15 }], 
+    ["WC5", "Sprint", "1/2 Finals", { heats: 3, heatTime: 3 }], 
+    ["MC2", "1 Km Time Trial", "Final", { heats: 6, heatTime: 3.5 }], 
+    ["WB", "Sprint", "1/2 Finals (3rd)", { heats: 2, heatTime: 3.5 }], 
+    ["MB", "Sprint", "1/2 Finals (3rd)", { heats: 2, heatTime: 3.5 }], 
+    [" ", "Award Ceremonies", " "],  
+    ["WC2", "Sprint", "Final", { heats: 1, heatTime: 3 }], 
+    ["WB", "Sprint", "Final (1st)", { heats: 2, heatTime: 3.5 }], 
+    ["MB", "Sprint", "Final (1st)", { heats: 2, heatTime: 3.5 }], 
+    ["WB", "Sprint", "7th - 8th Place", { heats: 1, heatTime: 4 }], 
+    ["WB", "Sprint", "5th - 6th Place", { heats: 1, heatTime: 4 }], 
+    ["MC5", "Sprint", "Final", { heats: 1, heatTime: 3 }], 
+    ["WC1", "1Km Time Trial", "Final", { heats: 6, heatTime: 3 }], 
+    ["WB", "Sprint", "Final (2nd)", { heats: 2, heatTime: 3.5 }], 
+    ["MB", "Sprint", "Final (2nd)", { heats: 2, heatTime: 3.5 }], 
+    ["MB", "Sprint", "7th - 8th Place", { heats: 1, heatTime: 4 }], 
+    ["MB", "Sprint", "5th - 6th Place", { heats: 1, heatTime: 4 }], 
+    ["MC4", "10 Km Scratch Race", "Final", { heats: 1, heatTime: 15 }], 
+    ["WC4", "Sprint", "Finals", { heats: 1, heatTime: 3 }], 
+    ["WC5", "Sprint", "Finals", { heats: 1, heatTime: 3 }], 
+    ["MC3", "Elimination", "Final", { heats: 1, heatTime: 18 }],
+    ["MC5", "Scratch", "Qualifying", { heats: 2, heatTime: 12 }],
+    ["WB", "Sprint", "Final (3rd)", { heats: 1, heatTime: 4 }], 
+    ["MB", "Sprint", "Final (3rd)", { heats: 1, heatTime: 4 }]], 
+    "Day 4": [["Morning Session", "09:00"], 
+    ["M/WC1-5", "Team Sprint", "Qualifying", { heats: 10, heatTime: 5 }], 
+    ["M/WB", "Team Sprint", "Qualifying 200m", { heats: 10, heatTime: 4 }], 
+    ["MC1", "Qualifying 200m", "Qualifying", { heats: 8, heatTime: 2 }], 
+    ["WC3", "Qualifying 200m", "Qualifying", { heats: 9, heatTime: 2 }], 
+    ["Afternoon Session", "13:00"], 
+    ["MC5", "10 Km Scratch Race", "Final", { heats: 1, heatTime: 15 }], 
+    ["MC2", "Elimination", "Final", { heats: 1, heatTime: 18 }], 
+    ["MC1", "Sprint", "1/2 Finals", { heats: 3, heatTime: 3 }], 
+    ["WC4", "Elimination", "Final", { heats: 1, heatTime: 10 }], 
+    ["WC3", "Sprint", "1/2 Finals", { heats: 3, heatTime: 3 }], 
+    ["", "Award Ceremonies", ""], 
+    ["MC3", "10 Km Scratch Race", "Final", { heats: 1, heatTime: 15 }], 
+    ["MC4", "Elimination", "Final", { heats: 1, heatTime: 18 }], 
+    ["WC5", "10 Km Scratch Race", "Final", { heats: 1, heatTime: 17 }], 
+    ["MC1", "Sprint", "Final", { heats: 1, heatTime: 3 }], 
+    ["", "Award Ceremonies", ""], 
+    ["WC1-2", "Elimination", "Final", { heats: 1, heatTime: 15 }], 
+    ["WC3", "Sprint", "Final", { heats: 1, heatTime: 3 }], 
+    ["", "Award Ceremonies", ""], 
+    ["M/WB", "Team Sprint", "Final", { heats: 2, heatTime: 6 }], 
+    ["M/WC1-5", "Team Sprint", "Final", { heats: 2, heatTime: 3.5 }], 
+    ["", "Award Ceremonies", ""]] }; 
+    // Track Cycling schedules, kept separate from the Omnium & Madison programme.
     const TRACK_PROGRAMMES = { "Day 1": [["Morning Session", "10:30"], 
     ["W", "Team Pursuit", "Qualifying"], 
     ["M", "Team Pursuit", "Qualifying"], 
@@ -2811,6 +3142,116 @@
     ["M", "Award Ceremony", ""], 
     ["M", "Award Ceremony", ""]]
   };
+
+    const C2_PROGRAMMES = {
+      "Day 1": [
+        ["Morning Session", "10:00"],
+        ["M", "Sprint", "Qualifying", { heats: 30, heatTime: 1.5 }],
+        ["W", "Scratch 10km", "Final", { heats: 1, heatTime: 15 }],
+        ["W", "Keirin", "First Round", { heats: 4, heatTime: 5 }],
+        ["M", "Points Race 30km", "Final", { heats: 1, heatTime: 40 }],
+        ["M", "Sprint", "1/8 Finals", { heats: 8, heatTime: 3 }],
+        ["MB", "1000m Time Trial", "Final", { heats: 4, heatTime: 3 }],
+        ["WB", "1000m Time Trial", "Final", { heats: 4, heatTime: 3 }],
+        ["MC1-5", "1000m Time Trial", "Final", { heats: 4, heatTime: 3 }],
+        ["WC1-5", "1000m Time Trial", "Final", { heats: 4, heatTime: 3 }],
+        ["W", "Points Race 20km", "Final", { heats: 1, heatTime: 28 }],
+        ["W", "Keirin", "Repechage i.r.", { heats: 4, heatTime: 5 }],
+        ["M", "Elimination Race", "Final", { heats: 1, heatTime: 20 }],
+        ["M", "Sprint", "1/4 Finals (1st)", { heats: 4, heatTime: 4 }],
+        ["W", "Elimination Race", "Final", { heats: 1, heatTime: 20 }],
+        ["M", "Sprint", "1/4 Finals (2nd)", { heats: 4, heatTime: 4 }],
+        ["W", "Keirin", "Semi Finals", { heats: 2, heatTime: 5 }],
+        ["M", "Sprint", "1/4 Finals (3rd) i.r.", { heats: 4, heatTime: 4 }],
+        ["", "Awards presentations", "W Scratch", { heats: 1, heatTime: 5 }],
+        ["", "Awards presentations", "M Points", { heats: 1, heatTime: 5 }],
+        ["", "Awards presentations", "W Points", { heats: 1, heatTime: 5 }],
+        ["", "Awards presentations", "M & W Elimination", { heats: 1, heatTime: 5 }],
+
+        ["Evening Session", "18:00"],
+        ["W", "Team Sprint", "Qualifying", { heats: 5, heatTime: 4 }],
+        ["M", "Scratch 15km", "Final", { heats: 1, heatTime: 17 }],
+        ["M", "Sprint", "Semi Finals (1st)", { heats: 1, heatTime: 8 }],
+        ["W", "Keirin", "Final", { heats: 1, heatTime: 10 }],
+        ["MC1-3", "Individual Pursuit", "3000m", { heats: 1, heatTime: 10 }],
+        ["WC1-3", "Individual Pursuit", "3000m", { heats: 1, heatTime: 10 }],
+        ["MC4-5", "Individual Pursuit", "4000m", { heats: 1, heatTime: 12 }],
+        ["WC4-5", "Individual Pursuit", "4000m", { heats: 1, heatTime: 12 }],
+        ["MB", "Individual Pursuit", "4000m", { heats: 1, heatTime: 12 }],
+        ["WB", "Individual Pursuit", "4000m", { heats: 1, heatTime: 12 }],
+        ["M", "Sprint", "Semi Finals (2nd)", { heats: 1, heatTime: 8 }],
+        ["W", "Team Sprint", "First Round i.r.", { heats: 4, heatTime: 5 }],
+        ["M", "Sprint", "Semi Finals (3rd) i.r. ", { heats: 1, heatTime: 8 }],
+        ["", "Awards presentations", "W Keirin", { heats: 1, heatTime: 5 }],
+        ["", "Awards presentations", "M Scratch", { heats: 1, heatTime: 5 }],
+        ["", "Awards presentations", "C1-C5 and B - Individual Pursuit", { heats: 1, heatTime: 5 }],
+        ["M", "Sprint", "Finals (1st)", { heats: 1, heatTime: 8 }],
+        ["M", "Madison 30km", "Final", { heats: 1, heatTime: 35 }],
+        ["M", "Sprint", "Finals (2nd)", { heats: 1, heatTime: 8 }],
+        ["W", "Team Sprint", "Finals", { heats: 2, heatTime: 6 }],
+        ["M", "Sprint", "Finals (3rd) i.r.", { heats: 1, heatTime: 8 }],
+        ["", "Awards presentations", "W Team Sprint", { heats: 1, heatTime: 5 }],
+        ["", "Awards presentations", "M Sprint", { heats: 1, heatTime: 5 }],
+        ["", "Awards presentations", "M Madison", { heats: 1, heatTime: 5 }]
+      ],
+      "Day 2": [
+        ["Morning Session", "10:00"],
+        ["W", "Sprint", "Qualifying", { heats: 30, heatTime: 1.5 }],
+        ["W", "Scratch 10km", "Final", { heats: 1, heatTime: 15 }],
+        ["M", "Keirin", "First Round", { heats: 4, heatTime: 5 }],
+        ["M", "Points Race 30km", "Final", { heats: 1, heatTime: 40 }],
+        ["W", "Sprint", "1/8 Finals i.r.", { heats: 8, heatTime: 3 }],
+        ["M/C1-5, M/WB", "Sprint", "Qualifying", { heats: 2, heatTime: 6 }],
+        ["W", "Points Race 20km", "Final", { heats: 1, heatTime: 28 }],
+        ["M", "Keirin", "Repechage i.r.", { heats: 4, heatTime: 5 }],
+        ["M", "Elimination", "Final", { heats: 1, heatTime: 20 }],
+        ["W", "Sprint", "1/4 Finals (1st)", { heats: 4, heatTime: 4 }],
+        ["MC1-5 / WC1-5", "Sprint", "Semi Final (1st)", { heats: 1, heatTime: 6 }],
+        ["MB / WB", "Sprint", "Final (1st)", { heats: 1, heatTime: 6 }],
+        ["W", "Elimination", "Final", { heats: 1, heatTime: 20 }],
+        ["W", "Sprint", "1/4 Finals (2nd)", { heats: 4, heatTime: 4 }],
+        ["M/WC1-5", "Sprint", "Semi Final (2nd)", { heats: 1, heatTime: 6 }],
+        ["MB / WB", "Sprint", "Semi Final (2nd)", { heats: 1, heatTime: 6 }],
+        ["M", "Keirin", "Semi Finals - 2 heats of 6", { heats: 2, heatTime: 5 }],
+        ["W", "Sprint", "1/4 Finals (3rd) i.r.", { heats: 4, heatTime: 4 }],
+        ["", "Awards presentations", "W Scratch", { heats: 1, heatTime: 5 }],
+        ["", "Awards presentations", "M Points Race", { heats: 1, heatTime: 5 }],
+        ["", "Awards presentations", "W Points Race", { heats: 1, heatTime: 5 }],
+        ["", "Awards presentations", "M & W Elimination", { heats: 1, heatTime: 5 }],
+
+        ["Evening Session", "18:00"],
+        ["M", "Team Sprint", "Qualifying", { heats: 5, heatTime: 4 }],
+        ["M", "Scratch 15km", "Final", { heats: 1, heatTime: 17 }],
+        ["W", "Sprint", "Semi Finals (1st)", { heats: 1, heatTime: 8 }],
+        ["M", "Keirin", "Final", { heats: 1, heatTime: 10 }],
+        ["W", "Sprint", "Semi Finals (2nd)", { heats: 1, heatTime: 8 }],
+        ["M/WC1-5", "Sprint", "Finals", { heats: 2, heatTime: 5 }],
+        ["MB / WB", "Sprint", "Final (2nd)", { heats: 1, heatTime: 6 }],
+        ["", "Awards presentations", "Para Sprint", { heats: 1, heatTime: 5 }],
+        ["M", "Team Sprint", "First Round i.r.", { heats: 4, heatTime: 5 }],
+        ["W", "Sprint", "Semi Finals (3rd) i.r.", { heats: 1, heatTime: 8 }],
+        ["", "Awards presentations", "M Keirin", { heats: 1, heatTime: 5 }],
+        ["", "Awards presentations", "M Scratch", { heats: 1, heatTime: 5 }],
+        ["W", "Madison 10km", "Final", { heats: 1, heatTime: 14 }],
+        ["M", "Team Sprint", "Finals", { heats: 2, heatTime: 6 }],
+        ["W", "Sprint", "Finals (1st)", { heats: 1, heatTime: 8 }],
+        ["M", "Madison 15km", "Final", { heats: 1, heatTime: 20 }],
+        ["W", "Sprint", "Finals (2nd)", { heats: 1, heatTime: 8 }],
+        ["W", "Sprint", "Finals - (3rd) i.r.", { heats: 1, heatTime: 8 }],
+        ["", "Awards presentations", "W Madison", { heats: 1, heatTime: 5 }],
+        ["", "Awards presentations", "M Team Sprint", { heats: 1, heatTime: 5 }],
+        ["", "Awards presentations", "W Sprint", { heats: 1, heatTime: 5 }],
+        ["", "Awards presentations", "M Madison", { heats: 1, heatTime: 5 }]
+      ]
+    };
+    const PROGRAMME_OPTIONS = [
+      { id: 'para', label: 'Para Track Cycling' },
+      { id: 'trackCycling', label: 'Track Cycling' },
+      { id: 'c2', label: 'C2 Grand Prix' },
+      { id: 'track', label: 'Omnium & Madison' }
+    ];
+    const DEFAULT_VISIBLE_PROGRAMMES = ['c2', 'track'];
+    
     // LocalStorage management
     const STORE = 'trackCompetitionProgrammeDataV3';
     let saved = {};
@@ -2830,7 +3271,7 @@
     let manualStartHeat = 0;
     let pausedAt = null;
     let totalDelayMs = 0;
-    let currentProgramme = 'para';
+    let currentProgramme = 'track';
     let scheduleEditMode = false;
     let hideFinishedRaces = false;
     // Event-row index at which each session starts, with its scheduled Date
@@ -2853,16 +3294,124 @@
       localStorage.setItem(STORE, JSON.stringify(saved));
     }
 
+    function defaultProgrammes(progType) {
+      if (progType === 'track') return OMNIUM_MADISON_PROGRAMMES;
+      if (progType === 'trackCycling') return TRACK_PROGRAMMES;
+      if (progType === 'c2') return C2_PROGRAMMES;
+      return PROGRAMMES;
+    }
+
     function getProgrammes(progType = currentProgramme) {
       const custom = saved[`customProgrammes_${progType}`];
+      if (progType === 'c2') {
+        return {
+          ...defaultProgrammes(progType),
+          ...(custom && typeof custom === 'object' ? custom : {})
+        };
+      }
       if (custom && typeof custom === 'object' && Object.keys(custom).length > 0) {
         return custom;
       }
-      return progType === 'track' ? TRACK_PROGRAMMES : PROGRAMMES;
+      return defaultProgrammes(progType);
     }
 
     function activeProgrammes() {
       return getProgrammes(currentProgramme);
+    }
+
+    function clearFreshC2ScheduleFlags() {
+      let changed = false;
+      Object.keys(C2_PROGRAMMES).forEach(day => {
+        const key = `freshSchedule|c2|${day}`;
+        const customSchedule = saved.customProgrammes_c2?.[day];
+        if (Array.isArray(customSchedule) && customSchedule.every(item => Array.isArray(item) && item.length === 2)) {
+          delete saved.customProgrammes_c2[day];
+          changed = true;
+        }
+        if (Object.prototype.hasOwnProperty.call(saved, key)) {
+          delete saved[key];
+          changed = true;
+        }
+      });
+      if (changed) persist();
+    }
+
+    function programmeName(programme = currentProgramme) {
+      return PROGRAMME_OPTIONS.find(option => option.id === programme)?.label || 'Para Track Cycling';
+    }
+
+    function visibleProgrammeIds() {
+      const savedIds = Array.isArray(saved.visibleProgrammes)
+        ? saved.visibleProgrammes
+        : DEFAULT_VISIBLE_PROGRAMMES;
+      const validIds = new Set(PROGRAMME_OPTIONS.map(option => option.id));
+      return savedIds.filter((id, index) => validIds.has(id) && savedIds.indexOf(id) === index);
+    }
+
+    function renderProgrammeControls() {
+      const tabs = document.getElementById('programmeTabs');
+      const visibleIds = visibleProgrammeIds();
+      tabs.innerHTML = visibleIds.map(id => {
+        const option = PROGRAMME_OPTIONS.find(item => item.id === id);
+        return `<button type="button" role="tab" aria-selected="${currentProgramme === id}" data-view="${id}" class="${currentProgramme === id ? 'active' : ''}">${escapeHtml(option.label)}</button>`;
+      }).join('');
+      tabs.querySelectorAll('button[data-view]').forEach(button => {
+        button.onclick = () => switchView(button.dataset.view);
+      });
+    }
+
+    function renderProgrammeModalOptions() {
+      const options = document.getElementById('programmeModalOptions');
+      const visibleIds = visibleProgrammeIds();
+      options.innerHTML = PROGRAMME_OPTIONS.map(option => {
+        const added = visibleIds.includes(option.id);
+        const keepOneTab = added && visibleIds.length === 1;
+        const action = keepOneTab ? 'Keep one tab' : added ? 'Remove' : 'Add';
+        return `<button type="button" class="programme-option-button" data-programme-toggle="${option.id}" aria-pressed="${added}" ${keepOneTab ? 'disabled' : ''}><span>${escapeHtml(option.label)}</span><span class="programme-option-action">${action}</span></button>`;
+      }).join('');
+      options.querySelectorAll('button[data-programme-toggle]').forEach(button => {
+        button.onclick = () => toggleProgrammeTab(button.dataset.programmeToggle);
+      });
+    }
+
+    function addProgrammeTab(programme) {
+      if (!PROGRAMME_OPTIONS.some(option => option.id === programme)) return;
+      const visibleIds = visibleProgrammeIds();
+      if (visibleIds.includes(programme)) return;
+      saved.visibleProgrammes = [...visibleIds, programme];
+      persist();
+      renderProgrammeControls();
+      if (document.getElementById('programmeModal').classList.contains('open')) {
+        renderProgrammeModalOptions();
+      }
+    }
+
+    function toggleProgrammeTab(programme) {
+      if (!PROGRAMME_OPTIONS.some(option => option.id === programme)) return;
+      const visibleIds = visibleProgrammeIds();
+      if (visibleIds.includes(programme)) {
+        if (visibleIds.length <= 1) return;
+        saved.visibleProgrammes = visibleIds.filter(id => id !== programme);
+      } else {
+        saved.visibleProgrammes = [...visibleIds, programme];
+      }
+      persist();
+      renderProgrammeControls();
+      renderProgrammeModalOptions();
+      document.querySelector(`#programmeModalOptions [data-programme-toggle="${programme}"]`)?.focus();
+    }
+
+    function openProgrammeModal() {
+      renderProgrammeModalOptions();
+      document.getElementById('programmeModal').classList.add('open');
+      document.getElementById('manageProgrammesButton').setAttribute('aria-expanded', 'true');
+      document.querySelector('#programmeModalOptions button:not(:disabled)')?.focus();
+    }
+
+    function closeProgrammeModal() {
+      document.getElementById('programmeModal').classList.remove('open');
+      document.getElementById('manageProgrammesButton').setAttribute('aria-expanded', 'false');
+      document.getElementById('manageProgrammesButton').focus();
     }
 
     function stateKey() {
@@ -2922,8 +3471,13 @@
       return `${c}|${e}`;
     }
     function trackDefaults(classification, event, round) {
-      if (currentProgramme !== 'track') return null;
-      const gender = classification === 'W' ? 'women' : classification === 'M' ? 'men' : '';
+      if (currentProgramme !== 'track' && currentProgramme !== 'trackCycling' && currentProgramme !== 'c2') return null;
+      const normalizedClassification = classification.trim().toLowerCase();
+      const gender = normalizedClassification === 'w' || normalizedClassification.startsWith('women')
+        ? 'women'
+        : normalizedClassification === 'm' || normalizedClassification.startsWith('men')
+          ? 'men'
+          : '';
       const e = event.toLowerCase();
       const r = round.toLowerCase();
       const D = TRACK_EVENT_DEFAULTS;
@@ -2939,7 +3493,7 @@
         return make(D.teamPursuit.other);
       }
       if (e.includes('individual pursuit')) return make(r.includes('qualif') ? D.individualPursuit.qualifying[gender] : D.individualPursuit.other);
-      if (e.includes('1km time trial')) return make(r.includes('qualif') ? D.timeTrial.qualifying[gender] : D.timeTrial.other);
+      if (e.includes('1km time trial') || e.includes('1000m time trial')) return make(r.includes('qualif') ? D.timeTrial.qualifying[gender] : D.timeTrial.other);
       if (e === 'sprint') {
         // Decider ("3rd i.r.") heats always take priority over their round-tier (1/4, 1/2, etc.)
         if (r.includes('3rd i.r.')) return make(D.sprint.decider3rd);
@@ -3087,9 +3641,7 @@
     function num(i, f, d = '', ph = '') {
       const step = f === 'heatTime' ? '0.5' : '1';
       const value = get(daySelect.value, i, f, d);
-      const inputType = f === 'heatTime' ? 'text' : 'number';
-      const inputAttributes = f === 'heatTime' ? 'inputmode="decimal"' : `min="0" step="${step}"`;
-      return `<input class="number-input" type="${inputType}" ${inputAttributes} data-index="${i}" data-field="${f}" value="${value}" placeholder="${ph}">`;
+      return `<input class="number-input" type="number" min="0" step="${step}" data-index="${i}" data-field="${f}" value="${value}" placeholder="${ph}">`;
     }
 
     function escapeHtml(value) {
@@ -3122,6 +3674,10 @@
 
     function isAwardCeremonyName(name) {
       return /award\s+ceremon(y|ies)/i.test(name || '');
+    }
+
+    function isPinExcludedEvent(name) {
+      return /sports?\s+presentations?|awards?\s+presentations?|award\s+ceremon(y|ies)/i.test(name || '');
     }
 
     function raceNavigationRows() {
@@ -3225,7 +3781,7 @@
       document.getElementById('hideFinishedRacesToggle').checked = hideFinishedRaces;
       let idx = 0;
       const scheduleItems = activeProgrammes()[daySelect.value] || [];
-      const isFreshSchedule = saved[`freshSchedule|${currentProgramme}|${daySelect.value}`] === true;
+      const isFreshSchedule = currentProgramme !== 'c2' && saved[`freshSchedule|${currentProgramme}|${daySelect.value}`] === true;
       const eventCount = scheduleItems.filter(item => item.length !== 2).length;
       sessionBoundaries = [];
       let currentSessionCollapsed = false;
@@ -3263,11 +3819,11 @@
 
         // Handle event rows
         const [c, e, round, raceOverride] = item;
-        const suggestedDefaults = currentProgramme === 'track' ? trackDefaults(c, e, round) : paraDefaults(c, e, round);
-        const suggested = raceOverride ? { ...suggestedDefaults, ...raceOverride } : suggestedDefaults;
+        const suggestedDefaults = currentProgramme === 'para' ? paraDefaults(c, e, round) : trackDefaults(c, e, round);
+        let suggested = raceOverride ? { ...suggestedDefaults, ...raceOverride } : suggestedDefaults;
         const isManualEvent = raceOverride?.manual === true;
         const isAwardCeremony = isAwardCeremonyName(e);
-        const isPinExcluded = /sports?\s+presentations?|award\s+ceremon(y|ies)/i.test(e);
+        const isPinExcluded = isPinExcludedEvent(e);
         const special = !isManualEvent && (!c || isAwardCeremony);
         const displayClassification = isAwardCeremony ? '' : c;
         const row = document.createElement('tr');
@@ -3397,7 +3953,7 @@
       const heatCount = Number(row.querySelector('[data-field="heats"]')?.value) || 0;
       const pinActions = row.querySelector('.race-actions');
       const currentPin = pinActions?.querySelector('.pin-button[data-heat="0"]');
-      const pinExcluded = /sports?\s+presentations?|award\s+ceremon(y|ies)/i.test(row.dataset.event || '');
+      const pinExcluded = isPinExcludedEvent(row.dataset.event);
       const hasEventName = row.dataset.manual !== 'true' || row.dataset.event.trim() || row.dataset.classification.trim();
       const shouldHavePin = heatCount === 1 && row.dataset.special !== 'true' && !pinExcluded && hasEventName;
 
@@ -3793,8 +4349,8 @@
     }
 
     function jumpToPinnedRace(pin) {
-      const targetView = pin.programme === 'track' ? 'track' : 'programme';
-      if (currentProgramme !== pin.programme) switchView(targetView);
+      if (!visibleProgrammeIds().includes(pin.programme)) addProgrammeTab(pin.programme);
+      if (currentProgramme !== pin.programme) switchView(pin.programme);
 
       const days = [...daySelect.options].map(option => option.value);
       if (!days.includes(pin.day)) return;
@@ -3929,7 +4485,16 @@
     function updatePinnedRaceCountdown() {
       const container = document.getElementById('pinnedRaceTiles');
       const pins = getPinnedRaces();
-      const visiblePins = pins.filter(pin => pin.programme === currentProgramme);
+      const validPins = pins.filter(pin => {
+        const scheduledEvent = (getProgrammes(pin.programme)[pin.day] || [])
+          .filter(item => item.length !== 2)[Number(pin.index)];
+        return !isPinExcludedEvent(scheduledEvent?.[1] || pin.eventLabel);
+      });
+      if (validPins.length !== pins.length) {
+        saved.pinnedRaces = validPins;
+        persist();
+      }
+      const visiblePins = validPins.filter(pin => pin.programme === currentProgramme);
       container.dataset.pinCount = visiblePins.length;
       document.getElementById('pinnedRaceEmpty').hidden = visiblePins.length > 0;
       const pinKeys = new Set(visiblePins.map(pinnedRaceKey));
@@ -3944,12 +4509,16 @@
       visiblePins.forEach((pin, pinOrder) => {
         const index = Number(pin.index);
         const heatNumber = Number(pin.heat) || 0;
+        const scheduledEvent = (getProgrammes(pin.programme)[pin.day] || [])
+          .filter(item => item.length !== 2)[index];
         const isActiveView = pin.programme === currentProgramme && pin.day === daySelect.value;
         const row = isActiveView ? body.querySelector(`.event-row[data-index="${index}"]`) : null;
         let targetStart = pin.targetStart ? new Date(pin.targetStart) : null;
         let targetDuration = Number(pin.targetDuration) || 0;
+        let classification = scheduledEvent?.[0] || pin.classification || '';
+        let round = scheduledEvent?.[2] || pin.round || '';
         let country = heatNumber > 0 ? pin.country || '' : '';
-        let eventLabel = pin.eventLabel || '';
+        let eventLabel = scheduledEvent?.[1] || pin.eventLabel || '';
 
         if (row?._start) {
           const heatDuration = Number(row.querySelector('[data-field="heatTime"]')?.value) || 0;
@@ -3969,14 +4538,14 @@
           country = heatNumber > 0
             ? heatClass || ''
             : singleHeatName || '';
-          const classification = currentProgramme === 'para'
-            ? row.dataset.classification
-            : row.dataset.classification.match(/^[MW]/)?.[0] || '';
-          eventLabel = [classification, row.dataset.event].filter(Boolean).join(' ');
+          classification = row.dataset.classification;
+          round = row.dataset.round;
+          eventLabel = row.dataset.event;
 
           const targetIso = targetStart.toISOString();
-          if (pin.targetStart !== targetIso || pin.targetDuration !== targetDuration || pin.country !== country || pin.eventLabel !== eventLabel) {
-            Object.assign(pin, { targetStart: targetIso, targetDuration, country, eventLabel });
+          if (pin.targetStart !== targetIso || pin.targetDuration !== targetDuration || pin.country !== country ||
+              pin.classification !== classification || pin.round !== round || pin.eventLabel !== eventLabel) {
+            Object.assign(pin, { targetStart: targetIso, targetDuration, country, classification, round, eventLabel });
             shouldPersist = true;
           }
         }
@@ -4015,12 +4584,22 @@
           const eventSeparator = document.createElement('span');
           eventSeparator.className = 'pinned-race-separator';
           eventSeparator.textContent = '·';
+          const classificationLabel = document.createElement('span');
+          classificationLabel.className = 'pinned-race-classification';
+          const classificationSeparator = document.createElement('span');
+          classificationSeparator.className = 'pinned-race-separator';
+          classificationSeparator.textContent = '·';
+          const roundLabel = document.createElement('span');
+          roundLabel.className = 'pinned-race-round';
+          const roundSeparator = document.createElement('span');
+          roundSeparator.className = 'pinned-race-separator';
+          roundSeparator.textContent = '·';
           const countdown = document.createElement('strong');
           countdown.className = 'pinned-race-countdown';
           const delay = document.createElement('span');
           delay.className = 'pinned-race-delay';
 
-          eventLine.append(startTimeLabel, eventSeparator, eventLabelElement);
+          eventLine.append(startTimeLabel, eventSeparator, classificationLabel, classificationSeparator, eventLabelElement, roundSeparator, roundLabel);
           tile.append(close, jump, countryLabel, countdown, delay, eventLine);
           container.appendChild(tile);
         }
@@ -4030,14 +4609,27 @@
         const eventWithDay = pin.day === daySelect.value
           ? eventLabel
           : [pin.day, eventLabel].filter(Boolean).join(' · ');
+        const roundFirstWord = round.trim().split(/\s+/)[0] || '';
+        const roundTag = /^qualifying$/i.test(roundFirstWord) ? 'Qual' : roundFirstWord;
         tile.querySelector('.pinned-race-country').textContent = nameAndHeat;
+        tile.querySelector('.pinned-race-country').title = nameAndHeat;
         tile.querySelector('.pinned-race-country').hidden = !nameAndHeat;
+        tile.querySelector('.pinned-race-classification').textContent = classification;
+        tile.querySelector('.pinned-race-classification').title = classification;
+        tile.querySelector('.pinned-race-classification').hidden = !classification;
+        tile.querySelector('.pinned-race-round').textContent = roundTag;
+        tile.querySelector('.pinned-race-round').title = round;
+        tile.querySelector('.pinned-race-round').hidden = !roundTag;
         tile.querySelector('.pinned-race-event').textContent = eventWithDay;
+        tile.querySelector('.pinned-race-event').title = eventWithDay;
         tile.querySelector('.pinned-race-event').hidden = !eventWithDay;
         const startTimeLabel = tile.querySelector('.pinned-race-start-time');
         startTimeLabel.textContent = fmt(targetStart);
         startTimeLabel.hidden = !targetStart;
-        tile.querySelector('.pinned-race-separator').hidden = !targetStart || !eventWithDay;
+        const separators = tile.querySelectorAll('.pinned-race-separator');
+        separators[0].hidden = !targetStart;
+        separators[1].hidden = !classification || !eventWithDay;
+        separators[2].hidden = !roundTag || !eventWithDay;
 
         const displayedDelayMs = totalDelayMs + (pausedAt ? Date.now() - pausedAt.getTime() : 0);
         const delayElement = tile.querySelector('.pinned-race-delay');
@@ -4221,7 +4813,7 @@
     function updatePrintHeader() {
       const titleEl = document.getElementById('printTitle');
       const subEl = document.getElementById('printSubtitle');
-      const progName = currentProgramme === 'track' ? 'Track Cycling' : 'Para Track Cycling';
+      const progName = programmeName();
       if (titleEl) titleEl.textContent = 'Live Race Countdown';
       if (subEl) subEl.textContent = `${progName} — ${daySelect.value}`;
     }
@@ -4233,7 +4825,7 @@
 
     function downloadPdfProgramme() {
       updatePrintHeader();
-      const progName = currentProgramme === 'track' ? 'Track Cycling' : 'Para Track Cycling';
+      const progName = programmeName();
       const day = daySelect.value;
       const fileName = `${progName.replace(/\s+/g, '_')}_${day.replace(/\s+/g, '_')}_Programme.pdf`;
 
@@ -4528,7 +5120,7 @@
 
     // Reuse the exact round wording from the hard-coded programme so defaults and styling match
     function canonicalPdfRound(prog, cls, eventName, round) {
-      const items = Object.values(prog === 'track' ? TRACK_PROGRAMMES : PROGRAMMES).flat()
+      const items = Object.values(defaultProgrammes(prog)).flat()
         .filter(x => x.length === 3 && normPdfLabel(x[1]) === normPdfLabel(eventName));
       if (!round) {
         const same = items.find(x => x[0] === cls) || items[0];
@@ -4539,7 +5131,7 @@
     }
 
     function pdfEventName(ev, prog, round) {
-      const track = prog === 'track';
+      const track = prog === 'track' || prog === 'trackCycling' || prog === 'c2';
       switch (ev.kind) {
         case 'teamSprint': return 'Team Sprint';
         case 'teamPursuit': return 'Team Pursuit';
@@ -4557,7 +5149,7 @@
     }
 
     function buildPdfItem(row, prog) {
-      const track = prog === 'track';
+      const track = prog === 'track' || prog === 'trackCycling' || prog === 'c2';
       if (row.ceremony) {
         if (row.ceremony === 'Award Ceremony') {
           return track ? [/^[WM]$/.test(row.cls) ? row.cls : '', 'Award Ceremony', ''] : ['', 'Award Ceremonies', ''];
@@ -4821,8 +5413,10 @@
         <div class="modal-fields">
           <div class="modal-field"><label for="importProgSelect">Target Discipline</label>
             <select id="importProgSelect" onchange="parsedPdfScheduleData.targetProg = this.value; parsedPdfScheduleData.editableSchedule = buildScheduleFromPdf(parsedPdfScheduleData.parsed, this.value); renderUploadModalPreview()">
+              <option value="c2" ${targetProg === 'c2' ? 'selected' : ''}>C2 Grand Prix</option>
               <option value="para" ${targetProg === 'para' ? 'selected' : ''}>Para Track Cycling</option>
-              <option value="track" ${targetProg === 'track' ? 'selected' : ''}>Track Cycling</option>
+              <option value="trackCycling" ${targetProg === 'trackCycling' ? 'selected' : ''}>Track Cycling</option>
+              <option value="track" ${targetProg === 'track' ? 'selected' : ''}>Omnium &amp; Madison</option>
             </select>
           </div>
           <div class="modal-field"><label for="importDaySelect">Apply To</label>
@@ -5108,7 +5702,8 @@
 
       // If imported discipline is different from current tab, switch tab
       if (currentProgramme !== targetProg) {
-        switchView(targetProg === 'track' ? 'track' : 'programme');
+        addProgrammeTab(targetProg);
+        switchView(targetProg);
       } else {
         const days = Object.keys(activeProgrammes());
         daySelect.innerHTML = days.map(d => `<option value="${d}">${d}</option>`).join('');
@@ -5440,19 +6035,15 @@
 
     // Tab switching between programme types
     function switchView(view) {
-      if (view !== 'track' && view !== 'programme') return;
+      if (!visibleProgrammeIds().includes(view)) return;
       scheduleEditMode = false;
       updateScheduleEditButton();
       saved['activeView'] = view;
-      if (view === 'track' || view === 'programme') {
-        currentProgramme = view === 'track' ? 'track' : 'para';
-        saved['currentProgramme'] = currentProgramme;
-      }
+      currentProgramme = view;
+      saved['currentProgramme'] = currentProgramme;
+      if (currentProgramme === 'c2') clearFreshC2ScheduleFlags();
       persist();
-
-      document.querySelectorAll('.tabs button[data-view]').forEach(x => {
-        x.classList.toggle('active', x.dataset.view === view);
-      });
+      renderProgrammeControls();
 
       document.getElementById('programmeView').style.display = 'block';
 
@@ -5473,10 +6064,6 @@
       updatePinnedRaceCountdown();
     }
 
-    document.querySelectorAll('.tabs button[data-view]').forEach(b => {
-      b.onclick = () => switchView(b.dataset.view);
-    });
-
     const resetConfirmModal = document.getElementById('resetConfirmModal');
     let resetConfirmTrigger = null;
     let resetEverythingMode = false;
@@ -5488,8 +6075,8 @@
     function resetSelectedDay() {
       const day = daySelect.value;
       const programmes = { ...activeProgrammes() };
-      const defaultProgrammes = currentProgramme === 'track' ? TRACK_PROGRAMMES : PROGRAMMES;
-      const defaultSchedule = defaultProgrammes[day];
+      const programmeDefaults = defaultProgrammes(currentProgramme);
+      const defaultSchedule = programmeDefaults[day];
       const isFreshSchedule = !defaultSchedule;
 
       programmes[day] = defaultSchedule
@@ -5530,7 +6117,7 @@
     document.getElementById('resetConfirmEverything').onclick = () => {
       resetEverythingMode = true;
       document.getElementById('resetConfirmTitle').textContent = 'Reset everything?';
-      document.getElementById('resetConfirmMessage').textContent = 'This will clear all saved schedules, race timing, pinned races, and preferences for both programmes, then restore defaults. This cannot be undone.';
+      document.getElementById('resetConfirmMessage').textContent = 'This will clear all saved schedules, race timing, pinned races, and preferences for all programmes, then restore defaults. This cannot be undone.';
       document.getElementById('resetConfirmEverything').hidden = true;
       document.getElementById('resetConfirmAction').textContent = 'Reset everything';
       document.getElementById('resetConfirmAction').focus();
@@ -5546,8 +6133,15 @@
     resetConfirmModal.onclick = event => {
       if (event.target === resetConfirmModal) closeResetConfirm();
     };
+    const programmeModal = document.getElementById('programmeModal');
+    document.getElementById('manageProgrammesButton').onclick = openProgrammeModal;
+    document.getElementById('closeProgrammeModal').onclick = closeProgrammeModal;
+    programmeModal.onclick = event => {
+      if (event.target === programmeModal) closeProgrammeModal();
+    };
     document.addEventListener('keydown', event => {
       if (event.key === 'Escape' && resetConfirmModal.classList.contains('open')) closeResetConfirm();
+      else if (event.key === 'Escape' && programmeModal.classList.contains('open')) closeProgrammeModal();
       if (
         event.key === 'Enter' &&
         window.matchMedia('(hover: none) and (pointer: coarse)').matches &&
@@ -5592,9 +6186,70 @@
 
     // Initialize the application with persisted tab, programme, day and collapsed states
     function initApp() {
-      const activeView = saved['activeView'] === 'track' ? 'track' : 'programme';
-      currentProgramme = saved['currentProgramme'] || (activeView === 'track' ? 'track' : 'para');
+      const DAY_RENAMES = {
+        track: {
+          'Wednesday': 'Day 1',
+          'Thursday': 'Day 2',
+          'Om & M Day 1': 'Day 1',
+          'Om & M Day 2': 'Day 2'
+        },
+        c2: { 'C2 Grand Prix Day 1': 'Day 1' }
+      };
+      const renameDay = (programme, day) => DAY_RENAMES[programme][day] || day;
+      let migrated = false;
+      Object.keys(saved).forEach(k => {
+        const m = k.match(/^(track|state\|track|collapsed\|track|hideFinishedRaces\|track|freshSchedule\|track|c2|state\|c2|collapsed\|c2|hideFinishedRaces\|c2|freshSchedule\|c2)\|([^|]+)(\|.*)?$/);
+        const programme = m && (m[1] === 'c2' || m[1].endsWith('|c2')) ? 'c2' : 'track';
+        if (m && DAY_RENAMES[programme][m[2]]) {
+          saved[`${m[1]}|${renameDay(programme, m[2])}${m[3] || ''}`] = saved[k];
+          delete saved[k];
+          migrated = true;
+        }
+      });
+      ['track', 'c2'].forEach(programme => {
+        const custom = saved[`customProgrammes_${programme}`];
+        if (custom && typeof custom === 'object' && Object.keys(custom).some(day => DAY_RENAMES[programme][day])) {
+          const renamed = {};
+          Object.keys(custom).forEach(day => { renamed[renameDay(programme, day)] = custom[day]; });
+          saved[`customProgrammes_${programme}`] = renamed;
+          migrated = true;
+        }
+        const selectedDayKey = `selectedDay|${programme}`;
+        if (DAY_RENAMES[programme][saved[selectedDayKey]]) {
+          saved[selectedDayKey] = renameDay(programme, saved[selectedDayKey]);
+          migrated = true;
+        }
+      });
+      if (Array.isArray(saved.pinnedRaces)) {
+        saved.pinnedRaces.forEach(pin => {
+          if (DAY_RENAMES[pin.programme]?.[pin.day]) {
+            pin.day = renameDay(pin.programme, pin.day);
+            migrated = true;
+          }
+        });
+      }
+      if (migrated) persist();
 
+      let visibleIds = visibleProgrammeIds();
+      if (!visibleIds.length) visibleIds = [...DEFAULT_VISIBLE_PROGRAMMES];
+      if (JSON.stringify(saved.visibleProgrammes) !== JSON.stringify(visibleIds)) {
+        saved.visibleProgrammes = visibleIds;
+        migrated = true;
+      }
+      const requestedView = saved['currentProgramme'] || saved['activeView'];
+      const activeView = visibleIds.includes(requestedView)
+        ? requestedView
+        : visibleIds.includes('track') ? 'track' : visibleIds[0];
+      currentProgramme = activeView;
+      if (saved['currentProgramme'] !== currentProgramme || saved['activeView'] !== activeView) {
+        saved['currentProgramme'] = currentProgramme;
+        saved['activeView'] = activeView;
+        migrated = true;
+      }
+      if (currentProgramme === 'c2') clearFreshC2ScheduleFlags();
+      if (migrated) persist();
+
+      renderProgrammeControls();
       const days = Object.keys(activeProgrammes());
       daySelect.innerHTML = days.map(d => `<option value="${d}">${d}</option>`).join('');
 
@@ -5606,10 +6261,6 @@
         saved[`selectedDay|${currentProgramme}`] = daySelect.value;
         persist();
       }
-
-      document.querySelectorAll('.tabs button[data-view]').forEach(x => {
-        x.classList.toggle('active', x.dataset.view === activeView);
-      });
 
       document.getElementById('programmeView').style.display = 'block';
 
