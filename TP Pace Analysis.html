@@ -1139,11 +1139,26 @@
       athleteRows = rows.filter(row => row.Front != null && row.Front !== "");
       if (!athleteRows.length) throw new Error(`No athlete rows were found in the ${sheetName} sheet.`);
 
-      const athletes = [...new Set(athleteRows.map(row => String(row.Front)))].sort((a, b) => a.localeCompare(b));
-        elements.athleteSelect.innerHTML = athletes.map(name => {
-          const escapedName = name.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;");
-          return `<option value="${escapedName}">${escapedName}</option>`;
-        }).join("");
+      // The workbooks have no nationality column: NZL riders use first-name-first capitalization.
+      const firstName = name => name.trim().split(/\s+/)[0];
+      const isNzAthlete = name => {
+        const first = firstName(name);
+        return first.length > 0 && first[0] === first[0].toLocaleUpperCase() && first !== first.toLocaleUpperCase();
+      };
+      const athletes = [...new Set(athleteRows.map(row => String(row.Front)))].sort((a, b) => {
+        const aIsNz = isNzAthlete(a);
+        const bIsNz = isNzAthlete(b);
+        if (aIsNz !== bIsNz) return aIsNz ? -1 : 1;
+        if (aIsNz) {
+          const firstNameOrder = firstName(a).localeCompare(firstName(b));
+          if (firstNameOrder !== 0) return firstNameOrder;
+        }
+        return a.localeCompare(b);
+      });
+      elements.athleteSelect.innerHTML = athletes.map(name => {
+        const escapedName = name.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;");
+        return `<option value="${escapedName}">${escapedName}</option>`;
+      }).join("");
       elements.athleteSelect.disabled = false;
       updateRaceOptions();
       elements.sheetInfo.textContent = `${athleteRows.length} records from ${sourceName} | ${sheetName}`;
